@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Turborepo
+.turbo/
+
+# Test coverage
+coverage/
+
+# Logs
+*.log
+
+# Environment
+.env*
+
+# OS
+.DS_Store
+
+# Tooling
+.playwright-mcp/
+*.tsbuildinfo
