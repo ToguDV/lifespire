@@ -1,0 +1,243 @@
+{
+  "engineVersion": "0.1.0",
+  "seed": "4263e92051e60abcd47fd7c8ff0f2929c759f82a280a8a5a303d143513d43f8c",
+  "profileId": "m0",
+  "rows": [
+    {
+      "index": 0,
+      "nodeIds": ["n-1-0", "n-1-1"]
+    },
+    {
+      "index": 1,
+      "nodeIds": ["n-2-0", "n-2-1", "n-2-2"]
+    },
+    {
+      "index": 2,
+      "nodeIds": ["n-3-0", "n-3-1", "n-3-2", "n-3-3"]
+    },
+    {
+      "index": 3,
+      "nodeIds": ["n-4-0", "n-4-1", "n-4-2", "n-4-3"]
+    },
+    {
+      "index": 4,
+      "nodeIds": ["n-5-0", "n-5-1", "n-5-2", "n-5-3"]
+    },
+    {
+      "index": 5,
+      "nodeIds": ["n-6-0", "n-6-1", "n-6-2", "n-6-3"]
+    },
+    {
+      "index": 6,
+      "nodeIds": ["n-7-0", "n-7-1", "n-7-2"]
+    },
+    {
+      "index": 7,
+      "nodeIds": ["n-8-0"]
+    }
+  ],
+  "nodes": {
+    "n-1-0": {
+      "id": "n-1-0",
+      "row": 0,
+      "col": 0,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-2-0", "n-2-1"]
+    },
+    "n-1-1": {
+      "id": "n-1-1",
+      "row": 0,
+      "col": 1,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-2-1", "n-2-2"]
+    },
+    "n-2-0": {
+      "id": "n-2-0",
+      "row": 1,
+      "col": 0,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-3-0", "n-3-1"]
+    },
+    "n-2-1": {
+      "id": "n-2-1",
+      "row": 1,
+      "col": 1,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-3-1", "n-3-2"]
+    },
+    "n-2-2": {
+      "id": "n-2-2",
+      "row": 1,
+      "col": 2,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-3-3", "n-3-1"]
+    },
+    "n-3-0": {
+      "id": "n-3-0",
+      "row": 2,
+      "col": 0,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-4-0"]
+    },
+    "n-3-1": {
+      "id": "n-3-1",
+      "row": 2,
+      "col": 1,
+      "type": "elite",
+      "difficulty": 2,
+      "next": ["n-4-1", "n-4-0"]
+    },
+    "n-3-2": {
+      "id": "n-3-2",
+      "row": 2,
+      "col": 2,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-4-2"]
+    },
+    "n-3-3": {
+      "id": "n-3-3",
+      "row": 2,
+      "col": 3,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-4-3", "n-4-2"]
+    },
+    "n-4-0": {
+      "id": "n-4-0",
+      "row": 3,
+      "col": 0,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-5-0"]
+    },
+    "n-4-1": {
+      "id": "n-4-1",
+      "row": 3,
+      "col": 1,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-5-1"]
+    },
+    "n-4-2": {
+      "id": "n-4-2",
+      "row": 3,
+      "col": 2,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-5-2", "n-5-1"]
+    },
+    "n-4-3": {
+      "id": "n-4-3",
+      "row": 3,
+      "col": 3,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-5-3", "n-5-2"]
+    },
+    "n-5-0": {
+      "id": "n-5-0",
+      "row": 4,
+      "col": 0,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-6-0"]
+    },
+    "n-5-1": {
+      "id": "n-5-1",
+      "row": 4,
+      "col": 1,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-6-1"]
+    },
+    "n-5-2": {
+      "id": "n-5-2",
+      "row": 4,
+      "col": 2,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-6-2", "n-6-3"]
+    },
+    "n-5-3": {
+      "id": "n-5-3",
+      "row": 4,
+      "col": 3,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-6-3", "n-6-2"]
+    },
+    "n-6-0": {
+      "id": "n-6-0",
+      "row": 5,
+      "col": 0,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-7-0", "n-7-1"]
+    },
+    "n-6-1": {
+      "id": "n-6-1",
+      "row": 5,
+      "col": 1,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-7-1", "n-7-2"]
+    },
+    "n-6-2": {
+      "id": "n-6-2",
+      "row": 5,
+      "col": 2,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-7-1", "n-7-2"]
+    },
+    "n-6-3": {
+      "id": "n-6-3",
+      "row": 5,
+      "col": 3,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-7-2", "n-7-0"]
+    },
+    "n-7-0": {
+      "id": "n-7-0",
+      "row": 6,
+      "col": 0,
+      "type": "elite",
+      "difficulty": 2,
+      "next": ["n-8-0"]
+    },
+    "n-7-1": {
+      "id": "n-7-1",
+      "row": 6,
+      "col": 1,
+      "type": "elite",
+      "difficulty": 2,
+      "next": ["n-8-0"]
+    },
+    "n-7-2": {
+      "id": "n-7-2",
+      "row": 6,
+      "col": 2,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": ["n-8-0"]
+    },
+    "n-8-0": {
+      "id": "n-8-0",
+      "row": 7,
+      "col": 0,
+      "type": "enemy",
+      "difficulty": 2,
+      "next": []
+    }
+  },
+  "startIds": ["n-1-0", "n-1-1"],
+  "closingIds": ["n-8-0"]
+}
