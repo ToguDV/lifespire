@@ -12,7 +12,6 @@
     "./tokens": "./src/tokens.ts",
     "./css": "./src/tokens.css",
     "./tokens.css": "./src/tokens.css",
-    "./tailwind-preset": "./src/tailwind-preset.ts",
     "./package.json": "./package.json"
   },
   "files": [

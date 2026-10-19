@@ -10,7 +10,33 @@ mobile consume it; **no component hardcodes a color, font, radius or duration**.
 | --- | --- | --- |
 | `@lifespire/design-tokens/tokens` | `src/tokens.ts` | Typed token objects (`colors`, `fonts`, `radii`, `motion`). |
 | `@lifespire/design-tokens/css` · `./tokens.css` | `src/tokens.css` | CSS custom properties (`--ls-*`), incl. `prefers-reduced-motion`. |
-| `@lifespire/design-tokens/tailwind-preset` | `src/tailwind-preset.ts` | Tailwind preset mapping tokens to `colors`/`fontFamily`/`borderRadius`/`transitionDuration`. |
+
+## Consuming the tokens from Tailwind CSS 4
+
+Tailwind 4 no longer uses a JS preset; web maps the tokens to its theme with
+`@theme inline` inside its own `styles.css` and imports the token sheet first:
+
+```css
+@import 'tailwindcss';
+@import '@lifespire/design-tokens/tokens.css';
+
+@theme inline {
+  --color-bg: var(--ls-bg);
+  --color-surface: var(--ls-surface);
+  --color-surface-2: var(--ls-surface-2);
+  /* ... one entry per token ... */
+  --font-ui: var(--ls-font-ui);
+  --font-display: var(--ls-font-display);
+  --radius-sm: var(--ls-radius-sm);
+  --radius-md: var(--ls-radius-md);
+  --radius-lg: var(--ls-radius-lg);
+}
+```
+
+That yields utilities such as `bg-surface`, `text-gold`, `stroke-event`,
+`font-display` or `rounded-md` derived from the single token source, so no
+component hardcodes a color, font or radius. The earlier `tailwind-preset.ts`
+was removed when the web app moved to Tailwind 4.
 
 ## Color tokens
 

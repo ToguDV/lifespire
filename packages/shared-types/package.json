@@ -1,0 +1,30 @@
+{
+  "name": "@lifespire/shared-types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod schemas for LifeSpire DTOs and local state. No dependency on the engine.",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf .turbo coverage"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@lifespire/config": "workspace:*",
+    "eslint": "^10.13.0",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

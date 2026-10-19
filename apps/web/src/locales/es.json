@@ -1,0 +1,139 @@
+{
+  "common": {
+    "brand": "LifeSpire",
+    "gold": "Oro",
+    "xp": "XP",
+    "today": "hoy",
+    "todayCloses": "hoy {{dayKey}} · cierra {{time}}",
+    "closesAt": "cierra {{time}}",
+    "rowProgress": "fila {{row}} / {{total}}",
+    "difficulty": "Dificultad",
+    "duration": "Duración",
+    "minutes": "{{count}} min",
+    "evidence": "Evidencia",
+    "reward": "Recompensa",
+    "start": "Empezar",
+    "changeRoute": "Cambiar de ruta",
+    "selectNodeHint": "Elige un nodo disponible para ver la tarea del día.",
+    "legendLater": " · M1",
+    "loading": "Preparando el mapa de hoy…",
+    "error": "No se pudo preparar el mapa del día.",
+    "status": {
+      "localOnly": "local-only"
+    }
+  },
+  "home": {
+    "title": "Mapa del día",
+    "mapAriaLabel": "Mapa del día con {{count}} nodos",
+    "xpBarAria": "Progreso de XP del día: {{percent}} por ciento",
+    "legendSummary": "{{resolved}} resueltos · {{skipped}} fallados · {{remaining}} por jugar"
+  },
+  "node": {
+    "row": "Fila {{row}}",
+    "ariaLabel": "{{type}}, fila {{row}}, {{state}}",
+    "stateLabel": "Estado",
+    "type": {
+      "enemy": "Enemigo",
+      "elite": "Élite",
+      "event": "Evento",
+      "shop": "Tienda",
+      "rest": "Descanso",
+      "boss": "Jefe"
+    },
+    "state": {
+      "locked": "Bloqueado",
+      "available": "Disponible",
+      "current": "Seleccionado",
+      "visited": "Completado",
+      "skipped": "Omitido"
+    },
+    "evidenceExpected": {
+      "photo": "Foto",
+      "note": "Nota",
+      "link": "Enlace"
+    },
+    "reward": {
+      "gold": "+{{amount}}",
+      "xp": "+{{amount}}"
+    },
+    "templates": {
+      "enemy": [
+        {
+          "title": "Escribir el esquema de la API de sync",
+          "criteria": "El documento cubre push, pull y resolución de conflictos con un ejemplo end-to-end."
+        },
+        {
+          "title": "Preparar el plan de la semana",
+          "criteria": "El plan lista las tareas clave y sus bloques de tiempo."
+        },
+        {
+          "title": "Arreglar el fallo de la lista de nodos",
+          "criteria": "El test que reproduce el fallo pasa y no rompe ningún otro."
+        }
+      ],
+      "elite": [
+        {
+          "title": "Diseñar la pantalla del mapa",
+          "criteria": "El diseño muestra estados, leyenda y panel de detalle."
+        },
+        {
+          "title": "Cerrar la arquitectura offline",
+          "criteria": "El documento define outbox, idempotencia y reconciliación."
+        }
+      ],
+      "event": [
+        {
+          "title": "Elegir una mejora del día",
+          "criteria": "La mejora queda registrada y aplicada al run."
+        }
+      ],
+      "shop": [
+        {
+          "title": "Revisar el inventario",
+          "criteria": "El inventario refleja los objetos obtenidos."
+        }
+      ],
+      "rest": [
+        {
+          "title": "Pausa consciente",
+          "criteria": "El descanso queda registrado sin pantallas de por medio."
+        }
+      ],
+      "boss": [
+        {
+          "title": "Reto semanal",
+          "criteria": "El objetivo semanal se cumple y se revisa el resumen."
+        }
+      ]
+    },
+    "taskScreenPlaceholder": "Pantalla de tarea pendiente (llega en el siguiente paso de M0)."
+  },
+  "timer": {
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "finish": "Terminar",
+    "elapsed": "{{minutes}} min",
+    "remaining": "{{minutes}} min restantes"
+  },
+  "evidence": {
+    "add": "Añadir evidencia",
+    "required": "Evidencia requerida",
+    "photo": "Foto",
+    "note": "Nota",
+    "link": "Enlace"
+  },
+  "result": {
+    "title": "Resultado",
+    "completed": "Completado",
+    "failed": "Fallido",
+    "skipped": "Omitido"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "locale": "Idioma",
+    "timezone": "Zona horaria",
+    "dayCloseHour": "Hora de cierre del día",
+    "seedSalt": "Semilla local"
+  }
+}

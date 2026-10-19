@@ -1,0 +1,150 @@
+/*
+ * LifeSpire web styles.
+ *
+ * Tailwind 4 reads the design tokens through `@theme inline`, so every utility
+ * (colors, fonts, radii) is derived from the single token source. No component
+ * hardcodes a color, font or radius: they compose utilities such as `bg-surface`,
+ * `text-gold`, `stroke-event`, `font-display` or `rounded-md`.
+ */
+@import 'tailwindcss';
+@import '@lifespire/design-tokens/tokens.css';
+
+@theme inline {
+  /* Palette (12 tokens) */
+  --color-bg: var(--ls-bg);
+  --color-surface: var(--ls-surface);
+  --color-surface-2: var(--ls-surface-2);
+  --color-border: var(--ls-border);
+  --color-text: var(--ls-text);
+  --color-muted: var(--ls-muted);
+  --color-gold: var(--ls-gold);
+  --color-xp: var(--ls-xp);
+  --color-danger: var(--ls-danger);
+  --color-success: var(--ls-success);
+  --color-rest: var(--ls-rest);
+  --color-event: var(--ls-event);
+
+  /* Typography */
+  --font-ui: var(--ls-font-ui);
+  --font-display: var(--ls-font-display);
+
+  /* Radii */
+  --radius-sm: var(--ls-radius-sm);
+  --radius-md: var(--ls-radius-md);
+  --radius-lg: var(--ls-radius-lg);
+}
+
+/* Motion durations from the tokens (collapse to 0ms under reduced motion). */
+@utility duration-fast {
+  transition-duration: var(--ls-duration-fast);
+}
+@utility duration-base {
+  transition-duration: var(--ls-duration-base);
+}
+@utility duration-slow {
+  transition-duration: var(--ls-duration-slow);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--ls-bg);
+    color: var(--ls-text);
+    font-family: var(--ls-font-ui);
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ls-gold);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Map primitives. These live outside the component tree so the SVG markup stays
+ * declarative; every value still comes from a token.
+ */
+@layer components {
+  .ls-path {
+    fill: none;
+    stroke: var(--ls-border);
+    stroke-width: 2;
+    stroke-linecap: round;
+    transition: stroke var(--ls-duration-base) ease-out;
+  }
+  .ls-path--done {
+    stroke: color-mix(in srgb, var(--ls-success) 55%, var(--ls-surface));
+  }
+  .ls-path--active {
+    stroke: var(--ls-gold);
+    stroke-width: 2.5;
+  }
+
+  .ls-node-circle {
+    fill: var(--ls-surface-2);
+    stroke: var(--ls-border);
+    stroke-width: 1.5;
+    transition:
+      fill var(--ls-duration-base) ease-out,
+      stroke var(--ls-duration-base) ease-out;
+  }
+  .ls-node--available .ls-node-circle {
+    stroke: color-mix(in srgb, var(--ls-text) 45%, var(--ls-surface-2));
+  }
+  .ls-node--visited .ls-node-circle {
+    fill: var(--ls-bg);
+    stroke: color-mix(in srgb, var(--ls-success) 60%, var(--ls-surface));
+  }
+  .ls-node--skipped .ls-node-circle {
+    fill: var(--ls-bg);
+    stroke: color-mix(in srgb, var(--ls-danger) 55%, var(--ls-surface));
+  }
+  .ls-node--current .ls-node-circle {
+    stroke: var(--ls-gold);
+    stroke-width: 2;
+  }
+  .ls-node--locked {
+    opacity: 0.4;
+  }
+  .ls-node--interactive {
+    cursor: pointer;
+  }
+  /* Suppress the UA focus ring; draw a token-coloured one for keyboard focus. */
+  .ls-node:focus {
+    outline: none;
+  }
+  .ls-node:focus-visible {
+    outline: 2px solid var(--ls-gold);
+    outline-offset: 4px;
+  }
+  .ls-node:focus-visible .ls-node-circle {
+    stroke: var(--ls-gold);
+    stroke-width: 2.5;
+  }
+
+  /* The only glow in the map: the current node's halo. */
+  .ls-node--current {
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ls-gold) 35%, transparent));
+  }
+  .ls-halo {
+    fill: none;
+    stroke: var(--ls-gold);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+    opacity: 0.35;
+  }
+  .ls-check {
+    fill: none;
+    stroke: var(--ls-success);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
