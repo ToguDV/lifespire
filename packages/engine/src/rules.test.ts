@@ -76,12 +76,12 @@ describe('computeDeathPenalty', () => {
   });
 
   it('reduces the loss by 2 pp per stat level', () => {
-    expect(computeDeathPenalty(1000, { healthLevel: 5 })).toEqual({ goldLost: 400 });
+    expect(computeDeathPenalty(1000, { disciplineLevel: 5 })).toEqual({ goldLost: 400 });
   });
 
   it('enforces the 25 % minimum loss', () => {
-    expect(computeDeathPenalty(1000, { healthLevel: 20 })).toEqual({ goldLost: 250 });
-    expect(computeDeathPenalty(1000, { healthLevel: 100 })).toEqual({ goldLost: 250 });
+    expect(computeDeathPenalty(1000, { disciplineLevel: 20 })).toEqual({ goldLost: 250 });
+    expect(computeDeathPenalty(1000, { disciplineLevel: 100 })).toEqual({ goldLost: 250 });
   });
 
   it('never loses more gold than the player holds', () => {

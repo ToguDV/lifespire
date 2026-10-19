@@ -26,7 +26,7 @@
     "title": "Mapa del día",
     "mapAriaLabel": "Mapa del día con {{count}} nodos",
     "xpBarAria": "Progreso de XP del día: {{percent}} por ciento",
-    "legendSummary": "{{resolved}} resueltos · {{skipped}} fallados · {{remaining}} por jugar"
+    "legendSummary": "{{resolved}} resueltos · {{skipped}} omitidos · {{remaining}} por jugar"
   },
   "node": {
     "row": "Fila {{row}}",

@@ -69,6 +69,7 @@ export interface Rewards {
 
 export interface StatSnapshot {
   healthLevel?: number;
+  disciplineLevel?: number;
   damageReductionPct?: number;
   goldGainPct?: number;
   xpGainPct?: number;

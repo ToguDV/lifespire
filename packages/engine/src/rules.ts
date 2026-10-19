@@ -118,15 +118,12 @@ export function computeDamage(node: NodeType, difficulty: number, stats?: StatSn
 }
 
 /**
- * Gold lost on death: `max(25 %, 50 % − 2 % × level)`, rounded down and never
- * greater than the gold held.
- *
- * The frozen `StatSnapshot` does not expose `disciplineLevel`; until it does,
- * `healthLevel` carries the stat level used for the death-loss reduction.
+ * Gold lost on death: `max(25 %, 50 % − 2 % × disciplineLevel)`, rounded down
+ * and never greater than the gold held (GDD §8.3, Appendix A.2).
  */
 export function computeDeathPenalty(gold: number, stats?: StatSnapshot): DeathPenalty {
   const death = balance.death;
-  const level = Math.max(0, stats?.healthLevel ?? 0);
+  const level = Math.max(0, stats?.disciplineLevel ?? 0);
   const lossPct = Math.min(
     death.baseLossPct,
     Math.max(death.minLossPct, death.baseLossPct - death.perLevelPct * level),
