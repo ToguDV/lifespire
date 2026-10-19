@@ -1,0 +1,7 @@
+{
+  "extends": "@lifespire/config/tsconfig.base.json",
+  "compilerOptions": {
+    "resolveJsonModule": true
+  },
+  "include": ["src", "vitest.config.ts"]
+}
