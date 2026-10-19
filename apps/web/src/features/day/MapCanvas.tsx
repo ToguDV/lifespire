@@ -51,10 +51,12 @@ export function MapCanvas({ layout, states, closingIds, onSelect }: MapCanvasPro
   return (
     <svg
       viewBox={`0 0 ${layout.width} ${layout.height}`}
+      width={layout.width}
+      height={layout.height}
       preserveAspectRatio="xMidYMid meet"
       role="group"
       aria-label={t('home:mapAriaLabel', { count: layout.nodes.length })}
-      className="h-full w-full"
+      className="h-full w-auto max-w-full"
     >
       <g>
         {layout.edges.map((edge) => {

@@ -74,7 +74,7 @@ export function DayScreen({ onStartNode }: DayScreenProps) {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg font-ui text-text">
+    <div className="flex h-dvh flex-col overflow-hidden bg-bg font-ui text-text">
       <TopBar
         gold={run.gold}
         xp={run.xp}
@@ -92,7 +92,7 @@ export function DayScreen({ onStartNode }: DayScreenProps) {
             <p className="px-4 pt-3 text-xs text-muted">{t('common:selectNodeHint')}</p>
           ) : null}
 
-          <div className="min-h-[420px] flex-1 p-3">
+          <div className="grid min-h-0 flex-1 place-items-center overflow-hidden p-3">
             <MapCanvas
               layout={layout}
               states={states}

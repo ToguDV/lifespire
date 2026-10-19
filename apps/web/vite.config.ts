@@ -36,6 +36,15 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    watch: {
+      // The repo usually lives on a WSL DrvFs mount (/mnt/d, ...): inotify does
+      // not report changes there, so Vite would serve stale modules. Polling
+      // keeps hot reload working on those mounts.
+      usePolling: true,
+      interval: 300,
+    },
+  },
   // Workspace packages ship TypeScript source; do not pre-bundle them.
   optimizeDeps: {
     exclude: ['@lifespire/engine', '@lifespire/shared-types', '@lifespire/design-tokens'],
