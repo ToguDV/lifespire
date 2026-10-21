@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { dayKey } from '../../domain/dates'
 import { STORAGE_KEY } from '../../domain/balance'
 import { serializeDocument } from '../../domain/schema'
-import type { ThemePreference } from '../../domain/types'
+import type { GameDocument, ThemePreference } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
 import {
@@ -13,6 +13,13 @@ import {
   PanelHead,
   ScreenHead,
 } from '../components'
+import {
+  readSaveFile,
+  runPreviewLabel,
+  saveFileName,
+  type ImportSummary,
+} from '../lib/importSave'
+import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'light', label: 'Day' },
@@ -20,13 +27,25 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: 'System' },
 ]
 
+interface PendingImport {
+  fileName: string
+  document: GameDocument
+  summary: ImportSummary
+}
+
 export function SettingsScreen() {
   const gameDocument = useAppStore((state) => state.document)
   const setTheme = useAppStore((state) => state.setTheme)
+  const importDocument = useAppStore((state) => state.importDocument)
   const resetAll = useAppStore((state) => state.resetAll)
   const showToast = useAppStore((state) => state.showToast)
   const navigate = useAppStore((state) => state.navigate)
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [resetPhrase, setResetPhrase] = useState('')
+
+  const resetReady = isResetConfirmation(resetPhrase)
 
   const exportSave = () => {
     const payload = serializeDocument(gameDocument)
@@ -34,10 +53,61 @@ export function SettingsScreen() {
     const url = URL.createObjectURL(blob)
     const anchor = window.document.createElement('a')
     anchor.href = url
-    anchor.download = `lifespire-${dayKey(getNow())}.json`
+    anchor.download = saveFileName(dayKey(getNow()))
+    window.document.body.append(anchor)
     anchor.click()
-    URL.revokeObjectURL(url)
-    showToast('Save exported.')
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    showToast('Save exported. It includes your profile, aims, routines, run and collection.')
+  }
+
+  const readImportFile = async (file: File) => {
+    setImportError(null)
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      setPendingImport(null)
+      setImportError('That file could not be read. Try exporting a fresh copy and selecting it again.')
+      return
+    }
+
+    const result = readSaveFile(text)
+    if (!result.ok) {
+      setPendingImport(null)
+      setImportError(result.message)
+      return
+    }
+
+    setPendingImport({
+      fileName: file.name,
+      document: result.document,
+      summary: result.summary,
+    })
+  }
+
+  const cancelImport = () => {
+    setPendingImport(null)
+  }
+
+  const confirmImport = () => {
+    if (!pendingImport) return
+    const restored = importDocument(pendingImport.document)
+    setPendingImport(null)
+    if (!restored) {
+      setImportError('That save could not be restored. Your current data was left untouched.')
+    }
+  }
+
+  const closeReset = () => {
+    setConfirmReset(false)
+    setResetPhrase('')
+  }
+
+  const confirmResetNow = () => {
+    if (!resetReady) return
+    closeReset()
+    resetAll()
   }
 
   return (
@@ -79,33 +149,60 @@ export function SettingsScreen() {
         <Panel pad>
           <PanelHead label="Data" aside={<span className="chip chip--quiet">JSON</span>} />
           <p className="panel-note">
-            Export a readable copy of the versioned save. The development clock and this
-            panel are never included.
+            Export a readable copy of the versioned save. It includes the profile, aims,
+            routines, the current run and the collection. The development clock and this panel
+            are never included.
           </p>
           <div className="settings-actions">
             <Button variant="secondary" onClick={exportSave}>
               <Icon name="scroll" />
               Export save
             </Button>
-            <Button
-              variant="secondary"
-              disabled
-              title="Import is not available yet."
-            >
+            <label className="btn btn--secondary settings-file">
+              <Icon name="scroll" />
               Import save
-            </Button>
+              <input
+                type="file"
+                accept=".json,application/json"
+                aria-label="Import a LifeSpire save file"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  if (file) void readImportFile(file)
+                }}
+              />
+            </label>
           </div>
           <p className="panel-note settings-note">
-            Import will validate the file and ask for confirmation before replacing local
-            data. It is not available yet.
+            Import validates the file and shows a summary before replacing anything. Invalid,
+            corrupt or newer-version files are rejected and your current save stays untouched.
           </p>
+          {importError ? (
+            <p className="settings-error" role="alert">
+              <Icon name="lock" />
+              <span>{importError}</span>
+            </p>
+          ) : null}
+          <dl className="settings-meta">
+            <div>
+              <dt>Storage key</dt>
+              <dd>
+                <code>{STORAGE_KEY}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Schema version</dt>
+              <dd>v{gameDocument.schemaVersion}</dd>
+            </div>
+          </dl>
         </Panel>
 
         <Panel pad>
           <PanelHead label="Local data" aside={<span className="chip chip--quiet">Careful</span>} />
           <p className="panel-note">
             Everything is stored under <code>{STORAGE_KEY}</code> in this browser. Resetting
-            removes the profile, aims, run and collection.
+            removes the profile, aims, routines, run and collection. Exporting first is the only
+            safety net; a reset cannot be undone without that file.
           </p>
           <div className="settings-actions">
             <Button variant="danger" onClick={() => setConfirmReset(true)}>
@@ -120,7 +217,6 @@ export function SettingsScreen() {
             LifeSpire is a local-first seven-day run. Progress is kept in this browser and can
             be exported above. A new run keeps your profile, level and collection.
           </p>
-          <p className="panel-note settings-note">Schema version {gameDocument.schemaVersion}.</p>
           <Button variant="quiet" onClick={() => navigate({ name: 'home' })}>
             <Icon name="arrow-left" />
             Return to camp
@@ -129,32 +225,113 @@ export function SettingsScreen() {
       </div>
 
       <Dialog
-        open={confirmReset}
-        title="Reset local data?"
-        description="This removes the profile, aims, routines, run and collection from this browser. Export first if you want a copy."
-        onClose={() => setConfirmReset(false)}
+        open={pendingImport !== null}
+        title="Restore this save?"
+        description="Review what the file contains before it replaces the data in this browser."
+        eyebrow="Local import"
+        onClose={cancelImport}
         footer={
           <>
-            <Button variant="quiet" autoFocus onClick={() => setConfirmReset(false)}>
+            <Button variant="quiet" onClick={cancelImport}>
+              Keep current data
+            </Button>
+            <Button variant="primary" onClick={confirmImport}>
+              Replace local data
+            </Button>
+          </>
+        }
+      >
+        {pendingImport ? (
+          <>
+            <dl className="import-preview">
+              <div>
+                <dt>Profile</dt>
+                <dd>{pendingImport.summary.profileName ?? 'No profile'}</dd>
+              </div>
+              <div>
+                <dt>Level</dt>
+                <dd>{pendingImport.summary.level ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Gold</dt>
+                <dd>{pendingImport.summary.gold ?? '—'}</dd>
+              </div>
+              <div>
+                <dt>Run</dt>
+                <dd>{runPreviewLabel(pendingImport.summary)}</dd>
+              </div>
+              <div>
+                <dt>Relics</dt>
+                <dd>
+                  {pendingImport.summary.relics} of 12
+                </dd>
+              </div>
+              <div>
+                <dt>Schema</dt>
+                <dd>v{pendingImport.summary.schemaVersion}</dd>
+              </div>
+            </dl>
+            <p className="import-warning">
+              <Icon name="lock" />
+              <span>
+                Replacing overwrites the profile, aims, routines, run and collection currently
+                under <code>{STORAGE_KEY}</code>. File: <strong>{pendingImport.fileName}</strong>.
+              </span>
+            </p>
+          </>
+        ) : null}
+      </Dialog>
+
+      <Dialog
+        open={confirmReset}
+        title="Reset local data?"
+        description="This removes the profile, aims, routines, run and collection from this browser."
+        onClose={closeReset}
+        footer={
+          <>
+            <Button variant="quiet" onClick={closeReset}>
               Keep my data
             </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                setConfirmReset(false)
-                resetAll()
-              }}
-            >
+            <Button variant="danger" disabled={!resetReady} onClick={confirmResetNow}>
               Reset everything
             </Button>
           </>
         }
       >
         <p className="panel-note">
-          This cannot be undone without an earlier export. The app returns to onboarding
-          afterwards.
+          This cannot be undone without an earlier export. Exporting in Data above is the safety
+          net. The app returns to onboarding afterwards; once a local profile exists again,
+          Settings → Import save can restore that export.
         </p>
+        <div className="reset-confirmation">
+          <label className="field__label" htmlFor="reset-confirmation">
+            Type {RESET_CONFIRMATION} to confirm
+          </label>
+          <input
+            id="reset-confirmation"
+            className="input"
+            type="text"
+            value={resetPhrase}
+            autoFocus
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            placeholder={RESET_CONFIRMATION}
+            aria-describedby="reset-confirmation-hint"
+            onChange={(event) => setResetPhrase(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && resetReady) {
+                event.preventDefault()
+                confirmResetNow()
+              }
+            }}
+          />
+          <p className="panel-note" id="reset-confirmation-hint">
+            The reset button stays disabled until the word is typed exactly.
+          </p>
+        </div>
       </Dialog>
     </section>
   )
 }
+

@@ -56,20 +56,18 @@ export function RecoveryScreen({ reason }: { reason: string }) {
             </span>
           </div>
           <p className="panel-note">
-            Reset local data removes the blocked save and returns to onboarding. Import a
-            valid JSON export to recover a profile instead; import is not available yet.
+            Reset local data removes the blocked save and returns to onboarding. If you have a
+            valid JSON export, keep it: once onboarding is complete, Settings → Import save can
+            restore it with a preview before replacing anything.
           </p>
           <div className="settings-actions">
             <Button variant="danger" onClick={() => setConfirmReset(true)}>
               Reset local data
             </Button>
-            <Button variant="secondary" disabled title="Import is not available yet.">
-              Import save
-            </Button>
           </div>
           <p className="panel-note settings-note">
-            If you have an export from another device or an earlier version, keep it. The
-            import flow will validate it before replacing anything.
+            If you have an export from another device or an earlier version, keep it. Import
+            validates the file and never changes the current document until you confirm.
           </p>
         </Panel>
       </div>
