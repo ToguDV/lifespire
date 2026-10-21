@@ -94,7 +94,6 @@ export default function App() {
 
   const [devOpen, setDevOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
-  const viewportRef = useRef<HTMLElement>(null)
   const lastViewKey = useRef<string | null>(null)
 
   const profile = gameDocument.profile
@@ -186,7 +185,7 @@ export default function App() {
     const key = viewKey(view)
     if (lastViewKey.current !== null && lastViewKey.current !== key) {
       mainRef.current?.focus({ preventScroll: true })
-      if (viewportRef.current) viewportRef.current.scrollTop = 0
+      if (mainRef.current) mainRef.current.scrollTop = 0
     }
     lastViewKey.current = key
   }, [view])

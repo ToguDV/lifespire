@@ -27,6 +27,7 @@ button.profile-card {
 }
 
 button.brand {
+  min-height: 44px;
   padding: 0;
   text-align: left;
 }
@@ -101,6 +102,14 @@ button.text-link:hover {
 }
 
 .btn--sm {
+  min-height: 44px;
+}
+
+.input {
+  height: 44px;
+}
+
+.segmented button {
   min-height: 44px;
 }
 
