@@ -13,7 +13,13 @@ central. No hay cuentas, backend, sincronización ni despliegue público.
 - Notas de UI y componentes: [`docs/UI.md`](./docs/UI.md)
 - PWA, instalación y verificación offline: [`docs/PWA.md`](./docs/PWA.md)
 - Arquitectura y contratos: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- Protocolo de playtest: [`docs/playtest-plan.md`](./docs/playtest-plan.md)
+- Resultados del dry run interno: [`docs/playtest-results.md`](./docs/playtest-results.md)
+- Notas de release MVP-0: [`docs/release-notes-v0.1.0-mvp0.md`](./docs/release-notes-v0.1.0-mvp0.md)
 - Guía para agentes: [`AGENTS.md`](./AGENTS.md)
+
+Estado: **release candidate `v0.1.0-mvp0`** en la rama `mvp-0`. Incluye un dry
+run interno de playtest; las sesiones con testers externos siguen pendientes.
 
 ## Rama
 
