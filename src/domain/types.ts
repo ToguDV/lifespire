@@ -57,6 +57,12 @@ export interface Goal {
   createdAt: string
 }
 
+export type GoalInput = Pick<
+  Goal,
+  'title' | 'category' | 'weeklyObjective' | 'active'
+> &
+  Partial<Pick<Goal, 'id' | 'createdAt'>>
+
 export interface Task {
   id: string
   goalId: string
@@ -65,6 +71,9 @@ export interface Task {
   active: boolean
   createdAt: string
 }
+
+export type TaskInput = Pick<Task, 'goalId' | 'title' | 'effort' | 'active'> &
+  Partial<Pick<Task, 'id' | 'createdAt'>>
 
 export interface TaskSnapshot {
   taskId: string

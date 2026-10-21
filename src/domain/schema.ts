@@ -169,6 +169,13 @@ function expectEnum<T extends string>(value: unknown, path: string, allowed: rea
   return value as T
 }
 
+function expectNumber(value: unknown, path: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    fail(path, 'must be a finite number')
+  }
+  return value
+}
+
 function expectNullableString(value: unknown, path: string): string | null {
   return value === null ? null : expectString(value, path)
 }
@@ -507,6 +514,36 @@ function validateRun(value: unknown, path: string): Run {
   }
 }
 
+/**
+ * Drafts are a scratchpad: a user may type an out-of-range weekly aim before
+ * fixing it. Persisting that intermediate value must not poison the save, so
+ * the draft schema accepts any finite number and the final setup validation
+ * (`validateSetup`) remains the gate that starts the run.
+ */
+function validateDraftGoal(value: unknown, path: string): Goal {
+  const raw = expectRecord(value, path)
+  return {
+    id: expectString(raw.id, `${path}.id`),
+    title: expectString(raw.title, `${path}.title`),
+    category: expectString(raw.category, `${path}.category`),
+    weeklyObjective: expectNumber(raw.weeklyObjective, `${path}.weeklyObjective`),
+    active: expectBoolean(raw.active, `${path}.active`),
+    createdAt: expectString(raw.createdAt, `${path}.createdAt`),
+  }
+}
+
+function validateDraftTask(value: unknown, path: string): Task {
+  const raw = expectRecord(value, path)
+  return {
+    id: expectString(raw.id, `${path}.id`),
+    goalId: expectString(raw.goalId, `${path}.goalId`),
+    title: expectString(raw.title, `${path}.title`),
+    effort: expectEnum(raw.effort, `${path}.effort`, EFFORTS),
+    active: expectBoolean(raw.active, `${path}.active`),
+    createdAt: expectString(raw.createdAt, `${path}.createdAt`),
+  }
+}
+
 function validateOnboardingDraft(value: unknown, path: string): OnboardingDraft {
   const raw = expectRecord(value, path)
   return {
@@ -515,10 +552,10 @@ function validateOnboardingDraft(value: unknown, path: string): OnboardingDraft 
       raw.mode === null ? null : expectEnum(raw.mode, `${path}.mode`, DRAFT_MODES),
     name: expectString(raw.name, `${path}.name`),
     goals: expectArray(raw.goals, `${path}.goals`).map((goal, index) =>
-      validateGoal(goal, `${path}.goals[${index}]`),
+      validateDraftGoal(goal, `${path}.goals[${index}]`),
     ),
     tasks: expectArray(raw.tasks, `${path}.tasks`).map((task, index) =>
-      validateTask(task, `${path}.tasks[${index}]`),
+      validateDraftTask(task, `${path}.tasks[${index}]`),
     ),
   }
 }

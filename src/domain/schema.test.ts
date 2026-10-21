@@ -202,6 +202,29 @@ describe('serializeDocument and parseDocument', () => {
     expect(serialized).not.toContain('toast')
   })
 
+  it('round-trips an in-progress draft with an out-of-range weekly aim', () => {
+    const document = createEmptyDocument()
+    document.onboardingDraft = {
+      step: 2,
+      mode: 'custom',
+      name: 'Ari',
+      goals: [
+        {
+          id: 'goal_draft',
+          title: '',
+          category: '',
+          weeklyObjective: 8,
+          active: true,
+          createdAt: now.toISOString(),
+        },
+      ],
+      tasks: [],
+    }
+    const parsed = parseDocument(serializeDocument(document))
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.value.onboardingDraft).toEqual(document.onboardingDraft)
+  })
+
   it('rejects malformed JSON', () => {
     const parsed = parseDocument('{not json')
     expect(parsed).toMatchObject({ ok: false, reason: 'invalid' })
