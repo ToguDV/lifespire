@@ -18,16 +18,17 @@ central. No hay cuentas, backend, sincronización ni despliegue público.
 - Notas de release MVP-0: [`docs/release-notes-v0.1.0-mvp0.md`](./docs/release-notes-v0.1.0-mvp0.md)
 - Guía para agentes: [`AGENTS.md`](./AGENTS.md)
 
-Estado: **release candidate `v0.1.0-mvp0`** en la rama `mvp-0`. Incluye un dry
-run interno de playtest; las sesiones con testers externos siguen pendientes.
+Estado: **MVP-0 liberado** como `v0.1.0-mvp0` en `main`. Incluye un dry run
+interno de playtest; las sesiones con testers externos siguen pendientes
+(issue #23).
 
 ## Rama
 
-El desarrollo de MVP-0 vive en la rama `mvp-0`. `main` es la línea de release y
-recibe los merges aprobados desde `mvp-0`.
+Todo el proyecto vive en `main`, que es la línea de desarrollo y de release.
+Para cambios grandes conviene crear una rama corta y mergearla de vuelta.
 
 ```bash
-git checkout mvp-0
+git checkout main
 ```
 
 ## Requisitos
