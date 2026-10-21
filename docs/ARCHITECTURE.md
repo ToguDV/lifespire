@@ -460,9 +460,12 @@ generateMap(input: {
 ### Nueva run (`runClose.ts`)
 
 - `startNewRun(document, { runId, now })` exige perfil, una run previa
-  `closed` y un setup válido (1–3 objetivos activos, ≥4 rutinas activas y
-  objetivos semanales válidos) usando `validateSetup`. Un fallo lanza
-  `DomainError` antes de construir nada: el documento no se modifica.
+  `closed` **con `summary` ya escrito** y un setup válido (1–3 objetivos activos,
+  ≥4 rutinas activas, al menos una rutina activa por objetivo activo y objetivos
+  semanales válidos) usando `validateSetup`. Un fallo lanza `DomainError` antes
+  de construir nada: el documento no se modifica. El store reconcilia/finaliza
+  primero, por lo que una run cerrada sin resumen recibe su bonus antes de ser
+  reemplazada.
 - Conserva exactamente `profile` (id, nombre, XP, nivel, oro, colección y
   `createdAt`), `goals`, `tasks` y `settings`.
 - Sustituye `run` por una run nueva creada con `createRun`: id y semilla nuevos
@@ -479,13 +482,26 @@ generateMap(input: {
   Validación estructural explícita, sin dependencias nuevas.
 - Rechazar JSON inválido, campos requeridos ausentes, `schemaVersion` futura y
   enums desconocidos. No modificar el documento actual ante un import inválido.
+- Un mapa persistido no basta con tener la forma correcta: `parseDocument` pasa
+  cada `day.map` por `validateMap` (generador), exige `day.index ===
+  map.dayIndex`, que `day.id` sea `${run.id}:day:${day.index}`, que
+  `map.currentNodeId` exista (o sea `null`) y que `day.path`/`day.rewards`
+  referencien nodos de ese mapa. Así un backup estructuralmente válido pero
+  injugable se rechaza antes de reemplazar el estado.
 - Si `localStorage` está corrupto o tiene una versión futura, el store hidrata un
   documento vacío **sin sobrescribir** la clave y expone `storageIssue` para
   mostrar `recovery`. Solo `resetAll` o un import válido desbloquean la escritura.
+- Si una escritura falla (cuota, modo privado), el documento en memoria sigue
+  usable y el controller notifica al store, que expone `storageWarning:
+  'write-failed'`. El shell muestra un aviso persistente y no bloqueante con
+  acceso a Settings/export. La siguiente escritura correcta limpia el aviso. Si
+  no existe `localStorage` y el adapter cae a memoria, también se avisa porque un
+  reload perdería los cambios.
 - `exportDocument` produce el mismo `GameDocument` versionado, legible (2 espacios)
   y sin claves de desarrollo.
 - `importDocument` valida, muestra un preview/resumen y exige confirmación antes de
-  reemplazar el estado.
+  reemplazar el estado. Después reconcilia y deriva la vista, igual que al
+  hidratar, para que una run vencida abra su resumen semanal.
 - `resetAll` exige confirmación explícita (frase) y vuelve a onboarding.
 
 ## 5. Store (Zustand)
@@ -497,6 +513,7 @@ interface AppState {
   document: GameDocument
   hydrated: boolean
   storageIssue: { reason: 'corrupt' | 'future-version' } | null
+  storageWarning: 'write-failed' | null
   view: View
   history: View[]
   toast: string | null
@@ -542,6 +559,12 @@ inyectan con `newId` y el reloj del store; `archiveGoal`/`archiveTask` desactiva
 (no borran) y `archiveGoal` archiva en cascada sus rutinas. `ContentActionResult`
 devuelve errores de campo y de formulario para que los diálogos los asocien con
 `aria-describedby`.
+
+Al hidratar, el store reconcilia y finaliza la run **antes** de derivar la vista:
+una run activa cuya semana ya venció queda cerrada, recibe su resumen y abre
+`run-summary`, no una home sin mapa jugable. `importDocument` sigue el mismo
+orden. `startRun` no reemplaza una run activa: muestra un toast y sale sin mutar
+el documento.
 
 `startNewRun` acepta metas revisadas opcionales para el diálogo de nueva run.
 Las escribe en el mismo `set` que la run nueva: si la validación de setup falla,
@@ -609,8 +632,11 @@ diario necesita mostrar más información que los estados estáticos del prototi
   asocian con `aria-describedby`.
 - Con una run activa, el rail muestra los objetivos snapshot de `run.objectives`
   y avisa de que los cambios solo afectan a mapas futuros. La UI bloquea archivar
-  la última meta activa o dejar menos de cuatro rutinas activas; el dominio
-  aplica las mismas reglas aunque la acción se invoque fuera de la pantalla.
+  la última meta activa, dejar menos de cuatro rutinas activas o archivar/desactivar
+  la última rutina activa de una meta activa; el dominio aplica las mismas reglas
+  aunque la acción se invoque fuera de la pantalla. Una meta sin rutinas no puede
+  entrar en la siguiente run: `validateSetup` lo rechaza con un mensaje en inglés
+  y el asistente de onboarding y el diálogo de nueva run lo muestran.
 
 ### Cierre semanal y nueva run (M3)
 
@@ -654,6 +680,11 @@ diario necesita mostrar más información que los estados estáticos del prototi
   `schemaVersion`) antes de confirmar. Un archivo inválido, corrupto o de versión
   futura se rechaza antes de llamar a `importDocument`, por lo que el documento y
   `localStorage` no cambian.
+- `RecoveryScreen` permite importar un backup válido sin resetear primero, con el
+  mismo control (`SaveImport`), preview y confirmación que Settings. Un import
+  válido llama a `importDocument`, desbloquea las escrituras y deriva la vista.
+  El reset destructivo de Recovery reutiliza la frase exacta `RESET` y las mismas
+  guardas que Settings.
 - El reset exige escribir `RESET` exactamente además de confirmar el diálogo.
   Al confirmar se llama a `resetAll`, se limpia la clave y se vuelve a
   onboarding; cancelar no toca el save. Los ajustes muestran `STORAGE_KEY` y
@@ -679,7 +710,13 @@ diario necesita mostrar más información que los estados estáticos del prototi
   idempotencia, `summary.totals === run.totals`, deltas del perfil, nueva run
   (perfil conservado, run/días/objetivos reseteados, id/semilla nuevos,
   round-trip) y cierre automático vía reconcile.
-- `schema`: round-trip, JSON inválido, campos ausentes, versión futura, migración.
+- `schema`: round-trip, JSON inválido, campos ausentes, versión futura, migración,
+  mapas válidos pero injugables y referencias día/mapa/path/rewards incoherentes.
+- `demo`/`content`: setup con objetivo activo sin rutina, demo válido y bloqueo de
+  la última rutina activa de una meta activa durante la run.
+- `persistence`/`store`: escritura fallida expuesta como `storageWarning`, estado
+  en memoria usable, limpieza tras un reintento correcto y vista derivada después
+  del reconcile de hidratación.
 - `collection`: catálogo completo de 12, filtros/contadores por rareza, historial
   de duplicados desde `RewardEvent` y vacío honesto sin run.
 - `importSave`: resumen de preview (perfil, nivel, oro, run/día, reliquias,

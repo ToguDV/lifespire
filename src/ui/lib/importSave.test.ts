@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../../content/demo'
 import { SCHEMA_VERSION } from '../../domain/balance'
-import { createRun } from '../../domain/lifecycle'
+import { createRun, openDay } from '../../domain/lifecycle'
 import { createEmptyDocument, serializeDocument } from '../../domain/schema'
 import type { GameDocument } from '../../domain/types'
 import {
@@ -93,6 +93,24 @@ describe('import preview', () => {
     if (!result.ok) return
     expect(result.document).toEqual(document)
     expect(result.summary).toEqual(summarizeDocument(document))
+  })
+
+  it('accepts a save with a generated day map and rejects an unplayable one', () => {
+    const opened = openDay(documentWithRun(), { now })
+    const valid = readSaveFile(serializeDocument(opened))
+    expect(valid.ok).toBe(true)
+    if (valid.ok) {
+      expect(valid.document.run?.days[0]?.map).not.toBeNull()
+    }
+
+    const broken = structuredClone(opened)
+    broken.run!.days[0]!.map!.layers[0] = []
+    const invalid = readSaveFile(serializeDocument(broken))
+    expect(invalid.ok).toBe(false)
+    if (invalid.ok) return
+    expect(invalid.reason).toBe('invalid')
+    expect(invalid.message).toContain('not a valid LifeSpire save')
+    expect(invalid.message).toContain('layers[0]')
   })
 
   it('rejects malformed JSON, missing fields and future versions clearly', () => {

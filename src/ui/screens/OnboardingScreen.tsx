@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { createDemoSetup, validateSetup } from '../../content/demo'
+import { AIM_WITHOUT_ROUTINE, createDemoSetup, validateSetup } from '../../content/demo'
 import {
   createEmptyDraft,
   draftToSetup,
@@ -124,6 +124,11 @@ export function OnboardingScreen() {
     const activeTasks = tasks.filter((task) => task.active)
     if (activeTasks.length < MIN_ACTIVE_TASKS) {
       errors.push(`Add at least ${MIN_ACTIVE_TASKS} routines to light the week.`)
+    }
+    for (const goal of goals) {
+      if (goal.active && !activeTasks.some((task) => task.goalId === goal.id)) {
+        errors.push(AIM_WITHOUT_ROUTINE)
+      }
     }
     for (const task of tasks) {
       errors.push(...unique(Object.values(validateTaskInput(task, goals))))

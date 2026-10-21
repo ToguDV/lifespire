@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
 import { SCHEMA_VERSION } from './balance'
+import { generateMap } from './generator'
 import { createRun } from './lifecycle'
 import {
   createEmptyDocument,
@@ -14,7 +15,6 @@ import type {
   GameDocument,
   GameMap,
   LootItem,
-  MapNode,
   RewardEvent,
   Run,
   TaskSnapshot,
@@ -39,33 +39,19 @@ const snapshot: TaskSnapshot = {
   effort: 'light',
 }
 
-function node(id: string, layer: number, type: MapNode['type']): MapNode {
-  return {
-    id,
-    layer,
-    type,
-    task: type === 'rest' || type === 'treasure' ? null : snapshot,
-    rewards: { xp: 10, gold: 10, lootRolls: 0, progress: type === 'rest' ? 0 : 1 },
-    connections: [],
-  }
-}
-
-function mapFor(dayIndex: number): GameMap {
-  return {
-    id: `map_${dayIndex}`,
-    seed: `seed_${dayIndex}`,
+function mapFor(dayIndex: number, run: Run): GameMap {
+  const setup = createDemoSetup(now)
+  const map = generateMap({
+    runId: run.id,
+    runSeed: run.seed,
     dayIndex,
-    generatorVersion: 1,
-    layers: [
-      [node('n0_0', 0, 'task')],
-      [node('n1_0', 1, 'elite')],
-      [node('n2_0', 2, 'treasure')],
-      [node('n3_0', 3, 'rest')],
-    ],
-    boss: node('boss', 4, 'boss'),
-    currentNodeId: 'n1_0',
-    createdAt: now.toISOString(),
-  }
+    generatorVersion: run.generatorVersion,
+    goals: setup.goals,
+    tasks: setup.tasks,
+    objectives: run.objectives,
+    now: now.toISOString(),
+  })
+  return dayIndex === 0 ? { ...map, currentNodeId: 'n1_0' } : map
 }
 
 const reward: RewardEvent = {
@@ -114,17 +100,17 @@ function fullDocument(): GameDocument {
   const dayZero: Day = {
     ...baseRun.days[0]!,
     status: 'in_progress',
-    map: mapFor(0),
+    map: mapFor(0, baseRun),
     path: [{ nodeId: 'n0_0', action: 'complete', at: now.toISOString() }],
-    rewards: [reward],
+    rewards: [{ ...reward }],
     openedAt: now.toISOString(),
   }
   const dayOne: Day = {
     ...baseRun.days[1]!,
     status: 'completed',
-    map: mapFor(1),
+    map: mapFor(1, baseRun),
     path: [{ nodeId: 'n0_0', action: 'complete', at: now.toISOString() }],
-    rewards: [reward],
+    rewards: [{ ...reward }],
     openedAt: now.toISOString(),
     closedAt: now.toISOString(),
     summary,
@@ -270,6 +256,63 @@ describe('serializeDocument and parseDocument', () => {
     const shortRun = fullDocument()
     shortRun.run = { ...shortRun.run!, days: shortRun.run!.days.slice(0, 3) }
     expect(parseDocument(shortRun).ok).toBe(false)
+  })
+
+  it('rejects maps that are structurally valid but unplayable', () => {
+    const wrongBoss = fullDocument()
+    wrongBoss.run!.days[0]!.map!.boss.type = 'task'
+    const bossResult = parseDocument(wrongBoss)
+    expect(bossResult.ok).toBe(false)
+    if (!bossResult.ok) expect(bossResult.error).toContain('boss.type')
+
+    const emptyLayer = fullDocument()
+    emptyLayer.run!.days[0]!.map!.layers[0] = []
+    expect(parseDocument(emptyLayer).ok).toBe(false)
+
+    const missingTarget = fullDocument()
+    missingTarget.run!.days[0]!.map!.layers[0]![0]!.connections = ['n9_9']
+    const targetResult = parseDocument(missingTarget)
+    expect(targetResult.ok).toBe(false)
+    if (!targetResult.ok) expect(targetResult.error).toContain('n9_9')
+
+    const missingCurrent = fullDocument()
+    missingCurrent.run!.days[0]!.map!.currentNodeId = 'n9_9'
+    expect(parseDocument(missingCurrent).ok).toBe(false)
+  })
+
+  it('rejects maps, days and paths that do not belong together', () => {
+    const wrongDayIndex = fullDocument()
+    const dayZero = wrongDayIndex.run!.days[0]!
+    dayZero.map = {
+      ...dayZero.map!,
+      dayIndex: 1,
+      seed: `${wrongDayIndex.run!.seed}:day:1:g1`,
+    }
+    const dayIndexResult = parseDocument(wrongDayIndex)
+    expect(dayIndexResult.ok).toBe(false)
+    if (!dayIndexResult.ok) expect(dayIndexResult.error).toContain('dayIndex')
+
+    const foreignDay = fullDocument()
+    foreignDay.run!.days[0]!.id = 'other_run:day:0'
+    const foreignResult = parseDocument(foreignDay)
+    expect(foreignResult.ok).toBe(false)
+    if (!foreignResult.ok) expect(foreignResult.error).toContain('belong to this run')
+
+    const missingPathNode = fullDocument()
+    missingPathNode.run!.days[0]!.path.push({
+      nodeId: 'n9_9',
+      action: 'complete',
+      at: now.toISOString(),
+    })
+    const pathResult = parseDocument(missingPathNode)
+    expect(pathResult.ok).toBe(false)
+    if (!pathResult.ok) expect(pathResult.error).toContain('path[1]')
+
+    const missingRewardNode = fullDocument()
+    missingRewardNode.run!.days[0]!.rewards[0]!.nodeId = 'n9_9'
+    const rewardResult = parseDocument(missingRewardNode)
+    expect(rewardResult.ok).toBe(false)
+    if (!rewardResult.ok) expect(rewardResult.error).toContain('rewards[0]')
   })
 
   it('rejects unknown themes and missing settings', () => {

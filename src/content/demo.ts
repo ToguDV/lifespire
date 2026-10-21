@@ -8,6 +8,8 @@ import type { Goal, OnboardingSetup, Task } from '../domain/types'
 
 export const DEMO_NAME = 'Wren'
 
+export const AIM_WITHOUT_ROUTINE = 'Every active aim needs at least one active routine.'
+
 export interface SetupValidation {
   ok: boolean
   errors: string[]
@@ -48,6 +50,9 @@ export function validateSetup(
       errors.push(
         `Set each weekly aim between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
       )
+    }
+    if (!activeTasks.some((task) => task.goalId === goal.id)) {
+      errors.push(AIM_WITHOUT_ROUTINE)
     }
   }
 

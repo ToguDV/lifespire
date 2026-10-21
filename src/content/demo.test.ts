@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup, validateSetup } from './demo'
+import {
+  AIM_WITHOUT_ROUTINE,
+  createDemoSetup,
+  validateSetup,
+} from './demo'
 import type { Goal, Task } from '../domain/types'
 
 const now = new Date(2026, 9, 20, 8, 0, 0)
@@ -104,6 +108,33 @@ describe('validateSetup', () => {
     const tasks = [...fourTasks(), makeTask({ id: 'task_5', active: false })]
     expect(validateSetup([makeGoal()], tasks.slice(0, 3)).ok).toBe(false)
     expect(validateSetup([makeGoal()], tasks).ok).toBe(true)
+  })
+
+  it('requires at least one active routine per active aim', () => {
+    const goals = [makeGoal(), makeGoal({ id: 'goal_2', title: 'Craft' })]
+    const allInOneAim = fourTasks()
+    const allInOne = validateSetup(goals, allInOneAim)
+    expect(allInOne.ok).toBe(false)
+    expect(allInOne.errors).toContain(AIM_WITHOUT_ROUTINE)
+
+    const split = fourTasks().map((task, index) => ({
+      ...task,
+      goalId: index < 2 ? 'goal_1' : 'goal_2',
+    }))
+    expect(validateSetup(goals, split)).toEqual({ ok: true, errors: [] })
+
+    const threeGoals = [
+      makeGoal(),
+      makeGoal({ id: 'goal_2', title: 'Craft' }),
+      makeGoal({ id: 'goal_3', title: 'Hearth' }),
+    ]
+    const oneEach = [
+      makeTask({ id: 'task_1', goalId: 'goal_1' }),
+      makeTask({ id: 'task_2', goalId: 'goal_1' }),
+      makeTask({ id: 'task_3', goalId: 'goal_2' }),
+      makeTask({ id: 'task_4', goalId: 'goal_3' }),
+    ]
+    expect(validateSetup(threeGoals, oneEach)).toEqual({ ok: true, errors: [] })
   })
 
   it('rejects weekly objectives outside 1..7', () => {

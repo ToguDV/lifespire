@@ -590,6 +590,13 @@ describe('startNewRun', () => {
       ),
     ).toThrow(/finish the current run/i)
 
+    const unsealed = { ...document, run: { ...run, summary: null } }
+    expect(() =>
+      startNewRun(unsealed, { runId: 'run_x', now: end }),
+    ).toThrow(/seal this week/i)
+    expect(unsealed.run?.summary).toBeNull()
+    expect(unsealed.run?.id).toBe(run.id)
+
     const invalid = { ...document, tasks: [] }
     expect(() =>
       startNewRun(invalid, { runId: 'run_x', now: end }),

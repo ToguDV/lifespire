@@ -73,6 +73,17 @@ describe('validateNewRunSetup', () => {
     expect(missing.fieldErrors['demo-goal-craft']).toBeTruthy()
   })
 
+  it('requires a routine under every active aim', () => {
+    const targets = initialWeeklyTargets(setup.goals)
+    const allInOneAim = setup.tasks.map((task) => ({
+      ...task,
+      goalId: 'demo-goal-wayfarer',
+    }))
+    const result = validateNewRunSetup(setup.goals, allInOneAim, targets)
+    expect(result.ok).toBe(false)
+    expect(result.errors).toContain('Every active aim needs at least one active routine.')
+  })
+
   it('reuses the same setup rules as onboarding', () => {
     const targets = initialWeeklyTargets(setup.goals)
     const adjusted = setup.goals.map((goal) => ({

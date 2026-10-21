@@ -1,5 +1,6 @@
 import { DECISION_LAYERS, MAX_WEEKLY_OBJECTIVE, RUN_DAYS, SCHEMA_VERSION } from './balance'
 import { isDayKey } from './dates'
+import { validateMap } from './generator'
 import type {
   Day,
   DaySummary,
@@ -497,7 +498,7 @@ function validateRun(value: unknown, path: string): Run {
   if (days.length !== RUN_DAYS) {
     fail(`${path}.days`, `must contain ${RUN_DAYS} days`)
   }
-  return {
+  const run: Run = {
     id: expectString(raw.id, `${path}.id`),
     seed: expectString(raw.seed, `${path}.seed`),
     generatorVersion: expectInteger(raw.generatorVersion, `${path}.generatorVersion`, 1),
@@ -512,6 +513,56 @@ function validateRun(value: unknown, path: string): Run {
     closedAt: expectNullableString(raw.closedAt, `${path}.closedAt`),
     summary: raw.summary === null ? null : validateRunSummary(raw.summary, `${path}.summary`),
   }
+
+  validateRunIntegrity(run, path)
+  return run
+}
+
+/**
+ * Cross-checks a structurally valid run against itself. A document can pass
+ * the field schema and still be unplayable (maps from another day or run,
+ * paths pointing at nodes that do not exist), so imports would otherwise
+ * accept a save that bricks the next action.
+ */
+function validateRunIntegrity(run: Run, path: string): void {
+  run.days.forEach((day, dayIndex) => {
+    const dayPath = `${path}.days[${dayIndex}]`
+    const expectedId = `${run.id}:day:${day.index}`
+    if (day.id !== expectedId) {
+      fail(`${dayPath}.id`, `must belong to this run ("${expectedId}")`)
+    }
+    if (!day.map) return
+
+    if (day.map.dayIndex !== day.index) {
+      fail(`${dayPath}.map.dayIndex`, `must match the day index ${day.index}`)
+    }
+
+    const mapValidation = validateMap(day.map)
+    if (!mapValidation.ok) {
+      fail(`${dayPath}.map`, mapValidation.errors[0] ?? 'is not a playable map')
+    }
+
+    const nodeIds = new Set<string>([
+      ...day.map.layers.flat().map((node) => node.id),
+      day.map.boss.id,
+    ])
+    day.path.forEach((entry, entryIndex) => {
+      if (!nodeIds.has(entry.nodeId)) {
+        fail(
+          `${dayPath}.path[${entryIndex}].nodeId`,
+          `references "${entry.nodeId}", which is not in this map`,
+        )
+      }
+    })
+    day.rewards.forEach((event, eventIndex) => {
+      if (!nodeIds.has(event.nodeId)) {
+        fail(
+          `${dayPath}.rewards[${eventIndex}].nodeId`,
+          `references "${event.nodeId}", which is not in this map`,
+        )
+      }
+    })
+  })
 }
 
 /**

@@ -26,6 +26,8 @@ export const CONTENT_MESSAGES = {
   tooManyGoals: `A run can hold at most ${MAX_GOALS} active aims. Archive one before adding another.`,
   lastGoal: 'Keep at least one active aim while the run is underway.',
   fewRoutines: `Keep at least ${MIN_ACTIVE_TASKS} active routines while the run is underway.`,
+  aimWithoutRoutine:
+    'Keep at least one active routine under every active aim while the run is underway.',
   taskTitle: 'Give this routine a title.',
   taskGoal: 'Choose an active aim for this routine.',
   taskEffort: 'Choose light, medium or heavy effort.',
@@ -78,6 +80,17 @@ export function activeGoalsOf(goals: readonly Goal[]): Goal[] {
 export function activeTasksUnderActiveGoals(goals: readonly Goal[], tasks: readonly Task[]): Task[] {
   const goalIds = new Set(activeGoalsOf(goals).map((goal) => goal.id))
   return tasks.filter((task) => task.active && goalIds.has(task.goalId))
+}
+
+/** Whether an active aim still has at least one active routine in `tasks`. */
+export function goalHasActiveRoutine(
+  goals: readonly Goal[],
+  tasks: readonly Task[],
+  goalId: string,
+): boolean {
+  const goal = goals.find((candidate) => candidate.id === goalId)
+  if (!goal?.active) return true
+  return tasks.some((task) => task.active && task.goalId === goalId)
 }
 
 /**

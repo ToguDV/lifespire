@@ -231,6 +231,9 @@ export function startNewRun(
   if (previous.status !== 'closed') {
     throw new DomainError('Finish the current run before starting a new one.')
   }
+  if (previous.summary === null) {
+    throw new DomainError('Seal this week before starting a new one so its bonus is not lost.')
+  }
 
   const validation = validateSetup(document.goals, document.tasks)
   if (!validation.ok) {
