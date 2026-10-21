@@ -2,8 +2,21 @@ import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
 import { RUN_DAYS } from './balance'
 import { dayKey, daysBetween } from './dates'
-import { createRun, reconcileDays } from './lifecycle'
-import type { GameMap, MapNode, Run } from './types'
+import { validateMap } from './generator'
+import {
+  createRun,
+  DomainError,
+  openDay,
+  reconcileDays,
+  selectNode,
+} from './lifecycle'
+import { createEmptyDocument, parseDocument, serializeDocument } from './schema'
+import {
+  availableNodeIds,
+  nodeStatus,
+  resolveNodeById,
+} from './selectors'
+import type { Day, GameDocument, GameMap, MapNode, Run } from './types'
 
 const now = new Date(2026, 9, 20, 8, 30, 0)
 
@@ -183,5 +196,197 @@ describe('reconcileDays', () => {
       'locked',
       'locked',
     ])
+  })
+})
+
+function makeDocument(at = now, runId = 'run_day'): GameDocument {
+  const setup = createDemoSetup(at)
+  const run = createRun({ setup, now: at, runId })
+  const empty = createEmptyDocument()
+  return {
+    ...empty,
+    profile: {
+      id: 'profile_day',
+      name: 'Wren',
+      xp: 0,
+      level: 1,
+      gold: 0,
+      loot: [],
+      createdAt: at.toISOString(),
+    },
+    goals: setup.goals,
+    tasks: setup.tasks,
+    run,
+  }
+}
+
+function openedDocument(at = now): GameDocument {
+  return openDay(makeDocument(at), { now: at })
+}
+
+describe('openDay', () => {
+  it('generates and stores a valid map for the current day', () => {
+    const before = makeDocument()
+    const after = openDay(before, { now })
+
+    const day = after.run?.days[0]
+    expect(day?.status).toBe('in_progress')
+    expect(day?.openedAt).toBe(now.toISOString())
+    expect(day?.map).not.toBeNull()
+    expect(day?.map && validateMap(day.map)).toEqual({ ok: true })
+    expect(day?.map?.seed).toBe('run:run_day:day:0:g1')
+    expect(day?.map?.currentNodeId).toBeNull()
+    expect(day?.map?.createdAt).toBe(now.toISOString())
+
+    // Only the current day changed.
+    expect(after.run?.days.slice(1)).toEqual(before.run?.days.slice(1))
+    expect(before.run?.days[0]?.map).toBeNull()
+  })
+
+  it('is idempotent and never regenerates an existing map', () => {
+    const first = openedDocument()
+    const later = new Date(2026, 9, 20, 22, 15, 0)
+    const second = openDay(first, { now: later })
+
+    expect(second).toBe(first)
+    expect(second.run?.days[0]?.map).toBe(first.run?.days[0]?.map)
+    expect(second.run?.days[0]?.openedAt).toBe(now.toISOString())
+  })
+
+  it('opens the explicitly requested current day', () => {
+    const document = makeDocument()
+    const dayId = document.run?.days[0]?.id
+    expect(dayId).toBeTruthy()
+    const opened = openDay(document, { dayId, now })
+    expect(opened.run?.days[0]?.map).not.toBeNull()
+  })
+
+  it('refuses future and past days', () => {
+    const document = makeDocument()
+
+    expect(() => openDay(document, { now: new Date(2026, 9, 19, 9, 0, 0) })).toThrow(
+      DomainError,
+    )
+    expect(() => openDay(document, { now: new Date(2026, 9, 19, 9, 0, 0) })).toThrow(
+      /not arrived/i,
+    )
+    expect(() => openDay(document, { now: new Date(2026, 9, 21, 9, 0, 0) })).toThrow(
+      /already passed/i,
+    )
+
+    const futureDayId = document.run?.days[1]?.id
+    expect(() => openDay(document, { dayId: futureDayId, now })).toThrow(
+      /only today/i,
+    )
+    expect(() => openDay(document, { dayId: 'missing-day', now })).toThrow(
+      /does not belong/i,
+    )
+  })
+
+  it('refuses to open a day without an active run or active routines', () => {
+    const empty = createEmptyDocument()
+    expect(() => openDay(empty, { now })).toThrow(/no active run/i)
+
+    const closed = makeDocument()
+    if (closed.run) closed.run = { ...closed.run, status: 'closed' }
+    expect(() => openDay(closed, { now })).toThrow(/no active run/i)
+
+    const routineLess = makeDocument()
+    routineLess.tasks = []
+    expect(() => openDay(routineLess, { now })).toThrow(/active routine/i)
+  })
+
+  it('produces a document that round-trips through the schema', () => {
+    const document = openedDocument()
+    const parsed = parseDocument(serializeDocument(document))
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.value).toEqual(document)
+  })
+})
+
+describe('selectNode', () => {
+  it('selects a layer-0 node and persists it in the map', () => {
+    const document = openedDocument()
+    const map = document.run?.days[0]?.map
+    const firstNode = map?.layers[0]?.[0]
+    if (!map || !firstNode) throw new Error('expected a generated map')
+
+    const selected = selectNode(document, firstNode.id)
+    expect(selected.run?.days[0]?.map?.currentNodeId).toBe(firstNode.id)
+    expect(document.run?.days[0]?.map?.currentNodeId).toBeNull()
+  })
+
+  it('keeps the current node as the only choice and refuses to swap it', () => {
+    const document = openedDocument()
+    const map = document.run?.days[0]?.map
+    const layerZero = map?.layers[0] ?? []
+    const firstNode = layerZero[0]
+    const otherNode = layerZero[1]
+    if (!map || !firstNode || !otherNode) throw new Error('expected two layer-0 nodes')
+
+    const selected = selectNode(document, firstNode.id)
+    expect(selectNode(selected, firstNode.id)).toBe(selected)
+    expect(() => selectNode(selected, otherNode.id)).toThrow(/already chosen/i)
+
+    const day = selected.run?.days[0] as Day
+    const selectedMap = day.map as GameMap
+    expect(availableNodeIds(selectedMap, day)).toEqual([firstNode.id])
+    expect(nodeStatus(selectedMap, day, firstNode.id)).toBe('current')
+    expect(nodeStatus(selectedMap, day, otherNode.id)).toBe('locked')
+  })
+
+  it('rejects locked, unknown and premature selections', () => {
+    const document = makeDocument()
+    expect(() => selectNode(document, 'n0_0')).toThrow(/open the day/i)
+
+    const opened = openedDocument()
+    const map = opened.run?.days[0]?.map
+    const locked = map?.layers[1]?.[0]
+    const boss = map?.boss
+    if (!map || !locked || !boss) throw new Error('expected a generated map')
+
+    expect(() => selectNode(opened, locked.id)).toThrow(/not available/i)
+    expect(() => selectNode(opened, boss.id)).toThrow(/not available/i)
+    expect(() => selectNode(opened, 'nope')).toThrow(/not part of today/i)
+  })
+
+  it('reports completed, skipped, current, available and locked statuses', () => {
+    const document = openedDocument()
+    const map = document.run?.days[0]?.map
+    const first = map?.layers[0]?.[0]
+    if (!map || !first) throw new Error('expected a generated map')
+    const nextId = first.connections[0]
+    if (!nextId) throw new Error('expected a connection')
+
+    const baseDay = document.run?.days[0] as Day
+    const resolvedDay: Day = {
+      ...baseDay,
+      path: [
+        { nodeId: first.id, action: 'complete', at: now.toISOString() },
+        { nodeId: nextId, action: 'skip', at: now.toISOString() },
+      ],
+    }
+
+    expect(nodeStatus(map, resolvedDay, first.id)).toBe('completed')
+    expect(nodeStatus(map, resolvedDay, nextId)).toBe('skipped')
+    expect(nodeStatus(map, resolvedDay, 'n3_0')).toBe('locked')
+
+    const availableDay: Day = { ...baseDay, path: resolvedDay.path.slice(0, 1) }
+    const available = availableNodeIds(map, availableDay)
+    expect(available).toEqual(first.connections)
+    for (const nodeId of available) {
+      expect(nodeStatus(map, availableDay, nodeId)).toBe('available')
+    }
+
+    const currentMap: GameMap = { ...map, currentNodeId: nextId }
+    expect(nodeStatus(currentMap, baseDay, nextId)).toBe('current')
+  })
+
+  it('resolves boss nodes and returns null for unknown ids', () => {
+    const document = openedDocument()
+    const map = document.run?.days[0]?.map
+    if (!map) throw new Error('expected a generated map')
+    expect(resolveNodeById(map, map.boss.id)).toEqual(map.boss)
+    expect(resolveNodeById(map, 'missing')).toBeNull()
   })
 })

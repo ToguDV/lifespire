@@ -1,5 +1,5 @@
 import { XP_PER_LEVEL } from './balance'
-import type { Day, Goal, Run, RunObjective, Task } from './types'
+import type { Day, GameMap, Goal, MapNode, NodeStatus, Run, RunObjective, Task } from './types'
 
 /** Normalizes any counter to a finite, non-negative integer. */
 export function safeCount(value: number): number {
@@ -49,4 +49,60 @@ export function countActiveTasks(tasks: readonly Task[], goals?: readonly Goal[]
     }
   }
   return total
+}
+
+/** Finds a decision or boss node by its stable id. */
+export function resolveNodeById(map: GameMap, nodeId: string): MapNode | null {
+  for (const layer of map.layers) {
+    const node = layer.find((candidate) => candidate.id === nodeId)
+    if (node) return node
+  }
+  return map.boss.id === nodeId ? map.boss : null
+}
+
+function resolvedEntry(day: Day, nodeId: string) {
+  return day.path.find((entry) => entry.nodeId === nodeId)
+}
+
+/**
+ * Nodes the player can choose right now. While a node is current it is the
+ * only choice (the player must resolve it); otherwise the first layer or the
+ * connections of the last resolved node are available.
+ */
+export function availableNodeIds(map: GameMap, day: Day): string[] {
+  if (day.status !== 'in_progress' || !day.map) return []
+
+  if (map.currentNodeId !== null) {
+    const current = resolveNodeById(map, map.currentNodeId)
+    if (!current || resolvedEntry(day, current.id)) return []
+    return [current.id]
+  }
+
+  if (day.path.length === 0) {
+    return (map.layers[0] ?? [])
+      .filter((node) => !resolvedEntry(day, node.id))
+      .map((node) => node.id)
+  }
+
+  const lastEntry = day.path[day.path.length - 1]
+  if (!lastEntry) return []
+  const lastNode = resolveNodeById(map, lastEntry.nodeId)
+  if (!lastNode) return []
+
+  return lastNode.connections.filter((nodeId) => {
+    const node = resolveNodeById(map, nodeId)
+    return node !== null && !resolvedEntry(day, nodeId)
+  })
+}
+
+/** Resolved path entries win over the current selection. */
+export function nodeStatus(map: GameMap, day: Day, nodeId: string): NodeStatus {
+  const entry = resolvedEntry(day, nodeId)
+  if (entry) return entry.action === 'complete' ? 'completed' : 'skipped'
+
+  if (day.status === 'in_progress' && day.map && map.currentNodeId === nodeId) {
+    return 'current'
+  }
+  if (availableNodeIds(map, day).includes(nodeId)) return 'available'
+  return 'locked'
 }
