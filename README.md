@@ -10,6 +10,7 @@ central. No hay cuentas, backend, sincronización ni despliegue público.
 
 - Especificación funcional: [`SPEC.md`](./SPEC.md)
 - Diseño aceptado: [`design/`](./design) · [`DESIGN.md`](./design/DESIGN.md)
+- Notas de UI y componentes: [`docs/UI.md`](./docs/UI.md)
 - Arquitectura y contratos: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
 - Guía para agentes: [`AGENTS.md`](./AGENTS.md)
 
