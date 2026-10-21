@@ -512,7 +512,7 @@ interface AppState {
   selectNode(nodeId: string): void
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
   finalizeRun(now?: Date): void
-  startNewRun(now?: Date): void
+  startNewRun(now?: Date, goals?: Goal[]): boolean
   saveGoal(input: GoalInput, now?: Date): ContentActionResult
   archiveGoal(goalId: string, now?: Date): ContentActionResult
   saveTask(input: TaskInput, now?: Date): ContentActionResult
@@ -542,6 +542,11 @@ inyectan con `newId` y el reloj del store; `archiveGoal`/`archiveTask` desactiva
 (no borran) y `archiveGoal` archiva en cascada sus rutinas. `ContentActionResult`
 devuelve errores de campo y de formulario para que los diálogos los asocien con
 `aria-describedby`.
+
+`startNewRun` acepta metas revisadas opcionales para el diálogo de nueva run.
+Las escribe en el mismo `set` que la run nueva: si la validación de setup falla,
+no persiste ni las metas ni la run y devuelve `false` (el mensaje queda en
+`toast`). Sin metas revisadas conserva el comportamiento anterior.
 
 ## 6. UI y diseño
 
@@ -606,6 +611,28 @@ diario necesita mostrar más información que los estados estáticos del prototi
   y avisa de que los cambios solo afectan a mapas futuros. La UI bloquea archivar
   la última meta activa o dejar menos de cuatro rutinas activas; el dominio
   aplica las mismas reglas aunque la acción se invoque fuera de la pantalla.
+
+### Cierre semanal y nueva run (M3)
+
+- `RunSummaryScreen` extiende el lenguaje de `summary-*` (mismo `Panel`,
+  `ScreenHead`, sello, pips y acciones) con dos estados además del resumen
+  cerrado: run activa («The week is still unfolding») con progreso de días y
+  metas, y run cerrada sin `summary` (save antiguo), que llama a `finalizeRun`
+  una vez y muestra el resultado. No hay una pantalla de resumen semanal en el
+  prototipo; el resumen de día sigue siendo `DaySummaryScreen`.
+- El resumen cerrado muestra días jugados/missed, metas con progreso/target,
+  bonus por meta, bonus total por todas las metas (+100/+100 y raro garantizado
+  cuando aplica), loot, oro por duplicados, totales y nivel del perfil. El texto
+  explica que el bonus se concede una sola vez y que los totales ya están en el
+  perfil.
+- «Begin a new run» abre un diálogo modal con los objetivos semanales editables
+  (1–7) de las metas activas. El diálogo valida con las mismas reglas que
+  `validateSetup` y pasa las metas revisadas a `startNewRun`, que las persiste
+  junto con la run nueva. Un fallo deja el documento y el diálogo intactos.
+- La run cerrada nunca ofrece jugar el mapa: home muestra «Read the week» y las
+  guardas de `App.tsx` redirigen `map`/`node` a `run-summary`. Tras
+  `startNewRun`, la vista es `home` con el día 1 `available` y los días 2–7
+  `locked`.
 
 ## 7. Tests obligatorios por módulo
 
