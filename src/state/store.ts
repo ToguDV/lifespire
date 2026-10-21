@@ -6,7 +6,7 @@ import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
 import { dayKey } from '../domain/dates'
 import { createRun, openDay as openDayDocument, reconcileDays, selectNode as selectNodeDocument } from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
-import { levelForXp } from '../domain/selectors'
+import { currentDay, levelForXp, resolveNodeById } from '../domain/selectors'
 import type {
   GameDocument,
   Goal,
@@ -107,6 +107,13 @@ export function deriveInitialView(
   }
   if (document.run?.status === 'closed') {
     return { name: 'run-summary' }
+  }
+  // The chosen node survives a reload through the persisted map. The view is
+  // still transient: it is derived from the document, never written to storage.
+  const day = currentDay(document.run)
+  const selectedId = day?.status === 'in_progress' ? day.map?.currentNodeId : null
+  if (day?.map && selectedId && resolveNodeById(day.map, selectedId)) {
+    return { name: 'node', nodeId: selectedId }
   }
   return { name: 'home' }
 }

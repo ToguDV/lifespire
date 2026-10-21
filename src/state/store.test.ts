@@ -515,6 +515,27 @@ describe('view navigation', () => {
     expect(hydratedClosed.getState().view).toEqual({ name: 'run-summary' })
   })
 
+  it('reopens the chosen node detail after hydration without persisting the view', () => {
+    const { store, memory, base } = makeHarness()
+    store.getState().completeOnboarding(createDemoSetup(base), base)
+    store.getState().startRun(undefined, base)
+    store.getState().openDay(undefined, base)
+
+    const opened = store.getState().document.run
+    const nodeId = opened?.days[0]?.map?.layers[0]?.[0]?.id
+    expect(nodeId).toBeTruthy()
+    if (!nodeId) throw new Error('the demo map must have a first node')
+    store.getState().selectNode(nodeId)
+
+    const reopened = createAppStore({
+      storage: createDocumentStorage(memory),
+      now: () => base,
+    })
+    expect(reopened.getState().view).toEqual({ name: 'node', nodeId })
+    expect(reopened.getState().document.run?.days[0]?.map?.currentNodeId).toBe(nodeId)
+    expect(memory.getItem(STORAGE_KEY)).not.toContain('"view"')
+  })
+
   it('opens recovery when storage is blocked', () => {
     const { store } = makeHarness({ raw: '{broken' })
     expect(store.getState().view).toEqual({ name: 'recovery', reason: 'corrupt' })
