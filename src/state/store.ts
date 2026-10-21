@@ -3,6 +3,15 @@ import type { StoreApi, UseBoundStore } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { createDemoSetup, validateSetup } from '../content/demo'
 import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
+import {
+  CONTENT_MESSAGES,
+  contentFailure,
+  contentSuccess,
+  validateContentConstraints,
+  validateGoalInput,
+  validateTaskInput,
+} from '../domain/content'
+import type { ContentActionResult } from '../domain/content'
 import { dayKey } from '../domain/dates'
 import {
   createRun,
@@ -17,6 +26,7 @@ import { currentDay, levelForXp, resolveNodeById } from '../domain/selectors'
 import type {
   GameDocument,
   Goal,
+  GoalInput,
   OnboardingDraft,
   OnboardingSetup,
   Profile,
@@ -25,6 +35,7 @@ import type {
   RunSetup,
   StorageIssue,
   Task,
+  TaskInput,
   ThemePreference,
   View,
 } from '../domain/types'
@@ -44,6 +55,7 @@ export interface AppState {
   back(): void
   updateOnboardingDraft(patch: Partial<OnboardingDraft>): void
   completeOnboarding(setup: OnboardingSetup, now?: Date): void
+  beginJourney(setup: OnboardingSetup, now?: Date): boolean
   startRun(setup?: RunSetup, now?: Date): void
   reconcile(now?: Date): void
   openDay(dayId?: string, now?: Date): void
@@ -51,6 +63,10 @@ export interface AppState {
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
   finalizeRun(now?: Date): void
   startNewRun(now?: Date): void
+  saveGoal(input: GoalInput, now?: Date): ContentActionResult
+  archiveGoal(goalId: string, now?: Date): ContentActionResult
+  saveTask(input: TaskInput, now?: Date): ContentActionResult
+  archiveTask(taskId: string, now?: Date): ContentActionResult
   setTheme(theme: ThemePreference): void
   importDocument(nextDocument: GameDocument): boolean
   resetAll(): void
@@ -215,6 +231,64 @@ export function createAppStore(
           })
         },
 
+        /**
+         * Onboarding's single transition: profile, content, the seven-day run,
+         * the day-1 map and the cleared draft are written together. Any
+         * validation or map-generation failure leaves the document untouched.
+         */
+        beginJourney: (setup, at = nowProvider()) => {
+          const validation = validateSetup(setup.goals, setup.tasks)
+          if (!validation.ok) {
+            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            return false
+          }
+
+          const current = get().document
+          if (current.profile) {
+            set({ toast: 'Your journey has already begun.' })
+            return false
+          }
+
+          const profile: Profile = {
+            id: idFactory('profile'),
+            name: setup.name.trim() || 'Wayfarer',
+            xp: 0,
+            level: levelForXp(0),
+            gold: 0,
+            loot: [],
+            createdAt: at.toISOString(),
+          }
+          const run = createRun({
+            setup: { goals: setup.goals, tasks: setup.tasks },
+            now: at,
+            runId: idFactory('run'),
+          })
+          const seeded: GameDocument = {
+            ...current,
+            profile,
+            goals: [...setup.goals],
+            tasks: [...setup.tasks],
+            run,
+            onboardingDraft: null,
+          }
+
+          let next: GameDocument
+          try {
+            next = openDayDocument(seeded, { now: at })
+          } catch (error) {
+            set({ toast: errorMessage(error, 'This path cannot begin yet.') })
+            return false
+          }
+
+          set({
+            document: next,
+            view: { name: 'home' },
+            history: [],
+            toast: null,
+          })
+          return true
+        },
+
         startRun: (setup, at = nowProvider()) => {
           const current = get().document
           if (!current.profile) {
@@ -321,6 +395,151 @@ export function createAppStore(
           } catch (error) {
             set({ toast: errorMessage(error, 'A new run cannot begin yet.') })
           }
+        },
+
+        saveGoal: (input, at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          const existing = input.id
+            ? current.goals.find((goal) => goal.id === input.id)
+            : undefined
+          if (input.id && !existing) {
+            const failure = contentFailure({ form: CONTENT_MESSAGES.missingGoal })
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+
+          const goal: Goal = {
+            id: existing?.id ?? idFactory('goal'),
+            title: input.title.trim(),
+            category: input.category.trim() || existing?.category || 'General',
+            weeklyObjective: input.weeklyObjective,
+            active: input.active,
+            createdAt: existing?.createdAt ?? input.createdAt ?? at.toISOString(),
+          }
+
+          const fieldErrors = validateGoalInput(goal)
+          if (Object.keys(fieldErrors).length > 0) {
+            const failure = contentFailure(fieldErrors)
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+
+          const goals = existing
+            ? current.goals.map((candidate) => (candidate.id === goal.id ? goal : candidate))
+            : [...current.goals, goal]
+
+          // Archiving an aim archives its routines too, so no active routine
+          // can point at an inactive aim.
+          const tasks =
+            existing?.active && !goal.active
+              ? current.tasks.map((task) =>
+                  task.goalId === goal.id && task.active ? { ...task, active: false } : task,
+                )
+              : current.tasks
+
+          const constraint = validateContentConstraints(current, goals, tasks)
+          if (!constraint.ok) {
+            set({ toast: constraint.errors[0] ?? null })
+            return constraint
+          }
+
+          set({ document: { ...current, goals, tasks }, toast: null })
+          return contentSuccess()
+        },
+
+        archiveGoal: (goalId, at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          const goal = current.goals.find((candidate) => candidate.id === goalId)
+          if (!goal) {
+            const failure = contentFailure({ form: CONTENT_MESSAGES.missingGoal })
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+          if (!goal.active) return contentSuccess()
+
+          const goals = current.goals.map((candidate) =>
+            candidate.id === goal.id ? { ...candidate, active: false } : candidate,
+          )
+          const tasks = current.tasks.map((task) =>
+            task.goalId === goal.id && task.active ? { ...task, active: false } : task,
+          )
+
+          const constraint = validateContentConstraints(current, goals, tasks)
+          if (!constraint.ok) {
+            set({ toast: constraint.errors[0] ?? null })
+            return constraint
+          }
+
+          set({ document: { ...current, goals, tasks }, toast: null })
+          return contentSuccess()
+        },
+
+        saveTask: (input, at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          const existing = input.id
+            ? current.tasks.find((task) => task.id === input.id)
+            : undefined
+          if (input.id && !existing) {
+            const failure = contentFailure({ form: CONTENT_MESSAGES.missingTask })
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+
+          const task: Task = {
+            id: existing?.id ?? idFactory('task'),
+            goalId: input.goalId,
+            title: input.title.trim(),
+            effort: input.effort,
+            active: input.active,
+            createdAt: existing?.createdAt ?? input.createdAt ?? at.toISOString(),
+          }
+
+          const fieldErrors = validateTaskInput(task, current.goals)
+          if (Object.keys(fieldErrors).length > 0) {
+            const failure = contentFailure(fieldErrors)
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+
+          const tasks = existing
+            ? current.tasks.map((candidate) => (candidate.id === task.id ? task : candidate))
+            : [...current.tasks, task]
+
+          const constraint = validateContentConstraints(current, current.goals, tasks)
+          if (!constraint.ok) {
+            set({ toast: constraint.errors[0] ?? null })
+            return constraint
+          }
+
+          set({ document: { ...current, tasks }, toast: null })
+          return contentSuccess()
+        },
+
+        archiveTask: (taskId, at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          const task = current.tasks.find((candidate) => candidate.id === taskId)
+          if (!task) {
+            const failure = contentFailure({ form: CONTENT_MESSAGES.missingTask })
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+          if (!task.active) return contentSuccess()
+
+          const tasks = current.tasks.map((candidate) =>
+            candidate.id === task.id ? { ...candidate, active: false } : candidate,
+          )
+          const constraint = validateContentConstraints(current, current.goals, tasks)
+          if (!constraint.ok) {
+            set({ toast: constraint.errors[0] ?? null })
+            return constraint
+          }
+
+          set({ document: { ...current, tasks }, toast: null })
+          return contentSuccess()
         },
 
         setTheme: (theme) => {

@@ -953,3 +953,492 @@ describe('starting a new run from the store', () => {
     expect(store.getState().document.run?.id).toBe(closedRunId)
   })
 })
+
+describe('atomic onboarding journey', () => {
+  it('writes profile, content, run, day 1 and a cleared draft in one transition', () => {
+    const { store, memory, base } = makeHarness()
+    const setup = createDemoSetup(base)
+    store.getState().updateOnboardingDraft({
+      step: 4,
+      mode: 'custom',
+      name: 'Ari',
+      goals: setup.goals,
+      tasks: setup.tasks,
+    })
+
+    const started = store.getState().beginJourney(
+      { name: '  Ari  ', goals: setup.goals, tasks: setup.tasks },
+      base,
+    )
+
+    const document = store.getState().document
+    const run = document.run
+    expect(started).toBe(true)
+    expect(store.getState().toast).toBeNull()
+    expect(store.getState().view).toEqual({ name: 'home' })
+    expect(store.getState().history).toEqual([])
+    expect(document.profile).toMatchObject({
+      name: 'Ari',
+      xp: 0,
+      level: 1,
+      gold: 0,
+      loot: [],
+      createdAt: base.toISOString(),
+    })
+    expect(document.goals).toEqual(setup.goals)
+    expect(document.tasks).toEqual(setup.tasks)
+    expect(document.onboardingDraft).toBeNull()
+    expect(run?.status).toBe('active')
+    expect(run?.days).toHaveLength(7)
+    expect(run?.days[0]?.status).toBe('in_progress')
+    expect(run?.days[0]?.map).not.toBeNull()
+    if (run?.days[0]?.map) expect(validateMap(run.days[0].map)).toEqual({ ok: true })
+    expect(storedDocument(memory)).toEqual(document)
+  })
+
+  it('rejects an invalid setup without creating a profile or run and keeps the draft', () => {
+    const { store, base } = makeHarness()
+    const setup = createDemoSetup(base)
+    store.getState().updateOnboardingDraft({
+      step: 3,
+      mode: 'custom',
+      name: 'Ari',
+      goals: setup.goals,
+      tasks: setup.tasks.slice(0, 3),
+    })
+    const draft = store.getState().document.onboardingDraft
+
+    expect(
+      store.getState().beginJourney(
+        { name: 'Ari', goals: setup.goals, tasks: setup.tasks.slice(0, 3) },
+        base,
+      ),
+    ).toBe(false)
+
+    expect(store.getState().document.profile).toBeNull()
+    expect(store.getState().document.run).toBeNull()
+    expect(store.getState().document.onboardingDraft).toEqual(draft)
+    expect(store.getState().toast).toBe('Add at least 4 routines to light the week.')
+  })
+
+  it('rejects more than three aims and an out-of-range weekly objective', () => {
+    const { store, base } = makeHarness()
+    const setup = createDemoSetup(base)
+    const extra = setup.goals.map((goal, index) => ({
+      ...goal,
+      id: `extra-goal-${index}`,
+      title: `Extra ${index}`,
+    }))
+    const fourGoals = [...setup.goals, ...extra].slice(0, 4)
+
+    expect(
+      store.getState().beginJourney(
+        { name: 'Ari', goals: fourGoals, tasks: setup.tasks },
+        base,
+      ),
+    ).toBe(false)
+    expect(store.getState().toast).toBe('A run can hold at most 3 aims.')
+
+    const invalidObjective = setup.goals.map((goal, index) =>
+      index === 0 ? { ...goal, weeklyObjective: 8 } : goal,
+    )
+    expect(
+      store.getState().beginJourney(
+        { name: 'Ari', goals: invalidObjective, tasks: setup.tasks },
+        base,
+      ),
+    ).toBe(false)
+    expect(store.getState().toast).toBe('Set each weekly aim between 1 and 7.')
+    expect(store.getState().document.profile).toBeNull()
+    expect(store.getState().document.run).toBeNull()
+  })
+
+  it('round-trips the custom draft through a reload', () => {
+    const first = makeHarness()
+    const setup = createDemoSetup(first.base)
+    first.store.getState().updateOnboardingDraft({
+      step: 3,
+      mode: 'custom',
+      name: 'Ari',
+      goals: setup.goals,
+      tasks: setup.tasks.slice(0, 4),
+    })
+    const draft = first.store.getState().document.onboardingDraft
+
+    const reloaded = createAppStore({
+      storage: createDocumentStorage(first.memory),
+      now: () => first.base,
+    })
+    expect(reloaded.getState().document.onboardingDraft).toEqual(draft)
+    expect(reloaded.getState().view).toEqual({ name: 'onboarding' })
+    expect(storedDocument(first.memory).onboardingDraft).toEqual(draft)
+  })
+})
+
+describe('goals and routines CRUD', () => {
+  it('creates, edits and archives a goal with injected id and clock', () => {
+    const { store, memory, base } = makeHarness()
+    store.getState().completeOnboarding(createDemoSetup(base), base)
+
+    const created = store.getState().saveGoal(
+      { title: '  Hearth  ', category: 'Home', weeklyObjective: 2, active: true },
+      base,
+    )
+    expect(created.ok).toBe(true)
+
+    const goal = store.getState().document.goals.find((item) => item.title === 'Hearth')
+    if (!goal) throw new Error('expected the created aim')
+    expect(goal.id.startsWith('goal_')).toBe(true)
+    expect(goal.createdAt).toBe(base.toISOString())
+    expect(storedDocument(memory).goals).toContainEqual(goal)
+
+    const edited = store.getState().saveGoal(
+      {
+        id: goal.id,
+        title: 'Hearthkeeping',
+        category: 'Home',
+        weeklyObjective: 3,
+        active: true,
+      },
+      base,
+    )
+    expect(edited.ok).toBe(true)
+    const afterEdit = store.getState().document.goals.find((item) => item.id === goal.id)
+    expect(afterEdit).toMatchObject({
+      title: 'Hearthkeeping',
+      weeklyObjective: 3,
+      createdAt: base.toISOString(),
+    })
+
+    expect(store.getState().archiveGoal(goal.id, base).ok).toBe(true)
+    const archived = store.getState().document.goals.find((item) => item.id === goal.id)
+    expect(archived?.active).toBe(false)
+    expect(store.getState().document.goals).toHaveLength(3)
+  })
+
+  it('creates, edits, archives and restores a routine', () => {
+    const { store, memory, base } = makeHarness()
+    const setup = createDemoSetup(base)
+    store.getState().completeOnboarding(setup, base)
+    const goal = store.getState().document.goals[0]
+    if (!goal) throw new Error('expected the demo aim')
+
+    const created = store.getState().saveTask(
+      { goalId: goal.id, title: '  Tend the fire  ', effort: 'light', active: true },
+      base,
+    )
+    expect(created.ok).toBe(true)
+    const task = store.getState().document.tasks.find((item) => item.title === 'Tend the fire')
+    if (!task) throw new Error('expected the created routine')
+    expect(task.id.startsWith('task_')).toBe(true)
+    expect(task.createdAt).toBe(base.toISOString())
+
+    expect(
+      store.getState().saveTask(
+        {
+          id: task.id,
+          goalId: goal.id,
+          title: 'Tend the hearth',
+          effort: 'high',
+          active: true,
+        },
+        base,
+      ).ok,
+    ).toBe(true)
+    expect(
+      store.getState().document.tasks.find((item) => item.id === task.id),
+    ).toMatchObject({ title: 'Tend the hearth', effort: 'high' })
+
+    expect(store.getState().archiveTask(task.id, base).ok).toBe(true)
+    expect(
+      store.getState().document.tasks.find((item) => item.id === task.id)?.active,
+    ).toBe(false)
+    expect(storedDocument(memory).tasks).toContainEqual(
+      store.getState().document.tasks.find((item) => item.id === task.id),
+    )
+
+    expect(
+      store.getState().saveTask(
+        {
+          id: task.id,
+          goalId: goal.id,
+          title: 'Tend the hearth',
+          effort: 'high',
+          active: true,
+        },
+        base,
+      ).ok,
+    ).toBe(true)
+    expect(
+      store.getState().document.tasks.find((item) => item.id === task.id)?.active,
+    ).toBe(true)
+  })
+
+  it('rejects empty titles, invalid weekly aims and inactive aims', () => {
+    const { store, base } = makeHarness()
+    const setup = createDemoSetup(base)
+    store.getState().completeOnboarding(setup, base)
+    const goal = store.getState().document.goals[0]
+    if (!goal) throw new Error('expected the demo aim')
+
+    const emptyGoal = store.getState().saveGoal(
+      { title: '   ', category: '', weeklyObjective: 2, active: true },
+      base,
+    )
+    expect(emptyGoal.ok).toBe(false)
+    expect(emptyGoal.fieldErrors.title).toBe('Give this aim a title.')
+
+    const invalidWeekly = store.getState().saveGoal(
+      { title: 'Hearth', category: 'Home', weeklyObjective: 8, active: true },
+      base,
+    )
+    expect(invalidWeekly.ok).toBe(false)
+    expect(invalidWeekly.fieldErrors.weeklyObjective).toBe(
+      'Set the weekly aim between 1 and 7.',
+    )
+
+    const emptyTask = store.getState().saveTask(
+      { goalId: goal.id, title: ' ', effort: 'light', active: true },
+      base,
+    )
+    expect(emptyTask.ok).toBe(false)
+    expect(emptyTask.fieldErrors.title).toBe('Give this routine a title.')
+
+    expect(store.getState().archiveGoal(goal.id, base).ok).toBe(true)
+    const archivedGoal = store.getState().document.goals.find((item) => item.id === goal.id)
+    if (archivedGoal) {
+      expect(
+        store.getState().saveTask(
+          { goalId: archivedGoal.id, title: 'Walk', effort: 'light', active: true },
+          base,
+        ).fieldErrors.goalId,
+      ).toBe('Choose an active aim for this routine.')
+    }
+  })
+
+  it('cascades routine archiving when a goal is archived without a run', () => {
+    const { store, base } = makeHarness()
+    const setup = createDemoSetup(base)
+    store.getState().completeOnboarding(setup, base)
+    const goal = store.getState().document.goals[0]
+    if (!goal) throw new Error('expected the demo aim')
+
+    expect(store.getState().archiveGoal(goal.id, base).ok).toBe(true)
+    const archivedTasks = store
+      .getState()
+      .document.tasks.filter((task) => task.goalId === goal.id)
+    expect(archivedTasks.length).toBeGreaterThan(0)
+    expect(archivedTasks.every((task) => !task.active)).toBe(true)
+  })
+})
+
+describe('content constraints during an active run', () => {
+  it('blocks archiving the last active aim', () => {
+    const { store, base } = makeHarness()
+    const goal = {
+      id: 'goal_only',
+      title: 'Wayfarer',
+      category: 'Movement',
+      weeklyObjective: 4,
+      active: true,
+      createdAt: base.toISOString(),
+    }
+    const tasks = [1, 2, 3, 4].map((index) => ({
+      id: `task_${index}`,
+      goalId: goal.id,
+      title: `Routine ${index}`,
+      effort: 'light' as const,
+      active: true,
+      createdAt: base.toISOString(),
+    }))
+    store.getState().completeOnboarding({ name: 'Ari', goals: [goal], tasks }, base)
+    store.getState().startRun(undefined, base)
+
+    const result = store.getState().archiveGoal(goal.id, base)
+    expect(result.ok).toBe(false)
+    expect(result.errors).toContain('Keep at least one active aim while the run is underway.')
+    expect(store.getState().document.goals[0]?.active).toBe(true)
+  })
+
+  it('blocks dropping below four active routines', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    const tasks = store.getState().document.tasks
+    expect(tasks).toHaveLength(5)
+
+    expect(store.getState().archiveTask(tasks[0]!.id, base).ok).toBe(true)
+    const result = store.getState().archiveTask(tasks[1]!.id, base)
+    expect(result.ok).toBe(false)
+    expect(result.errors).toContain(
+      'Keep at least 4 active routines while the run is underway.',
+    )
+    expect(
+      store.getState().document.tasks.find((task) => task.id === tasks[1]!.id)?.active,
+    ).toBe(true)
+  })
+
+  it('blocks archiving an aim that would leave fewer than four routines', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    const goal = store.getState().document.goals[0]
+    if (!goal) throw new Error('expected the demo aim')
+    const tasksOnGoal = store
+      .getState()
+      .document.tasks.filter((task) => task.goalId === goal.id && task.active)
+    expect(tasksOnGoal).toHaveLength(3)
+
+    const result = store.getState().archiveGoal(goal.id, base)
+    expect(result.ok).toBe(false)
+    expect(result.errors).toContain(
+      'Keep at least 4 active routines while the run is underway.',
+    )
+    expect(store.getState().document.goals.find((item) => item.id === goal.id)?.active).toBe(
+      true,
+    )
+    expect(
+      store.getState().document.tasks.filter((task) => task.goalId === goal.id && task.active),
+    ).toHaveLength(3)
+  })
+
+  it('allows three active aims but blocks a fourth during a run', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+
+    const third = store.getState().saveGoal(
+      { title: 'Hearth', category: 'Home', weeklyObjective: 2, active: true },
+      base,
+    )
+    expect(third.ok).toBe(true)
+    expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(3)
+
+    const fourth = store.getState().saveGoal(
+      { title: 'Craft', category: 'Making', weeklyObjective: 2, active: true },
+      base,
+    )
+    expect(fourth.ok).toBe(false)
+    expect(fourth.errors).toContain(
+      'A run can hold at most 3 active aims. Archive one before adding another.',
+    )
+    expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(3)
+  })
+})
+
+describe('map snapshots and run objectives', () => {
+  it('builds new maps from the updated active content', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    store.getState().openDay(undefined, base)
+
+    const archived = store.getState().document.tasks[0]
+    if (!archived) throw new Error('expected a demo routine')
+    expect(store.getState().archiveTask(archived.id, base).ok).toBe(true)
+
+    store.getState().devAdvanceDay()
+    const nextDay = new Date(2026, 9, 21, 9, 0, 0)
+    store.getState().openDay(undefined, nextDay)
+
+    const day = store.getState().document.run?.days[1]
+    expect(day?.status).toBe('in_progress')
+    const map = day?.map
+    if (!map) throw new Error('expected the next map')
+    const nodeTaskIds = [...map.layers.flat(), map.boss]
+      .map((node) => node.task?.taskId)
+      .filter((taskId): taskId is string => Boolean(taskId))
+    const activeTaskIds = new Set(
+      store
+        .getState()
+        .document.tasks.filter((task) => task.active)
+        .map((task) => task.id),
+    )
+
+    expect(nodeTaskIds).not.toContain(archived.id)
+    expect(nodeTaskIds.every((taskId) => activeTaskIds.has(taskId))).toBe(true)
+  })
+
+  it('keeps an open map playable after edits and fixes targets until the next run', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    store.getState().openDay(undefined, base)
+
+    const day = store.getState().document.run?.days[0]
+    const map = day?.map
+    const node = map?.layers[0]?.find((candidate) => candidate.type === 'task')
+    const snapshotTaskId = node?.task?.taskId
+    if (!map || !node || !snapshotTaskId) throw new Error('expected an open task node')
+    const snapshot = structuredClone(map)
+    const task = store.getState().document.tasks.find((item) => item.id === snapshotTaskId)
+    if (!task) throw new Error('expected the routine in the document')
+
+    expect(
+      store.getState().saveTask(
+        {
+          id: task.id,
+          goalId: task.goalId,
+          title: 'Renamed for the future',
+          effort: 'high',
+          active: true,
+        },
+        base,
+      ).ok,
+    ).toBe(true)
+    expect(store.getState().archiveTask(task.id, base).ok).toBe(true)
+
+    const goal = store.getState().document.goals.find((item) => item.id === task.goalId)
+    if (!goal) throw new Error('expected the routine aim')
+    expect(
+      store.getState().saveGoal(
+        {
+          id: goal.id,
+          title: goal.title,
+          category: goal.category,
+          weeklyObjective: 7,
+          active: true,
+        },
+        base,
+      ).ok,
+    ).toBe(true)
+
+    const afterEdits = store.getState().document.run?.days[0]?.map
+    expect(afterEdits).toEqual(snapshot)
+    expect(store.getState().document.run?.objectives.map((objective) => objective.target)).toEqual([
+      4, 3,
+    ])
+
+    store.getState().selectNode(node.id)
+    store.getState().resolveNode(node.id, 'complete', base)
+    const afterResolve = store.getState().document
+    expect(afterResolve.run?.days[0]?.path).toHaveLength(1)
+    expect(afterResolve.run?.days[0]?.map?.layers).toEqual(snapshot.layers)
+    expect(afterResolve.run?.days[0]?.map?.boss).toEqual(snapshot.boss)
+    expect(afterResolve.profile?.xp).toBeGreaterThan(0)
+
+    const closed = structuredClone(afterResolve)
+    const activeRun = closed.run
+    if (!activeRun) throw new Error('expected the active run')
+    closed.run = {
+      ...activeRun,
+      status: 'closed',
+      closedAt: base.toISOString(),
+      days: activeRun.days.map((item) => ({
+        ...item,
+        status: 'missed' as const,
+        closedAt: base.toISOString(),
+      })),
+    }
+    expect(store.getState().importDocument(closed)).toBe(true)
+    store.getState().startNewRun(base)
+
+    const next = store.getState().document.run
+    expect(next?.id).not.toBe(activeRun.id)
+    const editedGoalIndex = activeRun.objectives.findIndex(
+      (objective) => objective.goalId === goal.id,
+    )
+    expect(next?.objectives.map((objective) => objective.target)).toEqual(
+      activeRun.objectives.map((objective, index) =>
+        index === editedGoalIndex ? 7 : objective.target,
+      ),
+    )
+    expect(activeRun.objectives.map((objective) => objective.target)).toEqual([4, 3])
+    expect(next?.days.every((item) => item.map === null)).toBe(true)
+  })
+})
