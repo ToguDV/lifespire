@@ -105,7 +105,9 @@ When an agent finishes a session, it **must leave the environment clean**:
 
 1. Create session branch.
 2. Make changes; commit with conventional format.
-3. Run all quality gates.
-4. Push branch and open PR (no approval required to open).
-5. Clean up: stop servers, remove artifacts, verify `git status`.
-6. Report branch + PR URL; await user review/merge.
+3. Run all quality gates (E2E too when critical paths changed).
+4. **Register any new/moved/deleted `.md` file in `AGENTS.md`** (Fuentes de
+   verdad) in the same change. A doc without a reference there is incomplete.
+5. Push branch and open PR (no approval required to open).
+6. Clean up: stop servers, remove artifacts, verify `git status`.
+7. Report branch + PR URL; await user review/merge.
