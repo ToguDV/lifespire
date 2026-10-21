@@ -1,0 +1,136 @@
+/* Development-only tooling. Imported only from the development branch of App. */
+
+/* Development panel ----------------------------------------- */
+
+.dev-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 7px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-ui);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dev-trigger:hover {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+}
+
+.dev-trigger--sidebar {
+  align-self: flex-start;
+  min-height: 30px;
+  margin-left: 4px;
+}
+
+.dev-trigger--floating {
+  display: none;
+}
+
+.dev-offset {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.dev-offset__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--accent-deep);
+}
+
+.dev-offset__icon .icon {
+  width: 17px;
+  height: 17px;
+}
+
+.dev-offset .micro {
+  display: block;
+}
+
+.dev-offset strong {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.dev-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dev-actions .btn {
+  justify-content: flex-start;
+}
+
+.dev-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.dev-warning .icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+}
+
+@media (min-width: 960px) {
+  .dev-trigger--floating {
+    display: none;
+  }
+}
+
+@media (max-width: 959px) {
+  .sidebar .dev-trigger {
+    display: none;
+  }
+
+  .dev-trigger--floating {
+    position: fixed;
+    right: 12px;
+    bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 12px);
+    z-index: 45;
+    display: inline-flex;
+    background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+    box-shadow: var(--shadow-soft);
+    opacity: 0.72;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .dev-trigger--floating:hover {
+    opacity: 1;
+  }
+}
