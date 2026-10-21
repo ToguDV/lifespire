@@ -1098,6 +1098,8 @@ body[data-screen="recovery"] .tabbar {
 
 body[data-screen="recovery"] .app {
   display: block;
+  height: auto;
+  overflow: visible;
 }
 
 body[data-screen="recovery"] .app-main {
