@@ -2481,7 +2481,9 @@ body:not([data-screen="map"]) .map-dock {
 }
 
 .summary-aims {
+  margin: 0;
   padding: 10px 0 0;
+  list-style: none;
 }
 
 .summary-aims .aim-row {

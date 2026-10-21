@@ -327,14 +327,14 @@ export function HomeScreen() {
         return {
           micro: 'The week behind',
           title: 'A week recorded.',
-          copy: 'Every day is recorded and the totals are yours to keep. The fuller weekly summary arrives with the next milestone.',
+          copy: 'Every day is recorded and the totals are yours to keep. Read the week to revisit its aims, bonus and relics.',
           foot: `${daysKept} of 7 days kept`,
         }
       case 'no-open-day':
         return {
           micro: 'The week behind',
           title: 'A week spent.',
-          copy: 'No day can be opened now. The record of the week is still yours to read.',
+          copy: 'No day can be opened now. Read the week to revisit its aims, bonus and relics, then begin a new run.',
           foot: `${daysKept} of 7 days kept`,
         }
     }
