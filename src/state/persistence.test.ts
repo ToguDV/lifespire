@@ -108,6 +108,41 @@ describe('createDocumentStorage', () => {
     expect(JSON.parse(memory.getItem(STORAGE_KEY) as string)).toEqual(createEmptyDocument())
   })
 
+  it('reports a failed write and clears the warning after a successful retry', () => {
+    const memory = createMemoryStorage()
+    let failWrites = false
+    const controller = createDocumentStorage({
+      ...memory,
+      setItem: (key, value) => {
+        if (failWrites) throw new Error('QuotaExceededError')
+        memory.setItem(key, value)
+      },
+    })
+    const warnings: Array<'write-failed' | null> = []
+    controller.setWriteStatusListener((warning) => warnings.push(warning))
+
+    failWrites = true
+    controller.storage.setItem(STORAGE_KEY, { state: valueFor(createEmptyDocument()) })
+    expect(warnings).toEqual(['write-failed'])
+    expect(memory.getItem(STORAGE_KEY)).toBeNull()
+
+    failWrites = false
+    controller.storage.setItem(STORAGE_KEY, { state: valueFor(createEmptyDocument()) })
+    expect(warnings).toEqual(['write-failed', null])
+    expect(memory.getItem(STORAGE_KEY)).not.toBeNull()
+  })
+
+  it('reports writes as lost when the adapter fell back to memory', () => {
+    const warnings: Array<'write-failed' | null> = []
+    const controller = createDocumentStorage(createMemoryStorage(), { persistent: false })
+    controller.setWriteStatusListener((warning) => warnings.push(warning))
+
+    controller.storage.setItem(STORAGE_KEY, { state: valueFor(createEmptyDocument()) })
+
+    expect(warnings).toEqual(['write-failed'])
+    expect(controller.read()).not.toBeNull()
+  })
+
   it('clears the stored save on request', () => {
     const memory = createMemoryStorage({ [STORAGE_KEY]: 'old' })
     const controller = createDocumentStorage(memory)

@@ -13,14 +13,26 @@ export interface PersistedSlice {
   document: GameDocument
 }
 
+export type StorageWriteWarning = 'write-failed' | null
+
 export interface DocumentStorageController {
   storage: PersistStorage<PersistedSlice>
   consumeIssue(): StorageIssue | null
+  /** Called when the first write fails and when a later write succeeds again. */
+  setWriteStatusListener(listener: ((warning: StorageWriteWarning) => void) | null): void
   blockWrites(issue: StorageIssue): void
   unblockWrites(): void
   isBlocked(): boolean
   read(): string | null
   clear(): void
+}
+
+export interface DocumentStorageOptions {
+  /**
+   * False when the adapter had to fall back to memory because localStorage is
+   * unavailable. The app stays usable, but writes are reported as lost.
+   */
+  persistent?: boolean
 }
 
 function createMemoryStorage(): StorageLike {
@@ -33,6 +45,15 @@ function createMemoryStorage(): StorageLike {
     removeItem: (key) => {
       values.delete(key)
     },
+  }
+}
+
+function hasBrowserStorage(): boolean {
+  try {
+    return typeof window !== 'undefined' && Boolean(window.localStorage)
+  } catch {
+    // Storage can be unavailable in private or sandboxed contexts.
+    return false
   }
 }
 
@@ -51,14 +72,29 @@ export function getDefaultStorage(): StorageLike {
  * Adapter that stores the versioned GameDocument itself (not a Zustand wrapper)
  * and refuses to overwrite unreadable or future-version data until it is reset
  * or replaced by a validated import.
+ *
+ * A failed write leaves the in-memory document intact and reports it through
+ * the write-status listener, so the shell can warn before a reload loses it.
  */
-export function createDocumentStorage(storage: StorageLike): DocumentStorageController {
+export function createDocumentStorage(
+  storage: StorageLike,
+  options: DocumentStorageOptions = {},
+): DocumentStorageController {
+  const persistent = options.persistent ?? true
   let blocked = false
   let pendingIssue: StorageIssue | null = null
+  let writeFailed = false
+  let writeStatusListener: ((warning: StorageWriteWarning) => void) | null = null
 
   const block = (issue: StorageIssue): void => {
     blocked = true
     pendingIssue = issue
+  }
+
+  const reportWrite = (failed: boolean): void => {
+    if (failed === writeFailed) return
+    writeFailed = failed
+    writeStatusListener?.(failed ? 'write-failed' : null)
   }
 
   const storageAdapter: PersistStorage<PersistedSlice> = {
@@ -86,8 +122,11 @@ export function createDocumentStorage(storage: StorageLike): DocumentStorageCont
       if (blocked) return
       try {
         storage.setItem(name, serializeDocument(value.state.document))
+        reportWrite(!persistent)
       } catch {
-        // A failed write must not crash the app; the in-memory state stays intact.
+        // The app keeps working from memory; the shell warns that a reload
+        // would lose changes until a later write succeeds.
+        reportWrite(true)
       }
     },
     removeItem: (name) => {
@@ -106,6 +145,9 @@ export function createDocumentStorage(storage: StorageLike): DocumentStorageCont
       const issue = pendingIssue
       pendingIssue = null
       return issue
+    },
+    setWriteStatusListener: (listener) => {
+      writeStatusListener = listener
     },
     blockWrites: block,
     unblockWrites: () => {
@@ -131,4 +173,6 @@ export function createDocumentStorage(storage: StorageLike): DocumentStorageCont
 }
 
 /** Shared browser persistence. Falls back to memory when localStorage is absent. */
-export const documentStorage = createDocumentStorage(getDefaultStorage())
+export const documentStorage = createDocumentStorage(getDefaultStorage(), {
+  persistent: hasBrowserStorage(),
+})

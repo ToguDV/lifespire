@@ -4,7 +4,7 @@ import { STORAGE_KEY } from '../domain/balance'
 import { addDays, dayKey } from '../domain/dates'
 import { validateMap } from '../domain/generator'
 import { createRun } from '../domain/lifecycle'
-import { createEmptyDocument, parseDocument } from '../domain/schema'
+import { createEmptyDocument, parseDocument, serializeDocument } from '../domain/schema'
 import { availableNodeIds, currentDay, levelForXp } from '../domain/selectors'
 import type { GameDocument, LootItem, Run } from '../domain/types'
 import { devNow, getDevOffsetDays, resetDevClock } from './clock'
@@ -185,6 +185,21 @@ describe('starting a run', () => {
     store.getState().startRun({ goals, tasks: [] }, base)
     expect(store.getState().document.run).toBeNull()
     expect(store.getState().toast).toBe('Add at least 4 routines to light the week.')
+  })
+
+  it('does not replace an active run', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    const active = store.getState().document
+    const activeRunId = active.run?.id
+
+    store.getState().startRun(undefined, base)
+
+    expect(store.getState().document).toBe(active)
+    expect(store.getState().document.run?.id).toBe(activeRunId)
+    expect(store.getState().toast).toBe(
+      'Finish the current run before starting a new one.',
+    )
   })
 })
 
@@ -480,6 +495,40 @@ describe('import, recovery and reset', () => {
   })
 })
 
+describe('storage write failures', () => {
+  it('exposes a warning without blocking the in-memory document and clears it on retry', () => {
+    const memory = createMemoryStorage()
+    let failWrites = false
+    const flaky: StorageLike = {
+      ...memory,
+      setItem: (key, value) => {
+        if (failWrites) throw new Error('QuotaExceededError')
+        memory.setItem(key, value)
+      },
+    }
+    const store = createAppStore({
+      storage: createDocumentStorage(flaky),
+      now: () => baseNow,
+    })
+
+    expect(store.getState().storageWarning).toBeNull()
+    failWrites = true
+    store.getState().completeOnboarding(createDemoSetup(baseNow), baseNow)
+
+    expect(store.getState().storageWarning).toBe('write-failed')
+    expect(store.getState().document.profile?.name).toBe('Wren')
+    expect(store.getState().document.goals).toHaveLength(2)
+    expect(JSON.parse(memory.getItem(STORAGE_KEY) as string).profile).toBeNull()
+
+    failWrites = false
+    store.getState().setTheme('dark')
+
+    expect(store.getState().storageWarning).toBeNull()
+    expect(storedDocument(memory).settings.theme).toBe('dark')
+    expect(store.getState().document.profile?.name).toBe('Wren')
+  })
+})
+
 describe('view navigation', () => {
   it('derives onboarding, home and run-summary after hydration', () => {
     const empty = makeHarness()
@@ -514,6 +563,40 @@ describe('view navigation', () => {
       now: () => empty.base,
     })
     expect(hydratedClosed.getState().view).toEqual({ name: 'run-summary' })
+  })
+
+  it('opens the weekly summary when hydration closes an elapsed run', () => {
+    const start = new Date(2026, 9, 20, 9, 0, 0)
+    const afterWeek = new Date(2026, 9, 28, 9, 0, 0)
+    const setup = createDemoSetup(start)
+    const run = createRun({ setup, now: start, runId: 'run_elapsed' })
+    const document: GameDocument = {
+      ...createEmptyDocument(),
+      profile: {
+        id: 'profile_elapsed',
+        name: 'Wren',
+        xp: 0,
+        level: 1,
+        gold: 0,
+        loot: [],
+        createdAt: start.toISOString(),
+      },
+      goals: setup.goals,
+      tasks: setup.tasks,
+      run,
+    }
+    const memory = createMemoryStorage({
+      [STORAGE_KEY]: serializeDocument(document),
+    })
+
+    const store = createAppStore({
+      storage: createDocumentStorage(memory),
+      now: () => afterWeek,
+    })
+
+    expect(store.getState().document.run?.status).toBe('closed')
+    expect(store.getState().document.run?.summary).not.toBeNull()
+    expect(store.getState().view).toEqual({ name: 'run-summary' })
   })
 
   it('reopens the chosen node detail after hydration without persisting the view', () => {
@@ -1357,6 +1440,60 @@ describe('content constraints during an active run', () => {
       'A run can hold at most 3 active aims. Archive one before adding another.',
     )
     expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(3)
+  })
+
+  it('blocks archiving the last active routine of an active aim', () => {
+    const { store, base } = makeHarness()
+    const goals = [
+      {
+        id: 'goal_a',
+        title: 'Wayfarer',
+        category: 'Movement',
+        weeklyObjective: 4,
+        active: true,
+        createdAt: base.toISOString(),
+      },
+      {
+        id: 'goal_b',
+        title: 'Craft',
+        category: 'Making',
+        weeklyObjective: 3,
+        active: true,
+        createdAt: base.toISOString(),
+      },
+    ]
+    const tasks = [
+      ...[1, 2, 3, 4].map((index) => ({
+        id: `task_a_${index}`,
+        goalId: 'goal_a',
+        title: `Walk ${index}`,
+        effort: 'light' as const,
+        active: true,
+        createdAt: base.toISOString(),
+      })),
+      {
+        id: 'task_b_1',
+        goalId: 'goal_b',
+        title: 'Write one page',
+        effort: 'medium' as const,
+        active: true,
+        createdAt: base.toISOString(),
+      },
+    ]
+    store.getState().completeOnboarding({ name: 'Ari', goals, tasks }, base)
+    store.getState().startRun(undefined, base)
+    const before = store.getState().document
+
+    const result = store.getState().archiveTask('task_b_1', base)
+
+    expect(result.ok).toBe(false)
+    expect(result.errors).toContain(
+      'Keep at least one active routine under every active aim while the run is underway.',
+    )
+    expect(store.getState().document).toBe(before)
+    expect(
+      store.getState().document.tasks.find((task) => task.id === 'task_b_1')?.active,
+    ).toBe(true)
   })
 })
 

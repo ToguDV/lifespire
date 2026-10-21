@@ -7,6 +7,7 @@ import {
   CONTENT_MESSAGES,
   contentFailure,
   contentSuccess,
+  goalHasActiveRoutine,
   validateContentConstraints,
   validateGoalInput,
   validateTaskInput,
@@ -41,12 +42,18 @@ import type {
 } from '../domain/types'
 import { advanceDevDay, getNow, resetDevClock } from './clock'
 import { documentStorage } from './persistence'
-import type { DocumentStorageController, PersistedSlice } from './persistence'
+import type {
+  DocumentStorageController,
+  PersistedSlice,
+  StorageWriteWarning,
+} from './persistence'
 
 export interface AppState {
   document: GameDocument
   hydrated: boolean
   storageIssue: StorageIssue | null
+  /** Transient: a failed localStorage write while the app keeps running. */
+  storageWarning: 'write-failed' | null
   view: View
   history: View[]
   toast: string | null
@@ -170,6 +177,7 @@ export function createAppStore(
         document: createEmptyDocument(),
         hydrated: false,
         storageIssue: null,
+        storageWarning: null,
         view: { name: 'onboarding' },
         history: [],
         toast: null,
@@ -297,6 +305,10 @@ export function createAppStore(
           const current = get().document
           if (!current.profile) {
             set({ toast: 'Finish onboarding before you begin a run.' })
+            return
+          }
+          if (current.run?.status === 'active') {
+            set({ toast: 'Finish the current run before starting a new one.' })
             return
           }
 
@@ -516,6 +528,17 @@ export function createAppStore(
             ? current.tasks.map((candidate) => (candidate.id === task.id ? task : candidate))
             : [...current.tasks, task]
 
+          if (
+            current.run?.status === 'active' &&
+            existing?.active &&
+            !(task.active && task.goalId === existing.goalId) &&
+            !goalHasActiveRoutine(current.goals, tasks, existing.goalId)
+          ) {
+            const failure = contentFailure({ tasks: CONTENT_MESSAGES.aimWithoutRoutine })
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+
           const constraint = validateContentConstraints(current, current.goals, tasks)
           if (!constraint.ok) {
             set({ toast: constraint.errors[0] ?? null })
@@ -540,6 +563,16 @@ export function createAppStore(
           const tasks = current.tasks.map((candidate) =>
             candidate.id === task.id ? { ...candidate, active: false } : candidate,
           )
+
+          if (
+            current.run?.status === 'active' &&
+            !goalHasActiveRoutine(current.goals, tasks, task.goalId)
+          ) {
+            const failure = contentFailure({ tasks: CONTENT_MESSAGES.aimWithoutRoutine })
+            set({ toast: failure.errors[0] ?? null })
+            return failure
+          }
+
           const constraint = validateContentConstraints(current, current.goals, tasks)
           if (!constraint.ok) {
             set({ toast: constraint.errors[0] ?? null })
@@ -578,11 +611,15 @@ export function createAppStore(
           set({
             document: imported,
             storageIssue: null,
-            view: deriveInitialView(imported, null),
-            history: [],
             toast: 'Save restored.',
           })
+          // Reconcile before deriving the view: an imported run may be due to
+          // close (and receive its weekly summary) during hydration.
           get().reconcile()
+          set({
+            view: deriveInitialView(get().document, null),
+            history: [],
+          })
           return true
         },
 
@@ -694,6 +731,11 @@ export function createAppStore(
     ),
   )
 
+  storage.setWriteStatusListener((warning: StorageWriteWarning) => {
+    if (store.getState().storageWarning === warning) return
+    store.setState({ storageWarning: warning })
+  })
+
   const issue = storage.consumeIssue()
   const hydratedDocument = withSyncedLevel(store.getState().document)
   store.setState({
@@ -704,6 +746,15 @@ export function createAppStore(
     history: [],
   })
   store.getState().reconcile()
+
+  // A run that elapsed while the app was closed is closed and finalized by
+  // reconcile. Derive the view again so the player lands on the weekly summary
+  // instead of a home screen that can no longer offer today's map.
+  const settled = store.getState().document
+  const settledView = deriveInitialView(settled, store.getState().storageIssue)
+  if (!sameView(store.getState().view, settledView)) {
+    store.setState({ view: settledView, history: [] })
+  }
 
   return store
 }

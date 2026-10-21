@@ -87,6 +87,7 @@ export default function App() {
   const gameDocument = useAppStore((state) => state.document)
   const hydrated = useAppStore((state) => state.hydrated)
   const storageIssue = useAppStore((state) => state.storageIssue)
+  const storageWarning = useAppStore((state) => state.storageWarning)
   const view = useAppStore((state) => state.view)
   const toast = useAppStore((state) => state.toast)
   const navigate = useAppStore((state) => state.navigate)
@@ -363,6 +364,20 @@ export default function App() {
               <ThemeToggle />
             </div>
           </header>
+
+          {storageWarning === 'write-failed' && !storageIssue ? (
+            <div className="storage-warning" role="status" aria-live="polite">
+              <Icon name="lock" />
+              <p>Changes are not being saved in this browser. Export a copy now.</p>
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => navigate({ name: 'settings' })}
+              >
+                Open Settings to export
+              </button>
+            </div>
+          ) : null}
 
           <main
             className="viewport"
