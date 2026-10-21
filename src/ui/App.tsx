@@ -100,6 +100,13 @@ export default function App() {
   const profile = gameDocument.profile
   const run = gameDocument.run
   const current = currentDay(run)
+  const readTodayKey = useAppStore((state) => state.todayKey)
+  const today = run?.days.find((day) => day.date === readTodayKey()) ?? null
+  const labelDay = today ?? current
+  const summaryDay =
+    view.name === 'day-summary'
+      ? (run?.days.find((day) => day.id === view.dayId) ?? null)
+      : null
 
   const guardedView: View = storageIssue
     ? { name: 'recovery', reason: storageIssue.reason }
@@ -107,12 +114,14 @@ export default function App() {
       ? { name: 'onboarding' }
       : view.name === 'onboarding'
         ? { name: 'home' }
-        : (view.name === 'map' || view.name === 'node' || view.name === 'day-summary') &&
-            (!run || run.status === 'closed' || !current)
-          ? run?.status === 'closed'
-            ? { name: 'run-summary' }
-            : { name: 'home' }
-          : view
+        : view.name === 'day-summary' && (!run || !summaryDay)
+          ? { name: 'home' }
+          : (view.name === 'map' || view.name === 'node') &&
+              (!run || run.status === 'closed' || !current)
+            ? run?.status === 'closed'
+              ? { name: 'run-summary' }
+              : { name: 'home' }
+            : view
 
   useEffect(() => {
     if (!hydrated) return
@@ -130,13 +139,17 @@ export default function App() {
       navigate({ name: 'home' })
       return
     }
+    if (view.name === 'day-summary' && (!run || !summaryDay)) {
+      navigate({ name: 'home' })
+      return
+    }
     if (
-      (view.name === 'map' || view.name === 'node' || view.name === 'day-summary') &&
+      (view.name === 'map' || view.name === 'node') &&
       (!run || run.status === 'closed' || !current)
     ) {
       navigate(run?.status === 'closed' ? { name: 'run-summary' } : { name: 'home' })
     }
-  }, [hydrated, storageIssue, profile, run, current, view, navigate])
+  }, [hydrated, storageIssue, profile, run, current, summaryDay, view, navigate])
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -183,8 +196,8 @@ export default function App() {
   if (!hydrated) return null
 
   const activeTab = tabForView(guardedView)
-  const dayLabel = current
-    ? `Day ${current.index + 1} of 7`
+  const dayLabel = labelDay
+    ? `Day ${labelDay.index + 1} of 7`
     : !run
       ? 'No run yet'
       : run.status === 'closed'
@@ -319,7 +332,7 @@ export default function App() {
                 <>
                   <span className="topbar__run-label">Run I</span>
                   <span className="vrule" aria-hidden="true" />
-                  <DayPips days={run.days} currentIndex={current?.index} label={dayLabel} />
+                  <DayPips days={run.days} currentIndex={labelDay?.index} label={dayLabel} />
                   <span className="micro">{dayLabel}</span>
                 </>
               ) : (

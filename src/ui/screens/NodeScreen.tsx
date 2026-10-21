@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BOSS_CLOSING_BONUS } from '../../domain/balance'
 import {
   currentDay,
@@ -9,6 +9,7 @@ import {
 import type { MapNode, Run } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import { Button, Icon, Panel, Pips } from '../components'
+import { rewardFeedback } from '../lib/daySummary'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL } from '../lib/format'
 import {
   effortNote,
@@ -17,13 +18,14 @@ import {
   nodeTypeLine,
 } from '../lib/nodeCopy'
 
-function NodeLoopNote() {
+function NodeSkipNote({ boss }: { boss: boolean }) {
   return (
-    <p className="node-loop-note" id="node-loop-note">
+    <p className="node-skip-note" id="node-skip-note">
       <Icon name="lock" />
       <span>
-        The daily loop arrives in the next milestone. Marking complete and skipping will be
-        enabled then; nothing is recorded yet.
+        {boss
+          ? 'Skipping the boss closes the day without the closing bonus.'
+          : 'Skipping grants no XP, gold, loot or weekly progress; it only advances the path.'}
       </span>
     </p>
   )
@@ -95,7 +97,8 @@ function NodeNotes({ node }: { node: MapNode }) {
       <p className="node-note">
         <Icon name="crown" />
         <span>
-          Completing the boss closes the day and grants the closing bonus shown below.
+          Completing the boss closes the day and grants the closing bonus shown below. Skipping
+          it closes the day without that bonus.
         </span>
       </p>
     )
@@ -112,6 +115,9 @@ export function NodeScreen() {
   const view = useAppStore((state) => state.view)
   const run = useAppStore((state) => state.document.run)
   const navigate = useAppStore((state) => state.navigate)
+  const resolveNode = useAppStore((state) => state.resolveNode)
+  const [resolving, setResolving] = useState(false)
+  const resolvingRef = useRef(false)
 
   const day = currentDay(run)
   const map = day?.map ?? null
@@ -134,6 +140,32 @@ export function NodeScreen() {
     if (redirectTo === 'map') navigate({ name: 'map' })
     else navigate({ name: 'node', nodeId: redirectTo })
   }, [redirectTo, navigate])
+
+  const record = (action: 'complete' | 'skip') => {
+    if (!node || !day || resolvingRef.current) return
+    resolvingRef.current = true
+    setResolving(true)
+
+    resolveNode(node.id, action)
+
+    const state = useAppStore.getState()
+    const resolvedDay = state.document.run?.days.find((candidate) => candidate.id === day.id)
+    const event = resolvedDay?.rewards.find((candidate) => candidate.nodeId === node.id)
+
+    if (!event) {
+      resolvingRef.current = false
+      setResolving(false)
+      return
+    }
+
+    if (node.type === 'boss') {
+      navigate({ name: 'day-summary', dayId: day.id })
+      return
+    }
+
+    state.showToast(rewardFeedback(event))
+    navigate({ name: 'map' })
+  }
 
   if (!node || !day || !map || !run || status !== 'current' || redirectTo) {
     return (
@@ -297,14 +329,23 @@ export function NodeScreen() {
               All weekly aims
             </button>
 
-            <NodeLoopNote />
+            <NodeSkipNote boss={node.type === 'boss'} />
 
-            <div className="node-actions">
-              <Button variant="primary" disabled aria-describedby="node-loop-note">
+            <div className="node-actions" aria-busy={resolving}>
+              <Button
+                variant="primary"
+                disabled={resolving}
+                onClick={() => record('complete')}
+              >
                 <Icon name="check" />
                 Mark complete
               </Button>
-              <Button variant="quiet" disabled aria-describedby="node-loop-note">
+              <Button
+                variant="quiet"
+                disabled={resolving}
+                aria-describedby="node-skip-note"
+                onClick={() => record('skip')}
+              >
                 Skip this step
               </Button>
             </div>

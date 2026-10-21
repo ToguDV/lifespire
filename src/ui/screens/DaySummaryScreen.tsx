@@ -1,13 +1,20 @@
+import { useEffect } from 'react'
 import { xpIntoLevel, xpToNextLevel } from '../../domain/selectors'
-import type { Day, MapNode } from '../../domain/types'
+import type { Day, DaySummary } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
   AimRow,
   Button,
   Icon,
+  LootCard,
   Panel,
   ScreenHead,
 } from '../components'
+import {
+  buildDayPath,
+  closingBonusCopy,
+  dayPathReward,
+} from '../lib/daySummary'
 import {
   NODE_TYPE_ICON,
   NODE_TYPE_LABEL,
@@ -15,12 +22,6 @@ import {
   goalIcon,
   romanDay,
 } from '../lib/format'
-
-function nodeForDay(day: Day, nodeId: string): MapNode | null {
-  if (!day.map) return null
-  const nodes = day.map.layers.flat()
-  return nodes.find((node) => node.id === nodeId) ?? (day.map.boss.id === nodeId ? day.map.boss : null)
-}
 
 function EmptySummary({
   title,
@@ -53,179 +54,324 @@ function EmptySummary({
   )
 }
 
-export function DaySummaryScreen({ dayId }: { dayId: string }) {
-  const run = useAppStore((state) => state.document.run)
+function SummaryBody({
+  day,
+  summary,
+  runClosed,
+  onHome,
+  onRunSummary,
+}: {
+  day: Day
+  summary: DaySummary
+  runClosed: boolean
+  onHome: () => void
+  onRunSummary: () => void
+}) {
   const profile = useAppStore((state) => state.document.profile)
   const goals = useAppStore((state) => state.document.goals)
+  const rows = buildDayPath(day)
+  const waitNoteId = 'day-summary-wait-note'
+
+  return (
+    <div className="summary-wrap">
+      <Panel framed className="summary-page">
+        <header className="summary-head">
+          <div className="summary-head__copy">
+            <span className="micro">Day {day.index + 1} of 7 · The path taken</span>
+            <h2>
+              {summary.bossCompleted
+                ? 'A quiet climb, kept to the end.'
+                : 'A day left open at the gate.'}
+            </h2>
+            <p>
+              {summary.bossCompleted
+                ? 'The gate was kept. Rewards are sealed with the day.'
+                : 'The gate was skipped. The day is sealed without its closing bonus.'}
+            </p>
+          </div>
+          <div className="seal" aria-label={`Day ${day.index + 1} seal`}>
+            <span className="seal__inner">
+              <Icon name="spire" />
+              <strong>{romanDay(day.index)}</strong>
+              <span>day</span>
+            </span>
+          </div>
+        </header>
+
+        <ol className="summary-path" aria-label="Path taken">
+          {rows.length === 0 ? (
+            <li className="panel-note">No steps were recorded on this day.</li>
+          ) : (
+            rows.map((row) => {
+              const done = row.action === 'complete'
+              return (
+                <li
+                  className={`path-row ${done ? 'is-done' : 'is-skipped'}`}
+                  key={row.nodeId}
+                >
+                  <span className={`path-row__medallion ${done ? 'is-done' : 'is-skipped'}`}>
+                    <Icon name={NODE_TYPE_ICON[row.type]} />
+                  </span>
+                  <span className="path-row__body">
+                    <strong>{row.title}</strong>
+                    <span>
+                      {NODE_TYPE_LABEL[row.type]}
+                      {row.goalTitle ? ` · ${row.goalTitle}` : ''}
+                      {' · '}
+                      {done ? 'Completed' : 'Skipped'}
+                    </span>
+                  </span>
+                  <span className="path-row__rewards">
+                    <span className="path-row__reward">
+                      {dayPathReward(row)}
+                    </span>
+                    {row.duplicateGold > 0 ? (
+                      <span className="path-row__loot">
+                        incl. +{row.duplicateGold} g duplicate
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              )
+            })
+          )}
+        </ol>
+
+        <div
+          className={`summary-bonus ${summary.bossCompleted ? '' : 'is-forfeited'}`}
+          aria-label="Boss closing bonus"
+        >
+          <span className="summary-bonus__icon">
+            <Icon name={summary.bossCompleted ? 'crown' : 'lock'} />
+          </span>
+          <div className="summary-bonus__body">
+            <span className="micro">Boss closing bonus</span>
+            <strong>{closingBonusCopy(summary.bossCompleted, summary.closingBonusXp, summary.closingBonusGold)}</strong>
+            <p>
+              {summary.bossCompleted
+                ? 'Granted once when the boss is completed. It is already included in the boss reward and the day total.'
+                : 'The boss was skipped. Skipping grants no XP, gold, loot or weekly progress.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="summary-totals" aria-label="Rewards earned">
+          <div className="total">
+            <strong>
+              <Icon name="star" />+{summary.xp}
+            </strong>
+            <span>Experience</span>
+          </div>
+          <div className="total">
+            <strong>
+              <Icon name="coin" />+{summary.gold}
+            </strong>
+            <span>Gold</span>
+          </div>
+          <div className="total">
+            <strong>
+              <Icon name="gem" />+{summary.loot.length}
+            </strong>
+            <span>Relics</span>
+          </div>
+        </div>
+
+        <div className="summary-aims">
+          {summary.objectives.map((objective) => (
+            <div className="summary-aim" key={objective.goalId}>
+              <AimRow
+                title={objective.title}
+                progress={objective.after}
+                target={objective.target}
+                icon={goalIcon(goals.findIndex((goal) => goal.id === objective.goalId))}
+              />
+              <p className="summary-aim__bonus">
+                Before {objective.before} / {objective.target} → after {objective.after} /{' '}
+                {objective.target}
+                {objective.after >= objective.target
+                  ? ' · target met'
+                  : ` · ${objective.target - objective.after} to go`}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <section className="summary-loot" aria-labelledby="day-loot-title">
+          <div className="section-block__head">
+            <h2 id="day-loot-title">Found today</h2>
+            <span className="mini-note">
+              {summary.loot.length} {summary.loot.length === 1 ? 'relic' : 'relics'}
+            </span>
+          </div>
+          {summary.loot.length === 0 ? (
+            <p className="panel-note">
+              No relics were found. Elite, treasure and boss steps carry a loot roll.
+            </p>
+          ) : (
+            <div className="loot-grid">
+              {summary.loot.map((item) => (
+                <LootCard item={item} key={item.id} />
+              ))}
+            </div>
+          )}
+          {summary.duplicateGold > 0 ? (
+            <p className="panel-note summary-duplicates">
+              Duplicates converted into {summary.duplicateGold} gold. This is already included in
+              the gold total above.
+            </p>
+          ) : null}
+        </section>
+
+        {profile ? (
+          <div className="level-up">
+            <Icon name="star" />
+            Level {profile.level} · {xpIntoLevel(profile.xp)} / 100 to the next ·{' '}
+            {xpToNextLevel(profile.xp)} to go
+          </div>
+        ) : null}
+
+        <div className="summary-actions">
+          <Button variant="primary" onClick={onHome}>
+            Return to camp
+            <Icon name="chevron-right" />
+          </Button>
+          {runClosed ? (
+            <Button variant="quiet" onClick={onRunSummary}>
+              Read the week
+            </Button>
+          ) : (
+            <Button
+              variant="quiet"
+              disabled
+              aria-describedby={waitNoteId}
+              title="The next path opens at midnight."
+            >
+              Wait for tomorrow
+            </Button>
+          )}
+        </div>
+
+        {!runClosed ? (
+          <p className="summary-wait-note" id={waitNoteId}>
+            <Icon name="moon" />
+            <span>
+              The next path opens at midnight. Only the current day can be played, so tomorrow
+              waits for the clock.
+            </span>
+          </p>
+        ) : (
+          <p className="summary-wait-note">
+            <Icon name="crown" />
+            <span>
+              Every day in this run is sealed. The weekly totals are ready to read.
+            </span>
+          </p>
+        )}
+      </Panel>
+    </div>
+  )
+}
+
+export function DaySummaryScreen({ dayId }: { dayId: string }) {
+  const run = useAppStore((state) => state.document.run)
   const navigate = useAppStore((state) => state.navigate)
 
   const day = run?.days.find((item) => item.id === dayId) ?? null
   const summary = day?.summary ?? null
 
-  if (!run) {
-    return (
-      <section className="screen screen--summary" data-screen="summary" aria-labelledby="summary-empty-title">
-        <ScreenHead
-          kicker="Day summary"
-          title="No run yet."
-          titleId="summary-empty-title"
-          sub="Days are sealed inside a run. Begin one from camp first."
-        />
-        <EmptySummary
-          title="Nothing to record yet."
-          copy="Start a run and complete a day to see its path and rewards here."
-          action={() => navigate({ name: 'home' })}
-        />
-      </section>
-    )
-  }
+  useEffect(() => {
+    if (!run || !day) navigate({ name: 'home' })
+  }, [run, day, navigate])
 
-  if (!day) {
+  if (!run || !day) {
     return (
-      <section className="screen screen--summary" data-screen="summary" aria-labelledby="summary-missing-title">
+      <section
+        className="screen screen--summary"
+        data-screen="summary"
+        aria-labelledby="summary-missing-title"
+      >
         <ScreenHead
           kicker="Day summary"
-          title="That day is not in this run."
+          title="Returning to camp."
           titleId="summary-missing-title"
-          sub="The seven days of a run are fixed when it begins."
+          sub="That day is not part of this run."
         />
         <EmptySummary
           title="No matching day."
-          copy="Return to camp and choose a day from the current run."
+          copy="The seven days of a run are fixed when it begins. Return to camp and choose a day from the current run."
           action={() => navigate({ name: 'home' })}
         />
       </section>
     )
   }
 
-  const kicker = summary ? `Day ${day.index + 1} · Sealed` : `Day ${day.index + 1} · Open`
-  const title = summary ? 'The day is recorded.' : 'No day is sealed yet.'
+  if (!summary) {
+    const missed = day.status === 'missed'
+    return (
+      <section
+        className="screen screen--summary"
+        data-screen="summary"
+        aria-labelledby="summary-open-title"
+      >
+        <ScreenHead
+          kicker={`Day ${day.index + 1} · ${missed ? 'Missed' : 'Open'}`}
+          title={missed ? 'The day passed unclaimed.' : 'The day is still open.'}
+          titleId="summary-open-title"
+          sub={
+            missed
+              ? 'No path reached the boss, so no day summary was sealed. Missed days are not recovered.'
+              : 'Complete the daily boss to seal the day and record its rewards.'
+          }
+          meta={<span className="chip chip--quiet">{formatDayKey(day.date)}</span>}
+        />
+        <EmptySummary
+          title={missed ? 'No page was sealed.' : 'The page is still blank.'}
+          copy={
+            missed
+              ? 'The day is recorded as missed. The run continues with the next day at midnight.'
+              : 'This day has not been sealed. Return to the map and finish the path when you are ready.'
+          }
+          action={() => navigate({ name: missed ? 'home' : 'map' })}
+          actionLabel={missed ? 'Return to camp' : 'Return to map'}
+        />
+      </section>
+    )
+  }
+
+  const bossLabel = summary.bossCompleted ? 'Boss completed' : 'Boss skipped'
+  const bossIcon = summary.bossCompleted ? 'crown' : 'lock'
 
   return (
     <section className="screen screen--summary" data-screen="summary" aria-labelledby="summary-title">
       <ScreenHead
-        kicker={kicker}
-        title={title}
+        kicker={`Day ${day.index + 1} · Sealed`}
+        title="The day is sealed."
         titleId="summary-title"
         sub={
-          summary
-            ? 'The path is chosen, the rewards are counted, and the day is closed.'
-            : 'Complete the daily boss to seal the day and record its rewards.'
+          summary.bossCompleted
+            ? 'Five steps, one path. The gate was kept and the rewards are already yours.'
+            : 'Five steps, one path. The gate was skipped, so its closing bonus was forfeited.'
         }
-        meta={<span className="chip chip--quiet">{formatDayKey(day.date)}</span>}
+        meta={
+          <>
+            <span className="chip chip--quiet">
+              <Icon name="compass" />
+              {formatDayKey(day.date)}
+            </span>
+            <span className={`chip ${summary.bossCompleted ? 'chip--accent' : 'chip--quiet'}`}>
+              <Icon name={bossIcon} />
+              {bossLabel}
+            </span>
+          </>
+        }
       />
-
-      {!summary ? (
-        <EmptySummary
-          title="The page is still blank."
-          copy="This day has not been sealed. Return to the map and finish the path when you are ready."
-          action={() => navigate({ name: 'map' })}
-          actionLabel="Return to map"
-        />
-      ) : (
-        <div className="summary-wrap">
-          <Panel framed className="summary-page">
-            <header className="summary-head">
-              <div className="summary-head__copy">
-                <span className="micro">Day {day.index + 1} of 7</span>
-                <h2>{summary.bossCompleted ? 'A quiet climb, kept to the end.' : 'A day left open at the gate.'}</h2>
-                <p>Rewards are sealed with the day.</p>
-              </div>
-              <div className="seal" aria-label={`Day ${day.index + 1} seal`}>
-                <span className="seal__inner">
-                  <Icon name="spire" />
-                  <strong>{romanDay(day.index)}</strong>
-                  <span>day</span>
-                </span>
-              </div>
-            </header>
-
-            <div className="summary-path" aria-label="Path taken">
-              {day.path.length === 0 ? (
-                <p className="panel-note">No steps were recorded on this day.</p>
-              ) : (
-                day.path.map((entry) => {
-                  const node = nodeForDay(day, entry.nodeId)
-                  const reward = day.rewards.find((event) => event.nodeId === entry.nodeId)
-                  const done = entry.action === 'complete'
-                  const type = node?.type ?? 'task'
-                  return (
-                    <div className="path-row" key={entry.nodeId}>
-                      <span className={`path-row__medallion ${done ? 'is-done' : 'is-skipped'}`}>
-                        <Icon name={NODE_TYPE_ICON[type]} />
-                      </span>
-                      <span className="path-row__body">
-                        <strong>{node?.task?.title ?? NODE_TYPE_LABEL[type]}</strong>
-                        <span>
-                          {NODE_TYPE_LABEL[type]}
-                          {node?.task?.goalTitle ? ` · ${node.task.goalTitle}` : ''}
-                          {done ? '' : ' · skipped'}
-                        </span>
-                      </span>
-                      <span className="path-row__reward">
-                        {done && reward
-                          ? `+${reward.xp} XP · +${reward.gold} g`
-                          : 'No reward'}
-                      </span>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-
-            <div className="summary-totals" aria-label="Rewards earned">
-              <div className="total">
-                <strong>
-                  <Icon name="star" />+{summary.xp}
-                </strong>
-                <span>Experience</span>
-              </div>
-              <div className="total">
-                <strong>
-                  <Icon name="coin" />+{summary.gold}
-                </strong>
-                <span>Gold</span>
-              </div>
-              <div className="total">
-                <strong>
-                  <Icon name="gem" />+{summary.loot.length}
-                </strong>
-                <span>Relics</span>
-              </div>
-            </div>
-
-            <div className="summary-aims">
-              {summary.objectives.map((objective) => (
-                <AimRow
-                  key={objective.goalId}
-                  title={objective.title}
-                  progress={objective.after}
-                  target={objective.target}
-                  icon={goalIcon(goals.findIndex((goal) => goal.id === objective.goalId))}
-                />
-              ))}
-            </div>
-
-            {profile ? (
-              <div className="level-up">
-                <Icon name="star" />
-                Level {profile.level} at day's end · {xpIntoLevel(profile.xp)} / 100 to the
-                next · {xpToNextLevel(profile.xp)} to go
-              </div>
-            ) : null}
-
-            <div className="summary-actions">
-              <Button variant="primary" onClick={() => navigate({ name: 'home' })}>
-                Return to camp
-                <Icon name="chevron-right" />
-              </Button>
-              <Button variant="quiet" onClick={() => navigate({ name: 'goals' })}>
-                View the week
-              </Button>
-            </div>
-          </Panel>
-        </div>
-      )}
+      <SummaryBody
+        day={day}
+        summary={summary}
+        runClosed={run.status === 'closed'}
+        onHome={() => navigate({ name: 'home' })}
+        onRunSummary={() => navigate({ name: 'run-summary' })}
+      />
     </section>
   )
 }
