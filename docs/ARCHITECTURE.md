@@ -60,8 +60,10 @@ export type View =
 ```
 
 `navigate(view)` apila la vista anterior; `back()` desapila. La vista inicial se
-deriva al hidratar: sin perfil → `onboarding`; run cerrado → `run-summary`; si no
-→ `home`.
+deriva al hidratar: sin perfil → `onboarding`; run cerrado → `run-summary`; si el
+día actual está abierto y su mapa tiene `currentNodeId` → `node` para ese nodo;
+si no → `home`. La vista sigue siendo transitoria: el detalle se reconstruye
+desde el documento persistido, nunca se guarda `view` en `localStorage`.
 
 ## 3. Documento persistido
 
@@ -459,6 +461,11 @@ en `state/clock.ts`, no en `document`.
   cuando la preferencia es `system`.
 - Cada pantalla debe tener su estado vacío/cargado y funcionar a 360 px, 768 px y
   desktop. Sin scroll horizontal.
+- El rail del mapa se apila bajo el mapa por debajo de 1200 px en lugar de usar
+  el dock flotante del prototipo: así «Next step», «Weekly aims» y la leyenda
+  siguen visibles a 360 px sin tapar el mapa ni provocar scroll horizontal. Las
+  etiquetas de nodos disponibles usan `data-label-side` para colocarse a
+  izquierda, derecha o debajo según el ancho de la capa.
 - Nodos del mapa: SVG decorativo + botones HTML superpuestos (o controles
   equivalentes), 44×44 px mínimo, foco visible, estados distinguibles sin color
   (icono, forma, texto `aria-label`). Leyenda visible.
