@@ -13,7 +13,7 @@ import {
   ScreenHead,
 } from '../components'
 import type { IconName } from '../components'
-import { NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIcon, romanDay } from '../lib/format'
+import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIcon, romanDay } from '../lib/format'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
 const STATUS_COPY: Record<string, string> = {
@@ -41,6 +41,10 @@ function ChoiceButton({
   open: boolean
   onChoose: (nodeId: string) => void
 }) {
+  const meta = [NODE_TYPE_LABEL[node.type]]
+  if (node.task) meta.push(`${EFFORT_LABEL[node.task.effort]} effort`)
+  meta.push(nodeRewardLine(node))
+
   return (
     <button
       className={open ? 'choice choice--open' : 'choice'}
@@ -52,9 +56,7 @@ function ChoiceButton({
       </span>
       <span className="choice__body">
         <strong>{nodeTitle(node)}</strong>
-        <small>
-          {NODE_TYPE_LABEL[node.type]} · {nodeRewardLine(node)}
-        </small>
+        <small>{meta.join(' · ')}</small>
       </span>
       <Icon name="chevron-right" />
     </button>
@@ -102,7 +104,9 @@ function MapRail({
             <p className="map-rail__lede">
               {current
                 ? 'This step is chosen. Open it to review the task and its rewards.'
-                : `${nodes.length} ${nodes.length === 1 ? 'path reaches' : 'paths reach'} the gate; the trade-offs differ.`}
+                : nodes.length > 1
+                  ? `${nodes.length} paths reach the gate; the trade-offs differ.`
+                  : 'One path reaches the gate; this layer offers no trade-off.'}
             </p>
             {nodes.map((node, index) => (
               <ChoiceButton

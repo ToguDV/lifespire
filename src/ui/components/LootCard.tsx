@@ -38,11 +38,11 @@ export function LootCard({ item, detailed = false }: LootCardProps) {
   )
 }
 
-export function EmptyLootCard() {
+export function EmptyLootCard({ label = 'Not yet found' }: { label?: string }) {
   return (
     <article className="loot-card loot-card--empty">
       <Icon name="lock" />
-      <span>Not yet found</span>
+      <span>{label}</span>
     </article>
   )
 }

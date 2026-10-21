@@ -241,7 +241,7 @@ function SealedBody({
           </div>
           {summary.loot.length === 0 ? (
             <div className="loot-grid">
-              <EmptyLootCard />
+              <EmptyLootCard label="No new relic this week" />
             </div>
           ) : (
             <div className="loot-grid">

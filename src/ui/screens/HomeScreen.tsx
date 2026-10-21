@@ -298,7 +298,9 @@ export function HomeScreen() {
           copy: home.hasSelection
             ? 'Your step is chosen. Open the map to review it, complete it, or skip it.'
             : home.availableChoices > 0
-              ? `${home.availableChoices} ${home.availableChoices === 1 ? 'path reaches' : 'paths reach'} the gate. The trade-offs differ.`
+              ? home.availableChoices > 1
+                ? `${home.availableChoices} paths reach the gate. The trade-offs differ.`
+                : 'One path reaches the gate; this layer offers no trade-off.'
               : 'This path has no open step. The day waits for the map to unfold.',
           foot: day ? `Day ${day.index + 1} of 7 · ${formatShortDayKey(day.date)}` : 'Today',
         }
