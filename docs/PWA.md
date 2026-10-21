@@ -38,13 +38,13 @@ pnpm preview --port 4173
 
 `localhost` is treated as a secure context by Chromium, so installation can be
 tested there without HTTPS. The browser's install prompt is environment-driven;
-the app intentionally has no custom install button in MVP-0.
+the app intentionally has no custom install button.
 
 ## Installing on a phone
 
 A phone cannot install the app from a plain `http://<LAN-IP>:4173` origin.
 Installation and service workers require **HTTPS** (or `localhost` on the same
-device). Serving this build from a public HTTPS origin is outside MVP-0: there is
+device). Serving this build from a public HTTPS origin is outside the current scope: there is
 no deployment, custom domain, backend or account system in this milestone. For a
 local demo, use a trusted HTTPS tunnel or a local certificate; do not treat that
 as a production deployment.

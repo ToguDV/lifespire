@@ -1,67 +1,142 @@
-# LifeSpire — MVP-0
+# LifeSpire
 
-LifeSpire convierte tus metas y rutinas en un mapa diario de nodos: cada día
-eliges un camino, cada nodo es una acción real (tarea, descanso, tesoro o el jefe
-del día) y cada run dura 7 días. Es una web local-first, instalable como PWA y
-funcional sin conexión después de la primera carga.
+**Turn your goals and routines into a daily node map.**
 
-Este repositorio contiene **MVP-0**, una porción vertical para validar el bucle
-central. No hay cuentas, backend, sincronización ni despliegue público.
+LifeSpire turns a person's goals and routines into a daily node map inspired by
+*Slay the Spire*. Each day you choose a path; each node is a real-world action
+(a task, a rest, a treasure, or the daily boss). A **run** lasts 7 days with
+weekly objectives — the more you complete, the more gold, XP, and loot you earn.
 
-- Especificación funcional: [`SPEC.md`](./SPEC.md)
-- Diseño aceptado: [`design/`](./design) · [`DESIGN.md`](./design/DESIGN.md)
-- Notas de UI y componentes: [`docs/UI.md`](./docs/UI.md)
-- PWA, instalación y verificación offline: [`docs/PWA.md`](./docs/PWA.md)
-- Arquitectura y contratos: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
-- Protocolo de playtest: [`docs/playtest-plan.md`](./docs/playtest-plan.md)
-- Resultados del dry run interno: [`docs/playtest-results.md`](./docs/playtest-results.md)
-- Notas de release MVP-0: [`docs/release-notes-v0.1.0-mvp0.md`](./docs/release-notes-v0.1.0-mvp0.md)
-- Guía para agentes: [`AGENTS.md`](./AGENTS.md)
+It's a local-first web app: a single profile, no accounts, no backend. Installable
+as a PWA and fully usable offline after the first load.
 
-Estado: **MVP-0 liberado** como `v0.1.0-mvp0` en `main`. Incluye un dry run
-interno de playtest; las sesiones con testers externos siguen pendientes
-(issue #23).
+---
 
-## Rama
+## Screenshots
 
-Todo el proyecto vive en `main`, que es la línea de desarrollo y de release.
-Para cambios grandes conviene crear una rama corta y mergearla de vuelta.
+| Light theme | Dark theme |
+|---|---|
+| ![Node map (light theme)](./design/captures/map-light.png) | ![Node map (dark theme)](./design/captures/map-dark.png) |
+
+Mobile layouts are fully supported:
+
+| Mobile (light) | Mobile (dark) |
+|---|---|
+| ![Node map (mobile, light)](./design/captures/map-mobile-light.png) | ![Node map (mobile, dark)](./design/captures/map-mobile-dark.png) |
+
+The node map is the heart of the app: each day you pick a path through 4 layers
+plus a boss, with visible trade-offs between progress, effort, and reward.
+
+---
+
+## Quick start
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev        # dev server
+```
+
+Open the printed URL. On first launch you can load **demo data** and start a run
+in one click, or create your own goals and routines.
+
+### Requirements
+
+- Node 24 (see `.nvmrc`)
+- pnpm 11 (see `packageManager` in `package.json`)
+
+### Scripts
+
+```bash
+pnpm lint       # oxlint
+pnpm typecheck  # TypeScript (tsc -b)
+pnpm test       # Vitest
+pnpm build      # typecheck + production build
+pnpm preview    # serve the build (test PWA / offline)
+```
+
+---
+
+## How it works
+
+1. **Onboarding** — pick demo data or create 1–3 goals with their routines.
+2. **Each day** — open the day's map (4 decision layers + a boss, 2–3 nodes per
+   layer), pick a node, complete the real-world action, mark it done.
+3. **Rewards** — XP, gold, and loot are granted instantly. Tasks also add
+   progress to their goal's weekly objective.
+4. **Close the day** — resolving the boss ends the day with a bonus.
+5. **Close the run** — after 7 days you get a weekly summary with bonuses and
+   loot. Start a new run keeping your profile, gold, XP, and collection.
+
+Path choice has visible trade-offs: tasks advance the week, treasures pay
+immediately but give no progress, elites pay double in exchange for more effort.
+
+---
+
+## Scope
+
+**In scope**
+
+- Onboarding with demo or custom data; 1–3 goals with routines
+- 7-day runs with deterministic maps (4 layers + boss)
+- Node types: task, elite, rest, treasure, boss
+- Instant rewards (XP, gold, loot), weekly progress, day & run summaries
+- New run keeping profile, gold, XP, and collection
+- Local persistence with JSON export/import and reset
+- Dev panel to advance days and simulate a week
+- PWA, offline after first load, responsive (360px → desktop)
+
+**Out of scope**
+
+Accounts, backend, sync, notifications, combat, cards, deckbuilding, shop,
+relics with gameplay effects, calendar/health integrations, automatic task
+verification, social features, native apps.
+
+> Relics are a **collection** in the current scope (12 items, rarities, duplicates
+> convert to gold). Gameplay-effect relics are deliberately deferred — see
+> [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §8.
+
+---
+
+## Project layout
+
+```
+src/
+  domain/      pure, testable logic (map, rewards, lifecycle, run close, schema)
+  content/     loot catalog + demo factory
+  state/       Zustand store + persist + injectable clock
+  ui/          components & screens (no router — view state)
+  styles/      tokens + app styles
+```
+
+Maps are rendered with custom SVG. No graph library, no UI kit.
+
+---
+
+## Documentation
+
+- Spec & rules: [`SPEC.md`](./SPEC.md)
+- Architecture & contracts: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- Design system: [`design/DESIGN.md`](./design/DESIGN.md) · [`design/`](./design)
+- UI notes: [`docs/UI.md`](./docs/UI.md)
+- PWA / offline: [`docs/PWA.md`](./docs/PWA.md)
+- Playtest protocol: [`docs/playtest-plan.md`](./docs/playtest-plan.md)
+- Agent guide: [`AGENTS.md`](./AGENTS.md)
+
+---
+
+## Persistence
+
+All game state lives in a single versioned `localStorage` key. Settings →
+export/import produces a readable JSON backup or restores one. The dev panel
+only exists in `pnpm dev`.
+
+---
+
+## Branch
+
+Everything lives on `main`, the development and release line. Use short-lived
+branches (`feat/...`, `fix/...`) for larger changes and merge back.
 
 ```bash
 git checkout main
 ```
-
-## Requisitos
-
-- Node 24 (ver `.nvmrc`)
-- pnpm 11 (ver `packageManager` en `package.json`)
-
-## Comandos
-
-```bash
-pnpm install --frozen-lockfile
-pnpm dev        # servidor de desarrollo
-pnpm lint       # oxlint
-pnpm typecheck  # TypeScript
-pnpm test       # Vitest
-pnpm build      # typecheck + build de producción
-pnpm preview    # sirve el build (probar PWA/offline)
-```
-
-## Alcance de MVP-0
-
-Incluye onboarding con datos demo o propios, 1–3 metas con sus rutinas, runs de
-7 días, mapas deterministas de 4 capas + jefe, recompensas inmediatas (XP, oro y
-loot), progreso semanal, resúmenes de día y de run, nueva run conservando el
-perfil, persistencia local con export/import y panel de desarrollo.
-
-Fuera de alcance: cuentas, backend, notificaciones, combate, cartas, tienda,
-recompensas con efectos, integraciones, verificación automática, social y apps
-nativas.
-
-## Persistencia
-
-Todo el estado de juego se guarda en una única clave de `localStorage`
-(`lifespire:mvp0`), con esquema versionado. Ajustes → exportar/importar permite
-crear una copia JSON o restaurarla. El panel de desarrollo solo existe en
-`pnpm dev`.
