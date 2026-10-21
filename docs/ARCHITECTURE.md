@@ -501,6 +501,26 @@ en `state/clock.ts`, no en `document`.
 - El panel de desarrollo solo se monta si `import.meta.env.DEV`; nunca en el
   build de producción ni en el documento exportado.
 
+### Ajustes de la UI del bucle M2
+
+El diseño de `design/` sigue siendo la referencia. La implementación del bucle
+diario necesita mostrar más información que los estados estáticos del prototipo:
+
+- El rail de camp (`Weekly aims`, `Run at a glance`, `The traveller`) y la tira
+  de siete días se apilan bajo el contenido principal por debajo de 1200 px y
+  960 px respectivamente. El prototipo los ocultaba en móvil; ocultarlos dejaría
+  el progreso semanal y el perfil sin acceso desde el dashboard.
+- La cabecera de camp añade fecha y estado del día, y el rail añade el panel del
+  viajero con nivel, XP, oro y progreso al siguiente nivel. Reutiliza los mismos
+  paneles, pips, chips y barras de progreso.
+- El resumen de día añade un bloque explícito de bonus de cierre (`+20 XP/+20
+  gold` o `Forfeited`), etiquetas `Completed`/`Skipped` en cada paso y la
+  progresión `before → after` de cada objetivo. El sello usa una animación
+  breve que desaparece con `prefers-reduced-motion`.
+- Los nodos resueltos vuelven al mapa con un toast de recompensa. El boss navega
+  al resumen de día; si era el día 7, la run queda cerrada con `summary: null`
+  (M3) pero el resumen de día sigue siendo accesible hasta que se recargue.
+
 ## 7. Tests obligatorios por módulo
 
 - `rng`/`generator`: determinismo, golden seed, 1.000 mapas, invariantes y edge

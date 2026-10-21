@@ -1128,3 +1128,284 @@ body[data-screen="recovery"] .viewport {
     padding-inline: 40px;
   }
 }
+
+/* Camp dashboard extras -------------------------------------- */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+button.text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.hero-panel__pips {
+  display: inline-flex;
+}
+
+.hero-panel__secondary {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--ink-soft);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.hero-panel__secondary .icon {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  margin-top: 1px;
+}
+
+.traveller-links {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.traveller-links .text-link {
+  font-size: 0.68rem;
+}
+
+.traveller-level {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.traveller-level .progress {
+  width: 100%;
+}
+
+@media (max-width: 1199px) {
+  .camp-rail {
+    display: flex;
+  }
+}
+
+@media (max-width: 959px) {
+  .week-block {
+    display: block;
+  }
+}
+
+/* Node resolution extras ------------------------------------- */
+
+.node-skip-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.node-skip-note .icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  color: var(--accent-deep);
+}
+
+/* Day summary extras ----------------------------------------- */
+
+.summary-path {
+  margin: 0;
+  list-style: none;
+}
+
+.path-row__rewards {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 0;
+  max-width: 46%;
+}
+
+.path-row__loot {
+  color: var(--ink-soft);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.path-row.is-skipped .path-row__reward {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.summary-bonus {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.summary-bonus.is-forfeited {
+  border-style: dashed;
+  background: var(--surface-sunken);
+}
+
+.summary-bonus__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 50%;
+  color: var(--accent-deep);
+}
+
+.summary-bonus.is-forfeited .summary-bonus__icon {
+  border-style: dashed;
+  color: var(--ink-soft);
+}
+
+.summary-bonus__icon .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.summary-bonus__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.summary-bonus__body strong {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.summary-bonus__body p {
+  max-width: 54ch;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.summary-loot {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+}
+
+.summary-loot .section-block__head {
+  padding: 0 0 10px;
+}
+
+.summary-loot .loot-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-bottom: 0;
+}
+
+.summary-duplicates {
+  margin-top: 8px;
+}
+
+.summary-wait-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 10px;
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 0.86rem;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.summary-wait-note .icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+}
+
+.summary-page .seal {
+  animation: seal-in 520ms var(--ease-out) both;
+}
+
+@keyframes seal-in {
+  from {
+    opacity: 0;
+    transform: rotate(-6deg) scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-6deg) scale(1);
+  }
+}
+
+@media (max-width: 560px) {
+  .path-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .path-row__rewards {
+    grid-column: 2;
+    align-items: flex-start;
+    max-width: none;
+    margin-top: 2px;
+  }
+
+  .path-row__loot {
+    text-align: left;
+  }
+
+  .summary-loot .loot-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 960px) {
+  .summary-loot .loot-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.week-missed-note {
+  margin-top: 8px;
+  padding: 0 4px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+}
+
+.node-actions .btn--ghost {
+  min-height: 44px;
+}
