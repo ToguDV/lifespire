@@ -634,6 +634,38 @@ diario necesita mostrar más información que los estados estáticos del prototi
   `startNewRun`, la vista es `home` con el día 1 `available` y los días 2–7
   `locked`.
 
+### Perfil, datos locales y PWA (M3)
+
+- `ProfileScreen` usa `buildCollection` (`ui/lib/collection.ts`) para mostrar
+  siempre las 12 entradas de `LOOT_CATALOG`, no solo las poseídas. Las que no se
+  han encontrado conservan una ranura bloqueada con «Undiscovered» y no exponen
+  nombre, rareza, descripción ni icono. Los filtros All/Common/Rare/Epic son
+  botones nativos con contador `poseídas/total`; el catálogo sigue disponible
+  sin perfil y sin run. Las poseídas muestran nombre, rareza, descripción y fecha
+  de obtención.
+- El historial de duplicados se construye solo con `RewardEvent`s de la run
+  actual (`duplicateCatalogId` + `duplicateGold`). No hay historial entre runs
+  porque el save no lo conserva; sin run o sin conversiones se muestra un vacío
+  explícito.
+- `SettingsScreen` exporta `serializeDocument(document)` con nombre
+  `lifespire-<fecha-local>.json`, sin reloj de desarrollo ni estado transitorio.
+  La importación lee el archivo, valida con `parseDocument` mediante
+  `readSaveFile` y muestra un resumen (nombre, nivel, oro, run/día, reliquias y
+  `schemaVersion`) antes de confirmar. Un archivo inválido, corrupto o de versión
+  futura se rechaza antes de llamar a `importDocument`, por lo que el documento y
+  `localStorage` no cambian.
+- El reset exige escribir `RESET` exactamente además de confirmar el diálogo.
+  Al confirmar se llama a `resetAll`, se limpia la clave y se vuelve a
+  onboarding; cancelar no toca el save. Los ajustes muestran `STORAGE_KEY` y
+  `schemaVersion`.
+- La PWA se configura en `vite.config.ts` con `registerType: 'autoUpdate'` y
+  `devOptions.enabled: false`. El service worker precachea el shell, JS/CSS,
+  fuentes WOFF2, manifest e iconos; no cachea estado ni rutas de desarrollo. Un
+  update solo sustituye assets estáticos: el save versionado sigue en
+  `localStorage` y pasa por las mismas guardas. La verificación local y el
+  requisito de HTTPS para instalar en un teléfono están en
+  [`PWA.md`](./PWA.md).
+
 ## 7. Tests obligatorios por módulo
 
 - `rng`/`generator`: determinismo, golden seed, 1.000 mapas, invariantes y edge
@@ -648,4 +680,9 @@ diario necesita mostrar más información que los estados estáticos del prototi
   (perfil conservado, run/días/objetivos reseteados, id/semilla nuevos,
   round-trip) y cierre automático vía reconcile.
 - `schema`: round-trip, JSON inválido, campos ausentes, versión futura, migración.
+- `collection`: catálogo completo de 12, filtros/contadores por rareza, historial
+  de duplicados desde `RewardEvent` y vacío honesto sin run.
+- `importSave`: resumen de preview (perfil, nivel, oro, run/día, reliquias,
+  schema), round-trip y rechazo de JSON inválido, campos ausentes y versión
+  futura sin cambiar el estado. `reset`: frase exacta.
 - `dates`: claves locales sin drift UTC.
