@@ -380,8 +380,10 @@ generateMap(input: {
   `available` el día de hoy sin mapa, `in_progress` si tiene mapa, y `locked` los
   futuros. Recalcula `run.totals` y cierra la run si todos los días están
   completed/missed o el día 7 ya pasó. Es idempotente, no toca días ya cerrados
-  y se ejecuta al hidratar y tras cada acción. En M2 el cierre no concede el
-  bonus semanal: `run.summary` queda en `null` (M3-03).
+  y se ejecuta al hidratar y tras cada acción. El `reconcile` del store llama
+  después a `finalizeIfNeeded`, de modo que una run cerrada sin `summary`
+  recibe el bonus semanal automáticamente (al abrir la app tras el día 7 o al
+  avanzar el reloj) sin duplicarlo.
 - Solo el día actual (índice = primer día no cerrado) es jugable. No hay
   recuperación de días missed. Un día missed conserva su mapa/path parcial y
   `summary: null`: el resumen solo existe cuando se resuelve el boss.
@@ -399,27 +401,70 @@ generateMap(input: {
   - si es boss, cierra el día (`completed`, `closedAt`) y construye `summary` con
     totales, loot, conversiones, bonus separado y objetivos before/after
     (`before = after − progreso ganado ese día`);
-  - el día 7 (o el último día abierto) cierra la run con `summary: null`;
+  - el día 7 (o el último día abierto) deja la run `closed` con `summary: null`;
+    la acción `resolveNode` del store aplica `finalizeIfNeeded` inmediatamente
+    después, de modo que el resumen semanal y el bonus quedan persistidos en la
+    misma transición visible;
   - un segundo intento sobre el mismo nodo es un error explícito, nunca duplica
     recompensas; un reload entre resoluciones no cambia el resultado.
-- El progreso semanal vive en `run.objectives` y se actualiza al completar. En M2
-  completar un objetivo no concede todavía el bonus semanal de M3.
+- El progreso semanal vive en `run.objectives` y se actualiza al completar.
+  Completar un objetivo concede el bonus semanal al cerrar la run, no al
+  completar el nodo.
 
 ### Cierre de run (`runClose.ts`)
 
-> En M2 el cierre deja `run.status = 'closed'`, `closedAt` y los totales, pero
-> `run.summary` permanece en `null`. El bonus semanal y el resumen completo
-> pertenecen a M3-03.
-
+- `finalizeRun(document, now)` (alias `closeRun`) solo actúa sobre una run
+  `closed` con `summary === null`. Sin run, con perfil ausente, con run activa o
+  con `summary` ya escrito devuelve el mismo documento: no inventa un cierre.
+  `finalizeIfNeeded` es el punto de entrada para reconcile/resolve.
 - Objetivo cumplido si `progress >= target`.
-- Cada objetivo cumplido: +50 XP, +50 oro y 1 tirada de loot (determinista).
-- Todos cumplidos (y hay ≥1 objetivo): +100 XP, +100 oro y 1 objeto raro
-  garantizado.
-- Si no hay objetivos o no hay días jugados, el resumen sigue siendo válido.
-- `run.status = 'closed'` y `run.summary` se escriben una sola vez. Llamar dos
-  veces devuelve la misma run sin volver a conceder nada.
-- Los totales del resumen se calculan de los eventos persistidos y deben coincidir
-  con `profile` (incluidas conversiones de duplicados).
+- Cada objetivo cumplido: `OBJECTIVE_BONUS` = +50 XP, +50 oro y 1 tirada de loot
+  determinista con semilla
+  `${runId}:day:7:node:weekly:objective:${goalId}:loot:${roll}`. El 7 es el slot
+  reservado al cierre semanal; el id de instancia sigue siendo
+  `${runId}:7:weekly:objective:${goalId}:${catalogId}`.
+- Todos cumplidos (y hay ≥1 objetivo): `ALL_OBJECTIVES_BONUS` = +100 XP, +100
+  oro y 1 objeto raro garantizado, elegido de forma determinista dentro del
+  catálogo raro con semilla `${runId}:weekly:all:rare:0`.
+- El orden es: objetivos en el orden de `run.objectives` y, si aplica, el raro
+  garantizado al final. Si el raro coincide con una tirada previa (o con el
+  perfil), también se convierte en oro.
+- Si no hay objetivos o no hay días jugados, el resumen sigue siendo válido
+  (`allComplete: false`, bonus 0 y totales de días correctos).
+- Las tiradas usan el catálogo y `acquireLoot`; la primera unidad entra en
+  `profile.loot` y las siguientes se convierten en oro. `summary.objectives[i]`
+  guarda solo el loot nuevo de ese objetivo y su bonus base (50/50).
+  `summary.duplicateGold` suma todas las conversiones semanales;
+  `summary.bonusGold` incluye el oro base más esas conversiones.
+  `summary.loot` es el loot nuevo adquirido (objetivos + raro garantizado).
+  `summary.guaranteedRare` es `null` cuando el raro se convirtió en oro, ya
+  fuera porque el perfil lo tenía o porque una tirada de objetivo lo obtuvo
+  antes.
+- `profile.level` se recalcula con `levelForXp` al aplicar el XP semanal.
+- El bonus se suma a `run.totals` (`xp`, `gold`, `lootCount`) y `summary.totals`
+  es exactamente ese mismo objeto. El bonus **no** se registra como
+  `RewardEvent`: `computeRunTotals` sigue devolviendo los totales de nodos, y
+  una run cerrada conserva sus totales congelados (reconcile no los recalcula
+  porque sale antes con `status === 'closed'`). Así el resumen coincide con los
+  totales persistidos y el delta del perfil.
+- `run.status = 'closed'`, `closedAt` y `summary` se escriben una sola vez.
+  Llamar dos veces devuelve la misma run y no vuelve a conceder XP, oro ni loot.
+
+### Nueva run (`runClose.ts`)
+
+- `startNewRun(document, { runId, now })` exige perfil, una run previa
+  `closed` y un setup válido (1–3 objetivos activos, ≥4 rutinas activas y
+  objetivos semanales válidos) usando `validateSetup`. Un fallo lanza
+  `DomainError` antes de construir nada: el documento no se modifica.
+- Conserva exactamente `profile` (id, nombre, XP, nivel, oro, colección y
+  `createdAt`), `goals`, `tasks` y `settings`.
+- Sustituye `run` por una run nueva creada con `createRun`: id y semilla nuevos
+  (la semilla deriva del `runId` inyectado), 7 días desde la fecha local de
+  `now`, día 0 `available` y el resto `locked`. No quedan días, mapas, paths,
+  reward events, objetivos ni resumen de la run anterior.
+- Limpia `onboardingDraft`. Devuelve un único documento, por lo que la
+  transición es atómica: un reload solo puede ver la run vieja completa o la
+  nueva completa.
 
 ### Persistencia y recuperación (`schema.ts` + `state/store.ts`)
 
@@ -458,7 +503,7 @@ interface AppState {
   openDay(dayId?: string, now?: Date): void
   selectNode(nodeId: string): void
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
-  closeRun(now?: Date): void
+  finalizeRun(now?: Date): void
   startNewRun(now?: Date): void
   saveGoal(goal: Goal): void
   archiveGoal(goalId: string): void
@@ -474,7 +519,12 @@ interface AppState {
 Reglas de las acciones: leer `document`, aplicar funciones puras, recalcular
 nivel/totales, escribir una sola vez. Los ids se generan con
 `newId(prefix)` (`crypto.randomUUID` con fallback). El offset de desarrollo vive
-en `state/clock.ts`, no en `document`.
+en `state/clock.ts`, no en `document`. `reconcile` y `resolveNode` aplican
+`finalizeIfNeeded` después de la transición de días, y `startNewRun` reconcilia
+primero (para sellar y pagar una run vencida), valida la run previa cerrada y
+deja `view: home` sin navegar desde el dominio. `devRestartRun` sigue siendo una
+herramienta de desarrollo que puede reemplazar una run activa y conserva el
+perfil; no es la transición de nueva run.
 
 ## 6. UI y diseño
 
@@ -518,8 +568,9 @@ diario necesita mostrar más información que los estados estáticos del prototi
   progresión `before → after` de cada objetivo. El sello usa una animación
   breve que desaparece con `prefers-reduced-motion`.
 - Los nodos resueltos vuelven al mapa con un toast de recompensa. El boss navega
-  al resumen de día; si era el día 7, la run queda cerrada con `summary: null`
-  (M3) pero el resumen de día sigue siendo accesible hasta que se recargue.
+  al resumen de día; si era el día 7, el store aplica el cierre semanal en la
+  misma acción, la run queda `closed` con `summary` calculado y el resumen de
+  día sigue siendo accesible hasta que se recargue.
 
 ## 7. Tests obligatorios por módulo
 
@@ -529,6 +580,10 @@ diario necesita mostrar más información que los estados estáticos del prototi
   duplicados, niveles 0/99/100/199.
 - `lifecycle`: medianoche 23:59/00:00, ausencia de 3 días, día 7 completado y
   missed, idempotencia, resolución duplicada, reload entre resoluciones.
-- `runClose`: 0/parcial/todos los objetivos, missed days, doble cierre.
+- `runClose`: 0/parcial/todos los objetivos, bonus por objetivo y total, raro
+  garantizado, duplicados convertidos a oro, missed/0 días jugados,
+  idempotencia, `summary.totals === run.totals`, deltas del perfil, nueva run
+  (perfil conservado, run/días/objetivos reseteados, id/semilla nuevos,
+  round-trip) y cierre automático vía reconcile.
 - `schema`: round-trip, JSON inválido, campos ausentes, versión futura, migración.
 - `dates`: claves locales sin drift UTC.
