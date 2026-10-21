@@ -1,0 +1,342 @@
+import { create } from 'zustand'
+import type { StoreApi, UseBoundStore } from 'zustand'
+import { persist } from 'zustand/middleware'
+import { createDemoSetup, validateSetup } from '../content/demo'
+import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
+import { dayKey } from '../domain/dates'
+import { createRun, reconcileDays } from '../domain/lifecycle'
+import { createEmptyDocument, parseDocument } from '../domain/schema'
+import { levelForXp } from '../domain/selectors'
+import type {
+  GameDocument,
+  Goal,
+  OnboardingDraft,
+  OnboardingSetup,
+  Profile,
+  Run,
+  RunSetup,
+  StorageIssue,
+  Task,
+  ThemePreference,
+} from '../domain/types'
+import { advanceDevDay, getNow, resetDevClock } from './clock'
+import { documentStorage } from './persistence'
+import type { DocumentStorageController, PersistedSlice } from './persistence'
+
+export interface AppState {
+  document: GameDocument
+  hydrated: boolean
+  storageIssue: StorageIssue | null
+  toast: string | null
+
+  updateOnboardingDraft(patch: Partial<OnboardingDraft>): void
+  completeOnboarding(setup: OnboardingSetup, now?: Date): void
+  startRun(setup?: RunSetup, now?: Date): void
+  reconcile(now?: Date): void
+  setTheme(theme: ThemePreference): void
+  importDocument(nextDocument: GameDocument): boolean
+  resetAll(): void
+  newId(prefix: string): string
+  showToast(message: string | null): void
+
+  devStartDemoRun(now?: Date): void
+  devRestartRun(now?: Date): void
+  devAdvanceDay(days?: number): void
+  devResetAll(): void
+
+  profile(): Profile | null
+  run(): Run | null
+  todayKey(): string
+  activeGoals(): Goal[]
+  activeTasks(): Task[]
+}
+
+export interface StoreDeps {
+  storage?: DocumentStorageController
+  now?: () => Date
+  idFactory?: (prefix: string) => string
+}
+
+let fallbackIdCounter = 0
+
+function fallbackUuid(): string {
+  fallbackIdCounter += 1
+  const stamp =
+    typeof globalThis.performance?.now === 'function'
+      ? Math.floor(globalThis.performance.now()).toString(36)
+      : fallbackIdCounter.toString(36)
+  return `${stamp}-${fallbackIdCounter.toString(36)}`
+}
+
+export function newId(prefix: string): string {
+  const uuid =
+    typeof globalThis.crypto?.randomUUID === 'function'
+      ? globalThis.crypto.randomUUID()
+      : fallbackUuid()
+  return `${prefix}_${uuid}`
+}
+
+function withSyncedLevel(document: GameDocument): GameDocument {
+  if (!document.profile) return document
+  const level = levelForXp(document.profile.xp)
+  if (document.profile.level === level) return document
+  return { ...document, profile: { ...document.profile, level } }
+}
+
+export function createAppStore(
+  deps: StoreDeps = {},
+): UseBoundStore<StoreApi<AppState>> {
+  const storage = deps.storage ?? documentStorage
+  const nowProvider = deps.now ?? getNow
+  const idFactory = deps.idFactory ?? newId
+
+  const store = create<AppState>()(
+    persist<AppState, [], [], PersistedSlice>(
+      (set, get) => ({
+        document: createEmptyDocument(),
+        hydrated: false,
+        storageIssue: null,
+        toast: null,
+
+        updateOnboardingDraft: (patch) => {
+          const current = get().document
+          const draft: OnboardingDraft = current.onboardingDraft ?? {
+            step: 0,
+            mode: null,
+            name: '',
+            goals: [],
+            tasks: [],
+          }
+          set({
+            document: {
+              ...current,
+              onboardingDraft: { ...draft, ...patch },
+            },
+          })
+        },
+
+        completeOnboarding: (setup, at = nowProvider()) => {
+          const validation = validateSetup(setup.goals, setup.tasks)
+          if (!validation.ok) {
+            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            return
+          }
+
+          const current = get().document
+          const profile: Profile = {
+            id: idFactory('profile'),
+            name: setup.name.trim() || 'Wayfarer',
+            xp: 0,
+            level: levelForXp(0),
+            gold: 0,
+            loot: [],
+            createdAt: at.toISOString(),
+          }
+
+          set({
+            document: {
+              ...current,
+              profile,
+              goals: [...setup.goals],
+              tasks: [...setup.tasks],
+              run: null,
+              onboardingDraft: null,
+            },
+            toast: null,
+          })
+        },
+
+        startRun: (setup, at = nowProvider()) => {
+          const current = get().document
+          if (!current.profile) {
+            set({ toast: 'Finish onboarding before you begin a run.' })
+            return
+          }
+
+          const goals = setup ? setup.goals : current.goals
+          const tasks = setup ? setup.tasks : current.tasks
+          const validation = validateSetup(goals, tasks)
+          if (!validation.ok) {
+            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            return
+          }
+
+          const run = createRun({
+            setup: { goals, tasks },
+            now: at,
+            runId: idFactory('run'),
+          })
+
+          set({
+            document: {
+              ...current,
+              goals: [...goals],
+              tasks: [...tasks],
+              run,
+              onboardingDraft: null,
+            },
+            toast: null,
+          })
+        },
+
+        reconcile: (at = nowProvider()) => {
+          const current = get().document
+          if (!current.run) return
+          const run = reconcileDays(current.run, dayKey(at))
+          if (run !== current.run) {
+            set({ document: { ...current, run } })
+          }
+        },
+
+        setTheme: (theme) => {
+          const current = get().document
+          if (current.settings.theme === theme) return
+          set({
+            document: {
+              ...current,
+              settings: { ...current.settings, theme },
+            },
+          })
+        },
+
+        importDocument: (nextDocument) => {
+          const parsed = parseDocument(nextDocument)
+          if (!parsed.ok) {
+            set({
+              toast:
+                parsed.reason === 'future-version'
+                  ? 'That save comes from a newer version of LifeSpire.'
+                  : 'That file is not a valid LifeSpire save.',
+            })
+            return false
+          }
+
+          storage.unblockWrites()
+          const imported = withSyncedLevel(parsed.value)
+          set({
+            document: imported,
+            storageIssue: null,
+            toast: 'Save restored.',
+          })
+          get().reconcile()
+          return true
+        },
+
+        resetAll: () => {
+          storage.unblockWrites()
+          storage.clear()
+          set({
+            document: createEmptyDocument(),
+            storageIssue: null,
+            toast: null,
+          })
+        },
+
+        newId: (prefix) => idFactory(prefix),
+
+        showToast: (message) => {
+          set({ toast: message })
+        },
+
+        devStartDemoRun: (at = nowProvider()) => {
+          const setup = createDemoSetup(at)
+          const profile: Profile = {
+            id: idFactory('profile'),
+            name: setup.name,
+            xp: 0,
+            level: levelForXp(0),
+            gold: 0,
+            loot: [],
+            createdAt: at.toISOString(),
+          }
+          const run = createRun({
+            setup: { goals: setup.goals, tasks: setup.tasks },
+            now: at,
+            runId: idFactory('run'),
+          })
+          const current = get().document
+
+          set({
+            document: {
+              ...current,
+              profile,
+              goals: [...setup.goals],
+              tasks: [...setup.tasks],
+              run,
+              onboardingDraft: null,
+            },
+            toast: 'Demo run ready.',
+          })
+        },
+
+        devRestartRun: (at = nowProvider()) => {
+          const current = get().document
+          if (!current.profile) {
+            set({ toast: 'Finish onboarding before you begin a run.' })
+            return
+          }
+
+          const validation = validateSetup(current.goals, current.tasks)
+          if (!validation.ok) {
+            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            return
+          }
+
+          const run = createRun({
+            setup: { goals: current.goals, tasks: current.tasks },
+            now: at,
+            runId: idFactory('run'),
+          })
+
+          set({
+            document: { ...current, run, onboardingDraft: null },
+            toast: 'A new run begins.',
+          })
+        },
+
+        devAdvanceDay: (days = 1) => {
+          advanceDevDay(days)
+          get().reconcile()
+        },
+
+        devResetAll: () => {
+          resetDevClock()
+          get().resetAll()
+        },
+
+        profile: () => get().document.profile,
+        run: () => get().document.run,
+        todayKey: () => dayKey(nowProvider()),
+        activeGoals: () => get().document.goals.filter((goal) => goal.active),
+        activeTasks: () => {
+          const goalIds = new Set(
+            get()
+              .document.goals.filter((goal) => goal.active)
+              .map((goal) => goal.id),
+          )
+          return get().document.tasks.filter(
+            (task) => task.active && goalIds.has(task.goalId),
+          )
+        },
+      }),
+      {
+        name: STORAGE_KEY,
+        version: SCHEMA_VERSION,
+        storage: storage.storage,
+        partialize: (state) => ({ document: state.document }),
+      },
+    ),
+  )
+
+  const issue = storage.consumeIssue()
+  store.setState({ hydrated: true, storageIssue: issue })
+  const hydratedDocument = withSyncedLevel(store.getState().document)
+  if (hydratedDocument !== store.getState().document) {
+    store.setState({ document: hydratedDocument })
+  }
+  store.getState().reconcile()
+
+  return store
+}
+
+export const useAppStore = createAppStore()
