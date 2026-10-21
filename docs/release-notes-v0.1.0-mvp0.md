@@ -140,18 +140,21 @@ critical acceptance items; the full 12-item matrix from M3-07 remains in
 
 ### Branch state
 
-- `main` HEAD: `db94650` (“Merge pull request #25 from ToguDV/mvp-0”), unchanged
-  before, during and after this release work.
+- At release verification time, `main` HEAD was `db94650` (“Merge pull request
+  #25 from ToguDV/mvp-0”), unchanged during the build and clean-worktree pass.
+- After verification, the maintainer requested the release merge. `main` now
+  contains merge commit `8cd683b` (`Merge branch 'mvp-0' into main`) of `mvp-0`
+  at `eb6f0b4`. `design/`, `SPEC.md` and `AGENTS.md` were not rewritten by the
+  release work; `AGENTS.md` was updated afterwards to record that `main` is now
+  the release line.
 - Merge base: `cf46804`.
 - `mvp-0` contains the MVP-0 work on top of that base; `git diff --stat main
   mvp-0` shows only the MVP-0 tree (the old scaffold is replaced by the current
-  app, docs, design and tests). No commit in this release touched `main`,
-  `design/`, `SPEC.md` or `AGENTS.md`.
+  app, docs, design and tests).
 - The detached release worktree was removed after verification; no build or
   preview server was left running.
 
-The tag itself is not created here. The final `mvp-0` commit hash is reported to
-the orchestrator for `v0.1.0-mvp0`.
+The annotated tag `v0.1.0-mvp0` points to `eb6f0b4`, the verified release commit.
 
 ## 5. Acceptance matrix (SPEC §10)
 

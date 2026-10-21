@@ -28,7 +28,8 @@ nombres, arte, layouts ni contenido del juego original.
 ## Rama y alcance
 
 - El trabajo de MVP-0 vive en la rama `mvp-0`.
-- `main` pertenece a otra línea del proyecto y **no debe modificarse**.
+- `main` es la línea de release: recibe merges desde `mvp-0` cuando el
+  mantenedor lo pida. No reescribas su historial ni hagas force-push.
 - No hay backend, cuentas ni sincronización en MVP-0.
 
 ## Arquitectura

@@ -23,8 +23,8 @@ run interno de playtest; las sesiones con testers externos siguen pendientes.
 
 ## Rama
 
-El desarrollo de MVP-0 vive en la rama `mvp-0`. `main` pertenece a otra línea del
-proyecto y no debe modificarse.
+El desarrollo de MVP-0 vive en la rama `mvp-0`. `main` es la línea de release y
+recibe los merges aprobados desde `mvp-0`.
 
 ```bash
 git checkout mvp-0
