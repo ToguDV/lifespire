@@ -34,6 +34,8 @@ src/
   styles/
     tokens.css     copia/adaptación de design/assets/tokens.css
     app.css        copia/adaptación de design/assets/app.css
+    ui.css         estados añadidos por el port (diálogos, vacíos)
+    m3.css         onboarding guiado y edición de metas/rutinas
   main.tsx
 ```
 
@@ -286,6 +288,11 @@ export interface OnboardingDraft {
 }
 ```
 
+`onboardingDraft` es un borrador persistido: el esquema valida su forma, pero
+acepta objetivos semanales intermedios fuera de 1..7 para que un reload no
+convierta el borrador en «corrupto». La validación de negocio se aplica al
+confirmar (`beginJourney`).
+
 `RunObjective.progress` se incrementa solo al completar nodos task/elite/boss cuyo
 `goalId` coincida. Elite da `+1`, no `+2`.
 
@@ -498,6 +505,7 @@ interface AppState {
   back(): void
   // acciones de dominio (todas llaman a reconcile y persisten)
   completeOnboarding(setup: OnboardingSetup): void
+  beginJourney(setup: OnboardingSetup, now?: Date): boolean
   updateOnboardingDraft(patch: Partial<OnboardingDraft>): void
   startRun(setup: RunSetup, now?: Date): void
   openDay(dayId?: string, now?: Date): void
@@ -505,10 +513,10 @@ interface AppState {
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
   finalizeRun(now?: Date): void
   startNewRun(now?: Date): void
-  saveGoal(goal: Goal): void
-  archiveGoal(goalId: string): void
-  saveTask(task: Task): void
-  archiveTask(taskId: string): void
+  saveGoal(input: GoalInput, now?: Date): ContentActionResult
+  archiveGoal(goalId: string, now?: Date): ContentActionResult
+  saveTask(input: TaskInput, now?: Date): ContentActionResult
+  archiveTask(taskId: string, now?: Date): ContentActionResult
   importDocument(doc: GameDocument): void
   resetAll(): void
   setTheme(theme: ThemePreference): void
@@ -525,6 +533,15 @@ primero (para sellar y pagar una run vencida), valida la run previa cerrada y
 deja `view: home` sin navegar desde el dominio. `devRestartRun` sigue siendo una
 herramienta de desarrollo que puede reemplazar una run activa y conserva el
 perfil; no es la transición de nueva run.
+
+`beginJourney` es la transición atómica de onboarding: valida el setup, crea
+perfil, contenido, run y mapa del día 1, limpia el borrador y deja `view: home`
+en una sola escritura. Si la validación o la generación del mapa falla, el
+documento no cambia. `saveGoal`/`saveTask` aceptan un input sin id ni fecha y los
+inyectan con `newId` y el reloj del store; `archiveGoal`/`archiveTask` desactivan
+(no borran) y `archiveGoal` archiva en cascada sus rutinas. `ContentActionResult`
+devuelve errores de campo y de formulario para que los diálogos los asocien con
+`aria-describedby`.
 
 ## 6. UI y diseño
 
@@ -571,6 +588,24 @@ diario necesita mostrar más información que los estados estáticos del prototi
   al resumen de día; si era el día 7, el store aplica el cierre semanal en la
   misma acción, la run queda `closed` con `summary` calculado y el resumen de
   día sigue siendo accesible hasta que se recargue.
+
+### Onboarding y edición de contenido (M3)
+
+- El onboarding conserva el acceso demo en un clic y añade un asistente de
+  cuatro pasos (nombre, metas, rutinas, revisión) sobre `screen--welcome`,
+  `Panel`, campos y tokens existentes. El paso vive en `onboardingDraft.step`,
+  por lo que un reload retoma el borrador. Los valores intermedios inválidos
+  (por ejemplo, un objetivo semanal 8) se persisten sin bloquear el arranque; la
+  validación final sigue siendo `validateSetup`.
+- `GoalsScreen` usa `screen--aims` y los paneles de `design/`: añade botones de
+  edición/archivo en cada meta y rutina, un bloque de contenido archivado con
+  restauración y un rail con el progreso de la run actual. Los formularios viven
+  en `Dialog` (foco atrapado, `Esc` y restauración de foco) y los errores se
+  asocian con `aria-describedby`.
+- Con una run activa, el rail muestra los objetivos snapshot de `run.objectives`
+  y avisa de que los cambios solo afectan a mapas futuros. La UI bloquea archivar
+  la última meta activa o dejar menos de cuatro rutinas activas; el dominio
+  aplica las mismas reglas aunque la acción se invoque fuera de la pantalla.
 
 ## 7. Tests obligatorios por módulo
 
