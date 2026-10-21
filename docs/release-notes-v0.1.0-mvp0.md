@@ -63,7 +63,7 @@ Requirements: Node 24 (`.nvmrc`) and pnpm 11 (`packageManager` in
 `package.json`).
 
 ```bash
-git checkout mvp-0
+git checkout main
 pnpm install --frozen-lockfile
 pnpm dev
 # open http://localhost:5173
@@ -155,6 +155,8 @@ critical acceptance items; the full 12-item matrix from M3-07 remains in
   preview server was left running.
 
 The annotated tag `v0.1.0-mvp0` points to `eb6f0b4`, the verified release commit.
+After the merge, the now-redundant `mvp-0` branch was deleted locally and on the
+remote; `main` is the single line of development and release.
 
 ## 5. Acceptance matrix (SPEC §10)
 
