@@ -1,32 +1,66 @@
-# React + TypeScript + Vite
+# LifeSpire — MVP-0
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+LifeSpire convierte tus metas y rutinas en un mapa diario de nodos: cada día
+eliges un camino, cada nodo es una acción real (tarea, descanso, tesoro o el jefe
+del día) y cada run dura 7 días. Es una web local-first, instalable como PWA y
+funcional sin conexión después de la primera carga.
 
-Currently, two official plugins are available:
+Este repositorio contiene **MVP-0**, una porción vertical para validar el bucle
+central. No hay cuentas, backend, sincronización ni despliegue público.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Especificación funcional: [`SPEC.md`](./SPEC.md)
+- Diseño aceptado: [`design/`](./design) · [`DESIGN.md`](./design/DESIGN.md)
+- Notas de UI y componentes: [`docs/UI.md`](./docs/UI.md)
+- PWA, instalación y verificación offline: [`docs/PWA.md`](./docs/PWA.md)
+- Arquitectura y contratos: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- Protocolo de playtest: [`docs/playtest-plan.md`](./docs/playtest-plan.md)
+- Resultados del dry run interno: [`docs/playtest-results.md`](./docs/playtest-results.md)
+- Notas de release MVP-0: [`docs/release-notes-v0.1.0-mvp0.md`](./docs/release-notes-v0.1.0-mvp0.md)
+- Guía para agentes: [`AGENTS.md`](./AGENTS.md)
 
-## React Compiler
+Estado: **release candidate `v0.1.0-mvp0`** en la rama `mvp-0`. Incluye un dry
+run interno de playtest; las sesiones con testers externos siguen pendientes.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Rama
 
-## Expanding the Oxlint configuration
+El desarrollo de MVP-0 vive en la rama `mvp-0`. `main` pertenece a otra línea del
+proyecto y no debe modificarse.
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+git checkout mvp-0
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Requisitos
+
+- Node 24 (ver `.nvmrc`)
+- pnpm 11 (ver `packageManager` en `package.json`)
+
+## Comandos
+
+```bash
+pnpm install --frozen-lockfile
+pnpm dev        # servidor de desarrollo
+pnpm lint       # oxlint
+pnpm typecheck  # TypeScript
+pnpm test       # Vitest
+pnpm build      # typecheck + build de producción
+pnpm preview    # sirve el build (probar PWA/offline)
+```
+
+## Alcance de MVP-0
+
+Incluye onboarding con datos demo o propios, 1–3 metas con sus rutinas, runs de
+7 días, mapas deterministas de 4 capas + jefe, recompensas inmediatas (XP, oro y
+loot), progreso semanal, resúmenes de día y de run, nueva run conservando el
+perfil, persistencia local con export/import y panel de desarrollo.
+
+Fuera de alcance: cuentas, backend, notificaciones, combate, cartas, tienda,
+recompensas con efectos, integraciones, verificación automática, social y apps
+nativas.
+
+## Persistencia
+
+Todo el estado de juego se guarda en una única clave de `localStorage`
+(`lifespire:mvp0`), con esquema versionado. Ajustes → exportar/importar permite
+crear una copia JSON o restaurarla. El panel de desarrollo solo existe en
+`pnpm dev`.

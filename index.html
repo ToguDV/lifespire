@@ -3,8 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>lifespire</title>
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f1f0ea" />
+    <meta
+      name="description"
+      content="LifeSpire turns your goals and routines into a seven-day path. Local-first, quiet, and kept in your browser."
+    />
+    <title>LifeSpire</title>
+    <script>
+      // Apply an explicit saved theme before paint; system stays untouched.
+      (function () {
+        try {
+          var raw = localStorage.getItem("lifespire:mvp0");
+          if (!raw) return;
+          var parsed = JSON.parse(raw);
+          var theme = parsed && parsed.settings && parsed.settings.theme;
+          if (theme === "light" || theme === "dark") {
+            document.documentElement.dataset.theme = theme;
+          }
+        } catch (error) {
+          /* A blocked or corrupt save is handled by the app. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
