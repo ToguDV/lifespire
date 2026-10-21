@@ -11,6 +11,7 @@ import {
   resolveNode as resolveNodeDocument,
   selectNode as selectNodeDocument,
 } from '../domain/lifecycle'
+import { finalizeIfNeeded, startNewRun as startNewRunDocument } from '../domain/runClose'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
 import { currentDay, levelForXp, resolveNodeById } from '../domain/selectors'
 import type {
@@ -48,6 +49,8 @@ export interface AppState {
   openDay(dayId?: string, now?: Date): void
   selectNode(nodeId: string): void
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
+  finalizeRun(now?: Date): void
+  startNewRun(now?: Date): void
   setTheme(theme: ThemePreference): void
   importDocument(nextDocument: GameDocument): boolean
   resetAll(): void
@@ -249,9 +252,9 @@ export function createAppStore(
           const current = get().document
           if (!current.run) return
           const run = reconcileDays(current.run, dayKey(at), at)
-          if (run !== current.run) {
-            set({ document: { ...current, run } })
-          }
+          const reconciled = run === current.run ? current : { ...current, run }
+          const next = finalizeIfNeeded(reconciled, at)
+          if (next !== current) set({ document: next })
         },
 
         openDay: (dayId, at = nowProvider()) => {
@@ -282,9 +285,41 @@ export function createAppStore(
           const current = get().document
           try {
             const next = resolveNodeDocument(current, { nodeId, action, now: at })
-            set({ document: withSyncedLevel(next), toast: null })
+            set({
+              document: finalizeIfNeeded(withSyncedLevel(next), at),
+              toast: null,
+            })
           } catch (error) {
             set({ toast: errorMessage(error, 'That step cannot be recorded.') })
+          }
+        },
+
+        finalizeRun: (at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          const next = finalizeIfNeeded(current, at)
+          if (next !== current) set({ document: next })
+        },
+
+        startNewRun: (at = nowProvider()) => {
+          // Reconcile first so a run that is due to close is sealed (and its
+          // weekly bonus granted) before it is replaced. The domain transition
+          // itself is atomic and only accepts a closed previous run.
+          get().reconcile(at)
+          const current = get().document
+          try {
+            const next = startNewRunDocument(current, {
+              runId: idFactory('run'),
+              now: at,
+            })
+            set({
+              document: next,
+              view: { name: 'home' },
+              history: [],
+              toast: null,
+            })
+          } catch (error) {
+            set({ toast: errorMessage(error, 'A new run cannot begin yet.') })
           }
         },
 

@@ -5,8 +5,8 @@ import { addDays, dayKey } from '../domain/dates'
 import { validateMap } from '../domain/generator'
 import { createRun } from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
-import { availableNodeIds, currentDay } from '../domain/selectors'
-import type { GameDocument, LootItem } from '../domain/types'
+import { availableNodeIds, currentDay, levelForXp } from '../domain/selectors'
+import type { GameDocument, LootItem, Run } from '../domain/types'
 import { devNow, getDevOffsetDays, resetDevClock } from './clock'
 import { createDocumentStorage } from './persistence'
 import type { StorageLike } from './persistence'
@@ -678,5 +678,278 @@ describe('resolving a node', () => {
     expect(store.getState().toast).toBe('That node has already been resolved.')
     expect(store.getState().document.profile).toBe(profile)
     expect(store.getState().document.run?.days[0]?.path).toHaveLength(1)
+  })
+})
+
+function closedRunAt(base: Date, progress: number[] = [0, 0]): Run {
+  const setup = createDemoSetup(base)
+  const run = createRun({ setup, now: base, runId: 'run_store_closed' })
+  return {
+    ...run,
+    status: 'closed',
+    objectives: run.objectives.map((objective, index) => ({
+      ...objective,
+      progress: progress[index] ?? 0,
+    })),
+    days: run.days.map((day) => ({
+      ...day,
+      status: 'completed' as const,
+      closedAt: base.toISOString(),
+    })),
+    closedAt: base.toISOString(),
+  }
+}
+
+function closedDocumentAt(base: Date, progress: number[] = [0, 0]): GameDocument {
+  const setup = createDemoSetup(base)
+  return {
+    ...createEmptyDocument(),
+    profile: {
+      id: 'profile_store_close',
+      name: 'Wren',
+      xp: 250,
+      level: levelForXp(250),
+      gold: 90,
+      loot: [loot],
+      createdAt: base.toISOString(),
+    },
+    goals: setup.goals,
+    tasks: setup.tasks,
+    run: closedRunAt(base, progress),
+  }
+}
+
+describe('run close integration', () => {
+  it('closes and finalizes automatically through reconcile after day 7', () => {
+    const start = new Date(2026, 9, 20, 9, 0, 0)
+    const afterWeek = new Date(2026, 9, 28, 9, 0, 0)
+    const harness = makeHarness({ base: afterWeek })
+    const setup = createDemoSetup(start)
+    const run = createRun({ setup, now: start, runId: 'run_reconcile_close' })
+    const document: GameDocument = {
+      ...createEmptyDocument(),
+      profile: {
+        id: 'profile_reconcile',
+        name: 'Wren',
+        xp: 90,
+        level: 1,
+        gold: 10,
+        loot: [],
+        createdAt: start.toISOString(),
+      },
+      goals: setup.goals,
+      tasks: setup.tasks,
+      run: {
+        ...run,
+        objectives: run.objectives.map((objective, index) => ({
+          ...objective,
+          progress: index === 0 ? objective.target : 0,
+        })),
+        days: run.days.map((day, index) =>
+          index < 6
+            ? { ...day, status: 'completed' as const, closedAt: start.toISOString() }
+            : day,
+        ),
+      },
+    }
+
+    expect(harness.store.getState().importDocument(document)).toBe(true)
+
+    const closed = harness.store.getState().document
+    const closedRun = closed.run
+    if (!closedRun?.summary) throw new Error('expected an automatic run close')
+
+    expect(closedRun.status).toBe('closed')
+    expect(closedRun.days[6]?.status).toBe('missed')
+    expect(closedRun.summary.bonusXp).toBe(50)
+    expect(closedRun.summary.bonusGold).toBe(50)
+    expect(closedRun.summary.totals.daysPlayed).toBe(6)
+    expect(closedRun.summary.totals.daysMissed).toBe(1)
+    expect(closedRun.totals).toEqual(closedRun.summary.totals)
+    expect(closed.profile).toMatchObject({ xp: 140, level: 2, gold: 60 })
+    expect(storedDocument(harness.memory).run?.summary).toEqual(closedRun.summary)
+
+    harness.store.getState().reconcile(afterWeek)
+    expect(harness.store.getState().document).toBe(closed)
+    harness.store.getState().finalizeRun(afterWeek)
+    expect(harness.store.getState().document).toBe(closed)
+  })
+
+  it('finalizes immediately after resolving the day-7 boss and only once', () => {
+    const start = new Date(2026, 9, 20, 9, 0, 0)
+    const daySeven = new Date(2026, 9, 26, 9, 0, 0)
+    const harness = makeHarness({ base: daySeven })
+    const setup = createDemoSetup(start)
+    const run = createRun({ setup, now: start, runId: 'run_resolve_close' })
+    const document: GameDocument = {
+      ...createEmptyDocument(),
+      profile: {
+        id: 'profile_resolve',
+        name: 'Wren',
+        xp: 0,
+        level: 1,
+        gold: 0,
+        loot: [],
+        createdAt: start.toISOString(),
+      },
+      goals: setup.goals,
+      tasks: setup.tasks,
+      run: {
+        ...run,
+        objectives: run.objectives.map((objective) => ({
+          ...objective,
+          progress: objective.target,
+        })),
+        days: run.days.map((day, index) =>
+          index < 6
+            ? { ...day, status: 'completed' as const, closedAt: start.toISOString() }
+            : day,
+        ),
+      },
+    }
+
+    expect(harness.store.getState().importDocument(document)).toBe(true)
+    expect(harness.store.getState().document.run?.status).toBe('active')
+    harness.store.getState().openDay(undefined, daySeven)
+
+    for (let step = 0; step < 10; step += 1) {
+      const current = harness.store.getState().document.run
+      const day = currentDay(current)
+      const map = day?.map
+      if (!day || !map) break
+      const nodeId = map.currentNodeId ?? availableNodeIds(map, day)[0]
+      if (!nodeId) break
+      if (!map.currentNodeId) harness.store.getState().selectNode(nodeId)
+      harness.store.getState().resolveNode(nodeId, 'complete', daySeven)
+    }
+
+    const finished = harness.store.getState().document
+    const finishedRun = finished.run
+    const summary = finishedRun?.summary
+    if (!finishedRun || !summary) throw new Error('expected a finalized run')
+
+    const dayEventXp = (finishedRun.days[6]?.rewards ?? []).reduce(
+      (total, event) => total + event.xp,
+      0,
+    )
+    const dayEventGold = (finishedRun.days[6]?.rewards ?? []).reduce(
+      (total, event) => total + event.gold,
+      0,
+    )
+
+    expect(finishedRun.status).toBe('closed')
+    expect(finishedRun.days[6]?.status).toBe('completed')
+    expect(finishedRun.days[6]?.summary?.bossCompleted).toBe(true)
+    expect(summary.allComplete).toBe(true)
+    expect(summary.bonusXp).toBe(200)
+    expect(summary.totals.xp).toBe(dayEventXp + 200)
+    expect(summary.totals.gold).toBe(dayEventGold + summary.bonusGold)
+    expect(finishedRun.totals).toEqual(summary.totals)
+    expect(finished.profile?.xp).toBe(summary.totals.xp)
+    expect(finished.profile?.gold).toBe(summary.totals.gold)
+    expect(finished.profile?.level).toBe(
+      levelForXp(finished.profile?.xp ?? 0),
+    )
+    expect(storedDocument(harness.memory).run?.summary).toEqual(summary)
+
+    const profile = finished.profile
+    harness.store.getState().finalizeRun(daySeven)
+    expect(harness.store.getState().document).toBe(finished)
+    expect(harness.store.getState().document.profile).toBe(profile)
+  })
+})
+
+describe('starting a new run from the store', () => {
+  it('keeps the profile and resets the run, then survives a reload', () => {
+    const start = new Date(2026, 9, 20, 9, 0, 0)
+    const afterWeek = new Date(2026, 9, 28, 9, 0, 0)
+    const harness = makeHarness({ base: afterWeek })
+    const document = closedDocumentAt(start)
+
+    expect(harness.store.getState().importDocument(document)).toBe(true)
+    const closed = harness.store.getState().document
+    const previousRun = closed.run
+    const previousProfile = closed.profile
+    if (!previousRun?.summary || !previousProfile) {
+      throw new Error('expected a finalized closed run')
+    }
+
+    harness.store.getState().startNewRun(afterWeek)
+
+    const next = harness.store.getState().document
+    const run = next.run
+    if (!run) throw new Error('expected a new run')
+
+    expect(harness.store.getState().toast).toBeNull()
+    expect(harness.store.getState().view).toEqual({ name: 'home' })
+    expect(harness.store.getState().history).toEqual([])
+    expect(next.profile).toEqual(previousProfile)
+    expect(next.goals).toEqual(closed.goals)
+    expect(next.tasks).toEqual(closed.tasks)
+    expect(next.onboardingDraft).toBeNull()
+    expect(run.id).not.toBe(previousRun.id)
+    expect(run.seed).not.toBe(previousRun.seed)
+    expect(run.status).toBe('active')
+    expect(run.startDate).toBe(dayKey(afterWeek))
+    expect(run.days[0]?.date).toBe(dayKey(afterWeek))
+    expect(run.days.map((day) => day.status)).toEqual([
+      'available',
+      'locked',
+      'locked',
+      'locked',
+      'locked',
+      'locked',
+      'locked',
+    ])
+    expect(run.days.every((day) => day.map === null)).toBe(true)
+    expect(run.totals).toEqual({
+      xp: 0,
+      gold: 0,
+      lootCount: 0,
+      nodesCompleted: 0,
+      nodesSkipped: 0,
+      daysPlayed: 0,
+      daysMissed: 0,
+    })
+    expect(storedDocument(harness.memory).run?.id).toBe(run.id)
+
+    const reloaded = createAppStore({
+      storage: createDocumentStorage(harness.memory),
+      now: () => afterWeek,
+    })
+    expect(reloaded.getState().document.profile).toEqual(previousProfile)
+    expect(reloaded.getState().document.run?.id).toBe(run.id)
+    expect(reloaded.getState().document.run?.status).toBe('active')
+    expect(reloaded.getState().document.run?.days[0]?.status).toBe('available')
+    expect(reloaded.getState().view).toEqual({ name: 'home' })
+  })
+
+  it('rejects an active run and an invalid setup without changing the run', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+
+    const active = store.getState().document
+    store.getState().startNewRun(base)
+    expect(store.getState().toast).toBe(
+      'Finish the current run before starting a new one.',
+    )
+    expect(store.getState().document).toBe(active)
+
+    const invalid = {
+      ...closedDocumentAt(base),
+      profile: store.getState().document.profile,
+      tasks: [],
+    }
+    expect(store.getState().importDocument(invalid)).toBe(true)
+    const closed = store.getState().document
+    const closedRunId = closed.run?.id
+    if (!closedRunId) throw new Error('expected a closed run')
+
+    store.getState().startNewRun(base)
+    expect(store.getState().toast).toBe(
+      'Add at least 4 routines to light the week.',
+    )
+    expect(store.getState().document).toBe(closed)
+    expect(store.getState().document.run?.id).toBe(closedRunId)
   })
 })
