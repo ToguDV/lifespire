@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { dayKey } from '../../domain/dates'
 import { STORAGE_KEY } from '../../domain/balance'
 import { serializeDocument } from '../../domain/schema'
-import type { GameDocument, ThemePreference } from '../../domain/types'
+import type { ThemePreference } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
 import {
@@ -11,14 +11,10 @@ import {
   Icon,
   Panel,
   PanelHead,
+  SaveImport,
   ScreenHead,
 } from '../components'
-import {
-  readSaveFile,
-  runPreviewLabel,
-  saveFileName,
-  type ImportSummary,
-} from '../lib/importSave'
+import { saveFileName } from '../lib/importSave'
 import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -27,21 +23,12 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: 'System' },
 ]
 
-interface PendingImport {
-  fileName: string
-  document: GameDocument
-  summary: ImportSummary
-}
-
 export function SettingsScreen() {
   const gameDocument = useAppStore((state) => state.document)
   const setTheme = useAppStore((state) => state.setTheme)
-  const importDocument = useAppStore((state) => state.importDocument)
   const resetAll = useAppStore((state) => state.resetAll)
   const showToast = useAppStore((state) => state.showToast)
   const navigate = useAppStore((state) => state.navigate)
-  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null)
-  const [importError, setImportError] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
 
@@ -59,44 +46,6 @@ export function SettingsScreen() {
     anchor.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
     showToast('Save exported. It includes your profile, aims, routines, run and collection.')
-  }
-
-  const readImportFile = async (file: File) => {
-    setImportError(null)
-    let text: string
-    try {
-      text = await file.text()
-    } catch {
-      setPendingImport(null)
-      setImportError('That file could not be read. Try exporting a fresh copy and selecting it again.')
-      return
-    }
-
-    const result = readSaveFile(text)
-    if (!result.ok) {
-      setPendingImport(null)
-      setImportError(result.message)
-      return
-    }
-
-    setPendingImport({
-      fileName: file.name,
-      document: result.document,
-      summary: result.summary,
-    })
-  }
-
-  const cancelImport = () => {
-    setPendingImport(null)
-  }
-
-  const confirmImport = () => {
-    if (!pendingImport) return
-    const restored = importDocument(pendingImport.document)
-    setPendingImport(null)
-    if (!restored) {
-      setImportError('That save could not be restored. Your current data was left untouched.')
-    }
   }
 
   const closeReset = () => {
@@ -158,31 +107,12 @@ export function SettingsScreen() {
               <Icon name="scroll" />
               Export save
             </Button>
-            <label className="btn btn--secondary settings-file">
-              <Icon name="scroll" />
-              Import save
-              <input
-                type="file"
-                accept=".json,application/json"
-                aria-label="Import a LifeSpire save file"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  event.target.value = ''
-                  if (file) void readImportFile(file)
-                }}
-              />
-            </label>
+            <SaveImport />
           </div>
           <p className="panel-note settings-note">
             Import validates the file and shows a summary before replacing anything. Invalid,
             corrupt or newer-version files are rejected and your current save stays untouched.
           </p>
-          {importError ? (
-            <p className="settings-error" role="alert">
-              <Icon name="lock" />
-              <span>{importError}</span>
-            </p>
-          ) : null}
           <dl className="settings-meta">
             <div>
               <dt>Storage key</dt>
@@ -223,64 +153,6 @@ export function SettingsScreen() {
           </Button>
         </Panel>
       </div>
-
-      <Dialog
-        open={pendingImport !== null}
-        title="Restore this save?"
-        description="Review what the file contains before it replaces the data in this browser."
-        eyebrow="Local import"
-        onClose={cancelImport}
-        footer={
-          <>
-            <Button variant="quiet" onClick={cancelImport}>
-              Keep current data
-            </Button>
-            <Button variant="primary" onClick={confirmImport}>
-              Replace local data
-            </Button>
-          </>
-        }
-      >
-        {pendingImport ? (
-          <>
-            <dl className="import-preview">
-              <div>
-                <dt>Profile</dt>
-                <dd>{pendingImport.summary.profileName ?? 'No profile'}</dd>
-              </div>
-              <div>
-                <dt>Level</dt>
-                <dd>{pendingImport.summary.level ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Gold</dt>
-                <dd>{pendingImport.summary.gold ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Run</dt>
-                <dd>{runPreviewLabel(pendingImport.summary)}</dd>
-              </div>
-              <div>
-                <dt>Relics</dt>
-                <dd>
-                  {pendingImport.summary.relics} of 12
-                </dd>
-              </div>
-              <div>
-                <dt>Schema</dt>
-                <dd>v{pendingImport.summary.schemaVersion}</dd>
-              </div>
-            </dl>
-            <p className="import-warning">
-              <Icon name="lock" />
-              <span>
-                Replacing overwrites the profile, aims, routines, run and collection currently
-                under <code>{STORAGE_KEY}</code>. File: <strong>{pendingImport.fileName}</strong>.
-              </span>
-            </p>
-          </>
-        ) : null}
-      </Dialog>
 
       <Dialog
         open={confirmReset}

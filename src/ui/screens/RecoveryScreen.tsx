@@ -5,9 +5,11 @@ import {
   Dialog,
   Icon,
   Panel,
+  SaveImport,
   ScreenHead,
   ThemeToggle,
 } from '../components'
+import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
 const REASON_COPY: Record<string, { title: string; copy: string }> = {
   corrupt: {
@@ -27,7 +29,20 @@ const REASON_COPY: Record<string, { title: string; copy: string }> = {
 export function RecoveryScreen({ reason }: { reason: string }) {
   const resetAll = useAppStore((state) => state.resetAll)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [resetPhrase, setResetPhrase] = useState('')
   const copy = REASON_COPY[reason] ?? REASON_COPY.corrupt
+  const resetReady = isResetConfirmation(resetPhrase)
+
+  const closeReset = () => {
+    setConfirmReset(false)
+    setResetPhrase('')
+  }
+
+  const confirmResetNow = () => {
+    if (!resetReady) return
+    closeReset()
+    resetAll()
+  }
 
   return (
     <section className="screen screen--recovery" data-screen="recovery" aria-labelledby="recovery-title">
@@ -56,18 +71,19 @@ export function RecoveryScreen({ reason }: { reason: string }) {
             </span>
           </div>
           <p className="panel-note">
-            Reset local data removes the blocked save and returns to onboarding. If you have a
-            valid JSON export, keep it: once onboarding is complete, Settings → Import save can
-            restore it with a preview before replacing anything.
+            Import a valid JSON export to recover without resetting first. LifeSpire validates
+            the file, shows a summary and only replaces the blocked document after you confirm.
+            A successful import also unlocks saving again.
           </p>
           <div className="settings-actions">
+            <SaveImport label="Import save" inputLabel="Import a LifeSpire save file to recover" />
             <Button variant="danger" onClick={() => setConfirmReset(true)}>
               Reset local data
             </Button>
           </div>
           <p className="panel-note settings-note">
-            If you have an export from another device or an earlier version, keep it. Import
-            validates the file and never changes the current document until you confirm.
+            Resetting removes the blocked save and returns to onboarding. Export or copy the
+            original local document first if you may need it later.
           </p>
         </Panel>
       </div>
@@ -76,19 +92,13 @@ export function RecoveryScreen({ reason }: { reason: string }) {
         open={confirmReset}
         title="Reset local data?"
         description="The blocked save is removed and LifeSpire returns to onboarding."
-        onClose={() => setConfirmReset(false)}
+        onClose={closeReset}
         footer={
           <>
-            <Button variant="quiet" autoFocus onClick={() => setConfirmReset(false)}>
+            <Button variant="quiet" onClick={closeReset}>
               Keep the save
             </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                setConfirmReset(false)
-                resetAll()
-              }}
-            >
+            <Button variant="danger" disabled={!resetReady} onClick={confirmResetNow}>
               Reset everything
             </Button>
           </>
@@ -98,6 +108,33 @@ export function RecoveryScreen({ reason }: { reason: string }) {
           This cannot be undone. Export or copy the original local document first if you may
           need it later.
         </p>
+        <div className="reset-confirmation">
+          <label className="field__label" htmlFor="recovery-reset-confirmation">
+            Type {RESET_CONFIRMATION} to confirm
+          </label>
+          <input
+            id="recovery-reset-confirmation"
+            className="input"
+            type="text"
+            value={resetPhrase}
+            autoFocus
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            placeholder={RESET_CONFIRMATION}
+            aria-describedby="recovery-reset-hint"
+            onChange={(event) => setResetPhrase(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && resetReady) {
+                event.preventDefault()
+                confirmResetNow()
+              }
+            }}
+          />
+          <p className="panel-note" id="recovery-reset-hint">
+            The reset button stays disabled until the word is typed exactly.
+          </p>
+        </div>
       </Dialog>
     </section>
   )
