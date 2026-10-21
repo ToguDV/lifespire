@@ -18,6 +18,7 @@ import type {
   StorageIssue,
   Task,
   ThemePreference,
+  View,
 } from '../domain/types'
 import { advanceDevDay, getNow, resetDevClock } from './clock'
 import { documentStorage } from './persistence'
@@ -27,8 +28,12 @@ export interface AppState {
   document: GameDocument
   hydrated: boolean
   storageIssue: StorageIssue | null
+  view: View
+  history: View[]
   toast: string | null
 
+  navigate(view: View): void
+  back(): void
   updateOnboardingDraft(patch: Partial<OnboardingDraft>): void
   completeOnboarding(setup: OnboardingSetup, now?: Date): void
   startRun(setup?: RunSetup, now?: Date): void
@@ -83,6 +88,31 @@ function withSyncedLevel(document: GameDocument): GameDocument {
   return { ...document, profile: { ...document.profile, level } }
 }
 
+/** First view after hydration. Recovery wins over every other flow. */
+export function deriveInitialView(
+  document: GameDocument,
+  storageIssue: StorageIssue | null,
+): View {
+  if (storageIssue) {
+    return { name: 'recovery', reason: storageIssue.reason }
+  }
+  if (!document.profile) {
+    return { name: 'onboarding' }
+  }
+  if (document.run?.status === 'closed') {
+    return { name: 'run-summary' }
+  }
+  return { name: 'home' }
+}
+
+function sameView(a: View, b: View): boolean {
+  if (a.name !== b.name) return false
+  if (a.name === 'node' && b.name === 'node') return a.nodeId === b.nodeId
+  if (a.name === 'day-summary' && b.name === 'day-summary') return a.dayId === b.dayId
+  if (a.name === 'recovery' && b.name === 'recovery') return a.reason === b.reason
+  return true
+}
+
 export function createAppStore(
   deps: StoreDeps = {},
 ): UseBoundStore<StoreApi<AppState>> {
@@ -96,7 +126,22 @@ export function createAppStore(
         document: createEmptyDocument(),
         hydrated: false,
         storageIssue: null,
+        view: { name: 'onboarding' },
+        history: [],
         toast: null,
+
+        navigate: (nextView) => {
+          const { view, history } = get()
+          if (sameView(view, nextView)) return
+          set({ view: nextView, history: [...history, view] })
+        },
+
+        back: () => {
+          const { history } = get()
+          if (history.length === 0) return
+          const previous = history[history.length - 1]
+          set({ view: previous, history: history.slice(0, -1) })
+        },
 
         updateOnboardingDraft: (patch) => {
           const current = get().document
@@ -216,6 +261,8 @@ export function createAppStore(
           set({
             document: imported,
             storageIssue: null,
+            view: deriveInitialView(imported, null),
+            history: [],
             toast: 'Save restored.',
           })
           get().reconcile()
@@ -228,6 +275,8 @@ export function createAppStore(
           set({
             document: createEmptyDocument(),
             storageIssue: null,
+            view: { name: 'onboarding' },
+            history: [],
             toast: null,
           })
         },
@@ -329,11 +378,14 @@ export function createAppStore(
   )
 
   const issue = storage.consumeIssue()
-  store.setState({ hydrated: true, storageIssue: issue })
   const hydratedDocument = withSyncedLevel(store.getState().document)
-  if (hydratedDocument !== store.getState().document) {
-    store.setState({ document: hydratedDocument })
-  }
+  store.setState({
+    hydrated: true,
+    storageIssue: issue,
+    document: hydratedDocument,
+    view: deriveInitialView(hydratedDocument, issue),
+    history: [],
+  })
   store.getState().reconcile()
 
   return store

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
 import { STORAGE_KEY } from '../domain/balance'
 import { addDays, dayKey } from '../domain/dates'
+import { createRun } from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
 import type { GameDocument, LootItem } from '../domain/types'
 import { devNow, getDevOffsetDays, resetDevClock } from './clock'
@@ -348,6 +349,7 @@ describe('import, recovery and reset', () => {
     const { store, memory } = makeHarness({ raw })
 
     expect(store.getState().storageIssue).toEqual({ reason: 'future-version' })
+    expect(store.getState().view).toEqual({ name: 'recovery', reason: 'future-version' })
     store.getState().setTheme('dark')
     expect(memory.getItem(STORAGE_KEY)).toBe(raw)
   })
@@ -364,6 +366,67 @@ describe('import, recovery and reset', () => {
 
     store.getState().setTheme('light')
     expect(storedDocument(memory).settings.theme).toBe('light')
+  })
+})
+
+describe('view navigation', () => {
+  it('derives onboarding, home and run-summary after hydration', () => {
+    const empty = makeHarness()
+    expect(empty.store.getState().view).toEqual({ name: 'onboarding' })
+
+    empty.store.getState().completeOnboarding(createDemoSetup(empty.base), empty.base)
+    const profileOnly = createAppStore({
+      storage: createDocumentStorage(empty.memory),
+      now: () => empty.base,
+    })
+    expect(profileOnly.getState().view).toEqual({ name: 'home' })
+
+    const closedDocument = structuredClone(profileOnly.getState().document)
+    closedDocument.run = {
+      ...createRun({
+        setup: { goals: closedDocument.goals, tasks: closedDocument.tasks },
+        now: empty.base,
+        runId: 'run_closed',
+      }),
+      status: 'closed',
+      closedAt: empty.base.toISOString(),
+    }
+    const closed = createAppStore({
+      storage: createDocumentStorage(empty.memory),
+      now: () => empty.base,
+    })
+    expect(closed.getState().importDocument(closedDocument)).toBe(true)
+    expect(closed.getState().view).toEqual({ name: 'run-summary' })
+
+    const hydratedClosed = createAppStore({
+      storage: createDocumentStorage(empty.memory),
+      now: () => empty.base,
+    })
+    expect(hydratedClosed.getState().view).toEqual({ name: 'run-summary' })
+  })
+
+  it('opens recovery when storage is blocked', () => {
+    const { store } = makeHarness({ raw: '{broken' })
+    expect(store.getState().view).toEqual({ name: 'recovery', reason: 'corrupt' })
+  })
+
+  it('pushes and pops transient history without persisting it', () => {
+    const { store, memory, base } = makeHarness()
+    store.getState().completeOnboarding(createDemoSetup(base), base)
+    store.getState().startRun(undefined, base)
+    store.getState().navigate({ name: 'home' })
+
+    store.getState().navigate({ name: 'map' })
+    store.getState().navigate({ name: 'goals' })
+    expect(store.getState().view).toEqual({ name: 'goals' })
+    expect(store.getState().history.map((item) => item.name)).toEqual(['onboarding', 'home', 'map'])
+    expect(memory.getItem(STORAGE_KEY)).not.toContain('"view"')
+    expect(memory.getItem(STORAGE_KEY)).not.toContain('"history"')
+
+    store.getState().back()
+    expect(store.getState().view).toEqual({ name: 'map' })
+    store.getState().back()
+    expect(store.getState().view).toEqual({ name: 'home' })
   })
 })
 
