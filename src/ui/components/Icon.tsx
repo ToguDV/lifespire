@@ -31,6 +31,7 @@ export type IconName =
   | 'pine'
   | 'plus'
   | 'edit'
+  | 'archive'
   | 'settings'
 
 const ICON_SHAPES: Record<IconName, ReactNode> = {
@@ -176,6 +177,13 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
     <>
       <path d="m4 20 1-4L16 5l3 3L8 19z" />
       <path d="m14 7 3 3" />
+    </>
+  ),
+  archive: (
+    <>
+      <rect x="4" y="5" width="16" height="4" rx="1" />
+      <path d="M6 9v9.5h12V9" />
+      <path d="M10 13h4" />
     </>
   ),
   settings: (
