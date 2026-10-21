@@ -318,6 +318,17 @@ BOSS_CLOSING_BONUS = { xp: 20, gold: 20 }
 - Loot: 12 objetos, rarezas common/rare/epic, pesos `60/30/10`. Sin efectos.
   La primera unidad de un `catalogId` entra en `profile.loot`; las siguientes se
   convierten en oro y se registran en `RewardEvent`.
+- Tirada: semilla estable `${runId}:day:${dayIndex}:node:${nodeId}:loot:${roll}`
+  (la resolución nunca vuelve a tirar). El id de instancia es
+  `${runId}:${dayIndex}:${nodeId}:${catalogId}`.
+- `RewardEvent.gold` es el oro total acreditado por la resolución: incluye la
+  recompensa del nodo y la conversión de duplicados. `duplicateGold` es el
+  subconjunto que provino de una conversión y `duplicateCatalogId` identifica el
+  objeto repetido. En un duplicado, `lootItem` es `null`.
+- `DaySummary.xp/gold` se calculan sumando exactamente los `RewardEvent` del día;
+  `DaySummary.duplicateGold` suma sus conversiones. `closingBonusXp/Gold` muestran
+  los 20/20 del boss por separado (0 si se saltó), aunque ya estén incluidos en
+  el total del evento.
 
 ### Mapa (`generator.ts`)
 
@@ -364,26 +375,41 @@ generateMap(input: {
   `available`, resto `locked`.
 - `openDay(document, dayId, now)`: si `day.map` existe, no hace nada. Si no,
   genera el mapa, lo guarda, `status = 'in_progress'`, `openedAt = now`.
-- `reconcile(document, now)`: marca como `missed` los días pasados sin cerrar,
-  deja `available` el día de hoy sin mapa, `in_progress` si tiene mapa, y
-  `locked` los futuros. Si todos los días están cerrados o missed, cierra la run.
-  Es idempotente y se ejecuta al hidratar y tras cada acción.
+- `reconcile(document, now)`: marca como `missed` los días pasados sin cerrar
+  (incluidos los `in_progress` con mapa parcial) y les asigna `closedAt`; deja
+  `available` el día de hoy sin mapa, `in_progress` si tiene mapa, y `locked` los
+  futuros. Recalcula `run.totals` y cierra la run si todos los días están
+  completed/missed o el día 7 ya pasó. Es idempotente, no toca días ya cerrados
+  y se ejecuta al hidratar y tras cada acción. En M2 el cierre no concede el
+  bonus semanal: `run.summary` queda en `null` (M3-03).
 - Solo el día actual (índice = primer día no cerrado) es jugable. No hay
-  recuperación de días missed.
+  recuperación de días missed. Un día missed conserva su mapa/path parcial y
+  `summary: null`: el resumen solo existe cuando se resuelve el boss.
 - `selectNode`: solo nodos disponibles (capa 0 si no hay actual; si hay
   `currentNodeId`, solo ese nodo puede resolverse; las conexiones se eligen
   después de resolver). Persiste `currentNodeId`; recargar conserva la selección.
-- `resolveNode(document, { dayId, nodeId, action, now })`:
-  - exige que el nodo sea el actual o esté disponible por conexión;
+- `resolveNode(document, { dayId, nodeId, action, now, runId? })`:
+  - exige run activo, día actual, día `in_progress` con mapa y que el nodo sea el
+    actual o esté disponible por conexión;
   - `complete` concede recompensas, +1 de progreso si aplica y loot;
-  - `skip` concede 0 y no progresa;
-  - añade a `path`, registra `RewardEvent`, limpia `currentNodeId`;
-  - si es boss, cierra el día y calcula `summary`; el día 7 cierra la run;
-  - un segundo intento sobre el mismo nodo es no-op/error explícito, nunca
-    duplica recompensas.
-- El progreso semanal vive en `run.objectives` y se actualiza al completar.
+  - `skip` concede 0 XP/oro/loot/progreso pero también registra evento y avanza;
+  - añade a `path`, registra un `RewardEvent` con id estable (los skip con ceros
+    y `action: 'skip'`), limpia `currentNodeId` y recalcula `run.totals` desde
+    los eventos persistidos;
+  - si es boss, cierra el día (`completed`, `closedAt`) y construye `summary` con
+    totales, loot, conversiones, bonus separado y objetivos before/after
+    (`before = after − progreso ganado ese día`);
+  - el día 7 (o el último día abierto) cierra la run con `summary: null`;
+  - un segundo intento sobre el mismo nodo es un error explícito, nunca duplica
+    recompensas; un reload entre resoluciones no cambia el resultado.
+- El progreso semanal vive en `run.objectives` y se actualiza al completar. En M2
+  completar un objetivo no concede todavía el bonus semanal de M3.
 
 ### Cierre de run (`runClose.ts`)
+
+> En M2 el cierre deja `run.status = 'closed'`, `closedAt` y los totales, pero
+> `run.summary` permanece en `null`. El bonus semanal y el resumen completo
+> pertenecen a M3-03.
 
 - Objetivo cumplido si `progress >= target`.
 - Cada objetivo cumplido: +50 XP, +50 oro y 1 tirada de loot (determinista).
