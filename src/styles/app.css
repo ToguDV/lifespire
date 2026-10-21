@@ -982,6 +982,19 @@ body:not([data-screen="map"]) .map-dock {
   text-align: center;
   transform: translateX(-50%);
   pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--duration) ease,
+    visibility 0s linear var(--duration);
+}
+
+.node:hover .node__label,
+.node:focus-visible .node__label,
+.node[data-revealed="true"] .node__label {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .node__label strong {
@@ -992,22 +1005,8 @@ body:not([data-screen="map"]) .map-dock {
   color: var(--ink);
 }
 
-.node__label small {
-  font-size: 0.57rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1.2;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-
 .node--available .node__label strong {
   color: var(--ink-strong);
-}
-
-.node--available .node__label small {
-  color: var(--accent-deep);
 }
 
 .node--boss {
@@ -1057,6 +1056,8 @@ body:not([data-screen="map"]) .map-dock {
 .node--start .node__label {
   top: calc(100% + 2px);
   bottom: auto;
+  opacity: 1;
+  visibility: visible;
 }
 
 .node--start .node__label strong {
@@ -3300,10 +3301,6 @@ body[data-screen="welcome"] .viewport {
     font-size: 0.82rem;
   }
 
-  .node__label small {
-    font-size: 0.6rem;
-  }
-
   .node--boss {
     width: 84px;
     height: 90px;
@@ -3620,10 +3617,6 @@ body[data-screen="welcome"] .viewport {
 
 @media (max-width: 1199px) {
   .camp-rail {
-    display: none;
-  }
-
-  .node--available .node__label small {
     display: none;
   }
 }

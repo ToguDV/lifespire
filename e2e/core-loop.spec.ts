@@ -78,3 +78,24 @@ test.describe('core loop', () => {
     await expect(page.getByRole('button', { name: /Return to camp/i })).toBeVisible()
   })
 })
+
+test.describe('mobile map labels', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
+
+  test('first tap reveals the task name and the second opens the node', async ({ page }) => {
+    await startDemoRun(page)
+    await openMap(page)
+
+    const node = page.locator(ACTIONABLE_NODE).first()
+    const label = node.locator('.node__label')
+
+    await expect(label).toBeHidden()
+
+    await node.tap()
+    await expect(label).toBeVisible()
+    await expect(page.getByRole('group', { name: /Day map/i })).toBeVisible()
+
+    await node.tap()
+    await expect(page.getByRole('button', { name: /Mark complete/i })).toBeVisible()
+  })
+})
