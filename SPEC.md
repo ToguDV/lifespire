@@ -1,0 +1,243 @@
+# LifeSpire — MVP-0 SPEC
+
+> High-level specification for the proof of concept.
+> Status: approved for MVP-0 build.
+> Last updated: 2026-10-20.
+
+## 1. Summary
+
+LifeSpire turns a person's goals and routines into a daily node map inspired by *Slay the Spire*. Each day the user chooses a path; each node represents a real-world action: a task, a rest, a treasure, or the daily boss. A **run** lasts 7 days and has weekly objectives; the more the user completes, the more gold, XP, and loot they earn.
+
+This document defines only **MVP-0**: a local-first vertical slice to validate the core loop. It does not cover the full product vision.
+
+## 2. Hypothesis and success criteria
+
+**Hypothesis:** choosing a path with clear trade-offs and receiving visible rewards for real actions makes the user more likely to follow through on their routines and return the next day.
+
+The POC must validate:
+
+- That the user understands the map and why they chose their path.
+- That rewards feel like a consequence of their actions, not randomness.
+- That closing the day and the week feels satisfying.
+- That the system is simple enough to use daily.
+
+**It does not validate real retention**, because that requires several weeks of use. A week can be simulated with the dev panel.
+
+Concrete criteria:
+
+- A new user completes onboarding + day 1 in under 10 minutes using demo data.
+- They can explain which node they chose, why, and what they earned.
+- At least 3 out of 5 testers complete 3 simulated days and say they would come back.
+- Zero data loss after reloading or closing the browser.
+
+## 3. Scope
+
+### Inside MVP-0
+
+- Responsive web app, installable as a PWA and functional offline after the first load.
+- A single local profile, with no accounts or backend.
+- Onboarding with two options: demo data or create your own goals/routines.
+- 1–3 goals, each with its routines/tasks and a weekly objective.
+- A 7-day run with one map per day.
+- Maps with 4 decision layers + a final boss, with 2–3 nodes per layer.
+- Node types: task, elite, rest, treasure, and boss.
+- Path selection, completing or skipping nodes, instant rewards.
+- XP, simple leveling, gold, and collectible loot with no gameplay effects.
+- Weekly objective progress, day summary, and run summary.
+- New run while keeping the profile, gold, XP, and collection.
+- Local persistence with JSON export/import and reset.
+- Dev panel to advance days and simulate a week.
+- Unit tests for core logic: map generation, rewards, progress, and run completion.
+
+### Outside MVP-0
+
+- Accounts, synchronization, backend, push notifications.
+- Combat, cards, deckbuilding, relics with effects, shop, or economy.
+- Calendar, health, or other app integrations.
+- Automatic task verification, timers, or app blocking.
+- Social features, rankings, complex achievements.
+- Native apps. Cross-platform support will come later by wrapping the web build with Tauri or Capacitor.
+- Recovering missed days, multiple simultaneous runs, i18n, themes, analytics, or monetization.
+
+## 4. Concepts and rules
+
+| Concept | Definition |
+|---|---|
+| **Goal** | The outcome the user is pursuing, for example "get fit". |
+| **Routine / task** | A concrete, repeatable action, for example "work out for 30 minutes". |
+| **Weekly objective** | The number of times a goal must be completed during the run. |
+| **Run** | A 7-day window starting from its creation. |
+| **Day** | A map with a path that is resolved once. |
+| **Node** | A stop on the map: task, elite, rest, treasure, or boss. |
+| **Path** | The sequence of nodes chosen up to the boss. |
+| **Daily boss** | The final node; completing it closes the day with a bonus. |
+
+Core rules:
+
+1. A run requires between 1 and 3 goals and at least 4 active routines. Weekly objectives are derived from each goal's frequency and can be adjusted before starting.
+2. Only the current day can be played. If it is not resolved before midnight, it is marked as **missed** and the run continues. For the POC there is no recovery of missed days.
+3. The map is generated when the day is opened and then locked. There are no rerolls.
+4. In each layer, exactly one node connected to the current node is chosen. The chosen node remains the current node until it is completed or skipped; the user can close the app and return the same day.
+5. Completing grants rewards and, if it is a task, adds progress to its goal. Skipping grants 0, carries no penalty, and allows the user to advance. The user cannot go back.
+6. Resolving the boss ends the day and shows the summary. If the boss is skipped, the day ends without the closing bonus.
+7. On day 7, the run close is calculated: objectives met, weekly bonus, loot, and totals. A new run can then be started.
+8. Editing goals or routines during the run only affects future maps; the current map does not change.
+9. The daily cutoff is local midnight. The POC trusts the device clock.
+10. The app does not verify tasks: the user marks them as completed. This is acceptable for a personal app at this stage.
+
+## 5. The map
+
+The map is displayed bottom-up, as in *Slay the Spire*:
+
+- An automatic start node.
+- 4 decision layers with 2–3 nodes each.
+- A single boss node at the end.
+- In total, 5 nodes are resolved per day: 4 choices + boss.
+
+Generation rules:
+
+- Every node must be reachable from the start and must have a path to the boss.
+- Each layer offers at least 2 options.
+- Each node connects to 1–2 nodes in the next layer; multiple paths are allowed to converge.
+- Each layer includes at least one task node.
+- There is at most one rest or treasure node per layer.
+- 1–2 elite nodes appear per map.
+- Repeated tasks within the same day are avoided when the pool allows it.
+- The boss is preferably chosen from a goal with pending progress and high effort.
+- The seed is derived from `runId + day index`, so reloading does not change the map.
+- If there are not enough routines to fill all nodes, tasks may be repeated in different layers, never in the same layer.
+
+Node types:
+
+| Type | Action | Weekly progress | Reward |
+|---|---|---|---|
+| Task | Normal routine | +1 | XP and gold based on effort |
+| Elite | Difficult routine | +1 | Double reward and a loot roll |
+| Rest | Break, no task | — | Small XP |
+| Treasure | Direct reward | — | Gold and a loot roll |
+| Boss | Main task of the day | +1 | High reward + closing bonus |
+
+Path choice must have visible trade-offs: tasks advance the week, treasures give an immediate reward but no progress, and elites give more resources in exchange for more effort.
+
+## 6. Rewards and progression
+
+Effort multiplier: light `×1`, medium `×1.5`, high `×2`.
+
+| Node | XP | Gold | Loot | Progress |
+|---|---|---|---|---|
+| Task | 10 × multiplier | 10 × multiplier | — | +1 |
+| Elite | 20 × multiplier | 20 × multiplier | 1 roll | +1 |
+| Rest | 5 | 0 | — | — |
+| Treasure | 0 | 15 | 1 roll | — |
+| Boss | 20 × multiplier + 20 | 20 × multiplier + 20 | 1 roll | +1 |
+
+- **Loot:** a small pool of 10–12 items with common, rare, or epic rarity. No effects in the POC; it is a collection and fantasy element. Duplicates convert to gold.
+- **Level:** 100 XP per level. It is display-only; there is no skill tree.
+- **Gold:** in the POC it is a progress score. There is no shop or spending yet.
+- **Weekly bonus:** each completed objective grants +50 XP, +50 gold, and 1 loot roll. If all are completed, +100 XP, +100 gold, and one guaranteed rare loot item.
+- Node rewards are granted instantly. The weekly bonus is granted when the run closes.
+
+## 7. Screens and flow
+
+Minimum screens:
+
+1. **Onboarding:** brief explanation, optional name, choose demo or create goals/routines, confirm weekly objectives.
+2. **Home / Run:** current day, map access, objective progress, gold, XP, and level.
+3. **Map:** main screen; traveled path, available nodes, locked nodes, and weekly objectives panel.
+4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons.
+5. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
+6. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
+7. **Goals and routines:** minimal CRUD for goals, tasks, effort, and weekly frequency.
+8. **Profile / collection:** level, XP, gold, and loot obtained.
+9. **Settings:** export/import JSON, reset, and dev panel.
+
+Daily flow:
+
+1. The user opens the app and sees the day's map.
+2. They choose an available node and review the task and its rewards.
+3. They complete it in the real world and mark it, or skip it.
+4. They receive rewards and advance to the next layer.
+5. They repeat until the boss.
+6. They close the day and see the summary.
+7. The next day remains locked until the following day, except in dev mode.
+
+## 8. Data model
+
+| Entity | Key fields |
+|---|---|
+| **Profile** | id, name, XP, level, gold, loot, creation date |
+| **Goal** | id, title, category, weekly objective, active |
+| **Task** | id, goalId, title, effort, active |
+| **Run** | id, seed, start date, status, weekly objectives, days, totals |
+| **Day** | date, status, map, path, resolved nodes, rewards |
+| **Map** | id, seed, layers, boss node, current node |
+| **MapNode** | id, layer, type, taskId, rewards, connections |
+| **LootItem** | id, name, rarity, description, obtained date |
+| **RewardEvent** | node, task, XP, gold, loot, affected goal |
+
+Persistence: a single versioned JSON document in `localStorage`, with export/import to prevent data loss and facilitate testing.
+
+## 9. Proposed architecture
+
+- React 19 + TypeScript + Vite, reusing the existing scaffold.
+- PWA via `vite-plugin-pwa`: manifest, icons, and offline cache.
+- Simple global state with Zustand + persist, or `useReducer` if avoiding dependencies is preferred.
+- Domain logic in pure, testable functions: map generation, node resolution, reward calculation, and run evaluation.
+- Map rendered with custom SVG; no graph library.
+- CSS with custom tokens, mobile-first, no heavy UI kit.
+- No router in the POC: navigation via view state.
+- Vitest tests for core logic; guided manual tests for the full flow.
+- Dev panel only in the development environment: advance day, restart run, and reset data.
+- Basic accessibility: nodes as buttons, visible focus, sufficient contrast, 44px touch targets, and reduced-motion support.
+- Original visual direction inspired by dark fantasy, parchment, and gold; no reused art or names from *Slay the Spire*.
+
+## 10. Acceptance criteria
+
+MVP-0 is considered complete when this demo can be run without failures:
+
+1. Open the app from scratch, complete onboarding with demo data, and start a run.
+2. See a map with 4 layers + boss, 2–3 nodes per layer, at least two possible paths, and all nodes reachable.
+3. Choose a task, complete it, and see XP, gold, and weekly progress update.
+4. Reload the page and confirm that the map, path, and rewards are preserved.
+5. Skip a node and confirm that it advances without a reward.
+6. Complete the boss and see the day summary with the bonus; on another day, skip it and confirm there is no bonus.
+7. Advance a day with the dev panel and verify that the previous day is locked and a new map appears.
+8. Complete 7 simulated days and see the run summary with objectives, bonus, and loot.
+9. Start a new run and confirm that the profile, XP, gold, and collection are preserved.
+10. Test the interface at 360px and on desktop; verify PWA installation and offline reload.
+11. Export and import data, and confirm that the state is restored.
+12. Run the tests for generation, rewards, and weekly close.
+
+## 11. Build order
+
+Each milestone must leave something playable or demonstrable:
+
+- **M0 — Base:** domain types, store, persistence, demo data, visual tokens, and dev panel.
+- **M1 — Map:** deterministic generator with tests, SVG rendering, path selection, and node detail.
+- **M2 — Loop:** complete/skip, rewards, weekly progress, and day summary.
+- **M3 — Run:** onboarding, goals/routines CRUD, weekly summary, new run, PWA, responsive layout, and export/import.
+- **M4 — Playtest:** test with 3–5 people, adjust node count, rewards, and onboarding friction.
+
+## 12. Risks and open decisions
+
+| Risk | Mitigation |
+|---|---|
+| The map feels decorative | Visible trade-offs between progress, effort, and reward; validate with testers. |
+| Scope creep toward a full RPG | No cards, combat, shop, or relics with effects in the POC. |
+| Heavy onboarding | Demo data and a minimum of 4 routines. |
+| A real week takes too long to provide feedback | Dev panel to simulate days and a 3-day test. |
+| Local data loss | Export/import, versioned schema, and controlled reset. |
+| Excessive resemblance to Slay the Spire | Mechanical inspiration only; original visual identity and content. |
+
+Open decisions with a default proposal:
+
+- Is skipping a node free? **Proposal:** yes, with no penalty beyond losing the reward and progress.
+- Are missed days recoverable? **Proposal:** no in the POC.
+- Are 5 nodes per day too many? **Proposal:** start there and adjust after the playtest.
+- Does elite give 2 progress? **Proposal:** 1, to avoid distorting weekly objectives.
+- Midnight or 4 a.m. cutoff? **Proposal:** midnight for simplicity.
+- Does the run start any day or only on Monday? **Proposal:** any day, with a 7-day window.
+
+## 13. Future beyond the MVP
+
+Accounts and synchronization, notifications, shop and gold sinks, relics/cards with effects, social features and rankings, calendar or health integrations, missed-day recovery mode, adaptive content, and native wrappers with Tauri/Capacitor. None of this is part of MVP-0.

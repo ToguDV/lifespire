@@ -1,33 +1,32 @@
-# LifeSpire
+# React + TypeScript + Vite
 
-LifeSpire is a **productivity roguelike**: your real-life tasks become the rooms of a daily
-dungeon run. Complete tasks, clear the map, earn gold/XP and level up — never through punishment,
-always through progress.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-## Documentation
+Currently, two official plugins are available:
 
-- [GDD.md](./GDD.md) — game design (rules, balance, art direction).
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — stack, monorepo layout and structural decisions.
-- [docs/README.md](./docs/README.md) — documentation hub.
-- [docs/roadmap.md](./docs/roadmap.md) — phases, scope and exit criteria.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Status
+## React Compiler
 
-**M0 in progress** — the workspace skeleton (pnpm + Turborepo, shared config, design tokens and CI)
-is being laid down. Game packages (`engine`, `shared-types`) and `apps/web` arrive next.
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-## Commands
+## Expanding the Oxlint configuration
 
-```bash
-pnpm install        # install the workspace
-pnpm dev            # run every dev task (Turborepo)
-pnpm build          # build every package
-pnpm lint           # lint every package
-pnpm typecheck      # type-check every package
-pnpm test           # run every unit test suite
-pnpm format         # format with Prettier
+If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
 ```
 
-## License
-
-MIT — see [LICENSE](./LICENSE).
+See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
