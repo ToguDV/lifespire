@@ -60,7 +60,22 @@ Conventional-Commits style, matching the squashed commit intent.
   behalf unless explicitly asked.
 - Prefer squash-merge for feature branches to keep `main` history clean.
 
-## 4. Quality gates (must be green before opening a PR)
+## 4. Test-driven development (TDD)
+
+For any feature, fix, or behavior change, follow TDD:
+
+1. **Write a failing test first** that captures the expected behavior (unit,
+   integration, or E2E as appropriate). Confirm it fails for the right reason.
+2. **Implement the minimal change** to make the test pass. No speculative code.
+3. **Refactor** while keeping all tests green.
+4. Repeat for the next behavior.
+
+- Bug fixes must start with a regression test that reproduces the bug.
+- No PR should add production code without a corresponding test, unless the
+  change is purely mechanical (rename, formatting, docs).
+- Pure domain logic (`src/domain/`) must always be covered by tests.
+
+## 5. Quality gates (must be green before opening a PR)
 
 ```bash
 pnpm lint
@@ -72,7 +87,7 @@ pnpm build
 If any gate fails, fix it on the branch before opening the PR. Never open a PR
 with red checks.
 
-## 5. Agent cleanup (mandatory before finishing)
+## 6. Agent cleanup (mandatory before finishing)
 
 When an agent finishes a session, it **must leave the environment clean**:
 
@@ -86,7 +101,7 @@ When an agent finishes a session, it **must leave the environment clean**:
 - **No untracked noise.** `git status` should show only intentional changes.
 - Report the branch name and PR URL to the user, then stop.
 
-## 6. Session checklist (agent)
+## 7. Session checklist (agent)
 
 1. Create session branch.
 2. Make changes; commit with conventional format.
