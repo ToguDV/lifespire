@@ -952,6 +952,43 @@ describe('starting a new run from the store', () => {
     expect(store.getState().document).toBe(closed)
     expect(store.getState().document.run?.id).toBe(closedRunId)
   })
+
+  it('writes reviewed weekly targets together with the new run', () => {
+    const { store, base } = makeHarness()
+    expect(store.getState().importDocument(closedDocumentAt(base))).toBe(true)
+    const closed = store.getState().document
+    const reviewed = closed.goals.map((goal, index) => ({
+      ...goal,
+      weeklyObjective: index === 0 ? 1 : 7,
+    }))
+
+    const started = store.getState().startNewRun(base, reviewed)
+
+    expect(started).toBe(true)
+    const next = store.getState().document
+    expect(next.run?.status).toBe('active')
+    expect(next.run?.id).not.toBe(closed.run?.id)
+    expect(next.goals.map((goal) => goal.weeklyObjective)).toEqual([1, 7])
+    expect(next.run?.objectives.map((objective) => objective.target)).toEqual([1, 7])
+    expect(next.profile).toEqual(closed.profile)
+  })
+
+  it('does not persist reviewed targets when the transition fails', () => {
+    const { store, base } = makeHarness()
+    expect(store.getState().importDocument(closedDocumentAt(base))).toBe(true)
+    const closed = store.getState().document
+    const invalid = closed.goals.map((goal) => ({
+      ...goal,
+      weeklyObjective: 9,
+    }))
+
+    const started = store.getState().startNewRun(base, invalid)
+
+    expect(started).toBe(false)
+    expect(store.getState().document).toBe(closed)
+    expect(store.getState().document.goals).toEqual(closed.goals)
+    expect(store.getState().document.run?.id).toBe(closed.run?.id)
+  })
 })
 
 describe('atomic onboarding journey', () => {

@@ -62,7 +62,11 @@ export interface AppState {
   selectNode(nodeId: string): void
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
   finalizeRun(now?: Date): void
-  startNewRun(now?: Date): void
+  /**
+   * Replaces a closed run with a fresh one. Optional reviewed goals are written
+   * in the same transition, so a failed start never leaves half-applied targets.
+   */
+  startNewRun(now?: Date, goals?: Goal[]): boolean
   saveGoal(input: GoalInput, now?: Date): ContentActionResult
   archiveGoal(goalId: string, now?: Date): ContentActionResult
   saveTask(input: TaskInput, now?: Date): ContentActionResult
@@ -375,14 +379,16 @@ export function createAppStore(
           if (next !== current) set({ document: next })
         },
 
-        startNewRun: (at = nowProvider()) => {
+        startNewRun: (at = nowProvider(), goals) => {
           // Reconcile first so a run that is due to close is sealed (and its
           // weekly bonus granted) before it is replaced. The domain transition
-          // itself is atomic and only accepts a closed previous run.
+          // itself is atomic and only accepts a closed previous run. Reviewed
+          // goals are written together with the run, never before it.
           get().reconcile(at)
           const current = get().document
+          const seeded = goals ? { ...current, goals: [...goals] } : current
           try {
-            const next = startNewRunDocument(current, {
+            const next = startNewRunDocument(seeded, {
               runId: idFactory('run'),
               now: at,
             })
@@ -392,8 +398,10 @@ export function createAppStore(
               history: [],
               toast: null,
             })
+            return true
           } catch (error) {
             set({ toast: errorMessage(error, 'A new run cannot begin yet.') })
+            return false
           }
         },
 
