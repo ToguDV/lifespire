@@ -5,6 +5,7 @@ import { addDays, dayKey } from '../domain/dates'
 import { validateMap } from '../domain/generator'
 import { createRun } from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
+import { availableNodeIds, currentDay } from '../domain/selectors'
 import type { GameDocument, LootItem } from '../domain/types'
 import { devNow, getDevOffsetDays, resetDevClock } from './clock'
 import { createDocumentStorage } from './persistence'
@@ -585,5 +586,97 @@ describe('convenience selectors', () => {
     const second = newId('run')
     expect(first.startsWith('run_')).toBe(true)
     expect(first).not.toBe(second)
+  })
+})
+
+describe('resolving a node', () => {
+  it('persists one complete resolution without navigating', () => {
+    const { store, memory, base } = makeHarness()
+    onboardAndStart(store, base)
+    store.getState().openDay(undefined, base)
+
+    const map = store.getState().document.run?.days[0]?.map
+    const node = map?.layers[0]?.find((candidate) => candidate.type === 'task')
+    if (!node) throw new Error('expected a layer-0 task node')
+    store.getState().selectNode(node.id)
+
+    const viewBefore = store.getState().view
+    store.getState().resolveNode(node.id, 'complete', base)
+
+    const document = store.getState().document
+    const day = document.run?.days[0]
+    expect(store.getState().toast).toBeNull()
+    expect(store.getState().view).toBe(viewBefore)
+    expect(day?.path).toEqual([
+      { nodeId: node.id, action: 'complete', at: base.toISOString() },
+    ])
+    expect(day?.map?.currentNodeId).toBeNull()
+    expect(day?.rewards).toHaveLength(1)
+    expect(document.profile?.xp).toBe(node.rewards.xp)
+    expect(document.profile?.gold).toBe(node.rewards.gold)
+
+    const stored = storedDocument(memory)
+    expect(stored.profile?.xp).toBe(node.rewards.xp)
+    expect(stored.run?.days[0]?.path).toEqual(day?.path)
+    expect(stored.run?.days[0]?.rewards).toEqual(day?.rewards)
+  })
+
+  it('survives a reload between resolutions without duplicating rewards', () => {
+    const first = makeHarness()
+    onboardAndStart(first.store, first.base)
+    first.store.getState().openDay(undefined, first.base)
+
+    const map = first.store.getState().document.run?.days[0]?.map
+    const node = map?.layers[0]?.find((candidate) => candidate.type === 'task')
+    if (!node) throw new Error('expected a layer-0 task node')
+    first.store.getState().selectNode(node.id)
+    first.store.getState().resolveNode(node.id, 'complete', first.base)
+    const firstEvent = first.store.getState().document.run?.days[0]?.rewards[0]
+
+    const reloaded = createAppStore({
+      storage: createDocumentStorage(first.memory),
+      now: () => first.base,
+    })
+    const day = currentDay(reloaded.getState().document.run)
+    if (!day?.map) throw new Error('expected an open day after reload')
+    const nextId = availableNodeIds(day.map, day)[0]
+    if (!nextId) throw new Error('expected a connected node')
+
+    reloaded.getState().selectNode(nextId)
+    reloaded.getState().resolveNode(nextId, 'skip', first.base)
+
+    const after = reloaded.getState().document.run?.days[0]
+    expect(after?.path).toHaveLength(2)
+    expect(after?.rewards).toHaveLength(2)
+    expect(after?.rewards[0]).toEqual(firstEvent)
+    expect(after?.rewards[1]?.action).toBe('skip')
+    expect(after?.rewards[1]?.xp).toBe(0)
+    expect(after?.rewards[1]?.gold).toBe(0)
+    expect(storedDocument(first.memory).run?.days[0]?.path).toEqual(after?.path)
+  })
+
+  it('turns a rejected resolution into a toast and leaves rewards untouched', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    store.getState().openDay(undefined, base)
+
+    const map = store.getState().document.run?.days[0]?.map
+    const node = map?.layers[0]?.find((candidate) => candidate.type === 'task')
+    const locked = map?.layers[1]?.[0]
+    if (!node || !locked) throw new Error('expected a generated map')
+
+    store.getState().resolveNode(locked.id, 'complete', base)
+    expect(store.getState().toast).toBe(
+      'That node is not available from the current path.',
+    )
+
+    store.getState().selectNode(node.id)
+    store.getState().resolveNode(node.id, 'complete', base)
+    const profile = store.getState().document.profile
+
+    store.getState().resolveNode(node.id, 'complete', base)
+    expect(store.getState().toast).toBe('That node has already been resolved.')
+    expect(store.getState().document.profile).toBe(profile)
+    expect(store.getState().document.run?.days[0]?.path).toHaveLength(1)
   })
 })

@@ -4,7 +4,13 @@ import { persist } from 'zustand/middleware'
 import { createDemoSetup, validateSetup } from '../content/demo'
 import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
 import { dayKey } from '../domain/dates'
-import { createRun, openDay as openDayDocument, reconcileDays, selectNode as selectNodeDocument } from '../domain/lifecycle'
+import {
+  createRun,
+  openDay as openDayDocument,
+  reconcileDays,
+  resolveNode as resolveNodeDocument,
+  selectNode as selectNodeDocument,
+} from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
 import { currentDay, levelForXp, resolveNodeById } from '../domain/selectors'
 import type {
@@ -13,6 +19,7 @@ import type {
   OnboardingDraft,
   OnboardingSetup,
   Profile,
+  ResolutionAction,
   Run,
   RunSetup,
   StorageIssue,
@@ -40,6 +47,7 @@ export interface AppState {
   reconcile(now?: Date): void
   openDay(dayId?: string, now?: Date): void
   selectNode(nodeId: string): void
+  resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
   setTheme(theme: ThemePreference): void
   importDocument(nextDocument: GameDocument): boolean
   resetAll(): void
@@ -240,7 +248,7 @@ export function createAppStore(
         reconcile: (at = nowProvider()) => {
           const current = get().document
           if (!current.run) return
-          const run = reconcileDays(current.run, dayKey(at))
+          const run = reconcileDays(current.run, dayKey(at), at)
           if (run !== current.run) {
             set({ document: { ...current, run } })
           }
@@ -266,6 +274,17 @@ export function createAppStore(
             set({ document: next, toast: null })
           } catch (error) {
             set({ toast: errorMessage(error, 'That node cannot be chosen.') })
+          }
+        },
+
+        resolveNode: (nodeId, action, at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          try {
+            const next = resolveNodeDocument(current, { nodeId, action, now: at })
+            set({ document: withSyncedLevel(next), toast: null })
+          } catch (error) {
+            set({ toast: errorMessage(error, 'That step cannot be recorded.') })
           }
         },
 
