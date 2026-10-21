@@ -2783,6 +2783,8 @@ body[data-screen="welcome"] .map-dock {
 
 body[data-screen="welcome"] .app {
   display: block;
+  height: auto;
+  overflow: visible;
 }
 
 body[data-screen="welcome"] .app-main {
