@@ -5,7 +5,13 @@ export const STORAGE_KEY = 'lifespire:mvp0'
 
 export const RUN_DAYS = 7
 export const DECISION_LAYERS = 4
+export const BOSS_LAYER = DECISION_LAYERS
 export const GENERATOR_VERSION = 1
+
+export const MIN_LAYER_NODES = 2
+export const MAX_LAYER_NODES = 3
+export const MIN_ELITES_PER_MAP = 1
+export const MAX_ELITES_PER_MAP = 2
 
 export const MIN_GOALS = 1
 export const MAX_GOALS = 3

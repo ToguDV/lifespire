@@ -347,6 +347,10 @@ generateMap(input: {
 - Si el pool tiene <4 tareas activas, el generador debe seguir produciendo un mapa
   válido repitiendo tareas entre capas (nunca dentro de la misma capa). La
   validación de onboarding exige ≥4 routines, pero el generador es defensivo.
+  Con una sola rutina activa las capas se fuerzan a 2 nodos; si una capa lleva
+  elite (para cumplir 1–2 elites por mapa) esa única rutina se repite dentro de
+  la capa. Es la única excepción posible: con una sola rutina no se puede tener
+  a la vez un nodo task, un elite y tareas distintas en la misma capa.
 - El mapa se genera **una vez** al abrir el día y se guarda. `selectNode` y
   `resolveNode` nunca regeneran.
 
