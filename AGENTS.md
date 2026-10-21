@@ -2,7 +2,7 @@
 
 ## Fuentes de verdad
 
-- **Producto y reglas:** [`SPEC.md`](./SPEC.md) define el alcance de MVP-0, las reglas
+- **Producto y reglas:** [`SPEC.md`](./SPEC.md) define el alcance, las reglas
   del juego, las recompensas, las pantallas y los criterios de aceptación. Cualquier
   decisión funcional debe poder rastrearse hasta ese documento (o a un issue de GitHub).
 - **Diseño visual:** [`design/`](./design) es la propuesta **aceptada** y la referencia
@@ -27,10 +27,10 @@ nombres, arte, layouts ni contenido del juego original.
 
 ## Rama y alcance
 
-- `main` es la línea principal: desarrollo y releases de MVP-0.
+- `main` es la línea principal de desarrollo y releases.
 - Para cambios grandes, usa una rama corta (`feat/...`, `fix/...`) y mergea de
   vuelta a `main`. No reescribas su historial ni hagas force-push.
-- No hay backend, cuentas ni sincronización en MVP-0.
+- No hay backend, cuentas ni sincronización en el alcance actual.
 
 ## Arquitectura
 

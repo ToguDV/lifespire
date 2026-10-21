@@ -1,14 +1,14 @@
-# LifeSpire — MVP-0 SPEC
+# LifeSpire — SPEC
 
 > High-level specification for the proof of concept.
-> Status: approved for MVP-0 build.
+> Status: approved for build.
 > Last updated: 2026-10-20.
 
 ## 1. Summary
 
 LifeSpire turns a person's goals and routines into a daily node map inspired by *Slay the Spire*. Each day the user chooses a path; each node represents a real-world action: a task, a rest, a treasure, or the daily boss. A **run** lasts 7 days and has weekly objectives; the more the user completes, the more gold, XP, and loot they earn.
 
-This document defines only **MVP-0**: a local-first vertical slice to validate the core loop. It does not cover the full product vision.
+This document defines the current scope: a local-first vertical slice to validate the core loop. It does not cover the full product vision.
 
 ## 2. Hypothesis and success criteria
 
@@ -32,7 +32,7 @@ Concrete criteria:
 
 ## 3. Scope
 
-### Inside MVP-0
+### Inside scope
 
 - Responsive web app, installable as a PWA and functional offline after the first load.
 - A single local profile, with no accounts or backend.
@@ -49,7 +49,7 @@ Concrete criteria:
 - Dev panel to advance days and simulate a week.
 - Unit tests for core logic: map generation, rewards, progress, and run completion.
 
-### Outside MVP-0
+### Outside scope
 
 - Accounts, synchronization, backend, push notifications.
 - Combat, cards, deckbuilding, relics with effects, shop, or economy.
@@ -193,7 +193,7 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 
 ## 10. Acceptance criteria
 
-MVP-0 is considered complete when this demo can be run without failures:
+The demo is considered complete when it can be run without failures:
 
 1. Open the app from scratch, complete onboarding with demo data, and start a run.
 2. See a map with 4 layers + boss, 2–3 nodes per layer, at least two possible paths, and all nodes reachable.
@@ -240,4 +240,4 @@ Open decisions with a default proposal:
 
 ## 13. Future beyond the MVP
 
-Accounts and synchronization, notifications, shop and gold sinks, relics/cards with effects, social features and rankings, calendar or health integrations, missed-day recovery mode, adaptive content, and native wrappers with Tauri/Capacitor. None of this is part of MVP-0.
+Accounts and synchronization, notifications, shop and gold sinks, relics/cards with effects, social features and rankings, calendar or health integrations, missed-day recovery mode, adaptive content, and native wrappers with Tauri/Capacitor. None of this is part of the current scope.

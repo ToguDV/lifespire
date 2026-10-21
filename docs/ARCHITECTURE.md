@@ -1,4 +1,4 @@
-# LifeSpire MVP-0 — Arquitectura y contratos
+# LifeSpire — Arquitectura y contratos
 
 Este documento fija los límites entre módulos y los contratos de datos. Es la
 referencia para implementar los issues sin que dos piezas se contradigan. Si una
@@ -723,3 +723,28 @@ diario necesita mostrar más información que los estados estáticos del prototi
   schema), round-trip y rechazo de JSON inválido, campos ausentes y versión
   futura sin cambiar el estado. `reset`: frase exacta.
 - `dates`: claves locales sin drift UTC.
+
+## 8. Decisiones de alcance (fuera del bucle base)
+
+### Combate, cartas y reliquias con efectos
+
+El bucle base (mapa, recompensas por acciones reales, cierre de día/run) es el
+core validado. **No se añade combate, mazo, cartas, tienda ni economía** en el
+alcance actual: desviarían la hipótesis central (la recompensa debe sentirse
+como consecuencia de la acción real, no del mazo) e inflarían el alcance.
+
+Las **reliquias son colección en el alcance actual** (catálogo de 12, rarezas,
+duplicados → oro, roll garantizado al cerrar la run completa). No tienen efectos
+mecánicos.
+
+Si el playtest muestra que el loot se siente vacío, la siguiente iteración puede
+añadir **modificadores pasivos de recompensa** (no de combate), acotados:
+- máximo 3–4 reliquias activas por run, elegidas al inicio;
+- efectos del tipo `+10% XP en nodos de tarea`, un reroll de loot por run,
+  `+1 oro por nodo completado`;
+- sin sinergias entre reliquias, activación automática, sin decisiones en
+  combate.
+
+Esto mantiene el foco en acciones reales → recompensas y es testeable sin
+infraestructura de combate. Cualquier sistema de combate/mazo queda pospuesto
+hasta haber evidencia de retención del bucle base.

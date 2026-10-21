@@ -5,11 +5,40 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  # Detects whether files that can affect the functional core loop changed.
+  # E2E is not run on every change; it is gated behind this job.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      critical: ${{ steps.filter.outputs.critical }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            critical:
+              - 'src/domain/**'
+              - 'src/state/**'
+              - 'src/content/**'
+              - 'src/App.tsx'
+              - 'src/main.tsx'
+              - 'src/ui/screens/**'
+              - 'e2e/**'
+              - 'playwright.config.ts'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'vite.config.ts'
+              - 'index.html'
+              - '.github/workflows/ci.yml'
+
   quality:
     runs-on: ubuntu-latest
     steps:
@@ -36,3 +65,36 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  e2e:
+    needs: changes
+    # Manual runs always execute; otherwise only when critical paths changed.
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.critical == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
