@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
 import { STORAGE_KEY } from '../domain/balance'
 import { addDays, dayKey } from '../domain/dates'
+import { validateMap } from '../domain/generator'
 import { createRun } from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
 import type { GameDocument, LootItem } from '../domain/types'
@@ -228,6 +229,115 @@ describe('day reconciliation', () => {
       'locked',
       'locked',
     ])
+  })
+})
+
+describe('opening a day and choosing a path node', () => {
+  it('opens the current day once and persists the generated map', () => {
+    const { store, memory, base } = makeHarness()
+    onboardAndStart(store, base)
+
+    store.getState().openDay(undefined, base)
+    const opened = store.getState().document.run?.days[0]
+    expect(opened?.status).toBe('in_progress')
+    expect(opened?.openedAt).toBe(base.toISOString())
+    expect(opened?.map).not.toBeNull()
+    if (!opened?.map) throw new Error('expected a map')
+    expect(validateMap(opened.map)).toEqual({ ok: true })
+    expect(store.getState().toast).toBeNull()
+
+    const stored = storedDocument(memory)
+    expect(stored.run?.days[0]?.map).toEqual(opened.map)
+
+    const later = new Date(2026, 9, 20, 21, 0, 0)
+    store.getState().openDay(undefined, later)
+    expect(store.getState().document.run?.days[0]?.map).toEqual(opened.map)
+    expect(store.getState().document.run?.days[0]?.openedAt).toBe(base.toISOString())
+  })
+
+  it('only opens the current day and rejects future or foreign days', () => {
+    const { store, base } = makeHarness()
+    const run = onboardAndStart(store, base)
+    const futureDayId = run?.days[1]?.id
+
+    store.getState().openDay(futureDayId, base)
+    expect(store.getState().toast).toBe('Only today can be opened.')
+    expect(store.getState().document.run?.days[1]?.map).toBeNull()
+    expect(store.getState().document.run?.days[0]?.map).toBeNull()
+
+    store.getState().openDay('missing-day', base)
+    expect(store.getState().toast).toBe('That day does not belong to this run.')
+
+    store.getState().openDay(undefined, new Date(2026, 9, 21, 8, 0, 0))
+    const days = store.getState().document.run?.days
+    expect(days?.[0]?.status).toBe('missed')
+    expect(days?.[1]?.status).toBe('in_progress')
+    expect(days?.[1]?.map).not.toBeNull()
+    expect(store.getState().toast).toBeNull()
+  })
+
+  it('keeps the selected node as the only choice and persists it', () => {
+    const { store, memory, base } = makeHarness()
+    onboardAndStart(store, base)
+    store.getState().openDay(undefined, base)
+
+    const map = store.getState().document.run?.days[0]?.map
+    const first = map?.layers[0]?.[0]
+    const other = map?.layers[0]?.[1]
+    const locked = map?.layers[1]?.[0]
+    if (!map || !first || !other || !locked) throw new Error('expected a generated map')
+
+    store.getState().selectNode(locked.id)
+    expect(store.getState().toast).toBe('That node is not available from the current path.')
+    expect(store.getState().document.run?.days[0]?.map?.currentNodeId).toBeNull()
+
+    store.getState().selectNode(first.id)
+    expect(store.getState().document.run?.days[0]?.map?.currentNodeId).toBe(first.id)
+    expect(storedDocument(memory).run?.days[0]?.map?.currentNodeId).toBe(first.id)
+
+    store.getState().selectNode(other.id)
+    expect(store.getState().toast).toBe('A node is already chosen for this day.')
+    expect(store.getState().document.run?.days[0]?.map?.currentNodeId).toBe(first.id)
+  })
+
+  it('rejects selection before the day is open', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    store.getState().selectNode('n0_0')
+    expect(store.getState().toast).toBe('Open the day before choosing a node.')
+  })
+
+  it('survives a reload with the same map and current node', () => {
+    const first = makeHarness()
+    onboardAndStart(first.store, first.base)
+    first.store.getState().openDay(undefined, first.base)
+    const map = first.store.getState().document.run?.days[0]?.map
+    const node = map?.layers[0]?.[0]
+    if (!map || !node) throw new Error('expected a generated map')
+    first.store.getState().selectNode(node.id)
+
+    const reloaded = createAppStore({
+      storage: createDocumentStorage(first.memory),
+      now: () => first.base,
+    })
+    const day = reloaded.getState().document.run?.days[0]
+    expect(day?.map?.id).toBe(map.id)
+    expect(day?.map?.seed).toBe(map.seed)
+    expect(day?.map?.layers).toEqual(map.layers)
+    expect(day?.map?.currentNodeId).toBe(node.id)
+    expect(day?.status).toBe('in_progress')
+  })
+
+  it('does not open a day for a closed run', () => {
+    const { store, base } = makeHarness()
+    const run = onboardAndStart(store, base)
+    if (!run) throw new Error('expected a run')
+    store.getState().importDocument({
+      ...store.getState().document,
+      run: { ...run, status: 'closed' },
+    })
+    store.getState().openDay(undefined, base)
+    expect(store.getState().toast).toBe('There is no active run to open.')
   })
 })
 

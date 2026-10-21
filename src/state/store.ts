@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware'
 import { createDemoSetup, validateSetup } from '../content/demo'
 import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
 import { dayKey } from '../domain/dates'
-import { createRun, reconcileDays } from '../domain/lifecycle'
+import { createRun, openDay as openDayDocument, reconcileDays, selectNode as selectNodeDocument } from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument } from '../domain/schema'
 import { levelForXp } from '../domain/selectors'
 import type {
@@ -38,6 +38,8 @@ export interface AppState {
   completeOnboarding(setup: OnboardingSetup, now?: Date): void
   startRun(setup?: RunSetup, now?: Date): void
   reconcile(now?: Date): void
+  openDay(dayId?: string, now?: Date): void
+  selectNode(nodeId: string): void
   setTheme(theme: ThemePreference): void
   importDocument(nextDocument: GameDocument): boolean
   resetAll(): void
@@ -86,6 +88,10 @@ function withSyncedLevel(document: GameDocument): GameDocument {
   const level = levelForXp(document.profile.xp)
   if (document.profile.level === level) return document
   return { ...document, profile: { ...document.profile, level } }
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback
 }
 
 /** First view after hydration. Recovery wins over every other flow. */
@@ -230,6 +236,29 @@ export function createAppStore(
           const run = reconcileDays(current.run, dayKey(at))
           if (run !== current.run) {
             set({ document: { ...current, run } })
+          }
+        },
+
+        openDay: (dayId, at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          try {
+            const next = openDayDocument(current, { dayId, now: at })
+            set({ document: next, toast: null })
+          } catch (error) {
+            set({ toast: errorMessage(error, 'This day cannot be opened.') })
+          }
+        },
+
+        selectNode: (nodeId) => {
+          const at = nowProvider()
+          get().reconcile(at)
+          const current = get().document
+          try {
+            const next = selectNodeDocument(current, nodeId)
+            set({ document: next, toast: null })
+          } catch (error) {
+            set({ toast: errorMessage(error, 'That node cannot be chosen.') })
           }
         },
 
