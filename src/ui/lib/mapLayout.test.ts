@@ -189,6 +189,14 @@ describe('map layout', () => {
         camp: 790,
         layers: [700, 570, 440, 310, 180],
       },
+      {
+        sizes: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+        height: 2130,
+        camp: 2090,
+        layers: [
+          2000, 1870, 1740, 1610, 1480, 1350, 1220, 1090, 960, 830, 700, 570, 440, 310, 180,
+        ],
+      },
     ]
 
     for (const { sizes, height, camp, layers: ys } of cases) {

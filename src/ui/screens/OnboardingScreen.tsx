@@ -418,7 +418,7 @@ export function OnboardingScreen() {
 
             <p className="mini-note welcome-custom-note">
               The demo creates two goals and five routines. Your own path asks for one to
-              three goals and at least four routines.
+              ten goals and at least four routines.
             </p>
 
             <p className="welcome-foot">
@@ -489,7 +489,7 @@ export function OnboardingScreen() {
     },
     2: {
       title: 'What are you climbing toward?',
-      body: 'Choose one to three goals: the areas you are pursuing, such as movement or making. Each goal becomes a banner on your weekly path.',
+      body: 'Choose one to ten goals: the areas you are pursuing, such as movement or making. Each goal becomes a banner on your weekly path.',
     },
     3: {
       title: 'Which small steps will you keep?',

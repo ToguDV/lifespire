@@ -20,5 +20,7 @@ describe('numeric labels', () => {
     expect(percent(1, 0)).toBe(0)
     expect(romanDay(0)).toBe('I')
     expect(romanDay(6)).toBe('VII')
+    expect(romanDay(14)).toBe('XV')
+    expect(romanDay(15)).toBe('16')
   })
 })

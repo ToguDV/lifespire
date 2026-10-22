@@ -2,7 +2,23 @@ import { parseDayKey } from '../../domain/dates'
 import type { Effort, NodeType, Rarity } from '../../domain/types'
 import type { IconName } from '../components/Icon'
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+const ROMAN = [
+  'I',
+  'II',
+  'III',
+  'IV',
+  'V',
+  'VI',
+  'VII',
+  'VIII',
+  'IX',
+  'X',
+  'XI',
+  'XII',
+  'XIII',
+  'XIV',
+  'XV',
+]
 
 export function romanDay(index: number): string {
   return ROMAN[index] ?? String(index + 1)
