@@ -261,6 +261,22 @@ describe('openDay', () => {
     expect(before.run?.days[0]?.map).toBeNull()
   })
 
+  it('generates new maps with the current generator version in older runs', () => {
+    const document = makeDocument()
+    if (!document.run) throw new Error('expected a run')
+    const legacy: GameDocument = {
+      ...document,
+      run: { ...document.run, generatorVersion: 1 },
+    }
+
+    const opened = openDay(legacy, { now })
+    const map = opened.run?.days[0]?.map
+
+    expect(map?.generatorVersion).toBe(GENERATOR_VERSION)
+    expect(map?.seed).toBe(`run:run_day:day:0:g${GENERATOR_VERSION}`)
+    expect(map && validateMap(map)).toEqual({ ok: true })
+  })
+
   it('is idempotent and never regenerates an existing map', () => {
     const first = openedDocument()
     const later = new Date(2026, 9, 20, 22, 15, 0)
