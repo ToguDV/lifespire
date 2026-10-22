@@ -76,11 +76,11 @@ documento versionado. Se persiste únicamente `{ document }`; `view`, diálogos,
 mensajes y el offset del reloj de desarrollo quedan fuera.
 
 ```ts
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 export const STORAGE_KEY = 'lifespire:mvp0'
 
 export interface GameDocument {
-  schemaVersion: 1
+  schemaVersion: 2
   profile: Profile | null
   goals: Goal[]
   tasks: Task[]
@@ -128,6 +128,7 @@ export interface Goal {
   id: string
   title: string
   category: string
+  icon: GoalIconId         // catálogo cerrado en domain/goalIcons.ts
   weeklyObjective: number  // 1..7
   active: boolean
   createdAt: string
@@ -293,7 +294,19 @@ export interface OnboardingDraft {
 `onboardingDraft` es un borrador persistido: el esquema valida su forma, pero
 acepta objetivos semanales intermedios fuera de 1..7 para que un reload no
 convierta el borrador en «corrupto». La validación de negocio se aplica al
-confirmar (`beginJourney`).
+confirmar (`beginJourney`). Los objetivos del borrador también guardan `icon`.
+
+`GoalIconId` es un catálogo cerrado de ids (`banner`, `flame`, `quill`, `gem`,
+`compass`, `star`, `sun`, `moon`, `key`, `cup`, `pine`, `lantern`, `feather`,
+`ring`, `scroll`, `crown`, `map`, `tent`, `book`, `heart`, `leaf`, `brush`,
+`dumbbell`, `home`). El dominio posee la lista para validar sin importar React;
+la UI añade las etiquetas y el sprite. Los mapas resuelven el crest por
+`goalId` en render, de modo que un cambio de icono también actualiza un mapa ya
+dibujado sin alterar pasos ni recompensas.
+
+`SCHEMA_VERSION` es 2. `MIGRATIONS[1]` rellena `goals[].icon` y
+`onboardingDraft.goals[].icon` con el ciclo legado `banner → flame → quill →
+gem` según el índice, conservando el aspecto de los saves anteriores.
 
 `RunObjective.progress` se incrementa solo al completar nodos task/elite/boss cuyo
 `goalId` coincida. Elite da `+1`, no `+2`.
@@ -630,7 +643,13 @@ no persiste ni las metas ni la run y devuelve `false` (el mensaje queda en
   punteros sin hover, el primer toque la revela y el segundo selecciona el nodo.
 - Nodos del mapa: SVG decorativo + botones HTML superpuestos (o controles
   equivalentes), 44×44 px mínimo, foco visible, estados distinguibles sin color
-  (icono, forma, texto `aria-label`). Leyenda visible.
+  (icono, forma, texto `aria-label`). Leyenda visible. Los nodos `task`, `elite`
+  y `boss` muestran el crest del goal; elite añade una estrella y el boss
+  conserva su marco hexagonal. `rest`/`treasure` mantienen el icono de tipo.
+- El picker de iconos (`IconPicker`) es un radiogroup nativo de 44 px con
+  etiqueta textual (visible o `sr-only` en modo compacto). Se usa en el diálogo
+  de goal y en las tarjetas de goal del onboarding; el valor se persiste con el
+  goal y se valida en dominio.
 - Formularios con `<label>`, errores asociados con `aria-describedby`, diálogos
   con foco atrapado y `Esc`. `prefers-reduced-motion` desactiva animaciones no
   esenciales.
@@ -752,8 +771,10 @@ prototipo retirado:
   idempotencia, `summary.totals === run.totals`, deltas del perfil, nueva run
   (perfil conservado, run/días/objetivos reseteados, id/semilla nuevos,
   round-trip) y cierre automático vía reconcile.
-- `schema`: round-trip, JSON inválido, campos ausentes, versión futura, migración,
-  mapas válidos pero injugables y referencias día/mapa/path/rewards incoherentes.
+- `schema`: round-trip, JSON inválido, campos ausentes, versión futura, migración
+  v1→v2 de goals y borradores, mapas válidos pero injugables y referencias
+  día/mapa/path/rewards incoherentes.
+- `goalIcons`: catálogo cerrado, ciclo legado y sugerencia del siguiente icono.
 - `demo`/`content`: setup con objetivo activo sin rutina, demo válido y bloqueo de
   la última rutina activa de una meta activa durante la run.
 - `persistence`/`store`: escritura fallida expuesta como `storageWarning`, estado

@@ -85,7 +85,7 @@ Core rules:
 5. Completing grants rewards and, if it is a task, adds progress to its goal. Skipping grants 0, carries no penalty, and allows the user to advance. The user cannot go back.
 6. Resolving the boss ends the day and shows the summary. If the boss is skipped, the day ends without the closing bonus.
 7. On day 7, the run close is calculated: objectives met, weekly bonus, loot, and totals. A new run can then be started.
-8. Editing goals or routines during the run only affects future maps; the current map does not change.
+8. Editing goals or routines during the run only affects future maps: maps already drawn keep their steps and rewards. The goal icon is the exception; it is resolved when the map renders, so changing it updates the crest on the current map too.
 9. The daily cutoff is local midnight. The POC trusts the device clock.
 10. The app does not verify tasks: the user marks them as completed. This is acceptable for a personal app at this stage.
 
@@ -100,7 +100,7 @@ The map is displayed bottom-up, as in *Slay the Spire*:
 
 Generation rules:
 
-- Depth and width have separate inputs: goals with at least one active routine set the depth base (`goals + offset`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`) and their weekly targets add one layer per seven points, capped at 15 layers; the active routine pool sets layer width (`max(3, min(5, pool + 1))`). One map is generated per day when the day is opened. Changing goals or routines only affects future maps; the current map never changes.
+- Depth and width have separate inputs: goals with at least one active routine set the depth base (`goals + offset`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`) and their weekly targets add one layer per seven points, capped at 15 layers; the active routine pool sets layer width (`max(3, min(5, pool + 1))`). One map is generated per day when the day is opened. Changing goals or routines only affects future maps; the current map never changes its steps or rewards. The goal crest is resolved at render, so icon edits also appear on the current map.
 - Every node must be reachable from the start and must have a path to the boss.
 - Each layer offers at least 3 options.
 - Each node connects to 1–2 nodes in the next layer; multiple paths are allowed to converge.
@@ -156,7 +156,7 @@ Minimum screens:
 4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons.
 5. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
 6. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
-7. **Goals and routines:** minimal CRUD for goals, tasks, effort, and weekly frequency.
+7. **Goals and routines:** minimal CRUD for goals, tasks, effort, weekly frequency, and the goal icon that marks its map nodes.
 8. **Profile / collection:** level, XP, gold, and loot obtained.
 9. **Settings:** export/import JSON, reset, and dev panel.
 
@@ -175,7 +175,7 @@ Daily flow:
 | Entity | Key fields |
 |---|---|
 | **Profile** | id, name, XP, level, gold, loot, creation date |
-| **Goal** | id, title, category, weekly objective, active |
+| **Goal** | id, title, category, icon, weekly objective, active |
 | **Task** | id, goalId, title, effort, active |
 | **Run** | id, seed, start date, status, weekly objectives, days, totals |
 | **Day** | date, status, map, path, resolved nodes, rewards |
@@ -205,7 +205,7 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 The demo is considered complete when it can be run without failures:
 
 1. Open the app from scratch, complete onboarding with demo data, and start a run.
-2. See a map with 3–15 layers + boss (depth follows the goals with active routines and their weekly targets), 3–5 nodes per layer, at least three possible first choices, a forced lane crossing on every route, and all nodes reachable.
+2. See a map with 3–15 layers + boss (depth follows the goals with active routines and their weekly targets), 3–5 nodes per layer, at least three possible first choices, a forced lane crossing on every route, and all nodes reachable. Nodes that carry a routine show their goal's icon.
 3. Choose a task, complete it, and see XP, gold, and weekly progress update.
 4. Reload the page and confirm that the map, path, and rewards are preserved.
 5. Skip a node and confirm that it advances without a reward.

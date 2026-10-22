@@ -600,8 +600,9 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - Current: ink medallion with a 3px surface gap and 4.5px moss ring, plus a `HERE` micro label on desktop only. On mobile the ring is the sole marker.
 - Available: 50px surface-raised medallion, moss border, 4px moss-soft halo, moss-deep icon; a second 1px moss ring at 1.2 scale. These are the only nodes with a filled surface and a pointer.
 - Locked: 45px transparent medallion with a dashed `{colors.hairline-strong}` rim, 52% opacity, and the future node icon. No lock glyph on the map; the dashed rim is the lock.
+- Task, elite, and boss medallions show the goal's crest instead of the type glyph. Elite adds a 15px star mark at top-right; the boss keeps its hexagon frame. `rest` and `treasure` keep campfire and chest icons because they have no goal.
 - Start: 38px dashed medallion with a tent, canvas fill. The label sits below at 10.5px uppercase.
-- Boss: 76×82px dashed hexagon, surface-raised fill, crown icon, `{colors.ink-soft}`. Its label sits above the gate; `BOSS · LOCKED` is micro text.
+- Boss: 76×82px dashed hexagon, surface-raised fill, goal crest, `{colors.ink-soft}`. Its label sits above the gate; `BOSS · LOCKED` is micro text.
 
 **`map-dock`** — Mobile next-step chooser.
 - Surface-raised, rounded `{rounded.xl}`, 1px hairline, shadow level 2; pinned 10px above the tab bar with safe-area inset.
@@ -643,6 +644,11 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 **`segmented-control`** — Effort selector (Light / Medium / Deep).
 - Surface-sunken track, hairline border, rounded `{rounded.full}`, 3px inner padding.
 - Active segment is filled ink with canvas text; inactive is transparent with muted text. The active state is also announced with `aria-pressed`/group semantics if implemented.
+
+**`icon-picker`** — Goal crest selector.
+- Native radio group inside a fieldset; every tile is at least 44×44px and keeps the visible label (or an `sr-only` label in compact mode).
+- Tile: surface, 1px hairline, rounded `{rounded.md}`, 20px line icon centered above a 9.6px label. Hover raises the border to hairline-strong.
+- Selected: moss border, moss-soft fill, a 2px moss-soft ring and a 13px check badge at top-right. The check keeps the selection legible in forced-colors mode, where the moss fill is suppressed. Focus-visible adds the global moss outline. The crest also previews in the goal header and weekly rails.
 
 ### Cards and Panels
 
