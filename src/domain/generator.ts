@@ -1,4 +1,5 @@
 import {
+  LEGACY_MIN_LAYER_NODES,
   MAX_DECISION_LAYERS,
   MAX_ELITES_PER_MAP,
   MAX_LAYER_NODES,
@@ -6,6 +7,7 @@ import {
   MIN_ELITES_PER_MAP,
   MIN_LAYER_NODES,
   RUN_DAYS,
+  STRICT_LAYER_RULES_VERSION,
 } from './balance'
 import { resolveDecisionLayerCount } from './mapDepth'
 import { createRng } from './rng'
@@ -172,32 +174,70 @@ function chooseBoss(
   return rng.pick(tied).choice
 }
 
+interface ConnectLayersOptions {
+  /**
+   * When true, no source connects to the target on its own lane. The whole
+   * boundary becomes a switchback, so every route through it changes lane.
+   */
+  forceDiagonal?: boolean
+}
+
 /**
- * Connects two consecutive layers. A source only reaches the target that sits
- * on its own lane and the two lanes next to it, so a path never jumps across
- * the map. Every source gets 1–2 outgoing edges and every target gets at least
- * one incoming edge. The layer sizes drift by at most one node, which is what
- * makes the neighbour rule always able to cover the next layer.
+ * Connects two consecutive layers. A source only reaches its own lane and the
+ * two adjacent lanes, so a path never jumps across the map. Every source gets
+ * 1–2 outgoing edges and every target gets at least one incoming edge. The
+ * layer sizes drift by at most one node, which is what makes the neighbour rule
+ * always able to cover the next layer.
+ *
+ * A forced-diagonal boundary removes every straight edge (`i → i`), which is
+ * how the generator guarantees that no start-to-boss route can stay in one
+ * lane for the whole map.
  */
-function connectLayers(sources: MapNode[], targets: MapNode[], rng: Rng): void {
+function connectLayers(
+  sources: MapNode[],
+  targets: MapNode[],
+  rng: Rng,
+  options: ConnectLayersOptions = {},
+): void {
   if (targets.length === 0) {
     throw new MapGenerationError('Cannot connect a layer without target nodes.')
   }
 
+  const forceDiagonal = options.forceDiagonal === true
   const edges = sources.map(() => new Set<number>())
 
-  // The targets a source is allowed to reach: its own index and the neighbours.
+  // The targets a source may reach: its own index and the immediate neighbours.
   const reachable = (sourceIndex: number): number[] => {
     const from = Math.max(0, sourceIndex - 1)
     const to = Math.min(targets.length - 1, sourceIndex + 1)
     return range(to - from + 1).map((offset) => from + offset)
   }
 
-  // Anchor every source to the target on the same lane first, so the map reads
-  // as vertical paths that branch locally instead of zig-zagging.
-  sources.forEach((_, sourceIndex) => {
-    edges[sourceIndex]?.add(Math.min(sourceIndex, targets.length - 1))
-  })
+  const allowed = (sourceIndex: number): number[] => {
+    const indexes = reachable(sourceIndex)
+    return forceDiagonal
+      ? indexes.filter((targetIndex) => targetIndex !== sourceIndex)
+      : indexes
+  }
+
+  if (forceDiagonal) {
+    // Anchor every source to a diagonal target first, so the boundary is
+    // guaranteed to contain no straight edge even if the coverage pass is
+    // skipped for an already covered target.
+    sources.forEach((_, sourceIndex) => {
+      const choices = allowed(sourceIndex)
+      if (choices.length === 0) {
+        throw new MapGenerationError('A layer boundary could not force a crossing.')
+      }
+      edges[sourceIndex]?.add(rng.pick(choices))
+    })
+  } else {
+    // Anchor every source to the target on the same lane first, so the map
+    // reads as vertical paths that branch locally instead of zig-zagging.
+    sources.forEach((_, sourceIndex) => {
+      edges[sourceIndex]?.add(Math.min(sourceIndex, targets.length - 1))
+    })
+  }
 
   // Then cover every target that did not receive an edge yet.
   for (let targetIndex = 0; targetIndex < targets.length; targetIndex += 1) {
@@ -207,7 +247,7 @@ function connectLayers(sources: MapNode[], targets: MapNode[], rng: Rng): void {
       .map((_, sourceIndex) => sourceIndex)
       .filter(
         (sourceIndex) =>
-          (edges[sourceIndex]?.size ?? 0) < 2 && reachable(sourceIndex).includes(targetIndex),
+          (edges[sourceIndex]?.size ?? 0) < 2 && allowed(sourceIndex).includes(targetIndex),
       )
       .sort((a, b) => Math.abs(a - targetIndex) - Math.abs(b - targetIndex))
     const sourceIndex = candidates[0]
@@ -221,7 +261,7 @@ function connectLayers(sources: MapNode[], targets: MapNode[], rng: Rng): void {
   sources.forEach((_, sourceIndex) => {
     const indexes = edges[sourceIndex]
     if (!indexes || indexes.size !== 1 || rng.next() >= 0.45) return
-    const choices = reachable(sourceIndex).filter((targetIndex) => !indexes.has(targetIndex))
+    const choices = allowed(sourceIndex).filter((targetIndex) => !indexes.has(targetIndex))
     if (choices.length > 0) indexes.add(rng.pick(choices))
   })
 
@@ -249,8 +289,18 @@ export function generateMap(input: GenerateMapInput): GameMap {
   const rng = createRng(seed)
   // The pool only holds active routines under active goals, so its distinct
   // goal ids are exactly the goals that deserve map depth. Empty goals do not.
-  const goalsWithActiveRoutines = new Set(pool.map((choice) => choice.task.goalId)).size
-  const layerCount = resolveDecisionLayerCount(goalsWithActiveRoutines)
+  const activeGoalIds = new Set(pool.map((choice) => choice.task.goalId))
+  const weeklyTargetSum = input.goals.reduce(
+    (sum, goal) =>
+      goal.active && activeGoalIds.has(goal.id)
+        ? sum + Math.max(0, goal.weeklyObjective)
+        : sum,
+    0,
+  )
+  const layerCount = resolveDecisionLayerCount({
+    goalsWithActiveRoutines: activeGoalIds.size,
+    weeklyTargetSum,
+  })
 
   // A layer can only hold as many task-bearing nodes as there are distinct
   // routines, plus one rest or treasure. The size drifts by at most one node
@@ -268,6 +318,15 @@ export function generateMap(input: GenerateMapInput): GameMap {
     const previous = layerSizes[layerIndex - 1] as number
     const drift = rng.int(3) - 1
     layerSizes.push(Math.min(Math.max(previous + drift, MIN_LAYER_NODES), maxLayerSize))
+  }
+
+  // The exact centre column only exists in odd-sized layers. Guarantee at least
+  // one 3- or 5-node layer so every map shows the middle lane at least once.
+  // When every layer is even it must be 4, so changing the middle layer to 5
+  // (or 3) keeps the one-node drift rule intact.
+  if (!layerSizes.some((size) => size % 2 === 1)) {
+    const middle = Math.floor(layerCount / 2)
+    layerSizes[middle] = maxLayerSize >= MAX_LAYER_NODES ? MAX_LAYER_NODES : MIN_LAYER_NODES
   }
 
   const eliteCount =
@@ -341,8 +400,13 @@ export function generateMap(input: GenerateMapInput): GameMap {
     })
   })
 
+  // One random boundary becomes a switchback: every edge there moves to an
+  // adjacent lane, so no start-to-boss route can avoid crossing at least once.
+  const switchbackLayer = rng.int(layerCount - 1)
   for (let layerIndex = 0; layerIndex < layerCount - 1; layerIndex += 1) {
-    connectLayers(layers[layerIndex] as MapNode[], layers[layerIndex + 1] as MapNode[], rng)
+    connectLayers(layers[layerIndex] as MapNode[], layers[layerIndex + 1] as MapNode[], rng, {
+      forceDiagonal: layerIndex === switchbackLayer,
+    })
   }
 
   const bossChoice = chooseBoss(pool, input.objectives, usedGlobally, rng)
@@ -456,6 +520,12 @@ export function validateMap(map: GameMap): MapValidation {
     errors,
     `map.layers must contain ${MIN_DECISION_LAYERS}–${MAX_DECISION_LAYERS} layers`,
   )
+  // Maps generated before the current rules are kept playable: they may use
+  // two-node layers and straight routes. New maps must satisfy both rules.
+  const strictLayers =
+    typeof map.generatorVersion === 'number' &&
+    map.generatorVersion >= STRICT_LAYER_RULES_VERSION
+  const minLayerNodes = strictLayers ? MIN_LAYER_NODES : LEGACY_MIN_LAYER_NODES
 
   const allNodes = new Map<string, MapNode>()
   const connectionsById = new Map<string, string[]>()
@@ -472,9 +542,9 @@ export function validateMap(map: GameMap): MapValidation {
     }
 
     addIf(
-      layer.length < MIN_LAYER_NODES || layer.length > MAX_LAYER_NODES,
+      layer.length < minLayerNodes || layer.length > MAX_LAYER_NODES,
       errors,
-      `layers[${layerIndex}] must contain ${MIN_LAYER_NODES}–${MAX_LAYER_NODES} nodes`,
+      `layers[${layerIndex}] must contain ${minLayerNodes}–${MAX_LAYER_NODES} nodes`,
     )
 
     const ids: string[] = []
@@ -624,6 +694,33 @@ export function validateMap(map: GameMap): MapValidation {
       }
     }
   })
+
+  // A straight lane is a path that moves from index i to index i on every
+  // boundary. If one exists from start to boss, some route never crosses.
+  if (strictLayers) {
+    const smallestLayer = layerIds.reduce(
+      (smallest, ids) => Math.min(smallest, ids.length),
+      Number.POSITIVE_INFINITY,
+    )
+    for (let lane = 0; lane < smallestLayer; lane += 1) {
+      let straight = true
+      for (let layerIndex = 0; layerIndex < layerCount - 1; layerIndex += 1) {
+        const sourceId = layerIds[layerIndex]?.[lane]
+        const targetId = layerIds[layerIndex + 1]?.[lane]
+        if (!sourceId || !targetId) {
+          straight = false
+          break
+        }
+        if (!(connectionsById.get(sourceId) ?? []).includes(targetId)) {
+          straight = false
+          break
+        }
+      }
+      if (straight) {
+        errors.push(`lane ${lane} offers a path from start to boss with no crossing`)
+      }
+    }
+  }
 
   if (typeof map.currentNodeId === 'string' && !allNodes.has(map.currentNodeId)) {
     errors.push('map.currentNodeId must reference a node in this map')

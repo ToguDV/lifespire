@@ -253,8 +253,8 @@ describe('import preview', () => {
     expect(valid.ok).toBe(true)
     if (valid.ok) {
       expect(valid.document.run?.days[0]?.map).not.toBeNull()
-      expect(valid.document.run?.days[0]?.map?.layers).toHaveLength(4)
-      expect(valid.document.run?.days[0]?.map?.boss).toMatchObject({ id: 'n4_0', layer: 4 })
+      expect(valid.document.run?.days[0]?.map?.layers).toHaveLength(5)
+      expect(valid.document.run?.days[0]?.map?.boss).toMatchObject({ id: 'n5_0', layer: 5 })
     }
 
     const broken = structuredClone(opened)
@@ -283,18 +283,18 @@ describe('import preview', () => {
     expect(map).toEqual(document.run?.days[0]?.map)
   })
 
-  it('round-trips a five-layer map generated from three active goals', () => {
+  it('round-trips a six-layer map generated from three active goals', () => {
     const opened = openDay(documentWithThreeGoals(), { now })
     const map = opened.run?.days[0]?.map
-    expect(map?.layers).toHaveLength(5)
-    expect(map?.boss).toMatchObject({ id: 'n5_0', layer: 5 })
+    expect(map?.layers).toHaveLength(6)
+    expect(map?.boss).toMatchObject({ id: 'n6_0', layer: 6 })
 
     const result = readSaveFile(serializeDocument(opened))
     expect(result.ok).toBe(true)
     if (!result.ok) return
     const parsedMap = result.document.run?.days[0]?.map
-    expect(parsedMap?.layers).toHaveLength(5)
-    expect(parsedMap?.boss).toMatchObject({ id: 'n5_0', layer: 5 })
+    expect(parsedMap?.layers).toHaveLength(6)
+    expect(parsedMap?.boss).toMatchObject({ id: 'n6_0', layer: 6 })
   })
 
   it('rejects malformed JSON, missing fields and future versions clearly', () => {

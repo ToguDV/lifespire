@@ -770,10 +770,10 @@ describe('boss resolution and day summary', () => {
 
     expect(day.status).toBe('completed')
     expect(day.closedAt).toBe(now.toISOString())
-    expect(day.path).toHaveLength(5)
+    expect(day.path).toHaveLength(6)
     expect(
       day.path.map((entry) => resolveNodeById(day.map as GameMap, entry.nodeId)?.layer),
-    ).toEqual([0, 1, 2, 3, 4])
+    ).toEqual([0, 1, 2, 3, 4, 5])
 
     const bossEvent = day.rewards.find((event) => event.nodeType === 'boss')
     const boss = day.map?.boss
@@ -790,7 +790,7 @@ describe('boss resolution and day summary', () => {
     expect(summary.bossCompleted).toBe(true)
     expect(summary.closingBonusXp).toBe(BOSS_CLOSING_BONUS.xp)
     expect(summary.closingBonusGold).toBe(BOSS_CLOSING_BONUS.gold)
-    expect(summary.completed).toBe(5)
+    expect(summary.completed).toBe(6)
     expect(summary.skipped).toBe(0)
     expect(summary.loot).toEqual(
       day.rewards.flatMap((event) => (event.lootItem ? [event.lootItem] : [])),
@@ -841,7 +841,7 @@ describe('boss resolution and day summary', () => {
     expect(summary.closingBonusXp).toBe(0)
     expect(summary.closingBonusGold).toBe(0)
     expect(summary.skipped).toBe(1)
-    expect(summary.completed).toBe(4)
+    expect(summary.completed).toBe(5)
     expect(summary.xp).toBe(
       day.rewards.reduce((total, event) => total + event.xp, 0),
     )
@@ -999,7 +999,7 @@ describe('day lifecycle boundaries', () => {
     expect(day.summary?.closingBonusXp).toBe(BOSS_CLOSING_BONUS.xp)
     expect(run.totals.daysPlayed).toBe(7)
     expect(run.totals.daysMissed).toBe(0)
-    expect(run.totals.nodesCompleted).toBe(5)
+    expect(run.totals.nodesCompleted).toBe(6)
 
     const eventXp = day.rewards.reduce((total, event) => total + event.xp, 0)
     const eventGold = day.rewards.reduce((total, event) => total + event.gold, 0)

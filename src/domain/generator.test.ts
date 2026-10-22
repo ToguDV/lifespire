@@ -119,6 +119,42 @@ function variationsFor(index: number): { goals: Goal[]; tasks: Task[]; objective
   return { goals, tasks, objectives }
 }
 
+function depthFor(goals: readonly Goal[], tasks: readonly Task[]): number {
+  const activeGoals = new Map(
+    goals.filter((goal) => goal.active).map((goal) => [goal.id, goal] as const),
+  )
+  const activeGoalIds = new Set(
+    tasks
+      .filter((task) => task.active && activeGoals.has(task.goalId))
+      .map((task) => task.goalId),
+  )
+  const weeklyTargetSum = [...activeGoalIds].reduce(
+    (sum, goalId) => sum + Math.max(0, activeGoals.get(goalId)?.weeklyObjective ?? 0),
+    0,
+  )
+  return resolveDecisionLayerCount({
+    goalsWithActiveRoutines: activeGoalIds.size,
+    weeklyTargetSum,
+  })
+}
+
+function hasStraightLaneRoute(map: GameMap): boolean {
+  const smallestLayer = Math.min(...map.layers.map((layer) => layer.length))
+  for (let lane = 0; lane < smallestLayer; lane += 1) {
+    let straight = true
+    for (let layerIndex = 0; layerIndex < map.layers.length - 1; layerIndex += 1) {
+      const source = map.layers[layerIndex]?.[lane]
+      const target = map.layers[layerIndex + 1]?.[lane]
+      if (!source || !target || !source.connections.includes(target.id)) {
+        straight = false
+        break
+      }
+    }
+    if (straight) return true
+  }
+  return false
+}
+
 function goalsFor(goalCount: number): {
   goals: Goal[]
   tasks: Task[]
@@ -176,8 +212,8 @@ describe('generateMap structure', () => {
     expect(map.createdAt).toBe('2026-10-21T11:22:33.000Z')
     expect(map.currentNodeId).toBeNull()
     expect(map.id).toBe('run_test:map:5')
-    expect(map.boss.id).toBe('n4_0')
-    expect(map.boss.layer).toBe(4)
+    expect(map.boss.id).toBe('n5_0')
+    expect(map.boss.layer).toBe(5)
     expect(map.boss.connections).toEqual([])
     map.layers.forEach((layer, layerIndex) => {
       layer.forEach((node, nodeIndex) => {
@@ -211,7 +247,7 @@ describe('generateMap structure', () => {
 
   it('keeps task-bearing nodes distinct when the pool is large enough', () => {
     const goals = baseGoals()
-    const tasks = Array.from({ length: 20 }, (_, index) =>
+    const tasks = Array.from({ length: 40 }, (_, index) =>
       makeTask(
         `task-large-${String(index).padStart(2, '0')}`,
         (goals[index % goals.length] as Goal).id,
@@ -230,7 +266,7 @@ describe('generateMap structure', () => {
 
   it('produces the expected layer sizes and elite count', () => {
     const map = generateMap(baseInput())
-    expect(map.layers).toHaveLength(resolveDecisionLayerCount(baseGoals().length))
+    expect(map.layers).toHaveLength(depthFor(baseGoals(), baseTasks()))
     for (const layer of map.layers) {
       expect(layer.length).toBeGreaterThanOrEqual(MIN_LAYER_NODES)
       expect(layer.length).toBeLessThanOrEqual(MAX_LAYER_NODES)
@@ -239,9 +275,58 @@ describe('generateMap structure', () => {
     expect(elites.length).toBeGreaterThanOrEqual(MIN_ELITES_PER_MAP)
     expect(elites.length).toBeLessThanOrEqual(MAX_ELITES_PER_MAP)
   })
+
+  it('keeps three to five nodes per layer and shows the centre lane at least once', () => {
+    for (let index = 0; index < 200; index += 1) {
+      const { goals, tasks, objectives } = variationsFor(index)
+      const map = generateMap(
+        baseInput({
+          runId: `run_centre_${index}`,
+          runSeed: `run:centre:${index}`,
+          dayIndex: index % 7,
+          goals,
+          tasks,
+          objectives,
+        }),
+      )
+
+      for (const layer of map.layers) {
+        expect(layer.length).toBeGreaterThanOrEqual(MIN_LAYER_NODES)
+        expect(layer.length).toBeLessThanOrEqual(MAX_LAYER_NODES)
+      }
+      expect(map.layers.some((layer) => layer.length % 2 === 1)).toBe(true)
+    }
+  })
 })
 
 describe('generateMap depth from goals with active routines', () => {
+  it('grows the map with the weekly targets of the same goals', () => {
+    const lightGoal = makeGoal('goal-light', 'Light goal', 1)
+    const heavyGoal = makeGoal('goal-heavy', 'Heavy goal', 7)
+    const tasks = [
+      makeTask('task-light', lightGoal.id, 'Light routine', 'light'),
+      makeTask('task-heavy', heavyGoal.id, 'Heavy routine', 'light'),
+    ]
+
+    const light = generateMap(
+      baseInput({
+        goals: [lightGoal],
+        tasks: [tasks[0] as Task],
+        objectives: [makeObjective(lightGoal, 0)],
+      }),
+    )
+    const heavy = generateMap(
+      baseInput({
+        goals: [heavyGoal],
+        tasks: [tasks[1] as Task],
+        objectives: [makeObjective(heavyGoal, 0)],
+      }),
+    )
+
+    expect(light.layers).toHaveLength(3)
+    expect(heavy.layers).toHaveLength(4)
+  })
+
   it('builds fifteen layers for ten goals with routines', () => {
     const { goals, tasks, objectives } = goalsFor(10)
     const map = generateMap(baseInput({ goals, tasks, objectives }))
@@ -264,7 +349,7 @@ describe('generateMap depth from goals with active routines', () => {
           (['light', 'medium', 'high'] as const)[index % 3] as Effort,
         ),
       )
-      const goalsWithRoutines = new Set(tasks.map((task) => task.goalId)).size
+      const expectedLayers = depthFor(goals, tasks)
 
       for (const seed of seeds) {
         const map = generateMap(
@@ -278,7 +363,7 @@ describe('generateMap depth from goals with active routines', () => {
         )
 
         expect(validateMap(map)).toEqual({ ok: true })
-        expect(map.layers).toHaveLength(resolveDecisionLayerCount(goalsWithRoutines))
+        expect(map.layers).toHaveLength(expectedLayers)
         if (poolSize >= 10) {
           expect(map.layers).toHaveLength(15)
           expect(map.boss.layer).toBe(15)
@@ -301,13 +386,13 @@ describe('generateMap depth from goals with active routines', () => {
     }
   })
 
-  it('builds seven layers for four goals with routines', () => {
+  it('builds nine layers for four goals with routines and weekly targets', () => {
     const { goals, tasks, objectives } = goalsFor(4)
     const map = generateMap(baseInput({ goals, tasks, objectives }))
 
-    expect(map.layers).toHaveLength(7)
-    expect(map.boss.layer).toBe(7)
-    expect(map.boss.id).toBe('n7_0')
+    expect(map.layers).toHaveLength(9)
+    expect(map.boss.layer).toBe(9)
+    expect(map.boss.id).toBe('n9_0')
   })
 
   it('counts only goals that actually have an active routine', () => {
@@ -320,9 +405,9 @@ describe('generateMap depth from goals with active routines', () => {
       baseInput({ goals, tasks: onlyThreeGoalsHaveRoutines, objectives }),
     )
 
-    expect(map.layers).toHaveLength(5)
-    expect(map.boss.layer).toBe(5)
-    expect(map.boss.id).toBe('n5_0')
+    expect(map.layers).toHaveLength(6)
+    expect(map.boss.layer).toBe(6)
+    expect(map.boss.id).toBe('n6_0')
   })
 
   it('ignores inactive goals when resolving depth', () => {
@@ -330,9 +415,9 @@ describe('generateMap depth from goals with active routines', () => {
     goals[2] = { ...(goals[2] as Goal), active: false }
     const map = generateMap(baseInput({ goals, tasks, objectives: objectives.slice(0, 2) }))
 
-    expect(map.layers).toHaveLength(4)
-    expect(map.boss.layer).toBe(4)
-    expect(map.boss.id).toBe('n4_0')
+    expect(map.layers).toHaveLength(5)
+    expect(map.boss.layer).toBe(5)
+    expect(map.boss.id).toBe('n5_0')
     expect(validateMap(map)).toEqual({ ok: true })
   })
 })
@@ -384,6 +469,25 @@ describe('generateMap map shape', () => {
           }
         })
       })
+    }
+  })
+
+  it('never offers a start-to-boss route with zero lane crossings', () => {
+    for (let index = 0; index < 200; index += 1) {
+      const { goals, tasks, objectives } = variationsFor(index)
+      const map = generateMap(
+        baseInput({
+          runId: `run_crossing_${index}`,
+          runSeed: `run:crossing:${index}`,
+          dayIndex: index % 7,
+          goals,
+          tasks,
+          objectives,
+        }),
+      )
+
+      expect(hasStraightLaneRoute(map)).toBe(false)
+      expect(validateMap(map)).toEqual({ ok: true })
     }
   })
 })
@@ -505,6 +609,29 @@ describe('validateMap', () => {
     expect(validateMap(generateMap(baseInput()))).toEqual({ ok: true })
   })
 
+  it('rejects a map that keeps a lane straight from start to boss', () => {
+    const map = generateMap(baseInput())
+    const broken = structuredClone(map)
+
+    for (let layerIndex = 0; layerIndex < broken.layers.length - 1; layerIndex += 1) {
+      const source = broken.layers[layerIndex]?.[0]
+      const target = broken.layers[layerIndex + 1]?.[0]
+      if (!source || !target) throw new Error('fixture needs a first lane in every layer')
+      if (source.connections.includes(target.id)) continue
+      if (source.connections.length < 2) {
+        source.connections.push(target.id)
+      } else {
+        source.connections[1] = target.id
+      }
+    }
+
+    const result = validateMap(broken)
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.errors.join('\n')).toMatch(/no crossing/)
+    }
+  })
+
   it('reports broken layer sizes, tasks, elites, rewards and connections', () => {
     const map = generateMap(baseInput())
     const broken = structuredClone(map)
@@ -522,7 +649,7 @@ describe('validateMap', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.errors.length).toBeGreaterThan(0)
-      expect(result.errors.join('\n')).toMatch(/layers\[0\].*2–3|layers\[0\].*nodes/)
+      expect(result.errors.join('\n')).toMatch(/layers\[0\].*nodes/)
       expect(result.errors.join('\n')).toMatch(/boss.connections/)
     }
   })

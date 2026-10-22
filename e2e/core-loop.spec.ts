@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { MAX_DECISION_LAYERS, MIN_DECISION_LAYERS } from '../src/domain/balance'
+import {
+  MAX_DECISION_LAYERS,
+  MAX_LAYER_NODES,
+  MIN_DECISION_LAYERS,
+  MIN_LAYER_NODES,
+} from '../src/domain/balance'
 
 const DEMO_BUTTON = /Begin with demo data/i
 const ACTIONABLE_NODE = 'button[data-node-id][data-status="available"], button[data-node-id][data-status="current"]'
@@ -96,7 +101,7 @@ test.describe('core loop', () => {
 })
 
 test.describe('map shape', () => {
-  test('layers hold two to five nodes and only connect to their neighbours', async ({ page }) => {
+  test('layers hold three to five nodes and only connect to their neighbours', async ({ page }) => {
     await startDemoRun(page)
     await openMap(page)
 
@@ -122,9 +127,10 @@ test.describe('map shape', () => {
     expect(layers.length).toBeLessThanOrEqual(MAX_DECISION_LAYERS)
 
     for (const layer of layers) {
-      expect(layer.length).toBeGreaterThanOrEqual(2)
-      expect(layer.length).toBeLessThanOrEqual(5)
+      expect(layer.length).toBeGreaterThanOrEqual(MIN_LAYER_NODES)
+      expect(layer.length).toBeLessThanOrEqual(MAX_LAYER_NODES)
     }
+    expect(layers.some((layer) => layer.length % 2 === 1)).toBe(true)
 
     layers.forEach((layer, layerIndex) => {
       const next = layers[layerIndex + 1]
@@ -137,6 +143,16 @@ test.describe('map shape', () => {
         }
       })
     })
+
+    const smallestLayer = Math.min(...layers.map((layer) => layer.length))
+    for (let lane = 0; lane < smallestLayer; lane += 1) {
+      const straight = layers.every((layer, layerIndex) => {
+        const next = layers[layerIndex + 1]
+        if (!next) return true
+        return layer[lane]?.connections.includes(next[lane]?.id ?? '')
+      })
+      expect(straight).toBe(false)
+    }
   })
 })
 
