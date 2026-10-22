@@ -8,22 +8,22 @@
 - **Workflow:** [`WORKFLOW.md`](./WORKFLOW.md) sets the commit format, PR
   content, the TDD requirement, and the mandatory cleanup at the end of a
   session. It is binding for agents and humans.
-- **Visual design:** [`design/`](./design) is the **accepted** proposal and the
-  binding visual reference. Specifically:
+- **Visual design:** the shipped application is the **accepted** visual
+  reference, together with the design-system specification. Specifically:
   - [`design/DESIGN.md`](./design/DESIGN.md): design system (color, typography,
     spacing, components, and responsive rules).
-  - [`design/assets/tokens.css`](./design/assets/tokens.css): canonical tokens.
-  - [`design/assets/app.css`](./design/assets/app.css): prototype styles.
-  - [`design/app.html`](./design/app.html): interactive prototype with the seven
-    screens and their states.
-  - [`design/captures/`](./design/captures): real app captures (map in light/dark
-    theme, desktop and mobile).
-  - [`design/assets/fonts/`](./design/assets/fonts): Alegreya and Alegreya Sans
+  - [`src/styles/tokens.css`](./src/styles/tokens.css): canonical tokens.
+  - [`src/styles/app.css`](./src/styles/app.css) and
+    [`src/styles/ui.css`](./src/styles/ui.css): the shipped styles.
+  - [`public/fonts/`](./public/fonts): Alegreya and Alegreya Sans
     (SIL OFL 1.1), self-hosted.
+
+The static HTML proposal that used to live in `design/` has been retired; the
+app is the reference and `design/DESIGN.md` is its spec.
 
 Do not invent a parallel visual direction or replace tokens with loose values.
 When implementing a screen, reuse the tokens, classes, components, and
-hierarchies from `design/`. Necessary differences are documented in
+hierarchies from `src/styles/`. Necessary differences are documented in
 `docs/ARCHITECTURE.md` or in a design note.
 
 The *Slay the Spire* inspiration is strictly mechanical: no names, art, layouts,

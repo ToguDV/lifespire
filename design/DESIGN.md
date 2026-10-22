@@ -377,6 +377,12 @@ components:
     border: "0 0 1px {colors.hairline} solid"
 ---
 
+> **Status.** This document is the design-system specification for the shipped
+> application. The app itself — `src/` and `public/` — is the visual reference:
+> it is what runs, and it is where any new state must be built. The static HTML
+> proposal that used to live in this folder has been retired; its tokens were
+> ported to `src/styles/tokens.css` and its rules are recorded below.
+
 ## Overview
 
 LifeSpire is a daily path game about small promises. It borrows the silhouette of a deck-building roguelike — a branched route, a handful of choices, a run that ends — but replaces combat with the routines a person actually keeps. The interface is a field journal: warm stone paper, deep ink, and a single moss accent. The map is the largest surface and the strongest state change. Everything else exists to help the player read it.
@@ -394,7 +400,7 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 
 ## Colors
 
-> Source: `design/assets/tokens.css`. Day values are the semantic defaults; Night values live under the `-night` suffix and replace the same roles under `html[data-theme="dark"]`. All body-text pairings meet WCAG AA.
+> Source: `src/styles/tokens.css`. Day values are the semantic defaults; Night values live under the `-night` suffix and replace the same roles under `html[data-theme="dark"]`. All body-text pairings meet WCAG AA.
 
 ### Day
 - **Canvas** ({colors.canvas}): The page floor and the colour of paper in daylight.
@@ -447,7 +453,7 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 ## Typography
 
 ### Font Family
-**Alegreya** (display): A warm old-style serif with a genuine italic. It gives the product its field-journal voice. Used for `h1`–`h3`, place names, seals, day numerals, and large stats. Weights 400–700; italic 400–700. Self-hosted WOFF2 at `assets/fonts/`.
+**Alegreya** (display): A warm old-style serif with a genuine italic. It gives the product its field-journal voice. Used for `h1`–`h3`, place names, seals, day numerals, and large stats. Weights 400–700; italic 400–700. Self-hosted WOFF2 in `public/fonts/`.
 
 **Alegreya Sans** (interface): Humanist sans with high x-height and excellent small-size behaviour. Used for body copy, controls, navigation, micro labels, and metadata. Weights 400, 500, 700. Self-hosted WOFF2.
 
@@ -476,7 +482,7 @@ Fallbacks: `Iowan Old Style`, `Palatino Linotype`, Georgia for display; `Gill Sa
 - **Body copy never drops below 13.5px** on mobile. The smallest text is metadata, not content.
 - **Numbers use the display face.** Gold, levels, XP, day numbers, and seals are set in Alegreya with lining figures.
 - **Two faces, two jobs.** Alegreya for voice; Alegreya Sans for action and instruction.
-- **One editorial exception.** The proposal cover uses a 102px hero display; the product UI caps `{typography.display-xl}` at 84px.
+- **One editorial exception.** The design proposal cover used a 102px hero display; the product UI caps `{typography.display-xl}` at 84px.
 
 ## Layout
 
@@ -705,7 +711,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - **Overflow**: no horizontal scroll at 320, 390, 768, 960, 1024, 1200, or 1440. Long map labels are positioned outside the stage on compact screens but clipped by the map frame, never by the viewport.
 
 ### Image Behavior
-- Screenshots are static; the real map is inline SVG with `vector-effect: non-scaling-stroke`.
+- Raster assets are static; the real map is inline SVG with `vector-effect: non-scaling-stroke`.
 - Decorative illustrations are inline SVG, stroke-only, and `role="presentation"`.
 - The welcome art uses `xMidYMin slice` on mobile so the spire stays visible when the art is short; the camp map art uses `xMidYMid slice` and crops its edges.
 - Fonts are self-hosted WOFF2; no external requests. Images use explicit dimensions to avoid layout shift.
@@ -718,17 +724,15 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 4. When adding a screen, give it one primary action and one quiet exit. Reuse `map-frame`, `summary-card`, or `map-rail` before inventing a container.
 5. Keep the mobile first view action-led. If a new panel pushes the primary action below the fold, collapse the panel into a tab or a disclosure.
 6. Test both themes at 390×844 and 1440×900, then check 320×700 for label collisions, 960×900 for the sidebar, and 1200×900 for the rails.
-7. Run the prototype with `theme=light`, `theme=dark`, and no query (system) to confirm the pre-paint theme and the switch stay in sync.
+7. Run the app in Day, Night and system themes (`pnpm dev`, then the theme control) to confirm the pre-paint theme and the switch stay in sync.
 8. If a new state is added, document it in the node grammar and add a text label; never rely on opacity alone.
 
 ## Known Gaps
 
-- Visual-only prototype: no backend, accounts, save data, or real game logic. The name field and primary actions are visual except for hashing and theme persistence.
-- The run is a fixed day-3 snapshot (Run I, 240 gold, level 4, Wayfarer 2/5). Rewards, level-up, and the sealed summary are illustrative rather than simulated.
-- No empty, error, failure, offline, audio, haptic, or onboarding-validation states.
+- No backend, accounts, or cloud sync: the app is local-first and keeps every document in `localStorage`.
+- No audio or haptic feedback.
 - No combat or deck-building loop; the product is a day-keeper, not a card battler.
 - No localization layer; all copy is English placeholder.
-- No dark-mode asset variants beyond the token swap; the screenshots are captured from the live prototype.
+- No dark-mode asset variants beyond the token swap.
 - The map label collision threshold is handled with a 1199px side-label layout and a 700px-height compact mode; extremely short landscape phones (< 600px wide and < 420px tall) are not covered.
 - Hover states are not specified; implementation may add a 180ms border/translate response without changing meaning.
-- Focus trapping, modal behavior, and form validation are not implemented because there are no modal or submit flows yet.

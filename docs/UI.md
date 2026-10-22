@@ -1,20 +1,23 @@
 # UI notes — shell, tokens and components
 
-`design/` is the accepted visual reference. The React UI ports it rather than
-inventing a parallel system.
+The shipped app is the accepted visual reference. `design/DESIGN.md` is its
+specification; the React UI implements it rather than inventing a parallel
+system.
 
 ## Sources
 
-| Prototype | App |
+| Concern | Where it lives |
 | --- | --- |
-| `design/assets/tokens.css` | `src/styles/tokens.css` (font URLs point to `/fonts/`) |
-| `design/assets/app.css` | `src/styles/app.css` (copied) |
-| `design/assets/fonts/*.woff2` | `public/fonts/*.woff2` |
-| `design/app.html` sprite (`i-*`) | `src/ui/components/Icon.tsx` |
+| Design system (colours, type, spacing, radii, components) | `design/DESIGN.md` |
+| Canonical tokens | `src/styles/tokens.css` (font URLs point to `/fonts/`) |
+| Shell and component styles | `src/styles/app.css` |
+| Dialogs, toast, empty states, dev panel, recovery, settings | `src/styles/ui.css` |
+| Onboarding and goal/routine editors | `src/styles/m3.css` |
+| Alegreya + Alegreya Sans WOFF2 | `public/fonts/*.woff2` |
+| Icon sprite (`i-*`) | `src/ui/components/Icon.tsx` |
 
-Small additions that the prototype did not need live in `src/styles/ui.css`:
-dialogs, toast, empty states, the development panel, recovery and the settings
-screen. They use the same tokens and component classes. No UI kit, router or
+The static HTML proposal that used to live in `design/` has been retired; the
+app and `design/DESIGN.md` are the only references now. No UI kit, router or
 third-party visual asset is used.
 
 ## Shell and navigation
