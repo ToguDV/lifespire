@@ -5,6 +5,19 @@ import type { Day, GameMap, MapNode, NodeType } from '../../domain/types'
 export const MAP_WIDTH = 560
 export const MAP_HEIGHT = 700
 
+/**
+ * Terrain lines of the map. They read as the ridges the path climbs, so they
+ * are shared by the drawn map and the veiled one.
+ */
+export const MAP_CONTOURS: readonly string[] = [
+  'M-30 570c100-26 150 32 245 4s150-62 245-38 90 22 120 8',
+  'M-20 440c92-22 140 34 232 8s148-56 238-36 92 14 130-2',
+  'M-30 310c96-24 150 34 244 8s150-54 240-34 90 10 120-4',
+  'M-20 180c88-22 142 32 234 8s150-52 238-32 92 8 128-4',
+  'M-30 664c104-18 162 24 268 4s180-24 352-12',
+  'M-30 90c112-16 166 22 270 4s190-20 350-10',
+]
+
 const START_Y = 660
 const BOSS_Y = 90
 const LAYER_Y = [570, 440, 310, 180] as const

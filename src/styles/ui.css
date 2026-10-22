@@ -333,16 +333,18 @@ button.text-link:hover {
 }
 
 .map-empty {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 7px;
   width: min(100%, 400px);
-  margin: auto;
   padding: 20px;
   text-align: center;
+  transform: translate(-50%, -50%);
 }
 
 .map-empty__medallion {

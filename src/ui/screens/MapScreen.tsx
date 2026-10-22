@@ -7,6 +7,7 @@ import {
   Button,
   DayPips,
   Icon,
+  MapBackdrop,
   MapGraph,
   Panel,
   PanelHead,
@@ -14,6 +15,7 @@ import {
 } from '../components'
 import type { IconName } from '../components'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIcon, romanDay } from '../lib/format'
+import { MAP_CONTOURS } from '../lib/mapLayout'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
 const STATUS_COPY: Record<string, string> = {
@@ -209,30 +211,30 @@ function EmptyMapFrame({
       </div>
 
       <div className="map-canvas-wrap">
-        <svg
-          className="map-lines map-lines--empty"
-          viewBox="0 0 560 700"
-          aria-hidden="true"
-          focusable="false"
-        >
-          <g className="contour">
-            <path d="M-30 610c100-26 150 32 245 4s150-62 245-38 90 22 120 8" />
-            <path d="M-20 470c92-22 140 34 232 8s148-56 238-36 92 14 130-2" />
-            <path d="M-30 332c96-24 150 34 244 8s150-54 240-34 90 10 120-4" />
-            <path d="M-20 204c88-22 142 32 234 8s150-52 238-32 92 8 128-4" />
-            <path d="M-30 678c104-18 162 24 268 4s180-24 352-12" />
-            <path d="M-30 112c112-16 166 22 270 4s190-20 350-10" />
-          </g>
-        </svg>
+        <div className="map-canvas">
+          <svg
+            className="map-lines map-lines--empty"
+            viewBox="0 0 560 700"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <MapBackdrop />
+            <g className="contour">
+              {MAP_CONTOURS.map((d) => (
+                <path key={d} d={d} />
+              ))}
+            </g>
+          </svg>
 
-        <div className="map-empty">
-          <span className="map-empty__medallion">
-            <Icon name={icon} />
-          </span>
-          <span className="micro">{micro}</span>
-          <h2>{title}</h2>
-          <p>{copy}</p>
-          {action}
+          <div className="map-empty">
+            <span className="map-empty__medallion">
+              <Icon name={icon} />
+            </span>
+            <span className="micro">{micro}</span>
+            <h2>{title}</h2>
+            <p>{copy}</p>
+            {action}
+          </div>
         </div>
       </div>
 

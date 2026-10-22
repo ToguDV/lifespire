@@ -7,28 +7,12 @@ import { NODE_TYPE_ICON, romanDay } from '../lib/format'
 import {
   buildMapLayout,
   classifyMapEdges,
+  MAP_CONTOURS,
   type MapEdgeTone,
   type MapNodeLayout,
 } from '../lib/mapLayout'
 import { nodeAriaLabel, nodeTitle } from '../lib/nodeCopy'
-
-const CONTOURS = [
-  'M-30 570c100-26 150 32 245 4s150-62 245-38 90 22 120 8',
-  'M-20 440c92-22 140 34 232 8s148-56 238-36 92 14 130-2',
-  'M-30 310c96-24 150 34 244 8s150-54 240-34 90 10 120-4',
-  'M-20 180c88-22 142 32 234 8s150-52 238-32 92 8 128-4',
-  'M-30 664c104-18 162 24 268 4s180-24 352-12',
-  'M-30 90c112-16 166 22 270 4s190-20 350-10',
-]
-
-const PINES: Array<{ x: number; y: number; size: number }> = [
-  { x: 32, y: 456, size: 15 },
-  { x: 52, y: 474, size: 11 },
-  { x: 500, y: 364, size: 16 },
-  { x: 482, y: 384, size: 11 },
-  { x: 62, y: 244, size: 13 },
-  { x: 486, y: 560, size: 14 },
-]
+import { MapBackdrop } from './MapBackdrop'
 
 const EDGE_CLASS: Record<MapEdgeTone, string> = {
   done: 'path-done',
@@ -167,23 +151,11 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
             aria-hidden="true"
             focusable="false"
           >
+            <MapBackdrop />
             <g className="contour">
-              {CONTOURS.map((d) => (
+              {MAP_CONTOURS.map((d) => (
                 <path key={d} d={d} />
               ))}
-            </g>
-            <g className="decor">
-              {PINES.map((pine) => (
-                <use
-                  key={`${pine.x}-${pine.y}`}
-                  href="#i-pine"
-                  x={pine.x}
-                  y={pine.y}
-                  width={pine.size}
-                  height={pine.size}
-                />
-              ))}
-              <path d="M84 520c8-4 16-4 24 0M448 300c8-4 16-4 24 0M92 156c8-4 16-4 24 0" />
             </g>
             <circle
               className="boss-halo"

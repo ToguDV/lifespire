@@ -80,6 +80,20 @@ test.describe('core loop', () => {
 })
 
 test.describe('map shape', () => {
+  test('the forest backs the map without carrying information', async ({ page }) => {
+    await startDemoRun(page)
+    await openMap(page)
+
+    const plate = page.locator('svg.map-lines')
+    await expect(plate).toHaveAttribute('aria-hidden', 'true')
+    await expect(page.locator('.map-backdrop')).toHaveCount(1)
+
+    // The decoration never takes the map away from the nodes.
+    const node = page.locator(ACTIONABLE_NODE).first()
+    await node.click()
+    await expect(page.getByRole('button', { name: /Mark complete/i })).toBeVisible()
+  })
+
   test('layers hold two to five nodes and only connect to their neighbours', async ({ page }) => {
     await startDemoRun(page)
     await openMap(page)

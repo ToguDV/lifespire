@@ -698,6 +698,7 @@ body:not([data-screen="map"]) .map-dock {
   height: 100%;
   overflow: visible;
   color: var(--hairline);
+  pointer-events: none;
 }
 
 .map-lines .contour {
@@ -809,6 +810,67 @@ body:not([data-screen="map"]) .map-dock {
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Map forest ------------------------------------------------- */
+
+/*
+ * The wood that backs the map. Three depth planes, all in stone: the far
+ * treeline is barely there, the middle trees read as a wood, and the near
+ * undergrowth and the two animals are the only pieces with weight.
+ */
+.map-backdrop {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.map-backdrop__mist {
+  fill: url(#map-haze);
+  stroke: none;
+}
+
+.map-backdrop__ridge {
+  stroke-width: 1;
+  opacity: 0.45;
+}
+
+.map-backdrop__far {
+  color: var(--hairline-strong);
+  opacity: 0.45;
+}
+
+.map-backdrop__far use {
+  stroke-width: 1;
+}
+
+.map-backdrop__mid {
+  color: var(--hairline-strong);
+  opacity: 0.75;
+}
+
+.map-backdrop__mid use {
+  stroke-width: 1.3;
+}
+
+.map-backdrop__near {
+  color: var(--ink-soft);
+  opacity: 0.62;
+}
+
+.map-backdrop__near use {
+  stroke-width: 1.8;
+}
+
+.map-backdrop__fauna {
+  color: var(--ink-soft);
+  opacity: 0.58;
+}
+
+.map-backdrop__fauna use {
+  fill: currentColor;
+  stroke: none;
 }
 
 /* Map nodes -------------------------------------------------- */
