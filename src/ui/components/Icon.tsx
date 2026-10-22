@@ -146,8 +146,14 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
       <path d="m12 3 5.2 5.2M8.3 13.4l2.3 2.3" />
     </>
   ),
+  // The flame path is narrower than the rest; scale it to match their optical size.
   flame: (
-    <path d="M12 21c-3.1 0-5.2-2-5.2-4.8 0-2.6 1.9-4.2 3.1-6.6.3-.5.5-1.1.6-1.8 1.4 1.1 2.2 2.5 2.4 4.1 1-.8 1.6-1.8 1.9-3.1 1.9 1.6 3 4 3 6.3C17.8 19 15.5 21 12 21z" />
+    <g transform="translate(12 16.2) scale(1.5) translate(-12 -16.2)">
+      <path
+        vectorEffect="non-scaling-stroke"
+        d="M12 21c-3.1 0-5.2-2-5.2-4.8 0-2.6 1.9-4.2 3.1-6.6.3-.5.5-1.1.6-1.8 1.4 1.1 2.2 2.5 2.4 4.1 1-.8 1.6-1.8 1.9-3.1 1.9 1.6 3 4 3 6.3C17.8 19 15.5 21 12 21z"
+      />
+    </g>
   ),
   feather: (
     <>
