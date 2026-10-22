@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { MAX_DECISION_LAYERS, MIN_DECISION_LAYERS } from '../src/domain/balance'
 
 const DEMO_BUTTON = /Begin with demo data/i
 const ACTIONABLE_NODE = 'button[data-node-id][data-status="available"], button[data-node-id][data-status="current"]'
@@ -82,8 +83,8 @@ test.describe('core loop', () => {
     await openMap(page)
 
     const layerCount = await readMapLayerCount(page)
-    expect(layerCount).toBeGreaterThanOrEqual(3)
-    expect(layerCount).toBeLessThanOrEqual(5)
+    expect(layerCount).toBeGreaterThanOrEqual(MIN_DECISION_LAYERS)
+    expect(layerCount).toBeLessThanOrEqual(MAX_DECISION_LAYERS)
 
     for (let step = 0; step < layerCount + 1; step += 1) {
       await completeFirstNode(page)
@@ -117,8 +118,8 @@ test.describe('map shape', () => {
 
     expect(map).toBeDefined()
     const layers = map?.layers ?? []
-    expect(layers.length).toBeGreaterThanOrEqual(3)
-    expect(layers.length).toBeLessThanOrEqual(5)
+    expect(layers.length).toBeGreaterThanOrEqual(MIN_DECISION_LAYERS)
+    expect(layers.length).toBeLessThanOrEqual(MAX_DECISION_LAYERS)
 
     for (const layer of layers) {
       expect(layer.length).toBeGreaterThanOrEqual(2)

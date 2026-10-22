@@ -252,6 +252,55 @@ describe('generateMap depth from goals with active routines', () => {
     expect(validateMap(map)).toEqual({ ok: true })
   })
 
+  it('keeps ten-goal maps valid across routine pools from one to twenty', () => {
+    const seeds = ['alpha', 'beta', 'gamma']
+    for (let poolSize = 1; poolSize <= 20; poolSize += 1) {
+      const { goals, objectives } = goalsFor(10)
+      const tasks = Array.from({ length: poolSize }, (_, index) =>
+        makeTask(
+          `task-depth-pool-${index}`,
+          `goal-depth-${index % 10}`,
+          `Depth pool routine ${index}`,
+          (['light', 'medium', 'high'] as const)[index % 3] as Effort,
+        ),
+      )
+      const goalsWithRoutines = new Set(tasks.map((task) => task.goalId)).size
+
+      for (const seed of seeds) {
+        const map = generateMap(
+          baseInput({
+            runId: `run_depth_pool_${poolSize}`,
+            runSeed: `run:depth:${seed}`,
+            goals,
+            tasks,
+            objectives,
+          }),
+        )
+
+        expect(validateMap(map)).toEqual({ ok: true })
+        expect(map.layers).toHaveLength(resolveDecisionLayerCount(goalsWithRoutines))
+        if (poolSize >= 10) {
+          expect(map.layers).toHaveLength(15)
+          expect(map.boss.layer).toBe(15)
+        }
+
+        const elites = map.layers.flat().filter((node) => node.type === 'elite')
+        expect(elites.length).toBeGreaterThanOrEqual(MIN_ELITES_PER_MAP)
+        expect(elites.length).toBeLessThanOrEqual(MAX_ELITES_PER_MAP)
+
+        for (const layer of map.layers) {
+          expect(layer.length).toBeGreaterThanOrEqual(MIN_LAYER_NODES)
+          expect(layer.length).toBeLessThanOrEqual(MAX_LAYER_NODES)
+          expect(layer.some((node) => node.type === 'task')).toBe(true)
+          const specials = layer.filter(
+            (node) => node.type === 'rest' || node.type === 'treasure',
+          )
+          expect(specials.length).toBeLessThanOrEqual(1)
+        }
+      }
+    }
+  })
+
   it('builds seven layers for four goals with routines', () => {
     const { goals, tasks, objectives } = goalsFor(4)
     const map = generateMap(baseInput({ goals, tasks, objectives }))
