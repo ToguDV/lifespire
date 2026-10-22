@@ -495,7 +495,7 @@ Fallbacks: `Iowan Old Style`, `Palatino Linotype`, Georgia for display; `Gill Sa
 ### Grid & Container
 - **Mobile shell**: full viewport, topbar 56px, one scrolling viewport, tab bar 64px. Horizontal gutter 16px. The map dock floats 10px above the tab bar.
 - **Desktop shell**: 240px sidebar (256px at 1280px and above) plus a fluid main column. At 1440px the content area is approximately 1184px wide.
-- **Map**: a height-led canvas whose 560px-wide viewBox grows with the day's layer count (570–830px tall), centered in its frame and scrolling vertically when it does not fit. The rail is hidden below 1200px, 312px from 1200–1279px, and 336px at 1280px and above.
+- **Map**: a height-led canvas whose 560px-wide viewBox grows with the day's layer count (570–2130px tall), centered in its frame and scrolling vertically when it does not fit. The rail is hidden below 1200px, 312px from 1200–1279px, and 336px at 1280px and above.
 - **Camp**: a two-column grid, `minmax(0, 1fr)` + 340px rail, with a 24px gap. Below 960px the rail and week strip are removed. From 960–1199px the rail is removed but the week strip remains in a full-width camp. At 1200px the rail returns.
 - **Goals**: a 3-column weekly grid plus a 300px right rail on desktop; one column on mobile.
 - **Summary**: a 720px maximum card, centered in the main area, with a two-column totals row and a compact goal list.
@@ -589,7 +589,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - Background `{colors.surface}` with a radial `{colors.accent-wash}` at the top, rounded `{rounded.xl}`, border `{colors.hairline}`, shadow level 1.
 - A second inset 1px border sits 7px inside; it is decorative and low opacity.
 - Frame meta: `THE ASCENT · 2 OF N RESOLVED` on the left, where N is the day's
-  decision layers + 1 (4–6); `Day III` in Alegreya italic on the right.
+  decision layers + 1 (4–16); `Day III` in Alegreya italic on the right.
 - `map-altimeter`: a decorative vertical hairline on the left edge (desktop
   only), with one roman numeral per decision layer aligned to the fixed 130px
   layer step. It is `aria-hidden` and shares the canvas geometry, so it never
