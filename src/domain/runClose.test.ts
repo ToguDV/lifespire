@@ -606,6 +606,6 @@ describe('startNewRun', () => {
 
     expect(() =>
       startNewRun({ ...document, goals: [] }, { runId: 'run_x', now: end }),
-    ).toThrow(/at least one aim/i)
+    ).toThrow(/at least one goal/i)
   })
 })

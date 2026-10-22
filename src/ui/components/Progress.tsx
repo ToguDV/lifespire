@@ -44,7 +44,7 @@ export interface PipsProps {
   warm?: boolean
 }
 
-/** Vertical-attempt pips from the aims panels. */
+/** Vertical-attempt pips from the goals panels. */
 export function Pips({ value, max, label, warm = false }: PipsProps) {
   const count = Math.max(0, Math.trunc(max))
   return (

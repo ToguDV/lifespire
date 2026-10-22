@@ -47,7 +47,7 @@ export function nodeRewardLine(node: MapNode): string {
   if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} XP`)
   if (node.rewards.gold > 0) parts.push(`+${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
-  if (node.rewards.progress > 0) parts.push('+1 weekly aim')
+  if (node.rewards.progress > 0) parts.push('+1 toward weekly target')
   if (node.type === 'boss') parts.push('closing bonus')
   return parts.join(' · ')
 }
@@ -57,7 +57,7 @@ export function nodeRewardSummary(node: MapNode): string {
   if (node.rewards.xp > 0) parts.push(`plus ${node.rewards.xp} experience`)
   if (node.rewards.gold > 0) parts.push(`plus ${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
-  if (node.rewards.progress > 0) parts.push('plus one weekly aim')
+  if (node.rewards.progress > 0) parts.push('plus one toward the weekly target')
   if (node.type === 'boss') {
     parts.push(
       `includes a closing bonus of ${BOSS_CLOSING_BONUS.xp} experience and ${BOSS_CLOSING_BONUS.gold} gold`,

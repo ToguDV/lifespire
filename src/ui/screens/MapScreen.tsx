@@ -25,11 +25,11 @@ const STATUS_COPY: Record<string, string> = {
 }
 
 const LEGEND: Array<{ type: NodeType; copy: string }> = [
-  { type: 'task', copy: '+1 weekly aim · XP and gold by effort' },
-  { type: 'elite', copy: '+1 weekly aim · doubled reward and a loot roll' },
+  { type: 'task', copy: '+1 toward weekly target · XP and gold by effort' },
+  { type: 'elite', copy: '+1 toward weekly target · doubled reward and a loot roll' },
   { type: 'rest', copy: '+5 XP · no weekly progress' },
   { type: 'treasure', copy: '+15 gold and a loot roll · no progress' },
-  { type: 'boss', copy: '+1 weekly aim · closing bonus when completed' },
+  { type: 'boss', copy: '+1 toward weekly target · closing bonus when completed' },
 ]
 
 function ChoiceButton({
@@ -143,10 +143,10 @@ function MapRail({
 
       <Panel pad>
         <PanelHead
-          label="Weekly aims"
+          label="Weekly goals"
           aside={
             <button type="button" className="text-link" onClick={onGoals}>
-              All aims
+              All goals
             </button>
           }
         />
@@ -163,7 +163,7 @@ function MapRail({
             />
           ))
         ) : (
-          <p className="panel-note">No weekly aims are recorded for this run.</p>
+          <p className="panel-note">No weekly goals are recorded for this run.</p>
         )}
       </Panel>
 

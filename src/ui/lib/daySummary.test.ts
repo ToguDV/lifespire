@@ -162,7 +162,7 @@ describe('reward feedback', () => {
     expect(text).toContain('+40 XP')
     expect(text).toContain('+50 gold')
     expect(text).toContain('incl. +10 gold duplicate')
-    expect(text).toContain('+1 weekly aim')
+    expect(text).toContain('+1 toward weekly target')
   })
 })
 

@@ -61,7 +61,7 @@ export function rewardFeedback(event: Pick<RewardEvent,
   if (event.duplicateCatalogId && event.duplicateGold > 0) {
     parts.push(`incl. +${event.duplicateGold} gold duplicate`)
   }
-  if (event.progress > 0) parts.push('+1 weekly aim')
+  if (event.progress > 0) parts.push('+1 toward weekly target')
   if (parts.length === 1) parts.push('the step is recorded')
   return parts.join(' · ')
 }

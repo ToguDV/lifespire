@@ -38,7 +38,7 @@ describe('onboarding draft helpers', () => {
     expect(draftToSetup({ ...createEmptyDraft(), name: '  Ari  ' }).name).toBe('Ari')
   })
 
-  it('suggests one weekly aim above the active routine count, capped at 7', () => {
+  it('suggests one weekly target above the active routine count, capped at 7', () => {
     expect(suggestedWeeklyObjective('goal_1', [])).toBe(1)
     expect(suggestedWeeklyObjective('goal_1', [task({ id: 'a' })])).toBe(2)
     expect(
@@ -60,7 +60,7 @@ describe('onboarding draft helpers', () => {
   it('applies suggestions without mutating the draft goals', () => {
     const setup = createDemoSetup(now)
     const craft = setup.goals[1]
-    if (!craft) throw new Error('expected the demo craft aim')
+    if (!craft) throw new Error('expected the demo craft goal')
     const extra = [
       task({ id: 'extra_1', goalId: craft.id }),
       task({ id: 'extra_2', goalId: craft.id }),

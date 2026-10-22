@@ -240,7 +240,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
   const pool = buildTaskPool(input)
   if (pool.length === 0) {
     throw new MapGenerationError(
-      'A map needs at least one active routine. Add a routine to an active aim and try again.',
+      'A map needs at least one active routine. Add a routine to an active goal and try again.',
     )
   }
 

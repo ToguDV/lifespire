@@ -226,7 +226,7 @@ export function NodeScreen() {
               {node.rewards.progress > 0 ? (
                 <span className="chip">
                   <Icon name="plus" />
-                  +1 weekly aim
+                  +1 toward weekly target
                 </span>
               ) : (
                 <span className="chip chip--quiet">No weekly progress</span>
@@ -285,7 +285,7 @@ export function NodeScreen() {
               )}
 
               <div className="node-fact">
-                <span className="micro">Aim</span>
+                <span className="micro">Goal</span>
                 <strong>{node.rewards.progress > 0 ? '+1' : '—'}</strong>
                 <small>
                   {node.task ? `${node.task.goalTitle} this week` : 'No weekly progress'}
@@ -300,7 +300,7 @@ export function NodeScreen() {
                 <p className="node-aim-empty">
                   <Icon name="banner" />
                   <span>
-                    This step is outside the weekly aims recorded at the start of the run.
+                    This step is outside the weekly goals recorded at the start of the run.
                   </span>
                 </p>
               )
@@ -326,7 +326,7 @@ export function NodeScreen() {
               className="text-link node-goals-link"
               onClick={() => navigate({ name: 'goals' })}
             >
-              All weekly aims
+              All weekly goals
             </button>
 
             <NodeSkipNote boss={node.type === 'boss'} />

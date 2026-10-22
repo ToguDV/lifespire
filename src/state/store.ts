@@ -449,8 +449,8 @@ export function createAppStore(
             ? current.goals.map((candidate) => (candidate.id === goal.id ? goal : candidate))
             : [...current.goals, goal]
 
-          // Archiving an aim archives its routines too, so no active routine
-          // can point at an inactive aim.
+          // Archiving a goal archives its routines too, so no active routine
+          // can point at an inactive goal.
           const tasks =
             existing?.active && !goal.active
               ? current.tasks.map((task) =>

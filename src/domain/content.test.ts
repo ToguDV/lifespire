@@ -54,7 +54,7 @@ function fourTasks(goalId = 'goal_1'): Task[] {
 }
 
 describe('validateGoalInput', () => {
-  it('accepts a titled aim inside the weekly range', () => {
+  it('accepts a titled goal inside the weekly range', () => {
     expect(validateGoalInput(makeGoal())).toEqual({})
   })
 
@@ -75,11 +75,11 @@ describe('validateGoalInput', () => {
 })
 
 describe('validateTaskInput', () => {
-  it('accepts a titled routine under an active aim', () => {
+  it('accepts a titled routine under an active goal', () => {
     expect(validateTaskInput(makeTask(), [makeGoal()])).toEqual({})
   })
 
-  it('rejects empty titles, unknown/inactive aims and unknown effort', () => {
+  it('rejects empty titles, unknown/inactive goals and unknown effort', () => {
     expect(validateTaskInput(makeTask({ title: ' ' }), [makeGoal()]).title).toBe(
       CONTENT_MESSAGES.taskTitle,
     )
@@ -101,7 +101,7 @@ describe('validateContentConstraints', () => {
     expect(validateContentConstraints(document, document.goals, document.tasks).ok).toBe(true)
   })
 
-  it('rejects more than three active aims even without a run', () => {
+  it('rejects more than three active goals even without a run', () => {
     const goals = [1, 2, 3, 4].map((index) => makeGoal({ id: `goal_${index}` }))
     const document = createEmptyDocument()
     const result = validateContentConstraints(document, goals, [])
@@ -114,7 +114,7 @@ describe('validateContentConstraints', () => {
     expect(validateContentConstraints(document, document.goals, document.tasks).ok).toBe(true)
 
     const goal = document.goals[0]
-    if (!goal) throw new Error('expected a demo aim')
+    if (!goal) throw new Error('expected a demo goal')
     const withoutActiveGoals = document.goals.map((candidate) => ({
       ...candidate,
       active: false,
@@ -140,10 +140,10 @@ describe('validateContentConstraints', () => {
     ).toContain(CONTENT_MESSAGES.fewRoutines)
   })
 
-  it('rejects active routines pointing at an inactive aim', () => {
+  it('rejects active routines pointing at an inactive goal', () => {
     const document = demoDocument()
     const goal = document.goals[0]
-    if (!goal) throw new Error('expected a demo aim')
+    if (!goal) throw new Error('expected a demo goal')
     const orphan = makeTask({ id: 'task_orphan', goalId: goal.id })
     const goals = document.goals.map((candidate) =>
       candidate.id === goal.id ? { ...candidate, active: false } : candidate,
@@ -153,7 +153,7 @@ describe('validateContentConstraints', () => {
     )
   })
 
-  it('counts only active routines under active aims', () => {
+  it('counts only active routines under active goals', () => {
     const goals = [makeGoal(), makeGoal({ id: 'goal_2' })]
     const tasks = [
       ...fourTasks(),

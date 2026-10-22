@@ -54,7 +54,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
   const alert =
     failures.length > 0 ? (
       <div className="form-alert" role="alert">
-        <strong>This aim was not saved</strong>
+        <strong>This goal was not saved</strong>
         <ul>
           {failures.map((message) => (
             <li key={message}>{message}</li>
@@ -66,12 +66,12 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
   return (
     <Dialog
       open
-      eyebrow="Aims"
-      title={goal ? 'Edit aim' : 'Add an aim'}
+      eyebrow="Goals"
+      title={goal ? 'Edit goal' : 'Add a goal'}
       description={
         goal
           ? 'Changes shape maps drawn from now on. This week’s targets stay fixed.'
-          : 'An aim holds the routines that move it. A run can hold up to three.'
+          : 'A goal holds the routines that move it. A run can hold up to three.'
       }
       onClose={onClose}
       footer={
@@ -79,14 +79,14 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
           {goal ? (
             <Button variant="danger" onClick={() => { onClose(); onArchive(goal) }}>
               <Icon name="archive" />
-              Archive aim
+              Archive goal
             </Button>
           ) : null}
           <Button variant="quiet" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" form={formId} variant="primary">
-            Save aim
+            Save goal
           </Button>
         </>
       }
@@ -101,7 +101,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       >
         {alert}
         <div className="field">
-          <label htmlFor={`${formId}-title`}>Aim title</label>
+          <label htmlFor={`${formId}-title`}>Goal title</label>
           <input
             className="input"
             id={`${formId}-title`}
@@ -130,7 +130,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
           />
         </div>
         <div className="field">
-          <label htmlFor={`${formId}-weekly`}>Weekly aim</label>
+          <label htmlFor={`${formId}-weekly`}>Weekly target</label>
           <input
             className="input"
             id={`${formId}-weekly`}
@@ -146,7 +146,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
             onChange={(event) => setWeeklyObjective(event.target.value)}
           />
           <p className="field-hint" id={`${formId}-weekly-hint`}>
-            How many routines you aim to complete this week (1–7).
+            How many routines of this goal you want to complete this week (1–7).
           </p>
           {fieldErrors.weeklyObjective ? (
             <p className="field-error" id={`${formId}-weekly-error`}>
@@ -256,7 +256,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
         {alert}
         {activeGoals.length === 0 ? (
           <p className="panel-note">
-            Add an active aim first. Every routine needs an active aim.
+            Add an active goal first. Every routine needs an active goal.
           </p>
         ) : null}
         <div className="field">
@@ -357,18 +357,18 @@ export function ArchiveDialog({ kind, id, title, onClose }: ArchiveDialogProps) 
   return (
     <Dialog
       open
-      eyebrow={kind === 'goal' ? 'Aims' : 'Routines'}
+      eyebrow={kind === 'goal' ? 'Goals' : 'Routines'}
       title={`Archive “${title}”?`}
       description={
         kind === 'goal'
-          ? 'This aim and its routines leave future maps. Maps already drawn keep their original steps, and this week’s targets do not change.'
+          ? 'This goal and its routines leave future maps. Maps already drawn keep their original steps, and this week’s targets do not change.'
           : 'This routine leaves future maps. Maps already drawn keep their original step, and this week’s targets do not change.'
       }
       onClose={onClose}
       footer={
         <>
           <Button variant="quiet" onClick={onClose}>
-            Keep {kind === 'goal' ? 'aim' : 'routine'}
+            Keep {kind === 'goal' ? 'goal' : 'routine'}
           </Button>
           <Button variant="danger" onClick={confirm}>
             <Icon name="archive" />
@@ -388,7 +388,7 @@ export function ArchiveDialog({ kind, id, title, onClose }: ArchiveDialogProps) 
         </div>
       ) : (
         <p className="panel-note">
-          Archived content stays in your saved file and can be restored from the aims screen.
+          Archived content stays in your saved file and can be restored from the goals screen.
         </p>
       )}
     </Dialog>

@@ -45,7 +45,7 @@ export function SettingsScreen() {
     anchor.click()
     anchor.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
-    showToast('Save exported. It includes your profile, aims, routines, run and collection.')
+    showToast('Save exported. It includes your profile, goals, routines, run and collection.')
   }
 
   const closeReset = () => {
@@ -98,7 +98,7 @@ export function SettingsScreen() {
         <Panel pad>
           <PanelHead label="Data" aside={<span className="chip chip--quiet">JSON</span>} />
           <p className="panel-note">
-            Export a readable copy of the versioned save. It includes the profile, aims,
+            Export a readable copy of the versioned save. It includes the profile, goals,
             routines, the current run and the collection. The development clock and this panel
             are never included.
           </p>
@@ -131,7 +131,7 @@ export function SettingsScreen() {
           <PanelHead label="Local data" aside={<span className="chip chip--quiet">Careful</span>} />
           <p className="panel-note">
             Everything is stored under <code>{STORAGE_KEY}</code> in this browser. Resetting
-            removes the profile, aims, routines, run and collection. Exporting first is the only
+            removes the profile, goals, routines, run and collection. Exporting first is the only
             safety net; a reset cannot be undone without that file.
           </p>
           <div className="settings-actions">
@@ -157,7 +157,7 @@ export function SettingsScreen() {
       <Dialog
         open={confirmReset}
         title="Reset local data?"
-        description="This removes the profile, aims, routines, run and collection from this browser."
+        description="This removes the profile, goals, routines, run and collection from this browser."
         onClose={closeReset}
         footer={
           <>

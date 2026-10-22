@@ -109,17 +109,17 @@ function ObjectivesPanel({
           }))
 
   return (
-    <Panel pad aria-label="Weekly aims">
+    <Panel pad aria-label="Weekly goals">
       <PanelHead
-        label="Weekly aims"
+        label="Weekly goals"
         aside={
           <button type="button" className="text-link" onClick={onViewAll}>
-            All aims
+            All goals
           </button>
         }
       />
       {rows.length === 0 ? (
-        <p className="panel-note">No aims yet. They appear after onboarding.</p>
+        <p className="panel-note">No goals yet. They appear after onboarding.</p>
       ) : (
         rows.map((row) => (
           <AimRow
@@ -229,7 +229,7 @@ export function HomeScreen() {
           </Button>
         ) : (
           <Button variant="secondary" onClick={() => navigate({ name: 'goals' })}>
-            Review your aims
+            Review your goals
             <Icon name="chevron-right" />
           </Button>
         )
@@ -278,10 +278,10 @@ export function HomeScreen() {
       case 'no-run':
         return {
           micro: 'The first step',
-          title: setupReady ? 'A quiet beginning.' : 'The path needs aims.',
+          title: setupReady ? 'A quiet beginning.' : 'The path needs goals.',
           copy: setupReady
             ? 'A seven-day run turns your routines into a path. Begin when you are ready; nothing is lost by waiting.'
-            : 'A run needs at least one aim and four routines. Review your aims before the climb begins.',
+            : 'A run needs at least one goal and four routines. Review your goals before the climb begins.',
           foot: 'Seven days · One path each',
         }
       case 'day-available':
@@ -329,14 +329,14 @@ export function HomeScreen() {
         return {
           micro: 'The week behind',
           title: 'A week recorded.',
-          copy: 'Every day is recorded and the totals are yours to keep. Read the week to revisit its aims, bonus and relics.',
+          copy: 'Every day is recorded and the totals are yours to keep. Read the week to revisit its goals, bonus and relics.',
           foot: `${daysKept} of 7 days kept`,
         }
       case 'no-open-day':
         return {
           micro: 'The week behind',
           title: 'A week spent.',
-          copy: 'No day can be opened now. Read the week to revisit its aims, bonus and relics, then begin a new run.',
+          copy: 'No day can be opened now. Read the week to revisit its goals, bonus and relics, then begin a new run.',
           foot: `${daysKept} of 7 days kept`,
         }
     }
@@ -546,7 +546,7 @@ export function HomeScreen() {
               />
               <Stat
                 value={`${goalsMet} / ${aimCount}`}
-                label="Aims met"
+                label="Goals met"
                 progress={percent(goalsMet, Math.max(1, aimCount))}
               />
               <Stat

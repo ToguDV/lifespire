@@ -144,7 +144,7 @@ export function SaveImport({
             <p className="import-warning">
               <Icon name="lock" />
               <span>
-                Replacing overwrites the profile, aims, routines, run and collection currently
+                Replacing overwrites the profile, goals, routines, run and collection currently
                 under <code>{STORAGE_KEY}</code>. File: <strong>{pendingImport.fileName}</strong>.
               </span>
             </p>
