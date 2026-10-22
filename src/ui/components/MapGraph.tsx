@@ -1,16 +1,16 @@
-import { useMemo } from 'react'
-import type { CSSProperties } from 'react'
+import { useMemo, useState } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
 import { nodeStatus } from '../../domain/selectors'
 import type { Day, GameMap, NodeStatus } from '../../domain/types'
 import { Icon } from './Icon'
-import { NODE_TYPE_ICON, NODE_TYPE_LABEL, romanDay } from '../lib/format'
+import { NODE_TYPE_ICON, romanDay } from '../lib/format'
 import {
   buildMapLayout,
   classifyMapEdges,
   type MapEdgeTone,
   type MapNodeLayout,
 } from '../lib/mapLayout'
-import { nodeAriaLabel, nodeMapHint, nodeTitle } from '../lib/nodeCopy'
+import { nodeAriaLabel, nodeTitle } from '../lib/nodeCopy'
 
 const CONTOURS = [
   'M-30 610c100-26 150 32 245 4s150-62 245-38 90 22 120 8',
@@ -40,7 +40,18 @@ interface NodeButtonProps {
   layout: MapNodeLayout
   day: Day
   map: GameMap
+  revealed: boolean
+  onReveal: (nodeId: string) => void
   onSelect: (nodeId: string) => void
+}
+
+/**
+ * Touch devices cannot hover, so the first tap reveals the task name and a
+ * second tap selects the node. Keyboard activation goes straight through.
+ */
+function firstTapOnlyReveals(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(hover: none)').matches
 }
 
 function nodeClasses(layout: MapNodeLayout, status: NodeStatus): string {
@@ -55,19 +66,21 @@ function nodeClasses(layout: MapNodeLayout, status: NodeStatus): string {
   return classes.join(' ')
 }
 
-function NodeButton({ layout, day, map, onSelect }: NodeButtonProps) {
+function NodeButton({ layout, day, map, revealed, onReveal, onSelect }: NodeButtonProps) {
   const status = nodeStatus(map, day, layout.id)
   const actionable = status === 'available' || status === 'current'
   const showLabel = actionable || layout.type === 'boss'
-  const hint =
-    status === 'locked'
-      ? `${NODE_TYPE_LABEL[layout.type]} · locked`
-      : status === 'current'
-        ? `Chosen · ${nodeMapHint(layout.node)}`
-        : nodeMapHint(layout.node)
   const style: CSSProperties = {
     left: `${layout.left}%`,
     top: `${layout.top}%`,
+  }
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (!revealed && event.detail > 0 && firstTapOnlyReveals()) {
+      onReveal(layout.id)
+      return
+    }
+    onSelect(layout.id)
   }
 
   return (
@@ -78,10 +91,11 @@ function NodeButton({ layout, day, map, onSelect }: NodeButtonProps) {
       data-node-id={layout.id}
       data-status={status}
       data-label-side={layout.labelSide}
+      data-revealed={revealed ? 'true' : undefined}
       aria-label={nodeAriaLabel(layout.node, status)}
       aria-current={status === 'current' ? 'step' : undefined}
       disabled={!actionable}
-      onClick={actionable ? () => onSelect(layout.id) : undefined}
+      onClick={actionable ? handleClick : undefined}
     >
       {layout.type === 'boss' ? (
         <svg className="boss-frame" viewBox="0 0 84 90" aria-hidden="true">
@@ -106,7 +120,6 @@ function NodeButton({ layout, day, map, onSelect }: NodeButtonProps) {
       {showLabel ? (
         <span className="node__label">
           <strong>{nodeTitle(layout.node)}</strong>
-          <small>{hint}</small>
         </span>
       ) : null}
 
@@ -132,6 +145,12 @@ export interface MapGraphProps {
 export function MapGraph({ map, day, onSelect }: MapGraphProps) {
   const layout = useMemo(() => buildMapLayout(map), [map])
   const edges = useMemo(() => classifyMapEdges(layout, map, day), [layout, map, day])
+  const [revealedId, setRevealedId] = useState<string | null>(null)
+
+  const handleSelect = (nodeId: string) => {
+    setRevealedId(null)
+    onSelect(nodeId)
+  }
 
   return (
     <>
@@ -197,11 +216,20 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
               layout={node}
               day={day}
               map={map}
-              onSelect={onSelect}
+              revealed={revealedId === node.id}
+              onReveal={setRevealedId}
+              onSelect={handleSelect}
             />
           ))}
 
-          <NodeButton layout={layout.boss} day={day} map={map} onSelect={onSelect} />
+          <NodeButton
+            layout={layout.boss}
+            day={day}
+            map={map}
+            revealed={revealedId === layout.boss.id}
+            onReveal={setRevealedId}
+            onSelect={handleSelect}
+          />
         </div>
       </div>
 

@@ -586,7 +586,9 @@ no persiste ni las metas ni la run y devuelve `false` (el mensaje queda en
   el dock flotante del prototipo: así «Next step», «Weekly aims» y la leyenda
   siguen visibles a 360 px sin tapar el mapa ni provocar scroll horizontal. Las
   etiquetas de nodos disponibles usan `data-label-side` para colocarse a
-  izquierda, derecha o debajo según el ancho de la capa.
+  izquierda, derecha o debajo según el ancho de la capa. La etiqueta muestra solo
+  el nombre de la tarea y permanece oculta hasta `:hover` o `:focus-visible`; en
+  punteros sin hover, el primer toque la revela y el segundo selecciona el nodo.
 - Nodos del mapa: SVG decorativo + botones HTML superpuestos (o controles
   equivalentes), 44×44 px mínimo, foco visible, estados distinguibles sin color
   (icono, forma, texto `aria-label`). Leyenda visible.

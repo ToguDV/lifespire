@@ -42,17 +42,6 @@ function pluralRolls(count: number): string {
   return `${count} loot roll${count === 1 ? '' : 's'}`
 }
 
-export function nodeMapHint(node: MapNode): string {
-  const type = NODE_TYPE_LABEL[node.type]
-  if (node.type === 'rest') return `${type} · +${node.rewards.xp} XP`
-  if (node.type === 'treasure') {
-    return `${type} · +${node.rewards.gold} gold · ${pluralRolls(node.rewards.lootRolls)}`
-  }
-  const parts = [type, `+${node.rewards.xp} XP`]
-  if (node.rewards.lootRolls > 0) parts.push('loot')
-  return parts.join(' · ')
-}
-
 export function nodeRewardLine(node: MapNode): string {
   const parts: string[] = []
   if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} XP`)
