@@ -4,7 +4,8 @@ Este documento fija los límites entre módulos y los contratos de datos. Es la
 referencia para implementar los issues sin que dos piezas se contradigan. Si una
 decisión cambia, se actualiza aquí en el mismo cambio.
 
-Fuentes: [`SPEC.md`](../SPEC.md) y [`design/`](../design) (diseño aceptado).
+Fuentes: [`SPEC.md`](../SPEC.md) y [`design/DESIGN.md`](../design/DESIGN.md)
+(sistema de diseño).
 
 ## 1. Estructura
 
@@ -32,9 +33,9 @@ src/
     screens/       una pantalla por vista
     App.tsx        shell, navegación y guardas de flujo
   styles/
-    tokens.css     copia/adaptación de design/assets/tokens.css
-    app.css        copia/adaptación de design/assets/app.css
-    ui.css         estados añadidos por el port (diálogos, vacíos)
+    tokens.css     tokens canónicos (color, tipografía, espacio, radio)
+    app.css        shell y componentes
+    ui.css         estados añadidos (diálogos, vacíos, toast, panel de desarrollo)
     m3.css         onboarding guiado y edición de metas/rutinas
   main.tsx
 ```
@@ -573,10 +574,10 @@ no persiste ni las metas ni la run y devuelve `false` (el mensaje queda en
 
 ## 6. UI y diseño
 
-- Portar `design/assets/tokens.css` a `src/styles/tokens.css` y las fuentes a
-  `public/fonts/`. Reutilizar las clases y la jerarquía de `design/app.css` y
-  `design/app.html` (shell, sidebar, tabbar, paneles, mapa, nodo, resumen,
-  onboarding, reliquary, ajustes).
+- La app es la referencia visual; `design/DESIGN.md` es su especificación. Los
+  tokens viven en `src/styles/tokens.css` y las fuentes en `public/fonts/`. Las
+  clases y la jerarquía (shell, sidebar, tabbar, paneles, mapa, nodo, resumen,
+  onboarding, reliquary, ajustes) se reusan tal cual, sin copias paralelas.
 - Tokens: no introducir colores/tamaños sueltos si existe un token. El tema
   claro/oscuro se controla con `data-theme` en `<html>` y `prefers-color-scheme`
   cuando la preferencia es `system`.
@@ -600,8 +601,9 @@ no persiste ni las metas ni la run y devuelve `false` (el mensaje queda en
 
 ### Ajustes de la UI del bucle M2
 
-El diseño de `design/` sigue siendo la referencia. La implementación del bucle
-diario necesita mostrar más información que los estados estáticos del prototipo:
+El diseño de `design/DESIGN.md` sigue siendo la referencia. La implementación del
+bucle diario necesita mostrar más información que los estados estáticos del
+prototipo retirado:
 
 - El rail de camp (`Weekly aims`, `Run at a glance`, `The traveller`) y la tira
   de siete días se apilan bajo el contenido principal por debajo de 1200 px y
@@ -627,11 +629,11 @@ diario necesita mostrar más información que los estados estáticos del prototi
   por lo que un reload retoma el borrador. Los valores intermedios inválidos
   (por ejemplo, un objetivo semanal 8) se persisten sin bloquear el arranque; la
   validación final sigue siendo `validateSetup`.
-- `GoalsScreen` usa `screen--aims` y los paneles de `design/`: añade botones de
-  edición/archivo en cada meta y rutina, un bloque de contenido archivado con
-  restauración y un rail con el progreso de la run actual. Los formularios viven
-  en `Dialog` (foco atrapado, `Esc` y restauración de foco) y los errores se
-  asocian con `aria-describedby`.
+- `GoalsScreen` usa `screen--aims` y los paneles del sistema de diseño: añade
+  botones de edición/archivo en cada meta y rutina, un bloque de contenido
+  archivado con restauración y un rail con el progreso de la run actual. Los
+  formularios viven en `Dialog` (foco atrapado, `Esc` y restauración de foco) y
+  los errores se asocian con `aria-describedby`.
 - Con una run activa, el rail muestra los objetivos snapshot de `run.objectives`
   y avisa de que los cambios solo afectan a mapas futuros. La UI bloquea archivar
   la última meta activa, dejar menos de cuatro rutinas activas o archivar/desactivar

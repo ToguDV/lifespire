@@ -10,22 +10,22 @@ weekly objectives — the more you complete, the more gold, XP, and loot you ear
 It's a local-first web app: a single profile, no accounts, no backend. Installable
 as a PWA and fully usable offline after the first load.
 
+The node map is the heart of the app: each day you pick a path through 4 layers
+plus a boss, with visible trade-offs between progress, effort, and reward.
+
 ---
 
 ## Screenshots
 
 | Light theme | Dark theme |
 |---|---|
-| ![Node map (light theme)](./design/captures/map-light.png) | ![Node map (dark theme)](./design/captures/map-dark.png) |
+| ![Node map (light theme)](./docs/screenshots/map-light.png) | ![Node map (dark theme)](./docs/screenshots/map-dark.png) |
 
 Mobile layouts are fully supported:
 
 | Mobile (light) | Mobile (dark) |
 |---|---|
-| ![Node map (mobile, light)](./design/captures/map-mobile-light.png) | ![Node map (mobile, dark)](./design/captures/map-mobile-dark.png) |
-
-The node map is the heart of the app: each day you pick a path through 4 layers
-plus a boss, with visible trade-offs between progress, effort, and reward.
+| ![Node map (mobile, light)](./docs/screenshots/map-mobile-light.png) | ![Node map (mobile, dark)](./docs/screenshots/map-mobile-dark.png) |
 
 ---
 
@@ -116,7 +116,7 @@ Maps are rendered with custom SVG. No graph library, no UI kit.
 
 - Spec & rules: [`SPEC.md`](./SPEC.md)
 - Architecture & contracts: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
-- Design system: [`design/DESIGN.md`](./design/DESIGN.md) · [`design/`](./design)
+- Design system: [`design/DESIGN.md`](./design/DESIGN.md) — the spec the app implements
 - UI notes: [`docs/UI.md`](./docs/UI.md)
 - PWA / offline: [`docs/PWA.md`](./docs/PWA.md)
 - Playtest protocol: [`docs/playtest-plan.md`](./docs/playtest-plan.md)
