@@ -566,7 +566,7 @@ function validateRunIntegrity(run: Run, path: string): void {
 }
 
 /**
- * Drafts are a scratchpad: a user may type an out-of-range weekly aim before
+ * Drafts are a scratchpad: a user may type an out-of-range weekly target before
  * fixing it. Persisting that intermediate value must not poison the save, so
  * the draft schema accepts any finite number and the final setup validation
  * (`validateSetup`) remains the gate that starts the run.

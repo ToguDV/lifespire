@@ -96,20 +96,20 @@ export function GoalsScreen() {
     ? run.status === 'active'
       ? 'The week · Run I'
       : 'The week · Sealed'
-    : 'Profile · Aims'
+    : 'Profile · Goals'
 
   const sub =
     activeGoals.length === 0
-      ? 'No active aims yet. Add one to shape the next run.'
+      ? 'No active goals yet. Add one to shape the next run.'
       : run?.status === 'active'
-        ? `${activeGoals.length} active ${activeGoals.length === 1 ? 'aim shapes' : 'aims shape'} maps from now on. This week’s targets stay fixed.`
-        : `${activeGoals.length} active ${activeGoals.length === 1 ? 'aim' : 'aims'} · ${activeTasks.length} active routines. Editing shapes the next run.`
+        ? `${activeGoals.length} active ${activeGoals.length === 1 ? 'goal shapes' : 'goals shape'} maps from now on. This week’s targets stay fixed.`
+        : `${activeGoals.length} active ${activeGoals.length === 1 ? 'goal' : 'goals'} · ${activeTasks.length} active routines. Editing shapes the next run.`
 
   return (
     <section className="screen screen--aims" data-screen="aims" aria-labelledby="aims-title">
       <ScreenHead
         kicker={kicker}
-        title="Aims"
+        title="Goals"
         titleId="aims-title"
         sub={sub}
         meta={
@@ -120,7 +120,7 @@ export function GoalsScreen() {
               onClick={() => openTaskDialog(null, activeGoals[0]?.id ?? '')}
               disabled={activeGoals.length === 0}
               title={
-                activeGoals.length === 0 ? 'Add an active aim first.' : undefined
+                activeGoals.length === 0 ? 'Add an active goal first.' : undefined
               }
             >
               <Icon name="plus" />
@@ -128,7 +128,7 @@ export function GoalsScreen() {
             </Button>
             <Button variant="secondary" size="sm" onClick={() => openGoalDialog(null)}>
               <Icon name="plus" />
-              Add aim
+              Add goal
             </Button>
           </div>
         }
@@ -142,15 +142,15 @@ export function GoalsScreen() {
                 <span className="empty-state__medallion">
                   <Icon name="banner" />
                 </span>
-                <span className="micro">The aims</span>
-                <h2>No active aims yet.</h2>
+                <span className="micro">The goals</span>
+                <h2>No active goals yet.</h2>
                 <p>
-                  Add an aim and at least four routines before the next run. Maps already drawn
+                  Add a goal and at least four routines before the next run. Maps already drawn
                   keep their original steps.
                 </p>
                 <Button variant="primary" onClick={() => openGoalDialog(null)}>
                   <Icon name="plus" />
-                  Add your first aim
+                  Add your first goal
                 </Button>
               </div>
             </Panel>
@@ -201,7 +201,7 @@ export function GoalsScreen() {
                     </div>
                     <IconButton
                       icon="edit"
-                      label={`Edit aim ${goal.title}`}
+                      label={`Edit goal ${goal.title}`}
                       className="aim-group__edit"
                       onClick={() => openGoalDialog(goal)}
                     />
@@ -210,7 +210,7 @@ export function GoalsScreen() {
                   <div className="routine-list">
                     {goalTasks.length === 0 ? (
                       <p className="panel-note routine-list__empty">
-                        No active routines under this aim yet.
+                        No active routines under this goal yet.
                       </p>
                     ) : (
                       goalTasks.map((task) => (
@@ -242,7 +242,7 @@ export function GoalsScreen() {
                         onClick={() => openTaskDialog(null, goal.id)}
                       >
                         <Icon name="plus" />
-                        Add routine to this aim
+                        Add routine to this goal
                       </Button>
                     </div>
                   </div>
@@ -258,7 +258,7 @@ export function GoalsScreen() {
                 aside={<span className="micro">{archivedCount} kept</span>}
               />
               <details className="archived-details">
-                <summary>Show archived aims and routines</summary>
+                <summary>Show archived goals and routines</summary>
                 <p className="panel-note">
                   Archived content never changes a map that was already drawn. Restoring it only
                   affects future maps.
@@ -266,11 +266,11 @@ export function GoalsScreen() {
 
                 {archivedGoals.length > 0 ? (
                   <div className="archived-group">
-                    <h3 className="micro">Aims</h3>
+                    <h3 className="micro">Goals</h3>
                     {archivedGoals.map((goal) => (
                       <div className="archived-row" key={goal.id}>
                         <span className="archived-row__body">
-                          <strong>{goal.title || 'Untitled aim'}</strong>
+                          <strong>{goal.title || 'Untitled goal'}</strong>
                           <small>
                             {goal.category.trim() || 'General'} · {goal.weeklyObjective} each
                             week
@@ -283,11 +283,11 @@ export function GoalsScreen() {
                           disabled={activeGoals.length >= 3}
                           title={
                             activeGoals.length >= 3
-                              ? 'Archive an active aim before restoring another.'
+                              ? 'Archive an active goal before restoring another.'
                               : undefined
                           }
                         >
-                          Restore aim
+                          Restore goal
                         </Button>
                       </div>
                     ))}
@@ -306,7 +306,7 @@ export function GoalsScreen() {
                             <strong>{task.title || 'Untitled routine'}</strong>
                             <small>
                               {EFFORT_LABEL[task.effort]} effort ·{' '}
-                              {goal?.title ?? 'Aim no longer present'}
+                              {goal?.title ?? 'Goal no longer present'}
                             </small>
                           </span>
                           <Button
@@ -317,7 +317,7 @@ export function GoalsScreen() {
                             title={
                               goalActive
                                 ? undefined
-                                : 'Restore its aim before restoring this routine.'
+                                : 'Restore its goal before restoring this routine.'
                             }
                           >
                             Restore routine
@@ -334,7 +334,7 @@ export function GoalsScreen() {
           <p className="quiet-note">
             <Icon name="quill" />
             <span>
-              Aims and routines can be edited at any time. A map already drawn keeps its
+              Goals and routines can be edited at any time. A map already drawn keeps its
               original steps and rewards.
             </span>
           </p>
@@ -352,7 +352,7 @@ export function GoalsScreen() {
             />
             <div className="week-list">
               {weekRows.length === 0 ? (
-                <p className="panel-note">No aims to show.</p>
+                <p className="panel-note">No goals to show.</p>
               ) : (
                 weekRows.map((row) => {
                   const index = document.goals.findIndex((goal) => goal.id === row.goalId)
@@ -376,9 +376,18 @@ export function GoalsScreen() {
             </div>
             {run ? (
               <p className="panel-note archived-note">
-                These targets were fixed when the run began. Editing aims shapes the next run.
+                These targets were fixed when the run began. Editing goals shapes the next run.
               </p>
             ) : null}
+          </Panel>
+
+          <Panel pad>
+            <PanelHead label="How it works" />
+            <p className="panel-note">
+              A goal is an area you are pursuing, such as movement or making. Its routines are
+              the small steps that move it, and the weekly target is how many of them you want
+              to finish this week.
+            </p>
           </Panel>
 
           <Panel pad>
@@ -402,12 +411,12 @@ export function GoalsScreen() {
             <PanelHead label="Editing" />
             <p className="panel-note">
               {run?.status === 'active'
-                ? 'This week’s objectives were set at the start and will not change. The next run uses the aims you keep here.'
-                : 'The next run uses the active aims and routines you keep here.'}
+                ? 'This week’s objectives were set at the start and will not change. The next run uses the goals you keep here.'
+                : 'The next run uses the active goals and routines you keep here.'}
             </p>
             <Button variant="secondary" full onClick={() => openGoalDialog(null)}>
               <Icon name="plus" />
-              Add aim
+              Add goal
             </Button>
           </Panel>
         </aside>

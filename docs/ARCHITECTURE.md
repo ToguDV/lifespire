@@ -601,7 +601,7 @@ no persiste ni las metas ni la run y devuelve `false` (el mensaje queda en
 - Cada pantalla debe tener su estado vacío/cargado y funcionar a 360 px, 768 px y
   desktop. Sin scroll horizontal.
 - El rail del mapa se apila bajo el mapa por debajo de 1200 px en lugar de usar
-  el dock flotante del prototipo: así «Next step», «Weekly aims» y la leyenda
+  el dock flotante del prototipo: así «Next step», «Weekly goals» y la leyenda
   siguen visibles a 360 px sin tapar el mapa ni provocar scroll horizontal. Las
   etiquetas de nodos disponibles usan `data-label-side` para colocarse a
   izquierda, derecha o debajo según el ancho de la capa (las capas de 4–5 nodos
@@ -623,7 +623,7 @@ El diseño de `design/DESIGN.md` sigue siendo la referencia. La implementación 
 bucle diario necesita mostrar más información que los estados estáticos del
 prototipo retirado:
 
-- El rail de camp (`Weekly aims`, `Run at a glance`, `The traveller`) y la tira
+- El rail de camp (`Weekly goals`, `Run at a glance`, `The traveller`) y la tira
   de siete días se apilan bajo el contenido principal por debajo de 1200 px y
   960 px respectivamente. El prototipo los ocultaba en móvil; ocultarlos dejaría
   el progreso semanal y el perfil sin acceso desde el dashboard.

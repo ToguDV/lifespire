@@ -20,7 +20,7 @@ import { useAppStore } from '../../state/store'
 import { Button, Icon, Panel, ThemeToggle } from '../components'
 import { EFFORT_LABEL, goalIcon } from '../lib/format'
 
-const STEP_LABELS = ['Name', 'Aims', 'Routines', 'Review'] as const
+const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
 function unique(values: Array<string | undefined>): string[] {
@@ -111,9 +111,9 @@ export function OnboardingScreen() {
 
   const aimsErrors = (): string[] => {
     const errors: string[] = []
-    if (goals.length < 1) errors.push('Choose at least one aim to begin.')
+    if (goals.length < 1) errors.push('Choose at least one goal to begin.')
     if (goals.length > MAX_GOALS) {
-      errors.push(`A run can hold at most ${MAX_GOALS} aims.`)
+      errors.push(`A run can hold at most ${MAX_GOALS} goals.`)
     }
     for (const goal of goals) errors.push(...unique(Object.values(validateGoalInput(goal))))
     return unique(errors)
@@ -165,7 +165,7 @@ export function OnboardingScreen() {
     updateGoals(withSuggestedObjectives(goals, tasks))
   }
 
-  const goalLabel = (index: number) => goals[index]?.title.trim() || `Aim ${index + 1}`
+  const goalLabel = (index: number) => goals[index]?.title.trim() || `Goal ${index + 1}`
   const currentErrors =
     step === 2 ? aimsErrors() : step === 3 ? routineErrors() : step === 4 ? validateSetup(goals, tasks).errors : []
 
@@ -195,10 +195,10 @@ export function OnboardingScreen() {
 
     return (
       <fieldset className="draft-card" key={goal.id}>
-        <legend>Aim {index + 1}</legend>
+        <legend>Goal {index + 1}</legend>
         <div className="field-grid">
           <div className="field">
-            <label htmlFor={`goal-${goal.id}-title`}>Aim title</label>
+            <label htmlFor={`goal-${goal.id}-title`}>Goal title</label>
             <input
               className="input"
               id={`goal-${goal.id}-title`}
@@ -227,7 +227,7 @@ export function OnboardingScreen() {
             />
           </div>
           <div className="field">
-            <label htmlFor={`goal-${goal.id}-weekly`}>Weekly aim</label>
+            <label htmlFor={`goal-${goal.id}-weekly`}>Weekly target</label>
             <input
               className="input"
               id={`goal-${goal.id}-weekly`}
@@ -243,7 +243,7 @@ export function OnboardingScreen() {
               }
             />
             <p className="field-hint" id={weeklyHintId}>
-              How many routines you aim to complete this week (1–7).
+              How many routines of this goal you want to complete this week (1–7).
             </p>
             {showErrors && errors.weeklyObjective ? (
               <p className="field-error" id={weeklyErrorId}>
@@ -254,7 +254,7 @@ export function OnboardingScreen() {
         </div>
         <div className="draft-card__actions">
           <Button variant="quiet" onClick={() => removeGoal(goal.id)}>
-            Remove aim
+            Remove goal
           </Button>
         </div>
       </fieldset>
@@ -417,8 +417,8 @@ export function OnboardingScreen() {
             </form>
 
             <p className="mini-note welcome-custom-note">
-              The demo creates two aims and five routines. Your own path asks for one to
-              three aims and at least four routines.
+              The demo creates two goals and five routines. Your own path asks for one to
+              three goals and at least four routines.
             </p>
 
             <p className="welcome-foot">
@@ -489,15 +489,15 @@ export function OnboardingScreen() {
     },
     2: {
       title: 'What are you climbing toward?',
-      body: 'Choose one to three aims. Each aim becomes a banner on your weekly path.',
+      body: 'Choose one to three goals: the areas you are pursuing, such as movement or making. Each goal becomes a banner on your weekly path.',
     },
     3: {
       title: 'Which small steps will you keep?',
-      body: `Add at least ${MIN_ACTIVE_TASKS} active routines across your aims. Effort changes the reward, not the weekly progress.`,
+      body: `Add at least ${MIN_ACTIVE_TASKS} active routines across your goals. A routine is a concrete action, such as a 30-minute walk. Effort changes the reward, not the weekly progress.`,
     },
     4: {
       title: 'Ready to begin?',
-      body: 'Review the week. Weekly aims can still be adjusted here; the run starts on today’s date.',
+      body: 'Review the week. Weekly targets can still be adjusted here; the run starts on today’s date.',
     },
   } as const
   const copy = stepCopy[step as keyof typeof stepCopy] ?? stepCopy[1]
@@ -591,7 +591,7 @@ export function OnboardingScreen() {
               <div className="draft-list">
                 {goals.length === 0 ? (
                   <p className="panel-note">
-                    No aims yet. Add the first one to shape this week.
+                    No goals yet. Add the first one to shape this week.
                   </p>
                 ) : (
                   goals.map((goal, index) => renderGoalFields(goal, index))
@@ -605,10 +605,10 @@ export function OnboardingScreen() {
                   disabled={goals.length >= MAX_GOALS}
                 >
                   <Icon name="plus" />
-                  Add aim
+                  Add goal
                 </Button>
                 <span className="mini-note">
-                  {goals.length} / {MAX_GOALS} aims
+                  {goals.length} / {MAX_GOALS} goals
                 </span>
               </div>
 
@@ -648,13 +648,13 @@ export function OnboardingScreen() {
                           <h2>{goalLabel(index)}</h2>
                           <p>
                             {activeCount} active {activeCount === 1 ? 'routine' : 'routines'} ·
-                            suggested weekly aim {suggestedWeeklyObjective(goal.id, tasks)}
+                            suggested weekly target {suggestedWeeklyObjective(goal.id, tasks)}
                           </p>
                         </div>
                       </div>
                       {goalTasks.length === 0 ? (
                         <p className="panel-note draft-group__empty">
-                          No routines under this aim yet.
+                          No routines under this goal yet.
                         </p>
                       ) : (
                         <div className="draft-list">{goalTasks.map(renderTaskFields)}</div>
@@ -702,7 +702,7 @@ export function OnboardingScreen() {
                 <div className="review-block__head">
                   <h2>{draft.name.trim() || 'Wayfarer'}</h2>
                   <span className="mini-note">
-                    {goals.length} aims · {tasks.filter((task) => task.active).length} active
+                    {goals.length} goals · {tasks.filter((task) => task.active).length} active
                     routines · 7 days
                   </span>
                 </div>
@@ -728,7 +728,7 @@ export function OnboardingScreen() {
                         </div>
                       </div>
                       <div className="field review-goal__objective">
-                        <label htmlFor={`review-${goal.id}-weekly`}>Weekly aim</label>
+                        <label htmlFor={`review-${goal.id}-weekly`}>Weekly target</label>
                         <input
                           className="input"
                           id={`review-${goal.id}-weekly`}
@@ -751,7 +751,7 @@ export function OnboardingScreen() {
                       </div>
                       <ul className="review-routines">
                         {goalTasks.length === 0 ? (
-                          <li className="panel-note">No routines under this aim.</li>
+                          <li className="panel-note">No routines under this goal.</li>
                         ) : (
                           goalTasks.map((task) => (
                             <li key={task.id}>

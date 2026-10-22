@@ -8,7 +8,7 @@ import type { Goal, OnboardingSetup, Task } from '../domain/types'
 
 export const DEMO_NAME = 'Wren'
 
-export const AIM_WITHOUT_ROUTINE = 'Every active aim needs at least one active routine.'
+export const AIM_WITHOUT_ROUTINE = 'Every active goal needs at least one active routine.'
 
 export interface SetupValidation {
   ok: boolean
@@ -29,10 +29,10 @@ export function validateSetup(
   const activeTasks = tasks.filter((task) => task.active)
 
   if (activeGoals.length < 1) {
-    errors.push('Choose at least one aim to begin.')
+    errors.push('Choose at least one goal to begin.')
   }
   if (activeGoals.length > MAX_GOALS) {
-    errors.push(`A run can hold at most ${MAX_GOALS} aims.`)
+    errors.push(`A run can hold at most ${MAX_GOALS} goals.`)
   }
   if (activeTasks.length < MIN_ACTIVE_TASKS) {
     errors.push(`Add at least ${MIN_ACTIVE_TASKS} routines to light the week.`)
@@ -40,7 +40,7 @@ export function validateSetup(
 
   for (const goal of activeGoals) {
     if (!goal.title.trim()) {
-      errors.push('Give every aim a name.')
+      errors.push('Give every goal a name.')
     }
     if (
       !Number.isInteger(goal.weeklyObjective) ||
@@ -48,7 +48,7 @@ export function validateSetup(
       goal.weeklyObjective > MAX_WEEKLY_OBJECTIVE
     ) {
       errors.push(
-        `Set each weekly aim between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
+        `Set each weekly target between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
       )
     }
     if (!activeTasks.some((task) => task.goalId === goal.id)) {
@@ -61,7 +61,7 @@ export function validateSetup(
       errors.push('Give every routine a name.')
     }
     if (!activeGoalIds.has(task.goalId)) {
-      errors.push('Every routine needs an aim in this run.')
+      errors.push('Every routine needs a goal in this run.')
     }
   }
 
@@ -74,7 +74,7 @@ export function validateSetup(
   return { ok: uniqueErrors.length === 0, errors: uniqueErrors }
 }
 
-/** Deterministic demo onboarding payload: 2 aims, 5 active routines. */
+/** Deterministic demo onboarding payload: 2 goals, 5 active routines. */
 export function createDemoSetup(now: Date): OnboardingSetup {
   const createdAt = now.toISOString()
 

@@ -21,18 +21,18 @@ export interface ContentActionResult {
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
 export const CONTENT_MESSAGES = {
-  goalTitle: 'Give this aim a title.',
-  weeklyObjective: `Set the weekly aim between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
-  tooManyGoals: `A run can hold at most ${MAX_GOALS} active aims. Archive one before adding another.`,
-  lastGoal: 'Keep at least one active aim while the run is underway.',
+  goalTitle: 'Give this goal a title.',
+  weeklyObjective: `Set the weekly target between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
+  tooManyGoals: `A run can hold at most ${MAX_GOALS} active goals. Archive one before adding another.`,
+  lastGoal: 'Keep at least one active goal while the run is underway.',
   fewRoutines: `Keep at least ${MIN_ACTIVE_TASKS} active routines while the run is underway.`,
   aimWithoutRoutine:
-    'Keep at least one active routine under every active aim while the run is underway.',
+    'Keep at least one active routine under every active goal while the run is underway.',
   taskTitle: 'Give this routine a title.',
-  taskGoal: 'Choose an active aim for this routine.',
+  taskGoal: 'Choose an active goal for this routine.',
   taskEffort: 'Choose light, medium or heavy effort.',
-  orphanTask: 'Every routine needs an active aim.',
-  missingGoal: 'That aim no longer exists. Refresh and try again.',
+  orphanTask: 'Every routine needs an active goal.',
+  missingGoal: 'That goal no longer exists. Refresh and try again.',
   missingTask: 'That routine no longer exists. Refresh and try again.',
 } as const
 
@@ -59,7 +59,7 @@ export function validateGoalInput(goal: Pick<Goal, 'title' | 'weeklyObjective'>)
   return errors
 }
 
-/** Validates a routine, including that its aim exists and is active. */
+/** Validates a routine, including that its goal exists and is active. */
 export function validateTaskInput(
   task: Pick<Task, 'title' | 'goalId' | 'effort'>,
   goals: readonly Goal[],
@@ -82,7 +82,7 @@ export function activeTasksUnderActiveGoals(goals: readonly Goal[], tasks: reado
   return tasks.filter((task) => task.active && goalIds.has(task.goalId))
 }
 
-/** Whether an active aim still has at least one active routine in `tasks`. */
+/** Whether an active goal still has at least one active routine in `tasks`. */
 export function goalHasActiveRoutine(
   goals: readonly Goal[],
   tasks: readonly Task[],

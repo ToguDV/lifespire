@@ -10,10 +10,10 @@ const now = new Date(2026, 9, 26, 9, 0, 0)
 const setup = createDemoSetup(now)
 
 describe('initialWeeklyTargets', () => {
-  it('prefills only active aims with their current targets', () => {
+  it('prefills only active goals with their current targets', () => {
     const goals = [
       ...setup.goals,
-      { ...setup.goals[0]!, id: 'archived', title: 'Old aim', active: false },
+      { ...setup.goals[0]!, id: 'archived', title: 'Old goal', active: false },
     ]
     expect(initialWeeklyTargets(goals)).toEqual({
       'demo-goal-wayfarer': '4',
@@ -23,7 +23,7 @@ describe('initialWeeklyTargets', () => {
 })
 
 describe('validateNewRunSetup', () => {
-  it('accepts the active aims and routines with adjusted 1–7 targets', () => {
+  it('accepts the active goals and routines with adjusted 1–7 targets', () => {
     const targets = initialWeeklyTargets(setup.goals)
     targets['demo-goal-wayfarer'] = '1'
     targets['demo-goal-craft'] = String(MAX_WEEKLY_OBJECTIVE)
@@ -51,7 +51,7 @@ describe('validateNewRunSetup', () => {
     }
   })
 
-  it('requires at least one active aim and four active routines', () => {
+  it('requires at least one active goal and four active routines', () => {
     const targets = initialWeeklyTargets(setup.goals)
     const noGoals = validateNewRunSetup(
       setup.goals.map((goal) => ({ ...goal, active: false })),
@@ -59,7 +59,7 @@ describe('validateNewRunSetup', () => {
       targets,
     )
     expect(noGoals.ok).toBe(false)
-    expect(noGoals.errors).toContain('Choose at least one aim to begin.')
+    expect(noGoals.errors).toContain('Choose at least one goal to begin.')
 
     const fewRoutines = validateNewRunSetup(setup.goals, setup.tasks.slice(0, 3), targets)
     expect(fewRoutines.ok).toBe(false)
@@ -73,7 +73,7 @@ describe('validateNewRunSetup', () => {
     expect(missing.fieldErrors['demo-goal-craft']).toBeTruthy()
   })
 
-  it('requires a routine under every active aim', () => {
+  it('requires a routine under every active goal', () => {
     const targets = initialWeeklyTargets(setup.goals)
     const allInOneAim = setup.tasks.map((task) => ({
       ...task,
@@ -81,7 +81,7 @@ describe('validateNewRunSetup', () => {
     }))
     const result = validateNewRunSetup(setup.goals, allInOneAim, targets)
     expect(result.ok).toBe(false)
-    expect(result.errors).toContain('Every active aim needs at least one active routine.')
+    expect(result.errors).toContain('Every active goal needs at least one active routine.')
   })
 
   it('reuses the same setup rules as onboarding', () => {

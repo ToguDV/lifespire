@@ -5,6 +5,9 @@
 - **Product and rules:** [`SPEC.md`](./SPEC.md) defines the scope, game rules,
   rewards, screens, and acceptance criteria. Any functional decision must be
   traceable back to that document (or a GitHub issue).
+- **Vocabulary:** [`GLOSARY.md`](./GLOSARY.md) defines the user-facing terms
+  (goal, routine, weekly target) and records that the code keeps the older
+  "aim" names for identifiers, CSS classes, and DOM hooks.
 - **Workflow:** [`WORKFLOW.md`](./WORKFLOW.md) sets the commit format, PR
   content, the TDD requirement, and the mandatory cleanup at the end of a
   session. It is binding for agents and humans.

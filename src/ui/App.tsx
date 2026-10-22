@@ -36,7 +36,7 @@ const DevPanel = import.meta.env.DEV
 const SIDEBAR_ITEMS: Array<{ view: View; label: string; icon: IconName }> = [
   { view: { name: 'map' }, label: 'Map', icon: 'map' },
   { view: { name: 'home' }, label: 'Camp', icon: 'tent' },
-  { view: { name: 'goals' }, label: 'Aims', icon: 'banner' },
+  { view: { name: 'goals' }, label: 'Goals', icon: 'banner' },
   { view: { name: 'profile' }, label: 'Reliquary', icon: 'gem' },
   { view: { name: 'settings' }, label: 'Settings', icon: 'settings' },
 ]
@@ -44,7 +44,7 @@ const SIDEBAR_ITEMS: Array<{ view: View; label: string; icon: IconName }> = [
 const TAB_ITEMS: Array<{ view: View; label: string; icon: IconName }> = [
   { view: { name: 'map' }, label: 'Map', icon: 'map' },
   { view: { name: 'home' }, label: 'Camp', icon: 'tent' },
-  { view: { name: 'goals' }, label: 'Aims', icon: 'banner' },
+  { view: { name: 'goals' }, label: 'Goals', icon: 'banner' },
   { view: { name: 'profile' }, label: 'Relics', icon: 'gem' },
 ]
 
@@ -57,7 +57,7 @@ function tabForView(view: View): string {
     return 'map'
   }
   if (view.name === 'home') return 'home'
-  if (view.name === 'goals') return 'goals'
+  if (view.name === 'goals') return 'aims'
   if (view.name === 'profile') return 'profile'
   return ''
 }
@@ -77,7 +77,7 @@ const VIEW_TITLES: Record<string, string> = {
   map: 'Map · LifeSpire',
   node: 'Node detail · LifeSpire',
   summary: 'Summary · LifeSpire',
-  aims: 'Aims · LifeSpire',
+  aims: 'Goals · LifeSpire',
   reliquary: 'Reliquary · LifeSpire',
   settings: 'Settings · LifeSpire',
   recovery: 'Recovery · LifeSpire',

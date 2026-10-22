@@ -93,7 +93,7 @@ describe('objectiveAggregate', () => {
 })
 
 describe('weekly bonus copy', () => {
-  it('explains per-aim and all-aim bonuses without hiding forfeits', () => {
+  it('explains per-goal and all-goal bonuses without hiding forfeits', () => {
     expect(
       objectiveBonusCopy({
         met: true,
@@ -109,7 +109,7 @@ describe('weekly bonus copy', () => {
       `+${ALL_OBJECTIVES_BONUS.xp} XP · +${ALL_OBJECTIVES_BONUS.gold} gold · one guaranteed rare`,
     )
     expect(allAimsBonusCopy(false)).toBe(
-      'Not granted · every weekly aim must be kept',
+      'Not granted · every weekly target must be kept',
     )
   })
 
@@ -127,6 +127,6 @@ describe('weekly bonus copy', () => {
   it('explains the guaranteed rare when it is kept or converted', () => {
     expect(guaranteedRareCopy(true, rare)).toBe('Guaranteed rare · Silverbark Ring')
     expect(guaranteedRareCopy(true, null)).toContain('became gold')
-    expect(guaranteedRareCopy(false, null)).toContain('only when every weekly aim')
+    expect(guaranteedRareCopy(false, null)).toContain('only when every weekly target')
   })
 })

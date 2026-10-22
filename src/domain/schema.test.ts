@@ -188,7 +188,7 @@ describe('serializeDocument and parseDocument', () => {
     expect(serialized).not.toContain('toast')
   })
 
-  it('round-trips an in-progress draft with an out-of-range weekly aim', () => {
+  it('round-trips an in-progress draft with an out-of-range weekly target', () => {
     const document = createEmptyDocument()
     document.onboardingDraft = {
       step: 2,

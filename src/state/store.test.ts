@@ -129,7 +129,7 @@ describe('onboarding', () => {
     const setup = createDemoSetup(base)
     store.getState().completeOnboarding({ ...setup, goals: [], tasks: [] }, base)
     expect(store.getState().document.profile).toBeNull()
-    expect(store.getState().toast).toBe('Choose at least one aim to begin.')
+    expect(store.getState().toast).toBe('Choose at least one goal to begin.')
   })
 
   it('updates and clears the onboarding draft', () => {
@@ -1141,7 +1141,7 @@ describe('atomic onboarding journey', () => {
     expect(store.getState().toast).toBe('Add at least 4 routines to light the week.')
   })
 
-  it('rejects more than three aims and an out-of-range weekly objective', () => {
+  it('rejects more than three goals and an out-of-range weekly objective', () => {
     const { store, base } = makeHarness()
     const setup = createDemoSetup(base)
     const extra = setup.goals.map((goal, index) => ({
@@ -1157,7 +1157,7 @@ describe('atomic onboarding journey', () => {
         base,
       ),
     ).toBe(false)
-    expect(store.getState().toast).toBe('A run can hold at most 3 aims.')
+    expect(store.getState().toast).toBe('A run can hold at most 3 goals.')
 
     const invalidObjective = setup.goals.map((goal, index) =>
       index === 0 ? { ...goal, weeklyObjective: 8 } : goal,
@@ -1168,7 +1168,7 @@ describe('atomic onboarding journey', () => {
         base,
       ),
     ).toBe(false)
-    expect(store.getState().toast).toBe('Set each weekly aim between 1 and 7.')
+    expect(store.getState().toast).toBe('Set each weekly target between 1 and 7.')
     expect(store.getState().document.profile).toBeNull()
     expect(store.getState().document.run).toBeNull()
   })
@@ -1207,7 +1207,7 @@ describe('goals and routines CRUD', () => {
     expect(created.ok).toBe(true)
 
     const goal = store.getState().document.goals.find((item) => item.title === 'Hearth')
-    if (!goal) throw new Error('expected the created aim')
+    if (!goal) throw new Error('expected the created goal')
     expect(goal.id.startsWith('goal_')).toBe(true)
     expect(goal.createdAt).toBe(base.toISOString())
     expect(storedDocument(memory).goals).toContainEqual(goal)
@@ -1241,7 +1241,7 @@ describe('goals and routines CRUD', () => {
     const setup = createDemoSetup(base)
     store.getState().completeOnboarding(setup, base)
     const goal = store.getState().document.goals[0]
-    if (!goal) throw new Error('expected the demo aim')
+    if (!goal) throw new Error('expected the demo goal')
 
     const created = store.getState().saveTask(
       { goalId: goal.id, title: '  Tend the fire  ', effort: 'light', active: true },
@@ -1294,19 +1294,19 @@ describe('goals and routines CRUD', () => {
     ).toBe(true)
   })
 
-  it('rejects empty titles, invalid weekly aims and inactive aims', () => {
+  it('rejects empty titles, invalid weekly goals and inactive goals', () => {
     const { store, base } = makeHarness()
     const setup = createDemoSetup(base)
     store.getState().completeOnboarding(setup, base)
     const goal = store.getState().document.goals[0]
-    if (!goal) throw new Error('expected the demo aim')
+    if (!goal) throw new Error('expected the demo goal')
 
     const emptyGoal = store.getState().saveGoal(
       { title: '   ', category: '', weeklyObjective: 2, active: true },
       base,
     )
     expect(emptyGoal.ok).toBe(false)
-    expect(emptyGoal.fieldErrors.title).toBe('Give this aim a title.')
+    expect(emptyGoal.fieldErrors.title).toBe('Give this goal a title.')
 
     const invalidWeekly = store.getState().saveGoal(
       { title: 'Hearth', category: 'Home', weeklyObjective: 8, active: true },
@@ -1314,7 +1314,7 @@ describe('goals and routines CRUD', () => {
     )
     expect(invalidWeekly.ok).toBe(false)
     expect(invalidWeekly.fieldErrors.weeklyObjective).toBe(
-      'Set the weekly aim between 1 and 7.',
+      'Set the weekly target between 1 and 7.',
     )
 
     const emptyTask = store.getState().saveTask(
@@ -1332,7 +1332,7 @@ describe('goals and routines CRUD', () => {
           { goalId: archivedGoal.id, title: 'Walk', effort: 'light', active: true },
           base,
         ).fieldErrors.goalId,
-      ).toBe('Choose an active aim for this routine.')
+      ).toBe('Choose an active goal for this routine.')
     }
   })
 
@@ -1341,7 +1341,7 @@ describe('goals and routines CRUD', () => {
     const setup = createDemoSetup(base)
     store.getState().completeOnboarding(setup, base)
     const goal = store.getState().document.goals[0]
-    if (!goal) throw new Error('expected the demo aim')
+    if (!goal) throw new Error('expected the demo goal')
 
     expect(store.getState().archiveGoal(goal.id, base).ok).toBe(true)
     const archivedTasks = store
@@ -1353,7 +1353,7 @@ describe('goals and routines CRUD', () => {
 })
 
 describe('content constraints during an active run', () => {
-  it('blocks archiving the last active aim', () => {
+  it('blocks archiving the last active goal', () => {
     const { store, base } = makeHarness()
     const goal = {
       id: 'goal_only',
@@ -1376,7 +1376,7 @@ describe('content constraints during an active run', () => {
 
     const result = store.getState().archiveGoal(goal.id, base)
     expect(result.ok).toBe(false)
-    expect(result.errors).toContain('Keep at least one active aim while the run is underway.')
+    expect(result.errors).toContain('Keep at least one active goal while the run is underway.')
     expect(store.getState().document.goals[0]?.active).toBe(true)
   })
 
@@ -1397,11 +1397,11 @@ describe('content constraints during an active run', () => {
     ).toBe(true)
   })
 
-  it('blocks archiving an aim that would leave fewer than four routines', () => {
+  it('blocks archiving a goal that would leave fewer than four routines', () => {
     const { store, base } = makeHarness()
     onboardAndStart(store, base)
     const goal = store.getState().document.goals[0]
-    if (!goal) throw new Error('expected the demo aim')
+    if (!goal) throw new Error('expected the demo goal')
     const tasksOnGoal = store
       .getState()
       .document.tasks.filter((task) => task.goalId === goal.id && task.active)
@@ -1420,7 +1420,7 @@ describe('content constraints during an active run', () => {
     ).toHaveLength(3)
   })
 
-  it('allows three active aims but blocks a fourth during a run', () => {
+  it('allows three active goals but blocks a fourth during a run', () => {
     const { store, base } = makeHarness()
     onboardAndStart(store, base)
 
@@ -1437,12 +1437,12 @@ describe('content constraints during an active run', () => {
     )
     expect(fourth.ok).toBe(false)
     expect(fourth.errors).toContain(
-      'A run can hold at most 3 active aims. Archive one before adding another.',
+      'A run can hold at most 3 active goals. Archive one before adding another.',
     )
     expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(3)
   })
 
-  it('blocks archiving the last active routine of an active aim', () => {
+  it('blocks archiving the last active routine of an active goal', () => {
     const { store, base } = makeHarness()
     const goals = [
       {
@@ -1488,7 +1488,7 @@ describe('content constraints during an active run', () => {
 
     expect(result.ok).toBe(false)
     expect(result.errors).toContain(
-      'Keep at least one active routine under every active aim while the run is underway.',
+      'Keep at least one active routine under every active goal while the run is underway.',
     )
     expect(store.getState().document).toBe(before)
     expect(
@@ -1558,7 +1558,7 @@ describe('map snapshots and run objectives', () => {
     expect(store.getState().archiveTask(task.id, base).ok).toBe(true)
 
     const goal = store.getState().document.goals.find((item) => item.id === task.goalId)
-    if (!goal) throw new Error('expected the routine aim')
+    if (!goal) throw new Error('expected the routine goal')
     expect(
       store.getState().saveGoal(
         {

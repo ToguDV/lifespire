@@ -8,19 +8,19 @@ type PendingAction = 'demo' | 'restart' | 'reset'
 const CONFIRM_COPY: Record<PendingAction, { title: string; description: string; body: string; confirm: string }> = {
   demo: {
     title: 'Start a demo run?',
-    description: 'This replaces the current profile, aims and run with fresh demo content.',
+    description: 'This replaces the current profile, goals and run with fresh demo content.',
     body: 'The clock offset is kept, but any local progress is discarded. This action cannot be undone.',
     confirm: 'Start demo run',
   },
   restart: {
     title: 'Restart the current run?',
     description: 'The run and its days are discarded. The profile, XP, gold and collection stay.',
-    body: 'A new seven-day run begins today with the current aims and routines.',
+    body: 'A new seven-day run begins today with the current goals and routines.',
     confirm: 'Restart run',
   },
   reset: {
     title: 'Reset all data?',
-    description: 'This removes the profile, aims, routines, run and collection.',
+    description: 'This removes the profile, goals, routines, run and collection.',
     body: 'The development clock also returns to zero. Export first if you need a copy.',
     confirm: 'Reset everything',
   },

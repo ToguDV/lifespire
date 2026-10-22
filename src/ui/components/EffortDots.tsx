@@ -17,7 +17,7 @@ export interface EffortDotsProps {
   label?: string
 }
 
-/** Three-dot effort indicator used in aims and node details. */
+/** Three-dot effort indicator used in goals and node details. */
 export function EffortDots({ effort, label }: EffortDotsProps) {
   return (
     <div className="effort-dots" aria-label={label ?? LABELS[effort]}>

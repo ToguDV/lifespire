@@ -127,18 +127,18 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
         </div>
         <p className="panel-note new-run-keep-note">
           {profile?.name ?? 'Your traveller'} keeps their name, level, experience,
-          gold and collection. Only the run, its days and its weekly aims reset.
+          gold and collection. Only the run, its days and its weekly targets reset.
         </p>
 
         <fieldset className="new-run-goals">
-          <legend className="micro">Weekly aims for the new run</legend>
+          <legend className="micro">Weekly targets for the new run</legend>
           <p className="field-hint">
-            Review each active aim. Targets run from {MIN_WEEKLY_OBJECTIVE} to{' '}
+            Review each active goal. Targets run from {MIN_WEEKLY_OBJECTIVE} to{' '}
             {MAX_WEEKLY_OBJECTIVE} and are fixed once the run begins.
           </p>
           {validation.activeGoals.length === 0 ? (
             <p className="panel-note">
-              There are no active aims. Restore one from Aims before beginning.
+              There are no active goals. Restore one from Goals before beginning.
             </p>
           ) : (
             validation.activeGoals.map((goal, index) => {
@@ -175,7 +175,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
                       onChange={(event) => updateTarget(goal.id, event.target.value)}
                     />
                     <p className="field-hint" id={hintId}>
-                      {goal.title} aims to be kept {targets[goal.id] || '—'} times this
+                      {goal.title} must be kept {targets[goal.id] || '—'} times this
                       week.
                     </p>
                     {error ? (

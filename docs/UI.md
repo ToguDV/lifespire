@@ -27,7 +27,7 @@ link, `<main id="main-content">`, theme controls and the current screen. The
 view is a discriminated union in `src/domain/types.ts`; `view` and `history`
 are transient store state and are never persisted.
 
-Navigation targets: Map, Camp (home), Aims, Reliquary and Settings. Node detail,
+Navigation targets: Map, Camp (home), Goals, Reliquary and Settings. Node detail,
 day summary and run summary are reached from Map or Camp. Without a profile the
 shell is hidden by `body[data-screen="welcome"]` and onboarding is shown. A
 blocked save forces recovery. Map, node and day-summary views fall back to camp
@@ -83,6 +83,10 @@ rules in `tokens.css` apply. Screen changes move focus to `<main>`.
 
 Every component emits the ported classes (`btn`, `panel`, `chip`, `pips`,
 `screen-head`, etc.), so custom CSS is only needed for new UI states.
+
+`AimRow` keeps the old "aim" name on purpose: the interface says **goal**,
+**routine** and **weekly target**, while identifiers, CSS classes and DOM
+hooks keep the "aim" family. See [`../GLOSARY.md`](../GLOSARY.md).
 
 ## Accessibility
 

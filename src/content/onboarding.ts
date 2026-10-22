@@ -28,8 +28,8 @@ function clampObjective(value: number): number {
 }
 
 /**
- * Suggested weekly aim derived from the active routines under a goal. Keeping
- * one spare slot leaves room for a missed day without making the aim trivial.
+ * Suggested weekly target derived from the active routines under a goal. Keeping
+ * one spare slot leaves room for a missed day without making the goal trivial.
  */
 export function suggestedWeeklyObjective(goalId: string, tasks: readonly Task[]): number {
   const routines = tasks.filter((task) => task.active && task.goalId === goalId).length

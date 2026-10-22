@@ -40,7 +40,7 @@ export function objectiveAggregate(
   )
 }
 
-/** Bonus line under one weekly aim. The loot roll is always part of the bonus. */
+/** Bonus line under one weekly target. The loot roll is always part of the bonus. */
 export function objectiveBonusCopy(
   objective: Pick<
     RunSummary['objectives'][number],
@@ -53,7 +53,7 @@ export function objectiveBonusCopy(
 
 /** All-aims bonus line, including the exact guaranteed-rare promise. */
 export function allAimsBonusCopy(allComplete: boolean): string {
-  if (!allComplete) return 'Not granted · every weekly aim must be kept'
+  if (!allComplete) return 'Not granted · every weekly target must be kept'
   return `+${ALL_OBJECTIVES_BONUS.xp} XP · +${ALL_OBJECTIVES_BONUS.gold} gold · one guaranteed rare`
 }
 
@@ -69,7 +69,7 @@ export function weeklyBonusTotalCopy(
 /** What happened to the guaranteed rare, without implying it was lost. */
 export function guaranteedRareCopy(allComplete: boolean, rare: LootItem | null): string {
   if (!allComplete) {
-    return 'A guaranteed rare is granted only when every weekly aim is kept.'
+    return 'A guaranteed rare is granted only when every weekly target is kept.'
   }
   if (rare) return `Guaranteed rare · ${rare.name}`
   return 'The guaranteed rare duplicated a relic already found or owned, so it became gold.'

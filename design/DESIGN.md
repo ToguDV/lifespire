@@ -418,7 +418,7 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 - **Done Ink** ({colors.done-ink}): The icon inside a completed medallion.
 - **Moss** ({colors.accent}): The only accent. Open choices, current state, gain, progress.
 - **Moss Deep** ({colors.accent-deep}): Text on moss-soft backgrounds and italic display accents.
-- **Moss Soft** ({colors.accent-soft}): The current-day wash, active aim rows, quiet emphasis.
+- **Moss Soft** ({colors.accent-soft}): The current-day wash, active goal rows, quiet emphasis.
 - **Moss Wash** ({colors.accent-wash}): Atmospheric radial wash on the map and welcome art.
 - **On Accent** ({colors.on-accent}): Text and icons placed on filled moss or ink.
 - **Scrim** ({colors.scrim}): The only overlay, used behind modal surfaces if added.
@@ -467,7 +467,7 @@ Fallbacks: `Iowan Old Style`, `Palatino Linotype`, Georgia for display; `Gill Sa
 | `{typography.display-lg}` | 60px | 600 | 1.08 | -0.015em | Screen titles, large map name |
 | `{typography.display-md}` | 40px | 600 | 1.06 | -0.015em | Node title, welcome section |
 | `{typography.heading-lg}` | 28.8px | 600 | 1.12 | -0.01em | Section headings, summary title |
-| `{typography.heading-md}` | 20px | 600 | 1.25 | 0 | Panel titles, aim group names |
+| `{typography.heading-md}` | 20px | 600 | 1.25 | 0 | Panel titles, goal group names |
 | `{typography.heading-sm}` | 16.8px | 600 | 1.3 | 0 | Card titles, node names |
 | `{typography.body-lg}` | 17px | 400 | 1.6 | 0 | Long-form welcome copy |
 | `{typography.body-md}` | 15px | 400 | 1.5 | 0 | Primary body copy |
@@ -497,8 +497,8 @@ Fallbacks: `Iowan Old Style`, `Palatino Linotype`, Georgia for display; `Gill Sa
 - **Desktop shell**: 240px sidebar (256px at 1280px and above) plus a fluid main column. At 1440px the content area is approximately 1184px wide.
 - **Map**: a 4:5 canvas, height-led, centered in its frame. The rail is hidden below 1200px, 312px from 1200–1279px, and 336px at 1280px and above.
 - **Camp**: a two-column grid, `minmax(0, 1fr)` + 340px rail, with a 24px gap. Below 960px the rail and week strip are removed. From 960–1199px the rail is removed but the week strip remains in a full-width camp. At 1200px the rail returns.
-- **Aims**: a 3-column weekly grid plus a 300px right rail on desktop; one column on mobile.
-- **Summary**: a 720px maximum card, centered in the main area, with a two-column totals row and a compact aim list.
+- **Goals**: a 3-column weekly grid plus a 300px right rail on desktop; one column on mobile.
+- **Summary**: a 720px maximum card, centered in the main area, with a two-column totals row and a compact goal list.
 
 ### Whitespace Philosophy
 Negative space is part of the calm. Screens use generous top padding and quiet endings rather than filling every pixel. On desktop, content may end well above the fold; that is intentional paper margin. On mobile, partial next sections are acceptable because the viewport scrolls, but the first view should always show the next action: the map nodes and dock, the camp CTA, the node's primary button.
@@ -572,7 +572,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`sidebar`** — Desktop run rail.
 - Width 240px from 960–1279px and 256px at 1280px and above; background `{colors.surface-sunken}`, right border `{colors.hairline}`.
-- Top: wordmark, "a quiet ascent", "The run" micro label. Primary nav: Map, Camp, Aims, Reliquary.
+- Top: wordmark, "a quiet ascent", "The run" micro label. Primary nav: Map, Camp, Goals, Reliquary.
 - Bottom: profile card (level badge, name, level/XP), appearance label, theme switch.
 
 **`sidebar-item-active`** — Current section.
@@ -606,7 +606,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`map-rail`** — Desktop companion panel.
 - Surface panel with 20px padding, rounded `{rounded.lg}`, hairline border.
-- Sections: Next step (two choice rows), Weekly aims (three aim rows with pips), legend (Task, Elite, Rest, Treasure, Boss).
+- Sections: Next step (two choice rows), Weekly goals (three goal rows with pips), legend (Task, Elite, Rest, Treasure, Boss).
 
 **Paths**
 - Walked: 1.7px solid `{colors.ink}` at 78% opacity.
@@ -620,11 +620,11 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - Surface, hairline border, rounded `{rounded.full}`, 26px minimum height, 3px 10px padding, caption 700.
 - Small icon optional at 12–13px.
 
-**`chip-accent`** — Moss-soft background, moss-deep text, moss border. Used for weekly aim deltas and current-day markers.
+**`chip-accent`** — Moss-soft background, moss-deep text, moss border. Used for weekly target deltas and current-day markers.
 
 **`day-pip`** — 6px diamond. Active `{colors.accent}`; completed days filled; future days `{colors.hairline-strong}`. Day 3 is a filled current pip in the screen head; the topbar shows completed days only.
 
-**`progress-pip`** — 6×13px rounded bar for weekly aims. Filled `{colors.accent}`, empty `{colors.hairline}`. Pips are always paired with a numeric `3 / 5` label; they are not the only signal.
+**`progress-pip`** — 6×13px rounded bar for weekly goals. Filled `{colors.accent}`, empty `{colors.hairline}`. Pips are always paired with a numeric `3 / 5` label; they are not the only signal.
 
 **`resource-counter`** — 14px coin/level icon + display-face number. Gold, level, and XP never rely on colour; each has an icon and a label.
 
@@ -645,7 +645,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - Surface, 1px hairline, rounded `{rounded.xl}`, 24–30px padding, shadow level 1.
 - Head: place name in micro caps, display title, italic subtitle, and a round `seal` on the right.
 - Five path rows: 36px icon, title + type micro, reward right. Skipped rows use a dashed medallion and "No reward".
-- Totals row: three equal cells with icon, display number, and micro label. A dashed `level-up` strip below, then the aims and actions.
+- Totals row: three equal cells with icon, display number, and micro label. A dashed `level-up` strip below, then the goals and actions.
 
 **`seal`** — Day seal.
 - 86px circle, `{colors.accent-wash}` fill, moss border, double ring inset, day numeral in display 600, `DAY` micro beneath.
@@ -688,7 +688,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 | Name | Width | Key Changes |
 |---|---|---|
 | Small mobile | 320–479px | Single column. Map labels move beside open nodes; frame meta hidden below 700px height; dock and bottom tabs. |
-| Mobile | 480–959px | Single column with 16–20px gutters. Bottom tabs; camp rail hidden; Aims rail stacks below. Map remains 4:5. |
+| Mobile | 480–959px | Single column with 16–20px gutters. Bottom tabs; camp rail hidden; Goals rail stacks below. Map remains 4:5. |
 | Compact desktop | 960–1199px | 240px sidebar; full-width content column; no side rails. Map takes the full main column; week strip visible. |
 | Desktop | 1200–1279px | Sidebar plus 312px map rail and camp rail; the three-column layout returns. |
 | Wide desktop | ≥ 1280px | 40px outer gutters; 336px map rail; wider camp grid; larger display type. |
@@ -703,8 +703,8 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 ### Collapsing Strategy
 - **Map dock**: fixed above the tab bar on mobile; hidden at 960px. From 960–1199 the map frame uses the full main column and the nodes are the direct actions; the rail returns at 1200px.
 - **Map rail**: hidden below 1200px. Below 960 the dock carries the two choice rows; at 960–1199 the full-width map and its labels do the work.
-- **Camp rail**: hidden below 1200px. From 960–1199px the week strip carries the overview; below 960px the Aims tab does. The topbar carries gold/level in both cases.
-- **Aims rail**: stacks below the three aim groups below 1200px; "Add a routine" becomes a full-width form. At 1200px it returns as a right rail.
+- **Camp rail**: hidden below 1200px. From 960–1199px the week strip carries the overview; below 960px the Goals tab does. The topbar carries gold/level in both cases.
+- **Goals rail**: stacks below the three goal groups below 1200px; "Add a routine" becomes a full-width form. At 1200px it returns as a right rail.
 - **Summary**: card stays single-column; the totals row stays three columns; actions wrap if needed.
 - **Welcome**: copy first on mobile, art below; two columns at 960px.
 - **Typography**: fluid clamps; display 44–84px, heading 20–28.8px, body 15px, micro 10.5px.

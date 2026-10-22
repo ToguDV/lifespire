@@ -9,7 +9,7 @@ export interface AimRowProps {
   icon?: IconName
 }
 
-/** Weekly aim row shared by camp, map, summaries and profiles. */
+/** Weekly goal row shared by camp, map, summaries and profiles. */
 export function AimRow({ title, progress, target, icon = 'banner' }: AimRowProps) {
   return (
     <div className="aim-row">

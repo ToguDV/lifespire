@@ -56,7 +56,7 @@ function SealedBody({
             <span className="micro">The week · Run I · Sealed</span>
             <h2>
               {summary.allComplete
-                ? 'Every aim kept. The spire answers.'
+                ? 'Every goal kept. The spire answers.'
                 : 'A week written in small promises.'}
             </h2>
             <p>
@@ -135,7 +135,7 @@ function SealedBody({
 
         <section className="summary-loot summary-aims-block" aria-labelledby="run-aims-title">
           <div className="section-block__head">
-            <h2 id="run-aims-title">Weekly aims</h2>
+            <h2 id="run-aims-title">Weekly goals</h2>
             <span className="mini-note">
               {aggregate.met} of {aggregate.total} kept
               {aggregate.total > 0 ? ` · ${aggregate.progress} / ${aggregate.target}` : ''}
@@ -143,7 +143,7 @@ function SealedBody({
           </div>
           {aggregate.total === 0 ? (
             <p className="panel-note">
-              No weekly aims were set for this run. The close is still valid; only the
+              No weekly goals were set for this run. The close is still valid; only the
               recorded node rewards apply.
             </p>
           ) : (
@@ -187,14 +187,14 @@ function SealedBody({
               <Icon name={aggregate.met > 0 ? 'check' : 'lock'} />
             </span>
             <div className="summary-bonus__body">
-              <span className="micro">Each aim kept</span>
+              <span className="micro">Each goal kept</span>
               <strong>
                 +{aggregate.bonusXp} XP · +{aggregate.bonusGold} gold
               </strong>
               <p>
                 {aggregate.met > 0
-                  ? `${aggregate.met} kept ${aggregate.met === 1 ? 'aim grants' : 'aims grant'} +${OBJECTIVE_BONUS.xp} XP, +${OBJECTIVE_BONUS.gold} gold and one loot roll each.`
-                  : 'No weekly aim was kept, so no per-aim bonus was granted.'}
+                  ? `${aggregate.met} kept ${aggregate.met === 1 ? 'goal grants' : 'goals grant'} +${OBJECTIVE_BONUS.xp} XP, +${OBJECTIVE_BONUS.gold} gold and one loot roll each.`
+                  : 'No weekly goal was kept, so no per-goal bonus was granted.'}
               </p>
             </div>
           </div>
@@ -204,14 +204,14 @@ function SealedBody({
               <Icon name={summary.allComplete ? 'crown' : 'lock'} />
             </span>
             <div className="summary-bonus__body">
-              <span className="micro">All aims kept</span>
+              <span className="micro">All goals kept</span>
               <strong>{allAimsBonusCopy(summary.allComplete)}</strong>
               <p>
                 {summary.allComplete
-                  ? 'This is the extra all-aims bonus on top of the per-aim bonuses, with one guaranteed rare from the rare pool.'
+                  ? 'This is the extra bonus for all goals on top of the per-goal bonuses, with one guaranteed rare from the rare pool.'
                   : aggregate.total === 0
-                    ? 'No weekly aims were set, so the all-aims bonus was not available this week.'
-                    : `${aggregate.total - aggregate.met} of ${aggregate.total} aims still open. Keep every aim in a future run to earn this bonus.`}
+                    ? 'No weekly goals were set, so the bonus for all goals was not available this week.'
+                    : `${aggregate.total - aggregate.met} of ${aggregate.total} goals still open. Keep every goal in a future run to earn this bonus.`}
               </p>
             </div>
           </div>
@@ -288,7 +288,7 @@ function SealedBody({
           <Icon name="lock" />
           <span>
             A new run retires this week’s record but keeps your profile, level, XP,
-            gold and collection. You can review the new weekly aims before it begins.
+            gold and collection. You can review the new weekly goals before it begins.
           </span>
         </p>
       </Panel>
@@ -338,7 +338,7 @@ function OpenWeek({ run, onCamp }: { run: Run; onCamp: () => void }) {
             />
             <Stat
               value={`${met} / ${total}`}
-              label="Aims kept"
+              label="Goals kept"
               progress={percent(met, Math.max(1, total))}
             />
             <Stat
@@ -364,13 +364,13 @@ function OpenWeek({ run, onCamp }: { run: Run; onCamp: () => void }) {
 
         <section className="summary-loot summary-aims-block" aria-labelledby="open-aims-title">
           <div className="section-block__head">
-            <h2 id="open-aims-title">Weekly aims</h2>
+            <h2 id="open-aims-title">Weekly goals</h2>
             <span className="mini-note">
               {met} of {total} kept
             </span>
           </div>
           {total === 0 ? (
-            <p className="panel-note">No weekly aims were set for this run.</p>
+            <p className="panel-note">No weekly goals were set for this run.</p>
           ) : (
             <ul className="summary-aims">
               {run.objectives.map((objective) => (
@@ -457,7 +457,7 @@ export function RunSummaryScreen() {
           kicker="The week · Run I"
           title="Sealing the week."
           titleId="run-summary-sealing-title"
-          sub="The weekly bonus is calculated from the recorded days and aims."
+          sub="The weekly bonus is calculated from the recorded days and goals."
           meta={<span className="chip chip--quiet">One moment</span>}
         />
         <div className="summary-wrap">
@@ -511,7 +511,7 @@ export function RunSummaryScreen() {
         kicker="The week · Run I · Sealed"
         title="The week is sealed."
         titleId="run-summary-title"
-        sub="Each day is recorded. The rewards, the aims and the path stay with your profile."
+        sub="Each day is recorded. The rewards, the goals and the path stay with your profile."
         meta={
           <>
             <span className="chip chip--quiet">{daysRecorded} of 7 days</span>

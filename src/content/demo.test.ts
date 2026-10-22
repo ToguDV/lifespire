@@ -42,7 +42,7 @@ function fourTasks(): Task[] {
 }
 
 describe('createDemoSetup', () => {
-  it('creates a valid demo with two aims and five routines', () => {
+  it('creates a valid demo with two goals and five routines', () => {
     const setup = createDemoSetup(now)
     expect(setup.name).toBe('Wren')
     expect(setup.goals).toHaveLength(2)
@@ -67,7 +67,7 @@ describe('createDemoSetup', () => {
     expect(setup.goals.every((goal) => goal.active)).toBe(true)
   })
 
-  it('belongs every routine to an active aim with unique ids', () => {
+  it('belongs every routine to an active goal with unique ids', () => {
     const setup = createDemoSetup(now)
     const goalIds = new Set(setup.goals.map((goal) => goal.id))
     expect(setup.tasks.every((task) => goalIds.has(task.goalId))).toBe(true)
@@ -86,8 +86,8 @@ describe('validateSetup', () => {
     expect(validateSetup([makeGoal()], fourTasks())).toEqual({ ok: true, errors: [] })
   })
 
-  it('rejects zero or too many active aims', () => {
-    expect(validateSetup([], fourTasks()).errors).toContain('Choose at least one aim to begin.')
+  it('rejects zero or too many active goals', () => {
+    expect(validateSetup([], fourTasks()).errors).toContain('Choose at least one goal to begin.')
 
     const goals = [1, 2, 3, 4].map((index) =>
       makeGoal({ id: `goal_${index}`, weeklyObjective: 2 }),
@@ -95,7 +95,7 @@ describe('validateSetup', () => {
     const tasks = [1, 2, 3, 4].map((index) =>
       makeTask({ id: `task_${index}`, goalId: `goal_${index}` }),
     )
-    expect(validateSetup(goals, tasks).errors).toContain('A run can hold at most 3 aims.')
+    expect(validateSetup(goals, tasks).errors).toContain('A run can hold at most 3 goals.')
   })
 
   it('rejects fewer than four active routines', () => {
@@ -110,7 +110,7 @@ describe('validateSetup', () => {
     expect(validateSetup([makeGoal()], tasks).ok).toBe(true)
   })
 
-  it('requires at least one active routine per active aim', () => {
+  it('requires at least one active routine per active goal', () => {
     const goals = [makeGoal(), makeGoal({ id: 'goal_2', title: 'Craft' })]
     const allInOneAim = fourTasks()
     const allInOne = validateSetup(goals, allInOneAim)
@@ -139,18 +139,18 @@ describe('validateSetup', () => {
 
   it('rejects weekly objectives outside 1..7', () => {
     expect(validateSetup([makeGoal({ weeklyObjective: 0 })], fourTasks()).errors).toContain(
-      'Set each weekly aim between 1 and 7.',
+      'Set each weekly target between 1 and 7.',
     )
     expect(validateSetup([makeGoal({ weeklyObjective: 8 })], fourTasks()).errors).toContain(
-      'Set each weekly aim between 1 and 7.',
+      'Set each weekly target between 1 and 7.',
     )
   })
 
-  it('rejects routines without an active aim', () => {
+  it('rejects routines without an active goal', () => {
     const tasks = fourTasks()
     tasks[0] = { ...tasks[0]!, goalId: 'missing_goal' }
     expect(validateSetup([makeGoal()], tasks).errors).toContain(
-      'Every routine needs an aim in this run.',
+      'Every routine needs a goal in this run.',
     )
 
     const archivedGoal = makeGoal({ id: 'goal_2', active: false })
@@ -159,9 +159,9 @@ describe('validateSetup', () => {
     expect(validateSetup([makeGoal(), archivedGoal], tasksOnArchived).ok).toBe(false)
   })
 
-  it('rejects unnamed aims and routines', () => {
+  it('rejects unnamed goals and routines', () => {
     expect(validateSetup([makeGoal({ title: ' ' })], fourTasks()).errors).toContain(
-      'Give every aim a name.',
+      'Give every goal a name.',
     )
     const tasks = fourTasks()
     tasks[0] = { ...tasks[0]!, title: '' }

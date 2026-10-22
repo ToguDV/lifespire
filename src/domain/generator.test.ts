@@ -95,7 +95,7 @@ function variationsFor(index: number): { goals: Goal[]; tasks: Task[]; objective
   const goalCount = 1 + (index % 3)
   const poolSize = [1, 2, 3, 4, 5, 8, 13][index % 7] as number
   const goals = Array.from({ length: goalCount }, (_, goalIndex) =>
-    makeGoal(`g${index}-${goalIndex}`, `Aim ${index}-${goalIndex}`, 1 + ((index + goalIndex) % 7)),
+    makeGoal(`g${index}-${goalIndex}`, `Goal ${index}-${goalIndex}`, 1 + ((index + goalIndex) % 7)),
   )
   const tasks = Array.from({ length: poolSize }, (_, taskIndex) => {
     const effort = (['light', 'medium', 'high'] as const)[(index + taskIndex) % 3] as Effort
@@ -268,7 +268,7 @@ describe('generateMap map shape', () => {
 
 describe('generateMap edge cases', () => {
   it('handles exactly four routines and one goal', () => {
-    const goals = [makeGoal('goal-solo', 'Solo aim', 5)]
+    const goals = [makeGoal('goal-solo', 'Solo goal', 5)]
     const tasks = [
       makeTask('task-a', 'goal-solo', 'A', 'light'),
       makeTask('task-b', 'goal-solo', 'B', 'medium'),
@@ -299,7 +299,7 @@ describe('generateMap edge cases', () => {
   })
 
   it.each([1, 2, 3])('keeps a %i-routine pool playable', (poolSize) => {
-    const goals = [makeGoal('goal-small', 'Small aim', 4)]
+    const goals = [makeGoal('goal-small', 'Small goal', 4)]
     const tasks = Array.from({ length: poolSize }, (_, index) =>
       makeTask(
         `task-small-${index}`,
