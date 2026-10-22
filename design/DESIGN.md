@@ -614,6 +614,15 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - Veiled: 1.5px `{colors.hairline-strong}` dashed 1/8.
 - Boss halo: dashed hairline ellipse with `{colors.accent-wash}` fill.
 
+**`map-backdrop`** — The wood that backs the map, drawn inside the map SVG behind the contours and the paths.
+- Three depth planes, all in stone. The forest never uses moss: depth comes from size and opacity, not from colour.
+- Far plane: a ridge line with a dense treeline of small pines and birches, `{colors.hairline-strong}` at 45%, 1px stroke. A deliberate clearing is left around the boss gate.
+- Mid plane: pines and birches along the margins and in the gaps between node rows, `{colors.hairline-strong}` at 75%, 1.3px stroke.
+- Near plane: undergrowth at the bottom of the frame (ferns, grass, stones, a mushroom), `{colors.ink-soft}` at 62%, 1.8px stroke.
+- Fauna: a sitting fox and a walking bear, the only filled shapes in the plate, `{colors.ink-soft}` at 58%. A silhouette reads at map scale where a contour would blur into the undergrowth.
+- Haze: soft radial patches between the planes, `{colors.ink-soft}` at 12% fading to nothing.
+- The plate is decorative: the SVG is `aria-hidden`, it never carries information, and no decoration may touch a medallion, the boss halo or the camp label. The placement rules live in `src/ui/lib/mapDecor.ts` and are asserted in `mapDecor.test.ts`.
+
 ### Chips, Pips, and Signals
 
 **`chip`** — Metadata pill for node type, effort, or state.
