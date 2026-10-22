@@ -65,12 +65,16 @@ Concrete criteria:
 |---|---|
 | **Goal** | The outcome the user is pursuing, for example "get fit". |
 | **Routine / task** | A concrete, repeatable action, for example "work out for 30 minutes". |
-| **Weekly objective** | The number of times a goal must be completed during the run. |
+| **Weekly target** (weekly objective in the domain model) | The number of times a goal must be completed during the run. |
 | **Run** | A 7-day window starting from its creation. |
 | **Day** | A map with a path that is resolved once. |
 | **Node** | A stop on the map: task, elite, rest, treasure, or boss. |
 | **Path** | The sequence of nodes chosen up to the boss. |
 | **Daily boss** | The final node; completing it closes the day with a bonus. |
+
+User-facing wording follows [`GLOSARY.md`](./GLOSARY.md): the interface says
+goal, routine, and weekly target, while the code keeps the older "aim" names
+for identifiers and styles.
 
 Core rules:
 
