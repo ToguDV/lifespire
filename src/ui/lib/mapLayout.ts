@@ -1,13 +1,31 @@
-import { DECISION_LAYERS } from '../../domain/balance'
 import type { Day, GameMap, MapNode, NodeType } from '../../domain/types'
 
-/** ViewBox used by the ported design. Node buttons are placed with percentages. */
+/** ViewBox width used by the ported design. Node buttons are placed with percentages. */
 export const MAP_WIDTH = 560
+
+/**
+ * Height of the classic four-layer map. The live layout derives its height from
+ * the day's layer count; this constant stays as the base viewBox for the empty
+ * map art and for tests that need the reference geometry.
+ */
 export const MAP_HEIGHT = 700
 
-const START_Y = 660
-const BOSS_Y = 90
-const LAYER_Y = [570, 440, 310, 180] as const
+export const LAYER_STEP = 130
+export const CAMP_GAP = 90
+export const BOSS_GAP = 90
+export const BOTTOM_MARGIN = 40
+export const TOP_MARGIN = 90
+
+/** Canvas height for a map with `layerCount` decision layers. */
+export function mapHeight(layerCount: number): number {
+  return (
+    BOTTOM_MARGIN +
+    CAMP_GAP +
+    LAYER_STEP * (layerCount - 1) +
+    BOSS_GAP +
+    TOP_MARGIN
+  )
+}
 
 /**
  * Hand-tuned horizontal ratios. Two-node layers keep the wide design rhythm;
@@ -72,12 +90,12 @@ function round(value: number): number {
   return Math.round(value * 100) / 100
 }
 
-function point(x: number, y: number): MapPointLayout {
+function point(x: number, y: number, height: number): MapPointLayout {
   return {
     x: round(x),
     y: round(y),
     left: round((x / MAP_WIDTH) * 100),
-    top: round((y / MAP_HEIGHT) * 100),
+    top: round((y / height) * 100),
   }
 }
 
@@ -86,9 +104,21 @@ function xFor(layerSize: number, index: number): number {
   return MAP_WIDTH * ratio
 }
 
-function yFor(layer: number): number {
-  if (layer >= DECISION_LAYERS) return BOSS_Y
-  return LAYER_Y[layer] ?? START_Y
+function campY(height: number): number {
+  return height - BOTTOM_MARGIN
+}
+
+function layerY(height: number, layer: number): number {
+  return campY(height) - CAMP_GAP - LAYER_STEP * layer
+}
+
+function bossY(height: number, layerCount: number): number {
+  return layerY(height, layerCount - 1) - BOSS_GAP
+}
+
+function yFor(layer: number, height: number, layerCount: number): number {
+  if (layer >= layerCount) return bossY(height, layerCount)
+  return layerY(height, layer)
 }
 
 function labelSideFor(layerSize: number, index: number): MapLabelSide {
@@ -125,7 +155,13 @@ function edgeOf(
   }
 }
 
-function nodeLayout(node: MapNode, layerSize: number, index: number): MapNodeLayout {
+function nodeLayout(
+  node: MapNode,
+  layerSize: number,
+  index: number,
+  height: number,
+  layerCount: number,
+): MapNodeLayout {
   const layer = node.layer
   return {
     id: node.id,
@@ -135,20 +171,28 @@ function nodeLayout(node: MapNode, layerSize: number, index: number): MapNodeLay
     indexInLayer: index,
     layerSize,
     labelSide: labelSideFor(layerSize, index),
-    ...point(xFor(layerSize, index), yFor(layer)),
+    ...point(xFor(layerSize, index), yFor(layer, height, layerCount), height),
   }
 }
 
 /**
  * Pure geometry for the map. It only reads the stored map: no randomness,
  * clock or DOM. The returned order is bottom-up (layer 0 first, boss last).
+ * The canvas grows with the day's layer count; spacing between layers is fixed.
  */
 export function buildMapLayout(map: GameMap): MapLayout {
+  const layerCount = map.layers.length
+  const height = mapHeight(layerCount)
   const layers = map.layers.map((layer, layerIndex) =>
-    layer.map((node, index) => nodeLayout({ ...node, layer: layerIndex }, layer.length, index)),
+    layer.map((node, index) =>
+      nodeLayout({ ...node, layer: layerIndex }, layer.length, index, height, layerCount),
+    ),
   )
-  const boss = nodeLayout(map.boss, 1, 0)
-  const start: MapAnchorLayout = { id: 'start', ...point(MAP_WIDTH / 2, START_Y) }
+  const boss = nodeLayout(map.boss, 1, 0, height, layerCount)
+  const start: MapAnchorLayout = {
+    id: 'start',
+    ...point(MAP_WIDTH / 2, campY(height), height),
+  }
 
   const nodesById = new Map<string, MapNodeLayout>()
   for (const node of layers.flat()) nodesById.set(node.id, node)
@@ -167,7 +211,7 @@ export function buildMapLayout(map: GameMap): MapLayout {
 
   return {
     width: MAP_WIDTH,
-    height: MAP_HEIGHT,
+    height,
     start,
     layers,
     boss,

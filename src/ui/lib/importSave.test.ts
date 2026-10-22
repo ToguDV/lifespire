@@ -74,7 +74,7 @@ function documentWithThreeGoals(): GameDocument {
       createdAt,
     },
   ]
-  const setup = { goals, tasks }
+  const setup = { name: 'Wren', goals, tasks }
   return documentFromSetup(setup)
 }
 

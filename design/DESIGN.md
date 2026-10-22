@@ -495,7 +495,7 @@ Fallbacks: `Iowan Old Style`, `Palatino Linotype`, Georgia for display; `Gill Sa
 ### Grid & Container
 - **Mobile shell**: full viewport, topbar 56px, one scrolling viewport, tab bar 64px. Horizontal gutter 16px. The map dock floats 10px above the tab bar.
 - **Desktop shell**: 240px sidebar (256px at 1280px and above) plus a fluid main column. At 1440px the content area is approximately 1184px wide.
-- **Map**: a 4:5 canvas, height-led, centered in its frame. The rail is hidden below 1200px, 312px from 1200–1279px, and 336px at 1280px and above.
+- **Map**: a height-led canvas whose 560px-wide viewBox grows with the day's layer count (570–830px tall), centered in its frame and scrolling vertically when it does not fit. The rail is hidden below 1200px, 312px from 1200–1279px, and 336px at 1280px and above.
 - **Camp**: a two-column grid, `minmax(0, 1fr)` + 340px rail, with a 24px gap. Below 960px the rail and week strip are removed. From 960–1199px the rail is removed but the week strip remains in a full-width camp. At 1200px the rail returns.
 - **Goals**: a 3-column weekly grid plus a 300px right rail on desktop; one column on mobile.
 - **Summary**: a 720px maximum card, centered in the main area, with a two-column totals row and a compact goal list.
@@ -688,7 +688,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 | Name | Width | Key Changes |
 |---|---|---|
 | Small mobile | 320–479px | Single column. Map labels move beside open nodes; frame meta hidden below 700px height; dock and bottom tabs. |
-| Mobile | 480–959px | Single column with 16–20px gutters. Bottom tabs; camp rail hidden; Goals rail stacks below. Map remains 4:5. |
+| Mobile | 480–959px | Single column with 16–20px gutters. Bottom tabs; camp rail hidden; Goals rail stacks below. Map keeps its layer-derived aspect ratio. |
 | Compact desktop | 960–1199px | 240px sidebar; full-width content column; no side rails. Map takes the full main column; week strip visible. |
 | Desktop | 1200–1279px | Sidebar plus 312px map rail and camp rail; the three-column layout returns. |
 | Wide desktop | ≥ 1280px | 40px outer gutters; 336px map rail; wider camp grid; larger display type. |

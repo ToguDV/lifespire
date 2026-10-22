@@ -679,16 +679,21 @@ body:not([data-screen="map"]) .map-dock {
   display: flex;
   flex: 1;
   min-height: 0;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 40px 8px 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   container-type: size;
 }
 
 .map-canvas {
   position: relative;
+  flex: none;
   width: min(100cqw, 80cqh);
-  aspect-ratio: 4 / 5;
+  margin-block: auto;
 }
 
 .map-lines {
@@ -765,14 +770,12 @@ body:not([data-screen="map"]) .map-dock {
   pointer-events: none;
 }
 
-.map-altimeter::before {
-  content: "";
+.map-altimeter__line {
   position: absolute;
-  top: 23%;
-  bottom: 16%;
   left: 50%;
   width: 1px;
   background: var(--hairline);
+  transform: translateX(-50%);
 }
 
 .map-altimeter span {

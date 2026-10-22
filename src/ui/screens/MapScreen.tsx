@@ -14,6 +14,7 @@ import {
 } from '../components'
 import type { IconName } from '../components'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIcon, romanDay } from '../lib/format'
+import { MAP_HEIGHT, MAP_WIDTH } from '../lib/mapLayout'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
 const STATUS_COPY: Record<string, string> = {
@@ -185,24 +186,15 @@ interface EmptyMapProps {
   micro: string
   title: string
   copy: string
-  resolved: number
   day: Day | null
   action: ReactNode
 }
 
-function EmptyMapFrame({
-  icon,
-  micro,
-  title,
-  copy,
-  resolved,
-  day,
-  action,
-}: EmptyMapProps) {
+function EmptyMapFrame({ icon, micro, title, copy, day, action }: EmptyMapProps) {
   return (
     <div className="map-frame">
       <div className="map-frame__meta">
-        <span className="micro">The ascent · {resolved} of 5 resolved</span>
+        <span className="micro">The ascent · beyond the veil</span>
         <span className="map-frame__day">
           {day ? `Day ${romanDay(day.index)}` : '—'}
         </span>
@@ -211,7 +203,7 @@ function EmptyMapFrame({
       <div className="map-canvas-wrap">
         <svg
           className="map-lines map-lines--empty"
-          viewBox="0 0 560 700"
+          viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
           aria-hidden="true"
           focusable="false"
         >
@@ -319,7 +311,7 @@ export function MapScreen() {
         ? `${availableCount} ${availableCount === 1 ? 'path' : 'paths'} ahead. Choose one to continue the day.`
         : 'No step is open on this path. The daily loop arrives in the next milestone.'
     chipIcon = 'check'
-    chipLabel = `${resolvedCount} of 5 resolved`
+    chipLabel = `${resolvedCount} of ${map.layers.length + 1} resolved`
   }
 
   const chooseNode = (nodeId: string) => {
@@ -408,7 +400,7 @@ export function MapScreen() {
       icon: 'compass' as IconName,
       micro: 'No path drawn yet',
       title: 'The path is still veiled.',
-      copy: 'Opening the day draws four layers and a boss. The map is saved at once and will not change.',
+      copy: 'Opening the day draws its layers and a boss. The map is saved at once and will not change.',
     }
   })()
 
@@ -435,7 +427,7 @@ export function MapScreen() {
           <div className="map-frame">
             <div className="map-frame__meta">
               <span className="micro">
-                The ascent · {resolvedCount} of 5 resolved
+                The ascent · {resolvedCount} of {map.layers.length + 1} resolved
               </span>
               <span className="map-frame__day">Day {romanDay(day.index)}</span>
             </div>
@@ -447,7 +439,6 @@ export function MapScreen() {
             micro={emptyCopy.micro}
             title={emptyCopy.title}
             copy={emptyCopy.copy}
-            resolved={resolvedCount}
             day={day}
             action={action}
           />

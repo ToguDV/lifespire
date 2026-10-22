@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent } from 'react'
 import { nodeStatus } from '../../domain/selectors'
 import type { Day, GameMap, NodeStatus } from '../../domain/types'
@@ -12,23 +12,10 @@ import {
 } from '../lib/mapLayout'
 import { nodeAriaLabel, nodeTitle } from '../lib/nodeCopy'
 
-const CONTOURS = [
-  'M-30 570c100-26 150 32 245 4s150-62 245-38 90 22 120 8',
-  'M-20 440c92-22 140 34 232 8s148-56 238-36 92 14 130-2',
-  'M-30 310c96-24 150 34 244 8s150-54 240-34 90 10 120-4',
-  'M-20 180c88-22 142 32 234 8s150-52 238-32 92 8 128-4',
-  'M-30 664c104-18 162 24 268 4s180-24 352-12',
-  'M-30 90c112-16 166 22 270 4s190-20 350-10',
-]
-
-const PINES: Array<{ x: number; y: number; size: number }> = [
-  { x: 32, y: 456, size: 15 },
-  { x: 52, y: 474, size: 11 },
-  { x: 500, y: 364, size: 16 },
-  { x: 482, y: 384, size: 11 },
-  { x: 62, y: 244, size: 13 },
-  { x: 486, y: 560, size: 14 },
-]
+/** One contour shape, drawn at every decision layer by vertical translate. */
+const CONTOUR_BASE = 'M-30 0c100-26 150 32 245 4s150-62 245-38 90 22 120 8'
+const CAMP_CONTOUR = 'M-30 0c104-18 162 24 268 4s180-24 352-12'
+const BOSS_CONTOUR = 'M-30 0c112-16 166 22 270 4s190-20 350-10'
 
 const EDGE_CLASS: Record<MapEdgeTone, string> = {
   done: 'path-done',
@@ -147,19 +134,39 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
   const layout = useMemo(() => buildMapLayout(map), [map])
   const edges = useMemo(() => classifyMapEdges(layout, map, day), [layout, map, day])
   const [revealedId, setRevealedId] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const handleSelect = (nodeId: string) => {
     setRevealedId(null)
     onSelect(nodeId)
   }
 
+  // Keep the step in play centred when the day opens, after each resolution and
+  // whenever a new node becomes current. The camp anchors a fresh map.
+  useEffect(() => {
+    const scroller = scrollRef.current
+    if (!scroller) return
+    const targetId = map.currentNodeId ?? 'start'
+    const target = scroller.querySelector<HTMLElement>(`[data-node-id="${targetId}"]`)
+    if (!target) return
+    const reduced =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    target.scrollIntoView({
+      block: 'center',
+      inline: 'nearest',
+      behavior: reduced ? 'auto' : 'smooth',
+    })
+  }, [map.currentNodeId, day.path.length, layout])
+
   return (
     <>
-      <div className="map-canvas-wrap">
+      <div className="map-canvas-wrap" ref={scrollRef}>
         <div
           className="map-canvas"
           role="group"
-          aria-label="Day map. Camp at the bottom, four layers above, and the boss at the top."
+          aria-label={`Day map. Camp at the bottom, ${layout.layers.length} layers above, and the boss at the top.`}
+          style={{ aspectRatio: `${layout.width} / ${layout.height}` }}
         >
           <svg
             className="map-lines"
@@ -168,21 +175,17 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
             focusable="false"
           >
             <g className="contour">
-              {CONTOURS.map((d) => (
-                <path key={d} d={d} />
-              ))}
-            </g>
-            <g className="decor">
-              {PINES.map((pine) => (
-                <use
-                  key={`${pine.x}-${pine.y}`}
-                  href="#i-pine"
-                  x={pine.x}
-                  y={pine.y}
-                  width={pine.size}
-                  height={pine.size}
+              {layout.layers.map((layer, index) => (
+                <path
+                  key={layer[0]?.id ?? index}
+                  d={CONTOUR_BASE}
+                  transform={`translate(0 ${layer[0]?.y ?? 0})`}
                 />
               ))}
+              <path d={CAMP_CONTOUR} transform={`translate(0 ${layout.start.y + 4})`} />
+              <path d={BOSS_CONTOUR} transform={`translate(0 ${layout.boss.y})`} />
+            </g>
+            <g className="decor">
               <path d="M84 520c8-4 16-4 24 0M448 300c8-4 16-4 24 0M92 156c8-4 16-4 24 0" />
             </g>
             <circle
@@ -200,6 +203,7 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
             className="node node--done node--start"
             type="button"
             disabled
+            data-node-id="start"
             style={{ left: `${layout.start.left}%`, top: `${layout.start.top}%` }}
             aria-label="Camp, start of the day"
           >
@@ -231,15 +235,22 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
             onReveal={setRevealedId}
             onSelect={handleSelect}
           />
-        </div>
-      </div>
 
-      <div className="map-altimeter" aria-hidden="true">
-        {layout.layers.map((layer, index) => (
-          <span key={index} style={{ top: `${layer[0]?.top ?? 0}%` }}>
-            {romanDay(index)}
-          </span>
-        ))}
+          <div className="map-altimeter" aria-hidden="true">
+            <div
+              className="map-altimeter__line"
+              style={{
+                top: `${layout.boss.top}%`,
+                bottom: `${100 - layout.start.top}%`,
+              }}
+            />
+            {layout.layers.map((layer, index) => (
+              <span key={index} style={{ top: `${layer[0]?.top ?? 0}%` }}>
+                {romanDay(index)}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       <Icon name="compass" className="map-compass" />

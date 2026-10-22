@@ -288,7 +288,7 @@ export function HomeScreen() {
         return {
           micro: "Today's path",
           title: 'The path is still veiled.',
-          copy: 'Opening the day draws four layers and a boss. The map is saved at once and will not change.',
+          copy: 'Opening the day draws its layers and a boss. The map is saved at once and will not change.',
           foot: day ? `Day ${day.index + 1} of 7 · ${formatShortDayKey(day.date)}` : 'Today',
         }
       case 'day-in-progress':

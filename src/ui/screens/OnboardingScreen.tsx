@@ -374,7 +374,7 @@ export function OnboardingScreen() {
             <ul className="welcome-points">
               <li>
                 <Icon name="map" />
-                <span>Each day draws a path of four layers and a boss.</span>
+                <span>Each day draws its own path of layers and a boss.</span>
               </li>
               <li>
                 <Icon name="star" />
