@@ -59,7 +59,7 @@ pnpm preview    # serve the build (test PWA / offline)
 ## How it works
 
 1. **Onboarding** — pick demo data or create 1–3 goals with their routines.
-2. **Each day** — open the day's map (4 decision layers + a boss, 2–3 nodes per
+2. **Each day** — open the day's map (4 decision layers + a boss, 2–5 nodes per
    layer), pick a node, complete the real-world action, mark it done.
 3. **Rewards** — XP, gold, and loot are granted instantly. Tasks also add
    progress to their goal's weekly objective.

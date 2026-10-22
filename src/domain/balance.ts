@@ -9,7 +9,7 @@ export const BOSS_LAYER = DECISION_LAYERS
 export const GENERATOR_VERSION = 1
 
 export const MIN_LAYER_NODES = 2
-export const MAX_LAYER_NODES = 3
+export const MAX_LAYER_NODES = 5
 export const MIN_ELITES_PER_MAP = 1
 export const MAX_ELITES_PER_MAP = 2
 

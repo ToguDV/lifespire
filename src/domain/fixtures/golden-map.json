@@ -8,26 +8,49 @@
       {
         "id": "n0_0",
         "layer": 0,
-        "type": "task",
+        "type": "elite",
         "task": {
-          "taskId": "task-walk",
-          "title": "Walk the north trail",
-          "goalId": "goal-wayfarer",
-          "goalTitle": "Wayfarer",
-          "effort": "light"
+          "taskId": "task-mend",
+          "title": "Mend the old chair",
+          "goalId": "goal-craft",
+          "goalTitle": "Craft",
+          "effort": "high"
         },
         "rewards": {
-          "xp": 10,
-          "gold": 10,
-          "lootRolls": 0,
+          "xp": 40,
+          "gold": 40,
+          "lootRolls": 1,
           "progress": 1
         },
         "connections": [
-          "n1_2"
+          "n1_0",
+          "n1_1"
         ]
       },
       {
         "id": "n0_1",
+        "layer": 0,
+        "type": "task",
+        "task": {
+          "taskId": "task-climb",
+          "title": "Climb the old stair",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
+          "effort": "high"
+        },
+        "rewards": {
+          "xp": 20,
+          "gold": 20,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n1_1",
+          "n1_2"
+        ]
+      },
+      {
+        "id": "n0_2",
         "layer": 0,
         "type": "task",
         "task": {
@@ -44,14 +67,13 @@
           "progress": 1
         },
         "connections": [
-          "n1_0",
-          "n1_1"
+          "n1_2"
         ]
       },
       {
-        "id": "n0_2",
+        "id": "n0_3",
         "layer": 0,
-        "type": "elite",
+        "type": "task",
         "task": {
           "taskId": "task-ride",
           "title": "Ride before dawn",
@@ -60,13 +82,14 @@
           "effort": "medium"
         },
         "rewards": {
-          "xp": 30,
-          "gold": 30,
-          "lootRolls": 1,
+          "xp": 15,
+          "gold": 15,
+          "lootRolls": 0,
           "progress": 1
         },
         "connections": [
-          "n1_1"
+          "n1_3",
+          "n1_4"
         ]
       }
     ],
@@ -76,20 +99,20 @@
         "layer": 1,
         "type": "task",
         "task": {
-          "taskId": "task-climb",
-          "title": "Climb the old stair",
+          "taskId": "task-walk",
+          "title": "Walk the north trail",
           "goalId": "goal-wayfarer",
           "goalTitle": "Wayfarer",
-          "effort": "high"
+          "effort": "light"
         },
         "rewards": {
-          "xp": 20,
-          "gold": 20,
+          "xp": 10,
+          "gold": 10,
           "lootRolls": 0,
           "progress": 1
         },
         "connections": [
-          "n2_1"
+          "n2_0"
         ]
       },
       {
@@ -104,7 +127,7 @@
           "progress": 0
         },
         "connections": [
-          "n2_0"
+          "n2_1"
         ]
       },
       {
@@ -125,8 +148,50 @@
           "progress": 1
         },
         "connections": [
-          "n2_0",
-          "n2_1"
+          "n2_2"
+        ]
+      },
+      {
+        "id": "n1_3",
+        "layer": 1,
+        "type": "task",
+        "task": {
+          "taskId": "task-climb",
+          "title": "Climb the old stair",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
+          "effort": "high"
+        },
+        "rewards": {
+          "xp": 20,
+          "gold": 20,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n2_2",
+          "n2_3"
+        ]
+      },
+      {
+        "id": "n1_4",
+        "layer": 1,
+        "type": "task",
+        "task": {
+          "taskId": "task-ride",
+          "title": "Ride before dawn",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
+          "effort": "medium"
+        },
+        "rewards": {
+          "xp": 15,
+          "gold": 15,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n2_3"
         ]
       }
     ],
@@ -136,10 +201,10 @@
         "layer": 2,
         "type": "task",
         "task": {
-          "taskId": "task-ride",
-          "title": "Ride before dawn",
-          "goalId": "goal-wayfarer",
-          "goalTitle": "Wayfarer",
+          "taskId": "task-write",
+          "title": "Write one page",
+          "goalId": "goal-craft",
+          "goalTitle": "Craft",
           "effort": "medium"
         },
         "rewards": {
@@ -171,8 +236,49 @@
           "progress": 1
         },
         "connections": [
-          "n3_0",
           "n3_1"
+        ]
+      },
+      {
+        "id": "n2_2",
+        "layer": 2,
+        "type": "task",
+        "task": {
+          "taskId": "task-ride",
+          "title": "Ride before dawn",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
+          "effort": "medium"
+        },
+        "rewards": {
+          "xp": 15,
+          "gold": 15,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n3_2"
+        ]
+      },
+      {
+        "id": "n2_3",
+        "layer": 2,
+        "type": "task",
+        "task": {
+          "taskId": "task-walk",
+          "title": "Walk the north trail",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
+          "effort": "light"
+        },
+        "rewards": {
+          "xp": 10,
+          "gold": 10,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n3_2"
         ]
       }
     ],
@@ -203,15 +309,36 @@
         "layer": 3,
         "type": "task",
         "task": {
-          "taskId": "task-walk",
-          "title": "Walk the north trail",
-          "goalId": "goal-wayfarer",
-          "goalTitle": "Wayfarer",
-          "effort": "light"
+          "taskId": "task-mend",
+          "title": "Mend the old chair",
+          "goalId": "goal-craft",
+          "goalTitle": "Craft",
+          "effort": "high"
         },
         "rewards": {
-          "xp": 10,
-          "gold": 10,
+          "xp": 20,
+          "gold": 20,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n4_0"
+        ]
+      },
+      {
+        "id": "n3_2",
+        "layer": 3,
+        "type": "task",
+        "task": {
+          "taskId": "task-ride",
+          "title": "Ride before dawn",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
+          "effort": "medium"
+        },
+        "rewards": {
+          "xp": 15,
+          "gold": 15,
           "lootRolls": 0,
           "progress": 1
         },

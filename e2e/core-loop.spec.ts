@@ -79,6 +79,50 @@ test.describe('core loop', () => {
   })
 })
 
+test.describe('map shape', () => {
+  test('layers hold two to five nodes and only connect to their neighbours', async ({ page }) => {
+    await startDemoRun(page)
+    await openMap(page)
+
+    const map = await page.evaluate(() => {
+      const raw = window.localStorage.getItem('lifespire:mvp0')
+      const document = JSON.parse(raw ?? '{}') as {
+        run: { days: Array<{ map: unknown }> }
+      }
+      const day = document.run.days.find((entry) => entry.map)
+      return day?.map as
+        | {
+            layers: Array<{
+              id: string
+              connections: string[]
+            }[]>
+          }
+        | undefined
+    })
+
+    expect(map).toBeDefined()
+    const layers = map?.layers ?? []
+    expect(layers).toHaveLength(4)
+
+    for (const layer of layers) {
+      expect(layer.length).toBeGreaterThanOrEqual(2)
+      expect(layer.length).toBeLessThanOrEqual(5)
+    }
+
+    layers.forEach((layer, layerIndex) => {
+      const next = layers[layerIndex + 1]
+      if (!next) return
+      layer.forEach((node, nodeIndex) => {
+        for (const targetId of node.connections) {
+          const targetIndex = next.findIndex((target) => target.id === targetId)
+          expect(targetIndex).toBeGreaterThanOrEqual(0)
+          expect(Math.abs(nodeIndex - targetIndex)).toBeLessThanOrEqual(1)
+        }
+      })
+    })
+  })
+})
+
 test.describe('mobile map labels', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 

@@ -763,7 +763,7 @@ describe('boss resolution and day summary', () => {
     expect(bossEvent.action).toBe('complete')
     expect(bossEvent.closingBonus).toBe(true)
     expect(bossEvent.xp).toBe(boss.rewards.xp)
-    expect(bossEvent.gold).toBe(boss.rewards.gold)
+    expect(bossEvent.gold).toBe(boss.rewards.gold + bossEvent.duplicateGold)
 
     const eventXp = day.rewards.reduce((total, event) => total + event.xp, 0)
     const eventGold = day.rewards.reduce((total, event) => total + event.gold, 0)

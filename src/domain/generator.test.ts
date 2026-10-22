@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import goldenRaw from './fixtures/golden-map.json?raw'
-import { DECISION_LAYERS, MAX_ELITES_PER_MAP, MIN_ELITES_PER_MAP } from './balance'
+import { DECISION_LAYERS, MAX_ELITES_PER_MAP, MAX_LAYER_NODES, MIN_ELITES_PER_MAP, MIN_LAYER_NODES } from './balance'
 import { generateMap, MapGenerationError, validateMap } from './generator'
 import type { GenerateMapInput } from './generator'
 import { rewardsForNode } from './rewards'
@@ -206,12 +206,63 @@ describe('generateMap structure', () => {
     const map = generateMap(baseInput())
     expect(map.layers).toHaveLength(DECISION_LAYERS)
     for (const layer of map.layers) {
-      expect(layer.length).toBeGreaterThanOrEqual(2)
-      expect(layer.length).toBeLessThanOrEqual(3)
+      expect(layer.length).toBeGreaterThanOrEqual(MIN_LAYER_NODES)
+      expect(layer.length).toBeLessThanOrEqual(MAX_LAYER_NODES)
     }
     const elites = map.layers.flat().filter((node) => node.type === 'elite')
     expect(elites.length).toBeGreaterThanOrEqual(MIN_ELITES_PER_MAP)
     expect(elites.length).toBeLessThanOrEqual(MAX_ELITES_PER_MAP)
+  })
+})
+
+describe('generateMap map shape', () => {
+  it('drifts the layer width by at most one node', () => {
+    for (let index = 0; index < 200; index += 1) {
+      const { goals, tasks, objectives } = variationsFor(index)
+      const map = generateMap(
+        baseInput({
+          runId: `run_shape_${index}`,
+          runSeed: `run:shape:${index}`,
+          dayIndex: index % 7,
+          goals,
+          tasks,
+          objectives,
+        }),
+      )
+      const sizes = map.layers.map((layer) => layer.length)
+      for (let layerIndex = 1; layerIndex < sizes.length; layerIndex += 1) {
+        const previous = sizes[layerIndex - 1] as number
+        const current = sizes[layerIndex] as number
+        expect(Math.abs(previous - current)).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  it('only connects a node to its neighbours on the next layer', () => {
+    for (let index = 0; index < 200; index += 1) {
+      const { goals, tasks, objectives } = variationsFor(index)
+      const map = generateMap(
+        baseInput({
+          runId: `run_links_${index}`,
+          runSeed: `run:links:${index}`,
+          dayIndex: index % 7,
+          goals,
+          tasks,
+          objectives,
+        }),
+      )
+      map.layers.forEach((layer, layerIndex) => {
+        const next = map.layers[layerIndex + 1]
+        if (!next) return
+        layer.forEach((node, nodeIndex) => {
+          for (const targetId of node.connections) {
+            const targetIndex = next.findIndex((target) => target.id === targetId)
+            expect(targetIndex).toBeGreaterThanOrEqual(0)
+            expect(Math.abs(nodeIndex - targetIndex)).toBeLessThanOrEqual(1)
+          }
+        })
+      })
+    }
   })
 })
 

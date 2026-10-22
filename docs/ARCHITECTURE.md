@@ -170,7 +170,7 @@ export interface GameMap {
   seed: string
   dayIndex: number
   generatorVersion: number
-  layers: MapNode[][]      // 4 capas de 2..3 nodos
+  layers: MapNode[][]      // 4 capas de 2..5 nodos
   boss: MapNode
   currentNodeId: string | null
   createdAt: string
@@ -354,15 +354,32 @@ generateMap(input: {
 ```
 
 - Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`.
-- 4 capas de decisión con 2–3 nodos + boss. Capa 0 disponible desde el start.
+- 4 capas de decisión con 2–5 nodos + boss. Capa 0 disponible desde el start.
+- Ancho de capa: la primera capa se sortea entre 2 y `min(5, pool + 1)` y cada
+  capa siguiente deriva ±1 nodo de la anterior. Derivar poco mantiene la regla
+  de vecinos (siempre hay cobertura) y evita capas que se abren o se cierran de
+  golpe. El techo `pool + 1` reserva un hueco para el rest/treasure, de modo que
+  los nodos con tarea nunca repiten rutina dentro de la misma capa.
 - Cada capa: al menos 1 task, como máximo 1 rest **o** treasure, y 1–2 elites en
-  todo el mapa.
+  todo el mapa. Una capa más ancha que el pool **obliga** a llevar rest o
+  treasure.
 - Task/elite/boss requieren `TaskSnapshot`. Rest/treasure tienen `task: null`.
 - Sin tareas repetidas dentro de una capa. Entre capas se evita repetir mientras
   el pool lo permita; con pools pequeños se permite repetir entre capas.
 - Conexiones: cada nodo de capa 0–2 conecta a 1–2 nodos de la capa siguiente;
   cada nodo de capa 3 conecta al boss. Todo nodo de la capa siguiente tiene al
   menos una entrada; ningún nodo queda huérfano. El boss no tiene salida.
+- Conexiones de vecindario: un nodo solo alcanza su propio carril y los dos
+  carriles contiguos (`|i − j| ≤ 1` por índice de capa). Ningún camino salta de
+  un extremo al otro: el mapa se lee como carriles verticales con bifurcaciones
+  locales. El primer pase ancla cada nodo a su carril, el segundo cubre la
+  capa siguiente y el tercero ofrece una segunda rama (45 %) entre vecinos.
+- Geometría (`ui/lib/mapLayout.ts`): viewBox de 560×700, sin scroll vertical. Las
+  capas se reparten en Y 570/440/310/180, con el camp en 660 y el boss en 90
+  (≈130 px entre capas). Los carriles horizontales según el ancho de la capa son
+  2 → 0.22/0.78, 3 → 0.26/0.5/0.74, 4 → 0.16/0.38/0.62/0.84 y
+  5 → 0.12/0.31/0.5/0.69/0.88. Las capas de 5 nodos usan un medallón más
+  pequeño (`node--wide`) para que los carriles no se toquen a 360 px.
 - Boss: se prefiere una tarea de un goal con progreso pendiente y esfuerzo alto;
   desempate determinista por seed.
 - Si el pool tiene <4 tareas activas, el generador debe seguir produciendo un mapa
@@ -587,7 +604,8 @@ no persiste ni las metas ni la run y devuelve `false` (el mensaje queda en
   el dock flotante del prototipo: así «Next step», «Weekly aims» y la leyenda
   siguen visibles a 360 px sin tapar el mapa ni provocar scroll horizontal. Las
   etiquetas de nodos disponibles usan `data-label-side` para colocarse a
-  izquierda, derecha o debajo según el ancho de la capa. La etiqueta muestra solo
+  izquierda, derecha o debajo según el ancho de la capa (las capas de 4–5 nodos
+  las llevan siempre debajo). La etiqueta muestra solo
   el nombre de la tarea y permanece oculta hasta `:hover` o `:focus-visible`; en
   punteros sin hover, el primer toque la revela y el segundo selecciona el nodo.
 - Nodos del mapa: SVG decorativo + botones HTML superpuestos (o controles

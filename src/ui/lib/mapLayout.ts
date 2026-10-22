@@ -5,18 +5,22 @@ import type { Day, GameMap, MapNode, NodeType } from '../../domain/types'
 export const MAP_WIDTH = 560
 export const MAP_HEIGHT = 700
 
-const START_Y = 648
-const BOSS_Y = 128
-const LAYER_Y = [558, 460, 352, 244] as const
+const START_Y = 660
+const BOSS_Y = 90
+const LAYER_Y = [570, 440, 310, 180] as const
 
 /**
  * Hand-tuned horizontal ratios. Two-node layers keep the wide design rhythm;
  * three-node layers move the outer stops inwards so labels still fit beside the
- * map at 360 px. The values are fixed, so the renderer never jitters.
+ * map at 360 px. Four and five node layers use tighter lanes, so their labels
+ * always sit below the node. The values are fixed, so the renderer never
+ * jitters.
  */
 const X_RATIOS: Record<number, readonly number[]> = {
-  2: [0.34, 0.66],
-  3: [0.3, 0.5, 0.7],
+  2: [0.22, 0.78],
+  3: [0.26, 0.5, 0.74],
+  4: [0.16, 0.38, 0.62, 0.84],
+  5: [0.12, 0.31, 0.5, 0.69, 0.88],
 }
 
 export type MapLabelSide = 'left' | 'right' | 'below'
@@ -88,7 +92,8 @@ function yFor(layer: number): number {
 }
 
 function labelSideFor(layerSize: number, index: number): MapLabelSide {
-  if (layerSize >= 3) {
+  if (layerSize >= 4) return 'below'
+  if (layerSize === 3) {
     if (index === 0) return 'left'
     if (index === layerSize - 1) return 'right'
     return 'below'
