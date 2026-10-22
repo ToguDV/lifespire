@@ -7,17 +7,25 @@ describe('resolveDecisionLayerCount', () => {
     [1, 3],
     [2, 4],
     [3, 5],
+    [4, 7],
+    [5, 8],
+    [6, 10],
+    [7, 11],
+    [8, 13],
+    [9, 14],
+    [10, 15],
     [0, 3],
-    [4, 5],
     [-1, 3],
     [-7, 3],
-  ])('maps %i active goals to %i decision layers', (activeGoals, expected) => {
-    expect(resolveDecisionLayerCount(activeGoals)).toBe(expected)
+    [11, 15],
+    [99, 15],
+  ])('maps %i goals with routines to %i decision layers', (goals, expected) => {
+    expect(resolveDecisionLayerCount(goals)).toBe(expected)
   })
 
   it('always returns a count inside the configured bounds', () => {
-    for (let activeGoals = -10; activeGoals <= 10; activeGoals += 1) {
-      const layers = resolveDecisionLayerCount(activeGoals)
+    for (let goals = -10; goals <= 12; goals += 1) {
+      const layers = resolveDecisionLayerCount(goals)
       expect(layers).toBeGreaterThanOrEqual(MIN_DECISION_LAYERS)
       expect(layers).toBeLessThanOrEqual(MAX_DECISION_LAYERS)
       expect(Number.isInteger(layers)).toBe(true)

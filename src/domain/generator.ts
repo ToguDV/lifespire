@@ -247,9 +247,10 @@ export function generateMap(input: GenerateMapInput): GameMap {
 
   const seed = `${input.runSeed}:day:${input.dayIndex}:g${input.generatorVersion}`
   const rng = createRng(seed)
-  const layerCount = resolveDecisionLayerCount(
-    input.goals.filter((goal) => goal.active).length,
-  )
+  // The pool only holds active routines under active goals, so its distinct
+  // goal ids are exactly the goals that deserve map depth. Empty goals do not.
+  const goalsWithActiveRoutines = new Set(pool.map((choice) => choice.task.goalId)).size
+  const layerCount = resolveDecisionLayerCount(goalsWithActiveRoutines)
 
   // A layer can only hold as many task-bearing nodes as there are distinct
   // routines, plus one rest or treasure. The size drifts by at most one node

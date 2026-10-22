@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
-import { SCHEMA_VERSION } from './balance'
+import { MAX_DECISION_LAYERS, SCHEMA_VERSION } from './balance'
 import { generateMap } from './generator'
 import { createRun } from './lifecycle'
 import {
@@ -14,9 +14,11 @@ import type {
   DaySummary,
   GameDocument,
   GameMap,
+  Goal,
   LootItem,
   RewardEvent,
   Run,
+  Task,
   TaskSnapshot,
 } from './types'
 
@@ -286,10 +288,68 @@ describe('serializeDocument and parseDocument', () => {
     if (!bossLayerResult.ok) expect(bossLayerResult.error).toContain('boss.layer')
 
     const tooManyLayers = fullDocument()
-    tooManyLayers.run!.days[0]!.map!.layers.push([], [])
+    const layers = tooManyLayers.run!.days[0]!.map!.layers
+    layers.push(
+      ...Array.from({ length: MAX_DECISION_LAYERS - layers.length + 1 }, () => []),
+    )
     const layerCountResult = parseDocument(tooManyLayers)
     expect(layerCountResult.ok).toBe(false)
     if (!layerCountResult.ok) expect(layerCountResult.error).toContain('decision layers')
+  })
+
+  it('accepts a save whose map reaches the fifteen-layer cap', () => {
+    const document = fullDocument()
+    const run = document.run!
+    const goals: Goal[] = Array.from({ length: 10 }, (_, index) => ({
+      id: `goal-cap-${index}`,
+      title: `Cap goal ${index}`,
+      category: 'Test',
+      weeklyObjective: 4,
+      active: true,
+      createdAt: now.toISOString(),
+    }))
+    const tasks: Task[] = goals.flatMap((goal, index) => [
+      {
+        id: `task-cap-${index}-a`,
+        goalId: goal.id,
+        title: `Cap routine ${index} A`,
+        effort: 'light',
+        active: true,
+        createdAt: now.toISOString(),
+      },
+      {
+        id: `task-cap-${index}-b`,
+        goalId: goal.id,
+        title: `Cap routine ${index} B`,
+        effort: 'medium',
+        active: true,
+        createdAt: now.toISOString(),
+      },
+    ])
+    const map = generateMap({
+      runId: run.id,
+      runSeed: run.seed,
+      dayIndex: 0,
+      generatorVersion: run.generatorVersion,
+      goals,
+      tasks,
+      objectives: run.objectives,
+      now: now.toISOString(),
+    })
+    expect(map.layers).toHaveLength(MAX_DECISION_LAYERS)
+    document.run!.days[0] = {
+      ...document.run!.days[0]!,
+      map: { ...map, currentNodeId: null },
+    }
+
+    const parsed = parseDocument(document)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.run!.days[0]!.map!.layers).toHaveLength(MAX_DECISION_LAYERS)
+    expect(parsed.value.run!.days[0]!.map!.boss).toMatchObject({
+      id: `n${MAX_DECISION_LAYERS}_0`,
+      layer: MAX_DECISION_LAYERS,
+    })
   })
 
   it('rejects maps, days and paths that do not belong together', () => {

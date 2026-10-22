@@ -241,20 +241,39 @@ describe('generateMap structure', () => {
   })
 })
 
-describe('generateMap depth from active goals', () => {
-  it.each([
-    [3, 1],
-    [4, 2],
-    [5, 3],
-  ])('builds %i decision layers for %i active goals', (layerCount, goalCount) => {
-    const { goals, tasks, objectives } = goalsFor(goalCount)
+describe('generateMap depth from goals with active routines', () => {
+  it('builds fifteen layers for ten goals with routines', () => {
+    const { goals, tasks, objectives } = goalsFor(10)
     const map = generateMap(baseInput({ goals, tasks, objectives }))
 
-    expect(map.layers).toHaveLength(layerCount)
-    expect(map.layers).toHaveLength(resolveDecisionLayerCount(goalCount))
-    expect(map.boss.layer).toBe(layerCount)
-    expect(map.boss.id).toBe(`n${layerCount}_0`)
+    expect(map.layers).toHaveLength(15)
+    expect(map.boss.layer).toBe(15)
+    expect(map.boss.id).toBe('n15_0')
     expect(validateMap(map)).toEqual({ ok: true })
+  })
+
+  it('builds seven layers for four goals with routines', () => {
+    const { goals, tasks, objectives } = goalsFor(4)
+    const map = generateMap(baseInput({ goals, tasks, objectives }))
+
+    expect(map.layers).toHaveLength(7)
+    expect(map.boss.layer).toBe(7)
+    expect(map.boss.id).toBe('n7_0')
+  })
+
+  it('counts only goals that actually have an active routine', () => {
+    const { goals, tasks, objectives } = goalsFor(10)
+    const goalsWithRoutines = new Set(['goal-depth-0', 'goal-depth-1', 'goal-depth-2'])
+    const onlyThreeGoalsHaveRoutines = tasks.filter((task) =>
+      goalsWithRoutines.has(task.goalId),
+    )
+    const map = generateMap(
+      baseInput({ goals, tasks: onlyThreeGoalsHaveRoutines, objectives }),
+    )
+
+    expect(map.layers).toHaveLength(5)
+    expect(map.boss.layer).toBe(5)
+    expect(map.boss.id).toBe('n5_0')
   })
 
   it('ignores inactive goals when resolving depth', () => {

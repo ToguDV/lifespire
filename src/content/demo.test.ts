@@ -4,6 +4,7 @@ import {
   createDemoSetup,
   validateSetup,
 } from './demo'
+import { MAX_GOALS } from '../domain/balance'
 import type { Goal, Task } from '../domain/types'
 
 const now = new Date(2026, 9, 20, 8, 0, 0)
@@ -86,16 +87,28 @@ describe('validateSetup', () => {
     expect(validateSetup([makeGoal()], fourTasks())).toEqual({ ok: true, errors: [] })
   })
 
-  it('rejects zero or too many active goals', () => {
+  it('accepts ten active goals and rejects an eleventh', () => {
     expect(validateSetup([], fourTasks()).errors).toContain('Choose at least one goal to begin.')
 
-    const goals = [1, 2, 3, 4].map((index) =>
+    const goals = Array.from({ length: MAX_GOALS }, (_, index) =>
       makeGoal({ id: `goal_${index}`, weeklyObjective: 2 }),
     )
-    const tasks = [1, 2, 3, 4].map((index) =>
-      makeTask({ id: `task_${index}`, goalId: `goal_${index}` }),
+    const tasks = goals.map((goal, index) =>
+      makeTask({ id: `task_${index}`, goalId: goal.id }),
     )
-    expect(validateSetup(goals, tasks).errors).toContain('A run can hold at most 3 goals.')
+    expect(validateSetup(goals, tasks)).toEqual({ ok: true, errors: [] })
+
+    const tooManyGoals = [
+      ...goals,
+      makeGoal({ id: `goal_${MAX_GOALS}`, weeklyObjective: 2 }),
+    ]
+    const tooManyTasks = [
+      ...tasks,
+      makeTask({ id: `task_${MAX_GOALS}`, goalId: `goal_${MAX_GOALS}` }),
+    ]
+    expect(validateSetup(tooManyGoals, tooManyTasks).errors).toContain(
+      `A run can hold at most ${MAX_GOALS} goals.`,
+    )
   })
 
   it('rejects fewer than four active routines', () => {
