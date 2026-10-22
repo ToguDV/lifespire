@@ -39,7 +39,7 @@ Concrete criteria:
 - Onboarding with two options: demo data or create your own goals/routines.
 - 1–3 goals, each with its routines/tasks and a weekly objective.
 - A 7-day run with one map per day.
-- Maps with 4 decision layers + a final boss, with 2–3 nodes per layer.
+- Maps with 4 decision layers + a final boss, with 2–5 nodes per layer.
 - Node types: task, elite, rest, treasure, and boss.
 - Path selection, completing or skipping nodes, instant rewards.
 - XP, simple leveling, gold, and collectible loot with no gameplay effects.
@@ -90,7 +90,7 @@ Core rules:
 The map is displayed bottom-up, as in *Slay the Spire*:
 
 - An automatic start node.
-- 4 decision layers with 2–3 nodes each.
+- 4 decision layers with 2–5 nodes each.
 - A single boss node at the end.
 - In total, 5 nodes are resolved per day: 4 choices + boss.
 
@@ -99,6 +99,8 @@ Generation rules:
 - Every node must be reachable from the start and must have a path to the boss.
 - Each layer offers at least 2 options.
 - Each node connects to 1–2 nodes in the next layer; multiple paths are allowed to converge.
+- A node only connects to the nodes on the same lane and the two adjacent lanes, so no path jumps across the map.
+- The width of a layer drifts by at most one node from the previous layer.
 - Each layer includes at least one task node.
 - There is at most one rest or treasure node per layer.
 - 1–2 elite nodes appear per map.
@@ -196,7 +198,7 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 The demo is considered complete when it can be run without failures:
 
 1. Open the app from scratch, complete onboarding with demo data, and start a run.
-2. See a map with 4 layers + boss, 2–3 nodes per layer, at least two possible paths, and all nodes reachable.
+2. See a map with 4 layers + boss, 2–5 nodes per layer, at least two possible paths, and all nodes reachable.
 3. Choose a task, complete it, and see XP, gold, and weekly progress update.
 4. Reload the page and confirm that the map, path, and rewards are preserved.
 5. Skip a node and confirm that it advances without a reward.
