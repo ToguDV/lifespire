@@ -7,6 +7,7 @@ import { NODE_TYPE_ICON, romanDay } from '../lib/format'
 import {
   buildMapLayout,
   classifyMapEdges,
+  mapScrollTarget,
   type MapEdgeTone,
   type MapNodeLayout,
 } from '../lib/mapLayout'
@@ -25,6 +26,9 @@ const LAYER_CONTOURS = [
 ]
 const CAMP_CONTOUR = 'M-30 0c104-18 162 24 268 4s180-24 352-12'
 const BOSS_CONTOUR = 'M-30 0c112-16 166 22 270 4s190-20 350-10'
+
+/** Camp y of the classic four-layer canvas, used to anchor small decorations. */
+const DECOR_BASE_Y = 660
 
 const EDGE_CLASS: Record<MapEdgeTone, string> = {
   done: 'path-done',
@@ -151,11 +155,11 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
   }
 
   // Keep the step in play centred when the day opens, after each resolution and
-  // whenever a new node becomes current. The camp anchors a fresh map.
+  // whenever a new node becomes current. The camp only anchors a fresh map.
   useEffect(() => {
     const scroller = scrollRef.current
     if (!scroller) return
-    const targetId = map.currentNodeId ?? 'start'
+    const targetId = mapScrollTarget(map, day)
     const target = scroller.querySelector<HTMLElement>(`[data-node-id="${targetId}"]`)
     if (!target) return
     const reduced =
@@ -166,7 +170,7 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
       inline: 'nearest',
       behavior: reduced ? 'auto' : 'smooth',
     })
-  }, [map.currentNodeId, day.path.length, layout])
+  }, [map, day, layout])
 
   return (
     <>
@@ -195,7 +199,10 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
               <path d={BOSS_CONTOUR} transform={`translate(0 ${layout.boss.y})`} />
             </g>
             <g className="decor">
-              <path d="M84 520c8-4 16-4 24 0M448 300c8-4 16-4 24 0M92 156c8-4 16-4 24 0" />
+              <path
+                d="M84 520c8-4 16-4 24 0M448 300c8-4 16-4 24 0M92 156c8-4 16-4 24 0"
+                transform={`translate(0 ${layout.start.y - DECOR_BASE_Y})`}
+              />
             </g>
             <circle
               className="boss-halo"

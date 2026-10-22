@@ -14,16 +14,18 @@ export const LAYER_STEP = 130
 export const CAMP_GAP = 90
 export const BOSS_GAP = 90
 export const BOTTOM_MARGIN = 40
-export const TOP_MARGIN = 90
 
-/** Canvas height for a map with `layerCount` decision layers. */
+/**
+ * Canvas height for a map with `layerCount` decision layers. The boss sits one
+ * BOSS_GAP above the top layer and another below the top edge, so the two
+ * margins share a single constant.
+ */
 export function mapHeight(layerCount: number): number {
   return (
     BOTTOM_MARGIN +
     CAMP_GAP +
     LAYER_STEP * (layerCount - 1) +
-    BOSS_GAP +
-    TOP_MARGIN
+    BOSS_GAP * 2
   )
 }
 
@@ -221,6 +223,16 @@ export function buildMapLayout(map: GameMap): MapLayout {
 
 export function mapEdgeId(from: string, to: string): string {
   return `${from}->${to}`
+}
+
+/**
+ * Node that should stay in view: the current selection, else the last resolved
+ * step, else the camp of a freshly opened map. Keeps the scroll from dropping
+ * back to the camp after a node resolves.
+ */
+export function mapScrollTarget(map: GameMap, day: Day): string {
+  const lastResolvedId = day.path[day.path.length - 1]?.nodeId
+  return map.currentNodeId ?? lastResolvedId ?? 'start'
 }
 
 /**

@@ -6,6 +6,7 @@ import {
   buildMapLayout,
   classifyMapEdges,
   mapEdgeId,
+  mapScrollTarget,
 } from './mapLayout'
 
 const now = new Date(2026, 9, 20, 9, 0, 0)
@@ -221,6 +222,21 @@ describe('map layout', () => {
     for (const id of map.layers[0]?.map((node) => node.id) ?? []) {
       expect(layout.edges.some((edge) => edge.id === mapEdgeId('start', id))).toBe(true)
     }
+  })
+})
+
+describe('map scroll target', () => {
+  it('starts at the camp, follows the last resolved node, then the current selection', () => {
+    const map = fakeMap([2, 2, 2, 2])
+    const first = map.layers[0]?.[0] as MapNode
+    const second = map.layers[1]?.[0] as MapNode
+    const resolved = dayWith(map, [
+      { nodeId: first.id, action: 'complete', at: now.toISOString() },
+    ])
+
+    expect(mapScrollTarget(map, dayWith(map))).toBe('start')
+    expect(mapScrollTarget(map, resolved)).toBe(first.id)
+    expect(mapScrollTarget({ ...map, currentNodeId: second.id }, resolved)).toBe(second.id)
   })
 })
 

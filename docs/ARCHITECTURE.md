@@ -387,8 +387,8 @@ generateMap(input: {
   5 → 0.12/0.31/0.5/0.69/0.88. Las capas de 5 nodos usan un medallón más
   pequeño (`node--wide`) para que los carriles no se toquen a 360 px. A cuatro
   capas la geometría coincide con el diseño anterior (700 px), salvo que los
-  pinos decorativos se retiraron: solo quedan los contornos, que se ciclan cada
-  cuatro capas.
+  pinos decorativos se retiraron: quedan los contornos, que se ciclan cada
+  cuatro capas, y un pequeño trazo decorativo anclado al campamento.
 - Boss: se prefiere una tarea de un goal con progreso pendiente y esfuerzo alto;
   desempate determinista por seed.
 - Si el pool tiene <4 tareas activas, el generador debe seguir produciendo un mapa
