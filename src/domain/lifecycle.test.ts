@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
-import { BOSS_CLOSING_BONUS, DUPLICATE_GOLD, RUN_DAYS } from './balance'
+import { BOSS_CLOSING_BONUS, DUPLICATE_GOLD, GENERATOR_VERSION, RUN_DAYS } from './balance'
 import { dayKey, daysBetween } from './dates'
 import { validateMap } from './generator'
 import {
@@ -57,13 +57,14 @@ function mapFixture(dayIndex: number): GameMap {
     rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
     connections: [],
   }
+  const layers: MapNode[][] = [[node], [], [], []]
   return {
     id: `map_${dayIndex}`,
     seed: `seed_${dayIndex}`,
     dayIndex,
     generatorVersion: 1,
-    layers: [[node], [], [], []],
-    boss: { ...node, id: `boss_${dayIndex}`, layer: 4, type: 'boss' },
+    layers,
+    boss: { ...node, id: `boss_${dayIndex}`, layer: layers.length, type: 'boss' },
     currentNodeId: null,
     createdAt: now.toISOString(),
   }
@@ -251,7 +252,7 @@ describe('openDay', () => {
     expect(day?.openedAt).toBe(now.toISOString())
     expect(day?.map).not.toBeNull()
     expect(day?.map && validateMap(day.map)).toEqual({ ok: true })
-    expect(day?.map?.seed).toBe('run:run_day:day:0:g1')
+    expect(day?.map?.seed).toBe(`run:run_day:day:0:g${GENERATOR_VERSION}`)
     expect(day?.map?.currentNodeId).toBeNull()
     expect(day?.map?.createdAt).toBe(now.toISOString())
 
@@ -453,13 +454,14 @@ function fixtureDocument(options: FixtureOptions): GameDocument {
     now,
     runId: options.runId ?? 'run_fixture',
   })
+  const layers: MapNode[][] = [[options.node], [], [], []]
   const map: GameMap = {
     id: `${run.id}:map:0`,
-    seed: `${run.seed}:day:0:g1`,
+    seed: `${run.seed}:day:0:g${run.generatorVersion}`,
     dayIndex: 0,
     generatorVersion: run.generatorVersion,
-    layers: [[options.node], [], [], []],
-    boss: options.boss,
+    layers,
+    boss: { ...options.boss, layer: layers.length },
     currentNodeId: options.node.id,
     createdAt: now.toISOString(),
   }

@@ -4,9 +4,10 @@ export const SCHEMA_VERSION = 1
 export const STORAGE_KEY = 'lifespire:mvp0'
 
 export const RUN_DAYS = 7
-export const DECISION_LAYERS = 4
-export const BOSS_LAYER = DECISION_LAYERS
-export const GENERATOR_VERSION = 1
+export const MIN_DECISION_LAYERS = 3
+export const MAX_DECISION_LAYERS = 5
+export const DECISION_LAYERS_BASE = 2
+export const GENERATOR_VERSION = 2
 
 export const MIN_LAYER_NODES = 2
 export const MAX_LAYER_NODES = 5

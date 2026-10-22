@@ -3,7 +3,7 @@ import { createDemoSetup } from '../../content/demo'
 import { SCHEMA_VERSION } from '../../domain/balance'
 import { createRun, openDay } from '../../domain/lifecycle'
 import { createEmptyDocument, serializeDocument } from '../../domain/schema'
-import type { GameDocument } from '../../domain/types'
+import type { GameDocument, Goal, Task } from '../../domain/types'
 import {
   readSaveFile,
   runPreviewLabel,
@@ -15,6 +15,13 @@ const now = new Date(2026, 9, 20, 9, 0, 0)
 
 function documentWithRun(closed = false): GameDocument {
   const setup = createDemoSetup(now)
+  return documentFromSetup(setup, closed)
+}
+
+function documentFromSetup(
+  setup: ReturnType<typeof createDemoSetup>,
+  closed = false,
+): GameDocument {
   const run = createRun({ setup, now, runId: 'run_import_preview' })
   return {
     ...createEmptyDocument(),
@@ -40,6 +47,35 @@ function documentWithRun(closed = false): GameDocument {
       closedAt: closed ? now.toISOString() : null,
     },
   }
+}
+
+function documentWithThreeGoals(): GameDocument {
+  const base = documentWithRun()
+  const createdAt = now.toISOString()
+  const goals: Goal[] = [
+    ...base.goals,
+    {
+      id: 'goal_import_focus',
+      title: 'Focus',
+      category: 'Practice',
+      weeklyObjective: 2,
+      active: true,
+      createdAt,
+    },
+  ]
+  const tasks: Task[] = [
+    ...base.tasks,
+    {
+      id: 'task_import_focus',
+      goalId: 'goal_import_focus',
+      title: 'Practice for twenty minutes',
+      effort: 'medium',
+      active: true,
+      createdAt,
+    },
+  ]
+  const setup = { goals, tasks }
+  return documentFromSetup(setup)
 }
 
 describe('import preview', () => {
@@ -101,6 +137,8 @@ describe('import preview', () => {
     expect(valid.ok).toBe(true)
     if (valid.ok) {
       expect(valid.document.run?.days[0]?.map).not.toBeNull()
+      expect(valid.document.run?.days[0]?.map?.layers).toHaveLength(4)
+      expect(valid.document.run?.days[0]?.map?.boss).toMatchObject({ id: 'n4_0', layer: 4 })
     }
 
     const broken = structuredClone(opened)
@@ -111,6 +149,20 @@ describe('import preview', () => {
     expect(invalid.reason).toBe('invalid')
     expect(invalid.message).toContain('not a valid LifeSpire save')
     expect(invalid.message).toContain('layers[0]')
+  })
+
+  it('round-trips a five-layer map generated from three active goals', () => {
+    const opened = openDay(documentWithThreeGoals(), { now })
+    const map = opened.run?.days[0]?.map
+    expect(map?.layers).toHaveLength(5)
+    expect(map?.boss).toMatchObject({ id: 'n5_0', layer: 5 })
+
+    const result = readSaveFile(serializeDocument(opened))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const parsedMap = result.document.run?.days[0]?.map
+    expect(parsedMap?.layers).toHaveLength(5)
+    expect(parsedMap?.boss).toMatchObject({ id: 'n5_0', layer: 5 })
   })
 
   it('rejects malformed JSON, missing fields and future versions clearly', () => {

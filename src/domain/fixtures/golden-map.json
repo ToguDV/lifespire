@@ -1,56 +1,12 @@
 {
   "id": "run_golden:map:2",
-  "seed": "run:run_golden:day:2:g1",
+  "seed": "run:run_golden:day:2:g2",
   "dayIndex": 2,
-  "generatorVersion": 1,
+  "generatorVersion": 2,
   "layers": [
     [
       {
         "id": "n0_0",
-        "layer": 0,
-        "type": "elite",
-        "task": {
-          "taskId": "task-mend",
-          "title": "Mend the old chair",
-          "goalId": "goal-craft",
-          "goalTitle": "Craft",
-          "effort": "high"
-        },
-        "rewards": {
-          "xp": 40,
-          "gold": 40,
-          "lootRolls": 1,
-          "progress": 1
-        },
-        "connections": [
-          "n1_0",
-          "n1_1"
-        ]
-      },
-      {
-        "id": "n0_1",
-        "layer": 0,
-        "type": "task",
-        "task": {
-          "taskId": "task-climb",
-          "title": "Climb the old stair",
-          "goalId": "goal-wayfarer",
-          "goalTitle": "Wayfarer",
-          "effort": "high"
-        },
-        "rewards": {
-          "xp": 20,
-          "gold": 20,
-          "lootRolls": 0,
-          "progress": 1
-        },
-        "connections": [
-          "n1_1",
-          "n1_2"
-        ]
-      },
-      {
-        "id": "n0_2",
         "layer": 0,
         "type": "task",
         "task": {
@@ -67,11 +23,11 @@
           "progress": 1
         },
         "connections": [
-          "n1_2"
+          "n1_0"
         ]
       },
       {
-        "id": "n0_3",
+        "id": "n0_1",
         "layer": 0,
         "type": "task",
         "task": {
@@ -88,8 +44,64 @@
           "progress": 1
         },
         "connections": [
-          "n1_3",
-          "n1_4"
+          "n1_1"
+        ]
+      },
+      {
+        "id": "n0_2",
+        "layer": 0,
+        "type": "treasure",
+        "task": null,
+        "rewards": {
+          "xp": 0,
+          "gold": 15,
+          "lootRolls": 1,
+          "progress": 0
+        },
+        "connections": [
+          "n1_2"
+        ]
+      },
+      {
+        "id": "n0_3",
+        "layer": 0,
+        "type": "task",
+        "task": {
+          "taskId": "task-mend",
+          "title": "Mend the old chair",
+          "goalId": "goal-craft",
+          "goalTitle": "Craft",
+          "effort": "high"
+        },
+        "rewards": {
+          "xp": 20,
+          "gold": 20,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n1_3"
+        ]
+      },
+      {
+        "id": "n0_4",
+        "layer": 0,
+        "type": "task",
+        "task": {
+          "taskId": "task-climb",
+          "title": "Climb the old stair",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
+          "effort": "high"
+        },
+        "rewards": {
+          "xp": 20,
+          "gold": 20,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n1_3"
         ]
       }
     ],
@@ -112,21 +124,29 @@
           "progress": 1
         },
         "connections": [
-          "n2_0"
+          "n2_0",
+          "n2_1"
         ]
       },
       {
         "id": "n1_1",
         "layer": 1,
-        "type": "rest",
-        "task": null,
+        "type": "task",
+        "task": {
+          "taskId": "task-mend",
+          "title": "Mend the old chair",
+          "goalId": "goal-craft",
+          "goalTitle": "Craft",
+          "effort": "high"
+        },
         "rewards": {
-          "xp": 5,
-          "gold": 0,
+          "xp": 20,
+          "gold": 20,
           "lootRolls": 0,
-          "progress": 0
+          "progress": 1
         },
         "connections": [
+          "n2_0",
           "n2_1"
         ]
       },
@@ -135,10 +155,10 @@
         "layer": 1,
         "type": "task",
         "task": {
-          "taskId": "task-mend",
-          "title": "Mend the old chair",
-          "goalId": "goal-craft",
-          "goalTitle": "Craft",
+          "taskId": "task-climb",
+          "title": "Climb the old stair",
+          "goalId": "goal-wayfarer",
+          "goalTitle": "Wayfarer",
           "effort": "high"
         },
         "rewards": {
@@ -156,28 +176,6 @@
         "layer": 1,
         "type": "task",
         "task": {
-          "taskId": "task-climb",
-          "title": "Climb the old stair",
-          "goalId": "goal-wayfarer",
-          "goalTitle": "Wayfarer",
-          "effort": "high"
-        },
-        "rewards": {
-          "xp": 20,
-          "gold": 20,
-          "lootRolls": 0,
-          "progress": 1
-        },
-        "connections": [
-          "n2_2",
-          "n2_3"
-        ]
-      },
-      {
-        "id": "n1_4",
-        "layer": 1,
-        "type": "task",
-        "task": {
           "taskId": "task-ride",
           "title": "Ride before dawn",
           "goalId": "goal-wayfarer",
@@ -191,6 +189,7 @@
           "progress": 1
         },
         "connections": [
+          "n2_2",
           "n2_3"
         ]
       }
@@ -199,7 +198,22 @@
       {
         "id": "n2_0",
         "layer": 2,
-        "type": "task",
+        "type": "rest",
+        "task": null,
+        "rewards": {
+          "xp": 5,
+          "gold": 0,
+          "lootRolls": 0,
+          "progress": 0
+        },
+        "connections": [
+          "n3_0"
+        ]
+      },
+      {
+        "id": "n2_1",
+        "layer": 2,
+        "type": "elite",
         "task": {
           "taskId": "task-write",
           "title": "Write one page",
@@ -208,9 +222,9 @@
           "effort": "medium"
         },
         "rewards": {
-          "xp": 15,
-          "gold": 15,
-          "lootRolls": 0,
+          "xp": 30,
+          "gold": 30,
+          "lootRolls": 1,
           "progress": 1
         },
         "connections": [
@@ -219,14 +233,14 @@
         ]
       },
       {
-        "id": "n2_1",
+        "id": "n2_2",
         "layer": 2,
         "type": "task",
         "task": {
-          "taskId": "task-climb",
-          "title": "Climb the old stair",
-          "goalId": "goal-wayfarer",
-          "goalTitle": "Wayfarer",
+          "taskId": "task-mend",
+          "title": "Mend the old chair",
+          "goalId": "goal-craft",
+          "goalTitle": "Craft",
           "effort": "high"
         },
         "rewards": {
@@ -236,11 +250,12 @@
           "progress": 1
         },
         "connections": [
-          "n3_1"
+          "n3_2",
+          "n3_3"
         ]
       },
       {
-        "id": "n2_2",
+        "id": "n2_3",
         "layer": 2,
         "type": "task",
         "task": {
@@ -257,12 +272,14 @@
           "progress": 1
         },
         "connections": [
-          "n3_2"
+          "n3_3"
         ]
-      },
+      }
+    ],
+    [
       {
-        "id": "n2_3",
-        "layer": 2,
+        "id": "n3_0",
+        "layer": 3,
         "type": "task",
         "task": {
           "taskId": "task-walk",
@@ -274,29 +291,6 @@
         "rewards": {
           "xp": 10,
           "gold": 10,
-          "lootRolls": 0,
-          "progress": 1
-        },
-        "connections": [
-          "n3_2"
-        ]
-      }
-    ],
-    [
-      {
-        "id": "n3_0",
-        "layer": 3,
-        "type": "task",
-        "task": {
-          "taskId": "task-climb",
-          "title": "Climb the old stair",
-          "goalId": "goal-wayfarer",
-          "goalTitle": "Wayfarer",
-          "effort": "high"
-        },
-        "rewards": {
-          "xp": 20,
-          "gold": 20,
           "lootRolls": 0,
           "progress": 1
         },
@@ -330,10 +324,31 @@
         "layer": 3,
         "type": "task",
         "task": {
-          "taskId": "task-ride",
-          "title": "Ride before dawn",
+          "taskId": "task-climb",
+          "title": "Climb the old stair",
           "goalId": "goal-wayfarer",
           "goalTitle": "Wayfarer",
+          "effort": "high"
+        },
+        "rewards": {
+          "xp": 20,
+          "gold": 20,
+          "lootRolls": 0,
+          "progress": 1
+        },
+        "connections": [
+          "n4_0"
+        ]
+      },
+      {
+        "id": "n3_3",
+        "layer": 3,
+        "type": "task",
+        "task": {
+          "taskId": "task-write",
+          "title": "Write one page",
+          "goalId": "goal-craft",
+          "goalTitle": "Craft",
           "effort": "medium"
         },
         "rewards": {

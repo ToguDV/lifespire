@@ -35,10 +35,10 @@ function taskNode(id: string, title = 'Walk the north trail'): MapNode {
   }
 }
 
-function bossNode(): MapNode {
+function bossNode(layer: number): MapNode {
   return {
     id: 'boss_1',
-    layer: 4,
+    layer,
     type: 'boss',
     task: {
       taskId: 'task_2',
@@ -74,6 +74,12 @@ function event(patch: Partial<RewardEvent> & Pick<RewardEvent, 'nodeId' | 'actio
 }
 
 function dayFixture(): Day {
+  const layers: MapNode[][] = [
+    [taskNode('n0_0'), taskNode('n0_1', 'Ride before dawn')],
+    [],
+    [],
+    [],
+  ]
   return {
     id: 'run_1:day:0',
     index: 0,
@@ -84,8 +90,8 @@ function dayFixture(): Day {
       seed: 'seed',
       dayIndex: 0,
       generatorVersion: 1,
-      layers: [[taskNode('n0_0'), taskNode('n0_1', 'Ride before dawn')], [], [], []],
-      boss: bossNode(),
+      layers,
+      boss: bossNode(layers.length),
       currentNodeId: null,
       createdAt: at,
     },

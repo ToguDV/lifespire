@@ -278,6 +278,18 @@ describe('serializeDocument and parseDocument', () => {
     const missingCurrent = fullDocument()
     missingCurrent.run!.days[0]!.map!.currentNodeId = 'n9_9'
     expect(parseDocument(missingCurrent).ok).toBe(false)
+
+    const wrongBossLayer = fullDocument()
+    wrongBossLayer.run!.days[0]!.map!.boss.layer = 3
+    const bossLayerResult = parseDocument(wrongBossLayer)
+    expect(bossLayerResult.ok).toBe(false)
+    if (!bossLayerResult.ok) expect(bossLayerResult.error).toContain('boss.layer')
+
+    const tooManyLayers = fullDocument()
+    tooManyLayers.run!.days[0]!.map!.layers.push([], [])
+    const layerCountResult = parseDocument(tooManyLayers)
+    expect(layerCountResult.ok).toBe(false)
+    if (!layerCountResult.ok) expect(layerCountResult.error).toContain('decision layers')
   })
 
   it('rejects maps, days and paths that do not belong together', () => {
@@ -286,7 +298,7 @@ describe('serializeDocument and parseDocument', () => {
     dayZero.map = {
       ...dayZero.map!,
       dayIndex: 1,
-      seed: `${wrongDayIndex.run!.seed}:day:1:g1`,
+      seed: `${wrongDayIndex.run!.seed}:day:1:g${wrongDayIndex.run!.generatorVersion}`,
     }
     const dayIndexResult = parseDocument(wrongDayIndex)
     expect(dayIndexResult.ok).toBe(false)

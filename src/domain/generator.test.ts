@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import goldenRaw from './fixtures/golden-map.json?raw'
-import { DECISION_LAYERS, MAX_ELITES_PER_MAP, MAX_LAYER_NODES, MIN_ELITES_PER_MAP, MIN_LAYER_NODES } from './balance'
+import {
+  GENERATOR_VERSION,
+  MAX_ELITES_PER_MAP,
+  MAX_LAYER_NODES,
+  MIN_ELITES_PER_MAP,
+  MIN_LAYER_NODES,
+} from './balance'
 import { generateMap, MapGenerationError, validateMap } from './generator'
 import type { GenerateMapInput } from './generator'
+import { resolveDecisionLayerCount } from './mapDepth'
 import { rewardsForNode } from './rewards'
 import type { Effort, GameMap, Goal, MapNode, RunObjective, Task } from './types'
 
@@ -68,7 +75,7 @@ function baseInput(overrides: Partial<GenerateMapInput> = {}): GenerateMapInput 
     runId: 'run_test',
     runSeed: 'run:run_test',
     dayIndex: 0,
-    generatorVersion: 1,
+    generatorVersion: GENERATOR_VERSION,
     goals,
     tasks: overrides.tasks ?? baseTasks(),
     objectives,
@@ -83,7 +90,7 @@ function goldenInput(): GenerateMapInput {
     runId: 'run_golden',
     runSeed: 'run:run_golden',
     dayIndex: 2,
-    generatorVersion: 1,
+    generatorVersion: GENERATOR_VERSION,
     goals,
     tasks: baseTasks(),
     objectives: [makeObjective(goals[0] as Goal, 1), makeObjective(goals[1] as Goal, 0)],
@@ -110,6 +117,25 @@ function variationsFor(index: number): { goals: Goal[]; tasks: Task[]; objective
     makeObjective(goal, (index + goalIndex) % (goal.weeklyObjective + 1)),
   )
   return { goals, tasks, objectives }
+}
+
+function goalsFor(goalCount: number): {
+  goals: Goal[]
+  tasks: Task[]
+  objectives: RunObjective[]
+} {
+  const goals = Array.from({ length: goalCount }, (_, index) =>
+    makeGoal(`goal-depth-${index}`, `Depth goal ${index}`, 4),
+  )
+  const tasks = goals.flatMap((goal, index) => [
+    makeTask(`task-depth-${index}-a`, goal.id, `Depth routine ${index} A`, 'light'),
+    makeTask(`task-depth-${index}-b`, goal.id, `Depth routine ${index} B`, 'medium'),
+  ])
+  return {
+    goals,
+    tasks,
+    objectives: goals.map((goal) => makeObjective(goal, 0)),
+  }
 }
 
 describe('generateMap golden output', () => {
@@ -146,7 +172,7 @@ describe('generateMap structure', () => {
     const input = baseInput({ dayIndex: 5, now: '2026-10-21T11:22:33.000Z' })
     const map = generateMap(input)
 
-    expect(map.seed).toBe('run:run_test:day:5:g1')
+    expect(map.seed).toBe(`run:run_test:day:5:g${GENERATOR_VERSION}`)
     expect(map.createdAt).toBe('2026-10-21T11:22:33.000Z')
     expect(map.currentNodeId).toBeNull()
     expect(map.id).toBe('run_test:map:5')
@@ -204,7 +230,7 @@ describe('generateMap structure', () => {
 
   it('produces the expected layer sizes and elite count', () => {
     const map = generateMap(baseInput())
-    expect(map.layers).toHaveLength(DECISION_LAYERS)
+    expect(map.layers).toHaveLength(resolveDecisionLayerCount(baseGoals().length))
     for (const layer of map.layers) {
       expect(layer.length).toBeGreaterThanOrEqual(MIN_LAYER_NODES)
       expect(layer.length).toBeLessThanOrEqual(MAX_LAYER_NODES)
@@ -212,6 +238,34 @@ describe('generateMap structure', () => {
     const elites = map.layers.flat().filter((node) => node.type === 'elite')
     expect(elites.length).toBeGreaterThanOrEqual(MIN_ELITES_PER_MAP)
     expect(elites.length).toBeLessThanOrEqual(MAX_ELITES_PER_MAP)
+  })
+})
+
+describe('generateMap depth from active goals', () => {
+  it.each([
+    [3, 1],
+    [4, 2],
+    [5, 3],
+  ])('builds %i decision layers for %i active goals', (layerCount, goalCount) => {
+    const { goals, tasks, objectives } = goalsFor(goalCount)
+    const map = generateMap(baseInput({ goals, tasks, objectives }))
+
+    expect(map.layers).toHaveLength(layerCount)
+    expect(map.layers).toHaveLength(resolveDecisionLayerCount(goalCount))
+    expect(map.boss.layer).toBe(layerCount)
+    expect(map.boss.id).toBe(`n${layerCount}_0`)
+    expect(validateMap(map)).toEqual({ ok: true })
+  })
+
+  it('ignores inactive goals when resolving depth', () => {
+    const { goals, tasks, objectives } = goalsFor(3)
+    goals[2] = { ...(goals[2] as Goal), active: false }
+    const map = generateMap(baseInput({ goals, tasks, objectives: objectives.slice(0, 2) }))
+
+    expect(map.layers).toHaveLength(4)
+    expect(map.boss.layer).toBe(4)
+    expect(map.boss.id).toBe('n4_0')
+    expect(validateMap(map)).toEqual({ ok: true })
   })
 })
 

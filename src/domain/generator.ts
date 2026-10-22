@@ -1,12 +1,13 @@
 import {
-  BOSS_LAYER,
-  DECISION_LAYERS,
+  MAX_DECISION_LAYERS,
   MAX_ELITES_PER_MAP,
   MAX_LAYER_NODES,
+  MIN_DECISION_LAYERS,
   MIN_ELITES_PER_MAP,
   MIN_LAYER_NODES,
   RUN_DAYS,
 } from './balance'
+import { resolveDecisionLayerCount } from './mapDepth'
 import { createRng } from './rng'
 import type { Rng } from './rng'
 import { rewardsForNode } from './rewards'
@@ -246,6 +247,9 @@ export function generateMap(input: GenerateMapInput): GameMap {
 
   const seed = `${input.runSeed}:day:${input.dayIndex}:g${input.generatorVersion}`
   const rng = createRng(seed)
+  const layerCount = resolveDecisionLayerCount(
+    input.goals.filter((goal) => goal.active).length,
+  )
 
   // A layer can only hold as many task-bearing nodes as there are distinct
   // routines, plus one rest or treasure. The size drifts by at most one node
@@ -255,7 +259,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
     pool.length === 1 ? MIN_LAYER_NODES : Math.min(MAX_LAYER_NODES, pool.length + 1)
 
   const layerSizes: number[] = []
-  for (let layerIndex = 0; layerIndex < DECISION_LAYERS; layerIndex += 1) {
+  for (let layerIndex = 0; layerIndex < layerCount; layerIndex += 1) {
     if (layerIndex === 0) {
       layerSizes.push(MIN_LAYER_NODES + rng.int(maxLayerSize - MIN_LAYER_NODES + 1))
       continue
@@ -267,7 +271,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
 
   const eliteCount =
     MIN_ELITES_PER_MAP + rng.int(MAX_ELITES_PER_MAP - MIN_ELITES_PER_MAP + 1)
-  const eliteLayers = new Set(rng.shuffle(range(DECISION_LAYERS)).slice(0, eliteCount))
+  const eliteLayers = new Set(rng.shuffle(range(layerCount)).slice(0, eliteCount))
 
   const spareSlots = (layerIndex: number): number =>
     (layerSizes[layerIndex] ?? MIN_LAYER_NODES) - 1 - (eliteLayers.has(layerIndex) ? 1 : 0)
@@ -275,19 +279,19 @@ export function generateMap(input: GenerateMapInput): GameMap {
   const specialLayers = new Set<number>()
   if (pool.length === 1) {
     // One routine per layer: the second node must be a rest or treasure.
-    for (const layerIndex of range(DECISION_LAYERS)) {
+    for (const layerIndex of range(layerCount)) {
       if (!eliteLayers.has(layerIndex)) specialLayers.add(layerIndex)
     }
   } else {
     // A layer wider than the pool needs a rest or treasure, otherwise it would
     // have to repeat a routine inside the same layer.
-    for (const layerIndex of range(DECISION_LAYERS)) {
+    for (const layerIndex of range(layerCount)) {
       const size = layerSizes[layerIndex] ?? MIN_LAYER_NODES
       if (size > pool.length) specialLayers.add(layerIndex)
     }
     // Then a couple of extra rest or treasure nodes for variety.
     const candidates = rng
-      .shuffle(range(DECISION_LAYERS))
+      .shuffle(range(layerCount))
       .filter((layerIndex) => spareSlots(layerIndex) > 0 && !specialLayers.has(layerIndex))
     const requested = pool.length >= 3 ? 1 + rng.int(2) : 1
     for (const layerIndex of candidates.slice(0, requested)) specialLayers.add(layerIndex)
@@ -336,21 +340,21 @@ export function generateMap(input: GenerateMapInput): GameMap {
     })
   })
 
-  for (let layerIndex = 0; layerIndex < DECISION_LAYERS - 1; layerIndex += 1) {
+  for (let layerIndex = 0; layerIndex < layerCount - 1; layerIndex += 1) {
     connectLayers(layers[layerIndex] as MapNode[], layers[layerIndex + 1] as MapNode[], rng)
   }
 
   const bossChoice = chooseBoss(pool, input.objectives, usedGlobally, rng)
   const boss: MapNode = {
-    id: `n${BOSS_LAYER}_0`,
-    layer: BOSS_LAYER,
+    id: `n${layerCount}_0`,
+    layer: layerCount,
     type: 'boss',
     task: snapshotOf(bossChoice),
     rewards: rewardsForNode('boss', bossChoice.task.effort),
     connections: [],
   }
 
-  for (const node of layers[DECISION_LAYERS - 1] as MapNode[]) {
+  for (const node of layers[layerCount - 1] as MapNode[]) {
     node.connections = [boss.id]
   }
 
@@ -445,10 +449,11 @@ export function validateMap(map: GameMap): MapValidation {
   if (!Array.isArray(map.layers)) {
     return { ok: false, errors: [...errors, 'map.layers must be an array'] }
   }
+  const layerCount = map.layers.length
   addIf(
-    map.layers.length !== DECISION_LAYERS,
+    layerCount < MIN_DECISION_LAYERS || layerCount > MAX_DECISION_LAYERS,
     errors,
-    `map.layers must contain ${DECISION_LAYERS} layers`,
+    `map.layers must contain ${MIN_DECISION_LAYERS}–${MAX_DECISION_LAYERS} layers`,
   )
 
   const allNodes = new Map<string, MapNode>()
@@ -556,8 +561,8 @@ export function validateMap(map: GameMap): MapValidation {
   if (!isNodeLike(boss)) {
     errors.push('map.boss must be a node object')
   } else {
-    if (boss.id !== `n${BOSS_LAYER}_0`) errors.push(`map.boss.id must be "n${BOSS_LAYER}_0"`)
-    if (boss.layer !== BOSS_LAYER) errors.push(`map.boss.layer must be ${BOSS_LAYER}`)
+    if (boss.id !== `n${layerCount}_0`) errors.push(`map.boss.id must be "n${layerCount}_0"`)
+    if (boss.layer !== layerCount) errors.push(`map.boss.layer must be ${layerCount}`)
     if (boss.type !== 'boss') errors.push('map.boss.type must be boss')
     if (!boss.task) {
       errors.push('map.boss.task is required')
@@ -584,7 +589,7 @@ export function validateMap(map: GameMap): MapValidation {
       const unique = new Set(node.connections)
       addIf(unique.size !== node.connections.length, errors, `${path} must not repeat targets`)
 
-      if (layerIndex < DECISION_LAYERS - 1) {
+      if (layerIndex < layerCount - 1) {
         addIf(
           node.connections.length < 1 || node.connections.length > 2,
           errors,
