@@ -200,6 +200,7 @@ export function HomeScreen() {
   if (!profile) return null
 
   const day = home.today
+  const sealedSteps = day?.map ? day.map.layers.length + 1 : null
   const dayPips = run ? (
     <DayPips
       days={run.days}
@@ -308,7 +309,7 @@ export function HomeScreen() {
         return {
           micro: "Today's path",
           title: 'The path behind.',
-          copy: 'Five steps, one path. The rewards are recorded and already yours. The next path opens at midnight.',
+          copy: `${sealedSteps ? `${sealedSteps} steps, one path` : 'One path, sealed'}. The rewards are recorded and already yours. The next path opens at midnight.`,
           foot: day ? `Day ${day.index + 1} of 7 · ${formatShortDayKey(day.date)}` : 'Today',
         }
       case 'day-missed':

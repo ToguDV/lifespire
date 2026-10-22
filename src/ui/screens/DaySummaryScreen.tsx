@@ -340,6 +340,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
 
   const bossLabel = summary.bossCompleted ? 'Boss completed' : 'Boss skipped'
   const bossIcon = summary.bossCompleted ? 'crown' : 'lock'
+  const stepCount = day.map ? day.map.layers.length + 1 : day.path.length
 
   return (
     <section className="screen screen--summary" data-screen="summary" aria-labelledby="summary-title">
@@ -349,8 +350,8 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
         titleId="summary-title"
         sub={
           summary.bossCompleted
-            ? 'Five steps, one path. The gate was kept and the rewards are already yours.'
-            : 'Five steps, one path. The gate was skipped, so its closing bonus was forfeited.'
+            ? `${stepCount} steps, one path. The gate was kept and the rewards are already yours.`
+            : `${stepCount} steps, one path. The gate was skipped, so its closing bonus was forfeited.`
         }
         meta={
           <>
