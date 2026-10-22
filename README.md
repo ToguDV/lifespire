@@ -12,8 +12,8 @@ as a PWA and fully usable offline after the first load.
 
 The node map is the heart of the app: each day you pick a path through 3–15 layers
 plus a boss, with visible trade-offs between progress, effort, and reward. The
-depth follows the goals that have active routines and the width follows your
-routines.
+depth follows the goals that have active routines and their weekly targets,
+while the width follows your routines.
 
 ---
 
@@ -61,9 +61,9 @@ pnpm preview    # serve the build (test PWA / offline)
 ## How it works
 
 1. **Onboarding** — pick demo data or create 1–10 goals with their routines.
-2. **Each day** — open the day's map (3–15 decision layers + a boss, 2–5 nodes
-   per layer; depth follows the goals with active routines), pick a node,
-   complete the real-world action, mark it done.
+2. **Each day** — open the day's map (3–15 decision layers + a boss, 3–5 nodes
+   per layer; depth follows the goals with active routines and their weekly
+   targets), pick a node, complete the real-world action, mark it done.
 3. **Rewards** — XP, gold, and loot are granted instantly. Tasks also add
    progress to their goal's weekly objective.
 4. **Close the day** — resolving the boss ends the day with a bonus.

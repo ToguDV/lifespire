@@ -12,10 +12,16 @@ export const LAYER_OFFSET_MIN = 2
 export const LAYER_OFFSET_MAX = 5
 export const LAYER_OFFSET_GOALS = 2
 export const MAX_DECISION_LAYERS = LAYER_OFFSET_MAX + MAX_GOALS
-export const GENERATOR_VERSION = 3
+export const GENERATOR_VERSION = 4
+/** First generator version that enforces three-node layers and forced crossings. */
+export const STRICT_LAYER_RULES_VERSION = 4
+/** Maps generated before `STRICT_LAYER_RULES_VERSION` may contain two-node layers. */
+export const LEGACY_MIN_LAYER_NODES = 2
 
-export const MIN_LAYER_NODES = 2
+export const MIN_LAYER_NODES = 3
 export const MAX_LAYER_NODES = 5
+/** Weekly-target total needed for each extra decision layer. */
+export const WEEKLY_TARGETS_PER_EXTRA_LAYER = 7
 export const MIN_ELITES_PER_MAP = 1
 export const MAX_ELITES_PER_MAP = 2
 

@@ -104,14 +104,14 @@ describe('map layout', () => {
     expect(buildMapLayout(map)).toEqual(layout)
   })
 
-  it('keeps two to five nodes per layer, in bounds and without overlaps', () => {
+  it('keeps three to five nodes per layer, in bounds and without overlaps', () => {
     for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
       const map = demoMap(dayIndex)
       const layout = buildMapLayout(map)
       const all = [...layout.layers.flat(), layout.boss, layout.start]
 
       for (const layer of layout.layers) {
-        expect(layer.length).toBeGreaterThanOrEqual(2)
+        expect(layer.length).toBeGreaterThanOrEqual(3)
         expect(layer.length).toBeLessThanOrEqual(5)
         expect(new Set(layer.map((node) => node.x)).size).toBe(layer.length)
       }
@@ -131,6 +131,15 @@ describe('map layout', () => {
           const distance = Math.hypot(a.x - b.x, a.y - b.y)
           expect(distance).toBeGreaterThan(80)
         }
+      }
+    }
+  })
+
+  it('centres the middle node of odd-sized layers', () => {
+    for (const size of [3, 5]) {
+      const layout = buildMapLayout(fakeMap([size, size, size]))
+      for (const layer of layout.layers) {
+        expect(layer[Math.floor(size / 2)]?.x).toBe(280)
       }
     }
   })

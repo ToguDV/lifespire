@@ -39,7 +39,7 @@ Concrete criteria:
 - Onboarding with two options: demo data or create your own goals/routines.
 - 1–10 goals, each with its routines/tasks and a weekly objective.
 - A 7-day run with one map per day.
-- Maps with 3–15 decision layers + a final boss, with 2–5 nodes per layer. Depth follows the goals that have at least one active routine; routines shape layer width.
+- Maps with 3–15 decision layers + a final boss, with 3–5 nodes per layer. Depth follows the goals that have at least one active routine and their weekly targets; routines shape layer width.
 - Node types: task, elite, rest, treasure, and boss.
 - Path selection, completing or skipping nodes, instant rewards.
 - XP, simple leveling, gold, and collectible loot with no gameplay effects.
@@ -94,18 +94,20 @@ Core rules:
 The map is displayed bottom-up, as in *Slay the Spire*:
 
 - An automatic start node.
-- 3–15 decision layers with 2–5 nodes each. Depth grows only with goals that have at least one active routine: `layers = clamp(3, 15, goals + clamp(2, 5, 2 + floor(max(0, goals − 2) / 2)))`, which gives 1 → 3, 2 → 4, 3 → 5, 4 → 7, 5 → 8, 6 → 10, 7 → 11, 8 → 13, 9 → 14, and 10 → 15.
+- 3–15 decision layers with 3–5 nodes each. Depth grows with the goals that have at least one active routine and with their weekly targets: `layers = clamp(3, 15, goals + offset + floor(weeklyTargetSum / 7))`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))` and `weeklyTargetSum` only counts those goals. The goal term alone gives 1 → 3, 2 → 4, 3 → 5, 4 → 7, 5 → 8, 6 → 10, 7 → 11, 8 → 13, 9 → 14, and 10 → 15; every seven weekly targets add one layer, capped at 15.
 - A single boss node at the end.
 - In total, 4–16 nodes are resolved per day: 3–15 choices + boss.
 
 Generation rules:
 
-- Depth and width have separate inputs: goals with at least one active routine set depth (`goals + offset`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`, capped at 15 layers), while the active routine pool sets layer width (`min(5, pool + 1)`). One map is generated per day when the day is opened. Changing goals or routines only affects future maps; the current map never changes.
+- Depth and width have separate inputs: goals with at least one active routine set the depth base (`goals + offset`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`) and their weekly targets add one layer per seven points, capped at 15 layers; the active routine pool sets layer width (`max(3, min(5, pool + 1))`). One map is generated per day when the day is opened. Changing goals or routines only affects future maps; the current map never changes.
 - Every node must be reachable from the start and must have a path to the boss.
-- Each layer offers at least 2 options.
+- Each layer offers at least 3 options.
 - Each node connects to 1–2 nodes in the next layer; multiple paths are allowed to converge.
 - A node only connects to the nodes on the same lane and the two adjacent lanes, so no path jumps across the map.
+- One layer boundary is a switchback: every connection there moves to an adjacent lane, so no start-to-boss route can avoid crossing lanes at least once.
 - The width of a layer drifts by at most one node from the previous layer.
+- At least one layer has an odd node count, so the exact centre lane appears once per map.
 - Each layer includes at least one task node.
 - There is at most one rest or treasure node per layer.
 - 1–2 elite nodes appear per map.
@@ -203,7 +205,7 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 The demo is considered complete when it can be run without failures:
 
 1. Open the app from scratch, complete onboarding with demo data, and start a run.
-2. See a map with 3–15 layers + boss (depth follows the goals with active routines), 2–5 nodes per layer, at least two possible paths, and all nodes reachable.
+2. See a map with 3–15 layers + boss (depth follows the goals with active routines and their weekly targets), 3–5 nodes per layer, at least three possible first choices, a forced lane crossing on every route, and all nodes reachable.
 3. Choose a task, complete it, and see XP, gold, and weekly progress update.
 4. Reload the page and confirm that the map, path, and rewards are preserved.
 5. Skip a node and confirm that it advances without a reward.
