@@ -1,5 +1,9 @@
 # MVP-0 playtest results — M4-02
 
+> Historical record: this dry run describes the four-layer MVP-0 build. The
+> current generator derives map depth from the active goals (3–5 layers); see
+> [`SPEC.md`](../SPEC.md) §5.
+
 > **Internal dry run — external tester sessions pending.**
 > No human testers were recruited or run in this environment. The only session
 > recorded here is a facilitator rehearsal of

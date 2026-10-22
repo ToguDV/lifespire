@@ -2,7 +2,7 @@
 
 > High-level specification for the proof of concept.
 > Status: approved for build.
-> Last updated: 2026-10-20.
+> Last updated: 2026-10-22.
 
 ## 1. Summary
 
@@ -39,7 +39,7 @@ Concrete criteria:
 - Onboarding with two options: demo data or create your own goals/routines.
 - 1–3 goals, each with its routines/tasks and a weekly objective.
 - A 7-day run with one map per day.
-- Maps with 4 decision layers + a final boss, with 2–5 nodes per layer.
+- Maps with 3–5 decision layers + a final boss, with 2–5 nodes per layer. Depth follows the active goals; routines shape layer width.
 - Node types: task, elite, rest, treasure, and boss.
 - Path selection, completing or skipping nodes, instant rewards.
 - XP, simple leveling, gold, and collectible loot with no gameplay effects.
@@ -94,12 +94,13 @@ Core rules:
 The map is displayed bottom-up, as in *Slay the Spire*:
 
 - An automatic start node.
-- 4 decision layers with 2–5 nodes each.
+- 3–5 decision layers with 2–5 nodes each: one layer per active goal beyond the first, so 1 goal → 3, 2 goals → 4, and 3 goals → 5.
 - A single boss node at the end.
-- In total, 5 nodes are resolved per day: 4 choices + boss.
+- In total, 4–6 nodes are resolved per day: 3–5 choices + boss.
 
 Generation rules:
 
+- Depth and width have separate inputs: active goals set depth (`clamp(3, 5, 2 + activeGoals)`), while the active routine pool sets layer width (`min(5, pool + 1)`). One map is generated per day when the day is opened. Changing goals or routines only affects future maps; the current map never changes.
 - Every node must be reachable from the start and must have a path to the boss.
 - Each layer offers at least 2 options.
 - Each node connects to 1–2 nodes in the next layer; multiple paths are allowed to converge.
@@ -202,7 +203,7 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 The demo is considered complete when it can be run without failures:
 
 1. Open the app from scratch, complete onboarding with demo data, and start a run.
-2. See a map with 4 layers + boss, 2–5 nodes per layer, at least two possible paths, and all nodes reachable.
+2. See a map with 3–5 layers + boss (depth follows the active goals), 2–5 nodes per layer, at least two possible paths, and all nodes reachable.
 3. Choose a task, complete it, and see XP, gold, and weekly progress update.
 4. Reload the page and confirm that the map, path, and rewards are preserved.
 5. Skip a node and confirm that it advances without a reward.
@@ -239,7 +240,7 @@ Open decisions with a default proposal:
 
 - Is skipping a node free? **Proposal:** yes, with no penalty beyond losing the reward and progress.
 - Are missed days recoverable? **Proposal:** no in the POC.
-- Are 5 nodes per day too many? **Proposal:** start there and adjust after the playtest.
+- Are 4–6 nodes per day too many? **Proposal:** start there and adjust after the playtest.
 - Does elite give 2 progress? **Proposal:** 1, to avoid distorting weekly objectives.
 - Midnight or 4 a.m. cutoff? **Proposal:** midnight for simplicity.
 - Does the run start any day or only on Monday? **Proposal:** any day, with a 7-day window.

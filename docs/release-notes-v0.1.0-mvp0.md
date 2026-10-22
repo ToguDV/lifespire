@@ -1,5 +1,9 @@
 # LifeSpire MVP-0 — release notes v0.1.0-mvp0
 
+> Historical record: these notes describe the four-layer MVP-0 build. The current
+> generator derives map depth from the active goals (3–5 layers); see
+> [`SPEC.md`](../SPEC.md) §5.
+
 Status: **release candidate, ready to tag**. This document describes the local
 demo that closes MVP-0. The tag `v0.1.0-mvp0` is intentionally **not created** in
 this change; the orchestrator tags the final `mvp-0` commit after review.

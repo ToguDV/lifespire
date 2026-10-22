@@ -18,6 +18,7 @@ src/
     rng.ts         RNG determinista por string seed
     rewards.ts     tabla de recompensas, loot, duplicados, nivel
     generator.ts   generación y validación del mapa
+    mapDepth.ts    profundidad del mapa según las metas activas
     lifecycle.ts   abrir día, seleccionar, resolver, reconciliar días/run
     runClose.ts    cierre de run y bonus semanal
     schema.ts      validación, serialize/deserialize, migración
@@ -353,8 +354,8 @@ generateMap(input: {
 }): GameMap
 ```
 
-- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`.
-- 4 capas de decisión con 2–5 nodos + boss. Capa 0 disponible desde el start.
+- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 2` desde el mapa dinámico; los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
+- 3–5 capas de decisión con 2–5 nodos + boss. La profundidad depende solo de las metas activas: `resolveDecisionLayerCount = clamp(3, 5, 2 + activeGoals)` (1 → 3, 2 → 4, 3 → 5). Las rutinas no cambian la profundidad, solo el ancho (`maxLayerSize = min(5, pool + 1)`). Capa 0 disponible desde el start.
 - Ancho de capa: la primera capa se sortea entre 2 y `min(5, pool + 1)` y cada
   capa siguiente deriva ±1 nodo de la anterior. Derivar poco mantiene la regla
   de vecinos (siempre hay cobertura) y evita capas que se abren o se cierran de
@@ -366,10 +367,11 @@ generateMap(input: {
 - Task/elite/boss requieren `TaskSnapshot`. Rest/treasure tienen `task: null`.
 - Sin tareas repetidas dentro de una capa. Entre capas se evita repetir mientras
   el pool lo permita; con pools pequeños se permite repetir entre capas.
-- Conexiones: cada nodo de capa 0–2 conecta a 1–2 nodos de la capa siguiente;
-  cada nodo de la última capa conecta al boss. Todo nodo de la capa siguiente
-  tiene al menos una entrada; ningún nodo queda huérfano. El boss no tiene
-  salida.
+- Conexiones: cada nodo de una capa de decisión conecta a 1–2 nodos de la capa
+  siguiente; cada nodo de la última capa conecta al boss. Todo nodo de la capa
+  siguiente tiene al menos una entrada; ningún nodo queda huérfano. El boss no
+  tiene salida. El boss es dinámico: `n{layers.length}_0`, con
+  `layer === layers.length`.
 - Conexiones de vecindario: un nodo solo alcanza su propio carril y los dos
   carriles contiguos (`|i − j| ≤ 1` por índice de capa). Ningún camino salta de
   un extremo al otro: el mapa se lee como carriles verticales con bifurcaciones
@@ -383,7 +385,10 @@ generateMap(input: {
   scroll). Los carriles horizontales según el ancho de la capa son
   2 → 0.22/0.78, 3 → 0.26/0.5/0.74, 4 → 0.16/0.38/0.62/0.84 y
   5 → 0.12/0.31/0.5/0.69/0.88. Las capas de 5 nodos usan un medallón más
-  pequeño (`node--wide`) para que los carriles no se toquen a 360 px.
+  pequeño (`node--wide`) para que los carriles no se toquen a 360 px. A cuatro
+  capas la geometría coincide con el diseño anterior (700 px), salvo que los
+  pinos decorativos se retiraron: solo quedan los contornos, que se ciclan cada
+  cuatro capas.
 - Boss: se prefiere una tarea de un goal con progreso pendiente y esfuerzo alto;
   desempate determinista por seed.
 - Si el pool tiene <4 tareas activas, el generador debe seguir produciendo un mapa
@@ -508,8 +513,10 @@ generateMap(input: {
   cada `day.map` por `validateMap` (generador), exige `day.index ===
   map.dayIndex`, que `day.id` sea `${run.id}:day:${day.index}`, que
   `map.currentNodeId` exista (o sea `null`) y que `day.path`/`day.rewards`
-  referencien nodos de ese mapa. Así un backup estructuralmente válido pero
-  injugable se rechaza antes de reemplazar el estado.
+  referencien nodos de ese mapa. `validateMap` acepta 3–5 capas de 2–5 nodos y
+  exige que el boss sea `n{layers.length}_0` con `layer === layers.length`. Así
+  un backup estructuralmente válido pero injugable se rechaza antes de
+  reemplazar el estado.
 - Si `localStorage` está corrupto o tiene una versión futura, el store hidrata un
   documento vacío **sin sobrescribir** la clave y expone `storageIssue` para
   mostrar `recovery`. Solo `resetAll` o un import válido desbloquean la escritura.

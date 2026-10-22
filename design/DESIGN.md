@@ -588,7 +588,12 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 **`map-frame`** — The centerpiece container.
 - Background `{colors.surface}` with a radial `{colors.accent-wash}` at the top, rounded `{rounded.xl}`, border `{colors.hairline}`, shadow level 1.
 - A second inset 1px border sits 7px inside; it is decorative and low opacity.
-- Frame meta: `THE ASCENT · 2 OF 5 CLEARED` on the left, `Day III` in Alegreya italic on the right.
+- Frame meta: `THE ASCENT · 2 OF N RESOLVED` on the left, where N is the day's
+  decision layers + 1 (4–6); `Day III` in Alegreya italic on the right.
+- `map-altimeter`: a decorative vertical hairline on the left edge (desktop
+  only), with one roman numeral per decision layer aligned to the fixed 130px
+  layer step. It is `aria-hidden` and shares the canvas geometry, so it never
+  introduces a second scroll region or a separate coordinate system.
 
 **`map-node-button`** — 54×54px transparent button with a concentric medallion. The button, not the medallion, is the touch target.
 - Completed: done-fill medallion, done-ink icon, 15px moss seal with a check at bottom-right. A small 3px surface gap keeps seals legible.
