@@ -18,7 +18,7 @@ src/
     rng.ts         RNG determinista por string seed
     rewards.ts     tabla de recompensas, loot, duplicados, nivel
     generator.ts   generación y validación del mapa
-    mapDepth.ts    profundidad del mapa según las metas activas
+    mapDepth.ts    profundidad del mapa según metas activas y weekly targets
     lifecycle.ts   abrir día, seleccionar, resolver, reconciliar días/run
     runClose.ts    cierre de run y bonus semanal
     schema.ts      validación, serialize/deserialize, migración
@@ -354,13 +354,17 @@ generateMap(input: {
 }): GameMap
 ```
 
-- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 3` desde que el mapa crece hasta quince capas; los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
-- 3–15 capas de decisión con 2–5 nodos + boss. La profundidad depende solo de las metas con al menos una rutina activa: `resolveDecisionLayerCount = clamp(1, 10, goals) + offset`, con `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`, y el resultado acotado por `MAX_DECISION_LAYERS = 15`. Tabla: 1→3, 2→4, 3→5, 4→7, 5→8, 6→10, 7→11, 8→13, 9→14, 10→15. Las rutinas no cambian la profundidad, solo el ancho (`maxLayerSize = min(5, pool + 1)`). Capa 0 disponible desde el start.
-- Ancho de capa: la primera capa se sortea entre 2 y `min(5, pool + 1)` y cada
-  capa siguiente deriva ±1 nodo de la anterior. Derivar poco mantiene la regla
-  de vecinos (siempre hay cobertura) y evita capas que se abren o se cierran de
-  golpe. El techo `pool + 1` reserva un hueco para el rest/treasure, de modo que
-  los nodos con tarea nunca repiten rutina dentro de la misma capa.
+- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 4` desde que las capas tienen al menos tres nodos, una frontera fuerza el cruce y la profundidad suma los weekly targets; los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
+- 3–15 capas de decisión con 3–5 nodos + boss. La profundidad depende de las metas con al menos una rutina activa y de la suma de sus weekly targets: `resolveDecisionLayerCount = clamp(3, 15, goals + offset + floor(weeklyTargetSum / 7))`, con `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))` y `MAX_DECISION_LAYERS = 15`. La tabla base es 1→3, 2→4, 3→5, 4→7, 5→8, 6→10, 7→11, 8→13, 9→14, 10→15; cada siete weekly targets suma una capa. Las rutinas no cambian la profundidad por sí solas, solo el ancho (`maxLayerSize = max(3, min(5, pool + 1))`). Capa 0 disponible desde el start.
+- Ancho de capa: la primera capa se sortea entre 3 y `max(3, min(5, pool + 1))` y
+  cada capa siguiente deriva ±1 nodo de la anterior. Derivar poco mantiene la
+  regla de vecinos (siempre hay cobertura) y evita capas que se abren o se
+  cierran de golpe. El techo `pool + 1` reserva un hueco para el rest/treasure,
+  de modo que los nodos con tarea nunca repiten rutina dentro de la misma capa.
+- Una frontera aleatoria es un *switchback*: ninguna arista de esa frontera
+  conserva el índice de carril, así que toda ruta start→boss cruza al menos una
+  vez. Si todas las capas quedaran pares, una capa del medio pasa a 5 (o a 3)
+  para garantizar que el carril central exacto aparezca en el mapa.
 - Cada capa: al menos 1 task, como máximo 1 rest **o** treasure, y 1–2 elites en
   todo el mapa. Una capa más ancha que el pool **obliga** a llevar rest o
   treasure.
@@ -515,10 +519,13 @@ generateMap(input: {
   cada `day.map` por `validateMap` (generador), exige `day.index ===
   map.dayIndex`, que `day.id` sea `${run.id}:day:${day.index}`, que
   `map.currentNodeId` exista (o sea `null`) y que `day.path`/`day.rewards`
-  referencien nodos de ese mapa. `validateMap` acepta 3–15 capas de 2–5 nodos y
-  exige que el boss sea `n{layers.length}_0` con `layer === layers.length`. Así
-  un backup estructuralmente válido pero injugable se rechaza antes de
-  reemplazar el estado.
+  referencien nodos de ese mapa. `validateMap` acepta 3–15 capas y exige que el
+  boss sea `n{layers.length}_0` con `layer === layers.length`. Para mapas
+  `generatorVersion >= 4` exige 3–5 nodos por capa y que ningún carril tenga
+  aristas rectas en todas las fronteras; para mapas anteriores acepta 2–5 nodos
+  y no aplica la regla de cruce, de modo que las partidas viejas siguen
+  cargando. Así un backup estructuralmente válido pero injugable se rechaza
+  antes de reemplazar el estado.
 - Si `localStorage` está corrupto o tiene una versión futura, el store hidrata un
   documento vacío **sin sobrescribir** la clave y expone `storageIssue` para
   mostrar `recovery`. Solo `resetAll` o un import válido desbloquean la escritura.
