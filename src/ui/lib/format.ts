@@ -2,26 +2,23 @@ import { parseDayKey } from '../../domain/dates'
 import type { Effort, NodeType, Rarity } from '../../domain/types'
 import type { IconName } from '../components/Icon'
 
-const ROMAN = [
-  'I',
-  'II',
-  'III',
-  'IV',
-  'V',
-  'VI',
-  'VII',
-  'VIII',
-  'IX',
-  'X',
-  'XI',
-  'XII',
-  'XIII',
-  'XIV',
-  'XV',
-]
+const ROMAN_THOUSANDS = ['', 'M', 'MM', 'MMM']
+const ROMAN_HUNDREDS = ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM']
+const ROMAN_TENS = ['', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC']
+const ROMAN_ONES = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']
+
+/** Roman numeral for 1–3999; anything outside that range falls back to digits. */
+export function toRoman(value: number): string {
+  if (!Number.isInteger(value) || value < 1 || value > 3999) return String(value)
+  const thousands = Math.floor(value / 1000)
+  const hundreds = Math.floor((value % 1000) / 100)
+  const tens = Math.floor((value % 100) / 10)
+  const ones = value % 10
+  return `${ROMAN_THOUSANDS[thousands]}${ROMAN_HUNDREDS[hundreds]}${ROMAN_TENS[tens]}${ROMAN_ONES[ones]}`
+}
 
 export function romanDay(index: number): string {
-  return ROMAN[index] ?? String(index + 1)
+  return toRoman(index + 1)
 }
 
 export function formatDayKey(key: string): string {
