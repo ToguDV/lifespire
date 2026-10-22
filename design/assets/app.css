@@ -847,9 +847,9 @@ body:not([data-screen="map"]) .map-dock {
 }
 
 .node--done .medallion {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--canvas);
+  border-color: var(--done-rim);
+  background: var(--done-fill);
+  color: var(--done-ink);
 }
 
 .node--current .medallion {
@@ -2385,9 +2385,9 @@ body:not([data-screen="map"]) .map-dock {
 }
 
 .path-row__medallion.is-done {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--canvas);
+  border-color: var(--done-rim);
+  background: var(--done-fill);
+  color: var(--done-ink);
 }
 
 .path-row__medallion.is-skipped {
@@ -2964,8 +2964,8 @@ body[data-screen="welcome"] .viewport {
 }
 
 .welcome-art .art-node--done {
-  fill: var(--ink);
-  stroke: var(--ink);
+  fill: var(--done-fill);
+  stroke: var(--done-rim);
 }
 
 .welcome-art .art-node--open {

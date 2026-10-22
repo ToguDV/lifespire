@@ -459,9 +459,9 @@ export function HomeScreen() {
                 <use href="#i-pine" x="34" y="128" width="17" height="17" className="hero-pine" />
                 <use href="#i-pine" x="284" y="150" width="14" height="14" className="hero-pine" />
                 <use href="#i-pine" x="294" y="56" width="16" height="16" className="hero-pine" />
-                <circle cx="52" cy="160" r="10" fill="var(--ink)" />
+                <circle cx="52" cy="160" r="10" fill="var(--done-fill)" />
                 <use href="#i-tent" x="45" y="153" width="14" height="14" className="hero-glyph" />
-                <circle cx="118" cy="102" r="10" fill="var(--ink)" />
+                <circle cx="118" cy="102" r="10" fill="var(--done-fill)" />
                 <use href="#i-check" x="112" y="96" width="12" height="12" className="hero-glyph" />
                 <circle cx="198" cy="70" r="12" fill="var(--surface-raised)" stroke="var(--accent)" strokeWidth="1.6" />
                 <use href="#i-scroll" x="190" y="62" width="16" height="16" className="hero-glyph-accent" />

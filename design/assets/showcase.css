@@ -815,9 +815,9 @@ html[data-theme="dark"] .show-theme__moon {
 }
 
 .g-node--done .g-med {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--canvas);
+  border-color: var(--done-rim);
+  background: var(--done-fill);
+  color: var(--done-ink);
 }
 
 .g-seal {

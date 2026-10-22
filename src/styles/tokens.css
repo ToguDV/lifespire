@@ -101,6 +101,10 @@
   --ink-soft: #64695d;
   --hairline: #d8d5c9;
   --hairline-strong: #b9b6a8;
+  /* Completed nodes: settled stone, never moss. */
+  --done-fill: #20241e;
+  --done-rim: #20241e;
+  --done-ink: #f1f0ea;
   --accent: #4d6b5a;
   --accent-deep: #385342;
   --accent-soft: #dfe7de;
@@ -132,6 +136,10 @@ html[data-theme="dark"] {
   --ink-soft: #8b8f82;
   --hairline: #2c3028;
   --hairline-strong: #40453a;
+  /* Completed nodes: quiet stone. A bright disc would glare on the night canvas. */
+  --done-fill: #333830;
+  --done-rim: #464c3f;
+  --done-ink: #c3c7b9;
   --accent: #9dbba8;
   --accent-deep: #c5dacb;
   --accent-soft: #263229;
@@ -156,6 +164,10 @@ html[data-theme="dark"] {
     --ink-soft: #8b8f82;
     --hairline: #2c3028;
     --hairline-strong: #40453a;
+    /* Completed nodes: quiet stone. A bright disc would glare on the night canvas. */
+    --done-fill: #333830;
+    --done-rim: #464c3f;
+    --done-ink: #c3c7b9;
     --accent: #9dbba8;
     --accent-deep: #c5dacb;
     --accent-soft: #263229;

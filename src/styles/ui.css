@@ -459,13 +459,13 @@ button.text-link:hover {
 }
 
 .node--boss.node--done .boss-frame polygon {
-  fill: var(--ink);
-  stroke: var(--ink);
+  fill: var(--done-fill);
+  stroke: var(--done-rim);
   stroke-dasharray: none;
 }
 
 .node--boss.node--done .medallion {
-  color: var(--canvas);
+  color: var(--done-ink);
 }
 
 .legend--detailed {
@@ -1181,7 +1181,7 @@ body[data-screen="recovery"] .viewport {
 }
 
 .hero-panel__art .hero-glyph {
-  color: var(--canvas);
+  color: var(--done-ink);
 }
 
 .hero-panel__art .hero-glyph-accent {
