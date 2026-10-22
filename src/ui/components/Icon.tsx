@@ -39,6 +39,10 @@ export type IconName =
   | 'brush'
   | 'dumbbell'
   | 'home'
+  | 'wallet'
+  | 'briefcase'
+  | 'users'
+  | 'utensils'
 
 const ICON_SHAPES: Record<IconName, ReactNode> = {
   spire: (
@@ -231,6 +235,37 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
       <path d="m4 11 8-7 8 7" />
       <path d="M6 9.5V20h12V9.5" />
       <path d="M10 20v-5h4v5" />
+    </>
+  ),
+  wallet: (
+    <>
+      <path d="M4 7a2 2 0 0 1 2-2h11.5A2.5 2.5 0 0 1 20 7.5V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <path d="M4 8.5h14.5" />
+      <path d="M16 11.5h4v4h-4a2 2 0 0 1 0-4z" />
+    </>
+  ),
+  briefcase: (
+    <>
+      <rect x="3.5" y="7" width="17" height="12" rx="2" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" />
+      <path d="M3.5 12.5h17" />
+      <path d="M10 12.5v1.5h4v-1.5" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" />
+      <path d="M15.5 5.5a3 3 0 0 1 0 5.8" />
+      <path d="M16.5 14.2c2.4.4 4 2.2 4 4.8" />
+    </>
+  ),
+  utensils: (
+    <>
+      <path d="M7 3v5a2 2 0 0 0 4 0V3" />
+      <path d="M9 8v13" />
+      <path d="M17 3v18" />
+      <path d="M17 3c-2.5 2.5-3.5 5-3.5 7.5 0 1.4.8 2.5 2 2.5H17" />
     </>
   ),
 }

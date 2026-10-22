@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { GOAL_ICON_IDS } from '../../domain/goalIcons'
 import type { Goal } from '../../domain/types'
 import {
+  GOAL_ICON_LABEL,
   formatDayKey,
   formatShortDayKey,
   goalIconFor,
@@ -41,6 +43,13 @@ describe('goal icons', () => {
     expect(goalIconFor(goals, 'goal_a')).toBe('book')
     expect(goalIconFor(goals, 'missing')).toBeNull()
     expect(goalIconFor(goals, null)).toBeNull()
+  })
+
+  it('labels every catalog icon', () => {
+    expect(Object.keys(GOAL_ICON_LABEL)).toHaveLength(GOAL_ICON_IDS.length)
+    for (const icon of GOAL_ICON_IDS) {
+      expect(GOAL_ICON_LABEL[icon]).toBeTruthy()
+    }
   })
 })
 

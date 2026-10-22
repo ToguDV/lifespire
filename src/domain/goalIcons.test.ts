@@ -15,8 +15,20 @@ describe('goal icons', () => {
 
   it('recognises only catalog ids', () => {
     expect(isGoalIconId('book')).toBe(true)
+    expect(isGoalIconId('wallet')).toBe(true)
+    expect(isGoalIconId('briefcase')).toBe(true)
+    expect(isGoalIconId('users')).toBe(true)
+    expect(isGoalIconId('utensils')).toBe(true)
     expect(isGoalIconId('not-an-icon')).toBe(false)
     expect(isGoalIconId(undefined)).toBe(false)
+  })
+
+  it('keeps a unique catalog with the common-life themes', () => {
+    expect(GOAL_ICON_IDS).toHaveLength(28)
+    expect(new Set(GOAL_ICON_IDS).size).toBe(GOAL_ICON_IDS.length)
+    expect(GOAL_ICON_IDS).toEqual(
+      expect.arrayContaining(['wallet', 'briefcase', 'users', 'utensils']),
+    )
   })
 
   it('suggests the first icon not used by an active goal', () => {

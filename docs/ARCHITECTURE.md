@@ -299,7 +299,8 @@ confirmar (`beginJourney`). Los objetivos del borrador también guardan `icon`.
 `GoalIconId` es un catálogo cerrado de ids (`banner`, `flame`, `quill`, `gem`,
 `compass`, `star`, `sun`, `moon`, `key`, `cup`, `pine`, `lantern`, `feather`,
 `ring`, `scroll`, `crown`, `map`, `tent`, `book`, `heart`, `leaf`, `brush`,
-`dumbbell`, `home`). El dominio posee la lista para validar sin importar React;
+`dumbbell`, `home`, `wallet`, `briefcase`, `users`, `utensils`). El dominio
+posee la lista para validar sin importar React;
 la UI añade las etiquetas y el sprite. Los mapas resuelven el crest por
 `goalId` en render, de modo que un cambio de icono también actualiza un mapa ya
 dibujado sin alterar pasos ni recompensas.

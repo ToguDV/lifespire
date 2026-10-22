@@ -177,6 +177,16 @@ describe('serializeDocument and parseDocument', () => {
     }
   })
 
+  it('round-trips the common-life goal icons', () => {
+    for (const icon of ['wallet', 'briefcase', 'users', 'utensils'] as const) {
+      const document = fullDocument()
+      document.goals[0] = { ...document.goals[0]!, icon }
+      const parsed = parseDocument(serializeDocument(document))
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(parsed.value.goals[0]?.icon).toBe(icon)
+    }
+  })
+
   it('accepts a parsed object as well as JSON text', () => {
     const document = fullDocument()
     const parsed = parseDocument(document)

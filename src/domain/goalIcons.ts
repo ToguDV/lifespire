@@ -27,6 +27,10 @@ export const GOAL_ICON_IDS = [
   'brush',
   'dumbbell',
   'home',
+  'wallet',
+  'briefcase',
+  'users',
+  'utensils',
 ] as const
 
 export type GoalIconId = (typeof GOAL_ICON_IDS)[number]

@@ -80,6 +80,10 @@ export const GOAL_ICON_LABEL: Record<GoalIconId, string> = {
   brush: 'Brush',
   dumbbell: 'Dumbbell',
   home: 'Home',
+  wallet: 'Wallet',
+  briefcase: 'Briefcase',
+  users: 'People',
+  utensils: 'Utensils',
 }
 
 /** Goal crest safe for old fixtures: falls back to the legacy index cycle. */
