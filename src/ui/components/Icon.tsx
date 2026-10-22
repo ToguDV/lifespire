@@ -115,11 +115,18 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
       <path d="m12 8 .9 3.1L16 12l-3.1.9L12 16l-.9-3.1L8 12l3.1-.9z" />
     </>
   ),
+  // The rest glyph sits slightly smaller than the set; scale it without fattening the stroke.
   campfire: (
-    <>
-      <path d="M12 19c-2.6 0-4.3-1.7-4.3-4 0-2.1 1.6-3.4 2.6-5.4.2-.4.4-.9.5-1.5 1.2.9 1.9 2.1 2.1 3.4.8-.6 1.3-1.5 1.5-2.6 1.5 1.3 2.5 3.3 2.5 5.2 0 2.8-1.8 4.9-4.9 4.9z" />
-      <path d="M6 20.2h12M7.2 18l11 2.2" />
-    </>
+    <g transform="translate(12 14.4) scale(1.4) translate(-12 -14.4)">
+      <path
+        vectorEffect="non-scaling-stroke"
+        d="M12 19c-2.6 0-4.3-1.7-4.3-4 0-2.1 1.6-3.4 2.6-5.4.2-.4.4-.9.5-1.5 1.2.9 1.9 2.1 2.1 3.4.8-.6 1.3-1.5 1.5-2.6 1.5 1.3 2.5 3.3 2.5 5.2 0 2.8-1.8 4.9-4.9 4.9z"
+      />
+      <path
+        vectorEffect="non-scaling-stroke"
+        d="M6 20.2h12M7.2 18l11 2.2"
+      />
+    </g>
   ),
   chest: (
     <>
