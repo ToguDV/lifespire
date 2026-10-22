@@ -13,12 +13,12 @@ import {
 import { nodeAriaLabel, nodeTitle } from '../lib/nodeCopy'
 
 const CONTOURS = [
-  'M-30 610c100-26 150 32 245 4s150-62 245-38 90 22 120 8',
-  'M-20 470c92-22 140 34 232 8s148-56 238-36 92 14 130-2',
-  'M-30 332c96-24 150 34 244 8s150-54 240-34 90 10 120-4',
-  'M-20 204c88-22 142 32 234 8s150-52 238-32 92 8 128-4',
-  'M-30 678c104-18 162 24 268 4s180-24 352-12',
-  'M-30 112c112-16 166 22 270 4s190-20 350-10',
+  'M-30 570c100-26 150 32 245 4s150-62 245-38 90 22 120 8',
+  'M-20 440c92-22 140 34 232 8s148-56 238-36 92 14 130-2',
+  'M-30 310c96-24 150 34 244 8s150-54 240-34 90 10 120-4',
+  'M-20 180c88-22 142 32 234 8s150-52 238-32 92 8 128-4',
+  'M-30 664c104-18 162 24 268 4s180-24 352-12',
+  'M-30 90c112-16 166 22 270 4s190-20 350-10',
 ]
 
 const PINES: Array<{ x: number; y: number; size: number }> = [
@@ -57,7 +57,8 @@ function firstTapOnlyReveals(): boolean {
 function nodeClasses(layout: MapNodeLayout, status: NodeStatus): string {
   const classes = ['node']
   if (layout.type === 'boss') classes.push('node--boss')
-  if (layout.layerSize === 3) classes.push('node--dense')
+  if (layout.layerSize >= 3) classes.push('node--dense')
+  if (layout.layerSize === 5) classes.push('node--wide')
   if (status === 'completed') classes.push('node--done')
   if (status === 'skipped') classes.push('node--skipped')
   if (status === 'current') classes.push('node--available', 'node--current')

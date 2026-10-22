@@ -172,8 +172,11 @@ function chooseBoss(
 }
 
 /**
- * Connects two consecutive layers. Every source gets 1–2 outgoing edges, every
- * target gets at least one incoming edge, and convergence is allowed.
+ * Connects two consecutive layers. A source only reaches the target that sits
+ * on its own lane and the two lanes next to it, so a path never jumps across
+ * the map. Every source gets 1–2 outgoing edges and every target gets at least
+ * one incoming edge. The layer sizes drift by at most one node, which is what
+ * makes the neighbour rule always able to cover the next layer.
  */
 function connectLayers(sources: MapNode[], targets: MapNode[], rng: Rng): void {
   if (targets.length === 0) {
@@ -181,38 +184,43 @@ function connectLayers(sources: MapNode[], targets: MapNode[], rng: Rng): void {
   }
 
   const edges = sources.map(() => new Set<number>())
-  const targetOrder = rng.shuffle(range(targets.length))
 
-  // Give every source one edge first so no source becomes a dead end.
+  // The targets a source is allowed to reach: its own index and the neighbours.
+  const reachable = (sourceIndex: number): number[] => {
+    const from = Math.max(0, sourceIndex - 1)
+    const to = Math.min(targets.length - 1, sourceIndex + 1)
+    return range(to - from + 1).map((offset) => from + offset)
+  }
+
+  // Anchor every source to the target on the same lane first, so the map reads
+  // as vertical paths that branch locally instead of zig-zagging.
   sources.forEach((_, sourceIndex) => {
-    const targetIndex = targetOrder[sourceIndex % targetOrder.length] as number
-    edges[sourceIndex]?.add(targetIndex)
+    edges[sourceIndex]?.add(Math.min(sourceIndex, targets.length - 1))
   })
 
   // Then cover every target that did not receive an edge yet.
-  const covered = new Set<number>()
-  for (const indexes of edges) {
-    for (const targetIndex of indexes) covered.add(targetIndex)
-  }
-
-  for (const targetIndex of targetOrder) {
-    if (covered.has(targetIndex)) continue
-    const candidates = edges
-      .map((indexes, sourceIndex) => (indexes.size < 2 ? sourceIndex : -1))
-      .filter((sourceIndex) => sourceIndex >= 0)
-    if (candidates.length === 0) {
+  for (let targetIndex = 0; targetIndex < targets.length; targetIndex += 1) {
+    const covered = sources.some((_, sourceIndex) => edges[sourceIndex]?.has(targetIndex))
+    if (covered) continue
+    const candidates = sources
+      .map((_, sourceIndex) => sourceIndex)
+      .filter(
+        (sourceIndex) =>
+          (edges[sourceIndex]?.size ?? 0) < 2 && reachable(sourceIndex).includes(targetIndex),
+      )
+      .sort((a, b) => Math.abs(a - targetIndex) - Math.abs(b - targetIndex))
+    const sourceIndex = candidates[0]
+    if (sourceIndex === undefined) {
       throw new MapGenerationError('A layer could not reach every node in the next layer.')
     }
-    const sourceIndex = rng.pick(candidates)
     edges[sourceIndex]?.add(targetIndex)
-    covered.add(targetIndex)
   }
 
   // Occasionally offer a second branch for visible path choice.
   sources.forEach((_, sourceIndex) => {
     const indexes = edges[sourceIndex]
     if (!indexes || indexes.size !== 1 || rng.next() >= 0.45) return
-    const choices = range(targets.length).filter((targetIndex) => !indexes.has(targetIndex))
+    const choices = reachable(sourceIndex).filter((targetIndex) => !indexes.has(targetIndex))
     if (choices.length > 0) indexes.add(rng.pick(choices))
   })
 
@@ -239,13 +247,23 @@ export function generateMap(input: GenerateMapInput): GameMap {
   const seed = `${input.runSeed}:day:${input.dayIndex}:g${input.generatorVersion}`
   const rng = createRng(seed)
 
-  // A single-routine pool cannot fill a three-node layer without repeating a
-  // task in that layer, so it always uses two-node layers.
-  const layerSizes = range(DECISION_LAYERS).map(() =>
-    pool.length === 1
-      ? MIN_LAYER_NODES
-      : MIN_LAYER_NODES + rng.int(MAX_LAYER_NODES - MIN_LAYER_NODES + 1),
-  )
+  // A layer can only hold as many task-bearing nodes as there are distinct
+  // routines, plus one rest or treasure. The size drifts by at most one node
+  // between neighbouring layers, so every node can always reach its
+  // neighbours on the next layer.
+  const maxLayerSize =
+    pool.length === 1 ? MIN_LAYER_NODES : Math.min(MAX_LAYER_NODES, pool.length + 1)
+
+  const layerSizes: number[] = []
+  for (let layerIndex = 0; layerIndex < DECISION_LAYERS; layerIndex += 1) {
+    if (layerIndex === 0) {
+      layerSizes.push(MIN_LAYER_NODES + rng.int(maxLayerSize - MIN_LAYER_NODES + 1))
+      continue
+    }
+    const previous = layerSizes[layerIndex - 1] as number
+    const drift = rng.int(3) - 1
+    layerSizes.push(Math.min(Math.max(previous + drift, MIN_LAYER_NODES), maxLayerSize))
+  }
 
   const eliteCount =
     MIN_ELITES_PER_MAP + rng.int(MAX_ELITES_PER_MAP - MIN_ELITES_PER_MAP + 1)
@@ -260,16 +278,14 @@ export function generateMap(input: GenerateMapInput): GameMap {
     for (const layerIndex of range(DECISION_LAYERS)) {
       if (!eliteLayers.has(layerIndex)) specialLayers.add(layerIndex)
     }
-  } else if (pool.length === 2) {
-    // Two routines per layer: three-node layers need one non-task node.
+  } else {
+    // A layer wider than the pool needs a rest or treasure, otherwise it would
+    // have to repeat a routine inside the same layer.
     for (const layerIndex of range(DECISION_LAYERS)) {
-      if ((layerSizes[layerIndex] ?? MIN_LAYER_NODES) === MAX_LAYER_NODES) {
-        specialLayers.add(layerIndex)
-      }
+      const size = layerSizes[layerIndex] ?? MIN_LAYER_NODES
+      if (size > pool.length) specialLayers.add(layerIndex)
     }
-  }
-
-  if (pool.length >= 3 || specialLayers.size === 0) {
+    // Then a couple of extra rest or treasure nodes for variety.
     const candidates = rng
       .shuffle(range(DECISION_LAYERS))
       .filter((layerIndex) => spareSlots(layerIndex) > 0 && !specialLayers.has(layerIndex))

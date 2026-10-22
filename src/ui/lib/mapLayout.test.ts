@@ -102,7 +102,7 @@ describe('map layout', () => {
     expect(buildMapLayout(map)).toEqual(layout)
   })
 
-  it('keeps two or three nodes per layer, in bounds and without overlaps', () => {
+  it('keeps two to five nodes per layer, in bounds and without overlaps', () => {
     for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
       const map = demoMap(dayIndex)
       const layout = buildMapLayout(map)
@@ -110,7 +110,7 @@ describe('map layout', () => {
 
       for (const layer of layout.layers) {
         expect(layer.length).toBeGreaterThanOrEqual(2)
-        expect(layer.length).toBeLessThanOrEqual(3)
+        expect(layer.length).toBeLessThanOrEqual(5)
         expect(new Set(layer.map((node) => node.x)).size).toBe(layer.length)
       }
 
@@ -133,18 +133,48 @@ describe('map layout', () => {
     }
   })
 
-  it('spreads two and three node layers with stable label sides', () => {
+  it('spreads two to five node layers with stable label sides', () => {
     const two = buildMapLayout(fakeMap([2, 2, 2, 2]))
-    expect(two.layers[0]?.map((node) => node.x)).toEqual([190.4, 369.6])
+    expect(two.layers[0]?.map((node) => node.x)).toEqual([123.2, 436.8])
     expect(two.layers[0]?.map((node) => node.labelSide)).toEqual(['left', 'right'])
 
     const three = buildMapLayout(fakeMap([3, 3, 3, 3]))
-    expect(three.layers[0]?.map((node) => node.x)).toEqual([168, 280, 392])
+    expect(three.layers[0]?.map((node) => node.x)).toEqual([145.6, 280, 414.4])
     expect(three.layers[0]?.map((node) => node.labelSide)).toEqual([
       'left',
       'below',
       'right',
     ])
+
+    const four = buildMapLayout(fakeMap([4, 4, 4, 4]))
+    expect(four.layers[0]?.map((node) => node.x)).toEqual([89.6, 212.8, 347.2, 470.4])
+    expect(four.layers[0]?.map((node) => node.labelSide)).toEqual([
+      'below',
+      'below',
+      'below',
+      'below',
+    ])
+
+    const five = buildMapLayout(fakeMap([5, 5, 5, 5]))
+    expect(five.layers[0]?.map((node) => node.x)).toEqual([67.2, 173.6, 280, 386.4, 492.8])
+    expect(five.layers[0]?.map((node) => node.labelSide)).toEqual([
+      'below',
+      'below',
+      'below',
+      'below',
+      'below',
+    ])
+  })
+
+  it('keeps the vertical distance between layers generous', () => {
+    const layout = buildMapLayout(fakeMap([5, 5, 5, 5]))
+    const ys = layout.layers.map((layer) => layer[0]?.y ?? 0)
+
+    for (let index = 1; index < ys.length; index += 1) {
+      expect((ys[index - 1] as number) - (ys[index] as number)).toBeGreaterThan(100)
+    }
+    expect(layout.start.y - (ys[0] as number)).toBeGreaterThan(80)
+    expect((ys[ys.length - 1] as number) - layout.boss.y).toBeGreaterThan(80)
   })
 
   it('draws one edge per connection and one from the start to every first node', () => {
