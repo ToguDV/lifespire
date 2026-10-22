@@ -94,7 +94,7 @@ Core rules:
 The map is displayed bottom-up, as in *Slay the Spire*:
 
 - An automatic start node.
-- 3–15 decision layers with 2–5 nodes each. Depth grows only with goals that have at least one active routine: one goal → 3 layers, two goals → 4, and one extra layer every two goals after the second, up to ten goals → 15.
+- 3–15 decision layers with 2–5 nodes each. Depth grows only with goals that have at least one active routine: `layers = clamp(3, 15, goals + clamp(2, 5, 2 + floor(max(0, goals − 2) / 2)))`, which gives 1 → 3, 2 → 4, 3 → 5, 4 → 7, 5 → 8, 6 → 10, 7 → 11, 8 → 13, 9 → 14, and 10 → 15.
 - A single boss node at the end.
 - In total, 4–16 nodes are resolved per day: 3–15 choices + boss.
 

@@ -14,10 +14,11 @@ function clamp(min: number, max: number, value: number): number {
 
 /**
  * The map grows with the number of goals that have at least one active routine;
- * empty goals do not add depth. One goal keeps three decision layers, two keep
- * the classic four, and every two goals beyond the second add one more, up to
- * the fifteen-layer cap. Routines only affect layer width, never depth by
- * themselves.
+ * empty goals do not add depth. With `g` active goals the depth is
+ * `clamp(3, 15, g + clamp(2, 5, 2 + floor(max(0, g - 2) / 2)))`: one goal → 3
+ * layers, two → 4, three → 5, four → 7, five → 8, six → 10, seven → 11,
+ * eight → 13, nine → 14 and ten → 15. Routines only affect layer width, never
+ * depth by themselves.
  */
 export function resolveDecisionLayerCount(goalsWithActiveRoutines: number): number {
   const goals = clamp(MIN_GOALS, MAX_GOALS, goalsWithActiveRoutines)

@@ -1,8 +1,8 @@
 # LifeSpire MVP-0 — release notes v0.1.0-mvp0
 
-> Historical record: these notes describe the four-layer MVP-0 build. The current
-> generator derives map depth from the active goals (3–5 layers); see
-> [`SPEC.md`](../SPEC.md) §5.
+> Historical record: these notes describe the four-layer, three-goal MVP-0
+> build. The current version allows 1–10 goals and derives 3–15 decision layers
+> from the goals that have at least one active routine; see [`SPEC.md`](../SPEC.md) §5.
 
 Status: **release candidate, ready to tag**. This document describes the local
 demo that closes MVP-0. The tag `v0.1.0-mvp0` is intentionally **not created** in
