@@ -17,6 +17,8 @@
     [`src/styles/ui.css`](./src/styles/ui.css): the shipped styles.
   - [`public/fonts/`](./public/fonts): Alegreya and Alegreya Sans
     (SIL OFL 1.1), self-hosted.
+  - [`docs/screenshots/`](./docs/screenshots): real app captures used by the
+    root `README.md` (map in light/dark theme, desktop and mobile).
 
 The static HTML proposal that used to live in `design/` has been retired; the
 app is the reference and `design/DESIGN.md` is its spec.

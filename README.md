@@ -15,6 +15,20 @@ plus a boss, with visible trade-offs between progress, effort, and reward.
 
 ---
 
+## Screenshots
+
+| Light theme | Dark theme |
+|---|---|
+| ![Node map (light theme)](./docs/screenshots/map-light.png) | ![Node map (dark theme)](./docs/screenshots/map-dark.png) |
+
+Mobile layouts are fully supported:
+
+| Mobile (light) | Mobile (dark) |
+|---|---|
+| ![Node map (mobile, light)](./docs/screenshots/map-mobile-light.png) | ![Node map (mobile, dark)](./docs/screenshots/map-mobile-dark.png) |
+
+---
+
 ## Quick start
 
 ```bash
