@@ -19,7 +19,7 @@ import {
   NODE_TYPE_ICON,
   NODE_TYPE_LABEL,
   formatDayKey,
-  goalIcon,
+  goalIconFor,
   romanDay,
 } from '../lib/format'
 
@@ -183,7 +183,7 @@ function SummaryBody({
                 title={objective.title}
                 progress={objective.after}
                 target={objective.target}
-                icon={goalIcon(goals.findIndex((goal) => goal.id === objective.goalId))}
+                icon={goalIconFor(goals, objective.goalId) ?? 'banner'}
               />
               <p className="summary-aim__bonus">
                 Before {objective.before} / {objective.target} → after {objective.after} /{' '}

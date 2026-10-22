@@ -5,6 +5,7 @@ import {
   MIN_GOALS,
   MIN_WEEKLY_OBJECTIVE,
 } from './balance'
+import { isGoalIconId } from './goalIcons'
 import type { Effort, GameDocument, Goal, Task } from './types'
 
 /** Field-level messages shown next to a control (keyed by form field). */
@@ -22,6 +23,7 @@ const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
 export const CONTENT_MESSAGES = {
   goalTitle: 'Give this goal a title.',
+  goalIcon: 'Choose an icon for this goal.',
   weeklyObjective: `Set the weekly target between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
   tooManyGoals: `A run can hold at most ${MAX_GOALS} active goals. Archive one before adding another.`,
   lastGoal: 'Keep at least one active goal while the run is underway.',
@@ -46,9 +48,12 @@ export function contentFailure(fieldErrors: FieldErrors): ContentActionResult {
 }
 
 /** Validates the editable fields of a goal, independent of the rest of the setup. */
-export function validateGoalInput(goal: Pick<Goal, 'title' | 'weeklyObjective'>): FieldErrors {
+export function validateGoalInput(
+  goal: Pick<Goal, 'title' | 'icon' | 'weeklyObjective'>,
+): FieldErrors {
   const errors: FieldErrors = {}
   if (!goal.title.trim()) errors.title = CONTENT_MESSAGES.goalTitle
+  if (!isGoalIconId(goal.icon)) errors.icon = CONTENT_MESSAGES.goalIcon
   if (
     !Number.isInteger(goal.weeklyObjective) ||
     goal.weeklyObjective < MIN_WEEKLY_OBJECTIVE ||

@@ -47,6 +47,34 @@ test.describe('core loop', () => {
 
     await expect(page.locator('button[data-node-id]').first()).toBeVisible()
     await expect(page.locator(ACTIONABLE_NODE).first()).toBeVisible()
+    // Demo goals (Wayfarer, Craft) mark their task-bearing nodes with a crest.
+    await expect(
+      page.locator(
+        'button[data-node-id][data-node-icon="compass"], button[data-node-id][data-node-icon="quill"]',
+      ).first(),
+    ).toBeVisible()
+  })
+
+  test('editing a goal crest updates the open map', async ({ page }) => {
+    await startDemoRun(page)
+    await openMap(page)
+
+    await expect(
+      page.locator('button[data-node-id][data-node-icon="compass"]').first(),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'Goals', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Edit goal Wayfarer' }).click()
+    await page.locator('.icon-picker__tile').filter({ hasText: 'Heart' }).click()
+    await page.getByRole('button', { name: 'Save goal' }).click()
+    await page.getByRole('button', { name: 'Map', exact: true }).first().click()
+
+    await expect(
+      page.locator('button[data-node-id][data-node-icon="heart"]').first(),
+    ).toBeVisible()
+    await expect(
+      page.locator('button[data-node-id][data-node-icon="compass"]'),
+    ).toHaveCount(0)
   })
 
   test('completing a node grants rewards and survives a reload', async ({ page }) => {

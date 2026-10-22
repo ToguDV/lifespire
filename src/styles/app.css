@@ -963,6 +963,27 @@ body:not([data-screen="map"]) .map-dock {
   stroke-width: 2;
 }
 
+/* Elite keeps its star while the medallion shows the goal crest. */
+.node__type-mark {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--surface);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--accent-deep);
+}
+
+.node__type-mark .icon {
+  width: 9px;
+  height: 9px;
+  stroke-width: 2;
+}
+
 .node__here {
   position: absolute;
   top: 50%;
@@ -1961,6 +1982,143 @@ body:not([data-screen="map"]) .map-dock {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-muted);
+}
+
+/* Goal icon picker -------------------------------------------- */
+
+.icon-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.icon-picker > .field__label {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.icon-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+  gap: 6px;
+}
+
+.icon-picker__tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-height: 54px;
+  padding: 6px 4px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--duration) ease, background-color var(--duration) ease,
+    box-shadow var(--duration) ease;
+}
+
+.icon-picker__tile:hover {
+  border-color: var(--hairline-strong);
+}
+
+.icon-picker__tile:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.icon-picker__tile:has(input:focus-visible) {
+  outline: 2px solid var(--accent-deep);
+  outline-offset: 2px;
+}
+
+.icon-picker__tile input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.icon-picker__face {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--ink-muted);
+}
+
+.icon-picker__tile:has(input:checked) .icon-picker__face {
+  color: var(--accent-deep);
+}
+
+.icon-picker__face .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-picker__selected {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.icon-picker__selected .icon {
+  width: 8px;
+  height: 8px;
+  stroke-width: 2.4;
+}
+
+.icon-picker__label {
+  font-size: 0.6rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--ink-muted);
+}
+
+.icon-picker--compact .icon-picker__grid {
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+}
+
+.icon-picker--compact .icon-picker__tile {
+  min-height: 44px;
+  padding: 4px;
+}
+
+.icon-picker--compact .icon-picker__face {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-picker--compact .icon-picker__face .icon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (forced-colors: active) {
+  .icon-picker__tile:has(input:checked) {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+
+  .icon-picker__selected {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
 }
 
 .input {

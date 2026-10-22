@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { formatDayKey, formatShortDayKey, percent, romanDay, toRoman } from './format'
+import type { Goal } from '../../domain/types'
+import {
+  formatDayKey,
+  formatShortDayKey,
+  goalIconFor,
+  goalIconName,
+  percent,
+  romanDay,
+  toRoman,
+} from './format'
 
 describe('date labels', () => {
   it('formats local day keys without UTC drift', () => {
@@ -10,6 +19,28 @@ describe('date labels', () => {
   it('keeps an invalid key readable', () => {
     expect(formatShortDayKey('not-a-day')).toBe('not-a-day')
     expect(formatDayKey('not-a-day')).toBe('not-a-day')
+  })
+})
+
+describe('goal icons', () => {
+  const goals: Goal[] = [
+    {
+      id: 'goal_a',
+      title: 'Read',
+      category: 'Mind',
+      icon: 'book',
+      weeklyObjective: 3,
+      active: true,
+      createdAt: '2026-10-20T09:00:00.000Z',
+    },
+  ]
+
+  it('resolves the persisted crest and falls back to the legacy cycle', () => {
+    expect(goalIconName('heart')).toBe('heart')
+    expect(goalIconName(undefined, 1)).toBe('flame')
+    expect(goalIconFor(goals, 'goal_a')).toBe('book')
+    expect(goalIconFor(goals, 'missing')).toBeNull()
+    expect(goalIconFor(goals, null)).toBeNull()
   })
 })
 

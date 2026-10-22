@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MAX_GOALS } from '../../domain/balance'
 import type { Goal, RunObjective, Task } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
@@ -11,7 +12,7 @@ import {
   Pips,
   ScreenHead,
 } from '../components'
-import { EFFORT_LABEL, goalIcon, percent } from '../lib/format'
+import { EFFORT_LABEL, goalIconName, percent } from '../lib/format'
 import { ArchiveDialog, GoalDialog, TaskDialog } from './GoalsDialogs'
 
 interface GoalDialogState {
@@ -163,7 +164,7 @@ export function GoalsScreen() {
                 <Panel as="article" className="aim-group" key={goal.id} aria-label={goal.title}>
                   <div className="aim-group__head">
                     <span className="aim-group__crest">
-                      <Icon name={goalIcon(index)} />
+                      <Icon name={goalIconName(goal.icon, index)} />
                     </span>
                     <div className="aim-group__title">
                       <h2>{goal.title}</h2>
@@ -280,9 +281,9 @@ export function GoalsScreen() {
                           variant="secondary"
                           size="sm"
                           onClick={() => restoreGoal(goal)}
-                          disabled={activeGoals.length >= 3}
+                          disabled={activeGoals.length >= MAX_GOALS}
                           title={
-                            activeGoals.length >= 3
+                            activeGoals.length >= MAX_GOALS
                               ? 'Archive an active goal before restoring another.'
                               : undefined
                           }
@@ -355,11 +356,14 @@ export function GoalsScreen() {
                 <p className="panel-note">No goals to show.</p>
               ) : (
                 weekRows.map((row) => {
-                  const index = document.goals.findIndex((goal) => goal.id === row.goalId)
+                  const goal = document.goals.find((candidate) => candidate.id === row.goalId)
+                  const index = goal
+                    ? document.goals.indexOf(goal)
+                    : document.goals.length
                   return (
                     <div className="week-row" key={row.goalId}>
                       <Icon
-                        name={goalIcon(index)}
+                        name={goalIconName(goal?.icon, index)}
                         className="icon icon--sm week-row__icon"
                       />
                       <span className="week-row__name">{row.title}</span>

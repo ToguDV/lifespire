@@ -33,6 +33,12 @@ export type IconName =
   | 'edit'
   | 'archive'
   | 'settings'
+  | 'book'
+  | 'heart'
+  | 'leaf'
+  | 'brush'
+  | 'dumbbell'
+  | 'home'
 
 const ICON_SHAPES: Record<IconName, ReactNode> = {
   spire: (
@@ -191,6 +197,40 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
       <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
       <circle cx="15" cy="7" r="2" />
       <circle cx="9" cy="17" r="2" />
+    </>
+  ),
+  book: (
+    <>
+      <path d="M12 6.5C10.5 5 8.5 4.5 4.5 4.5v13c4 0 6 .5 7.5 2 1.5-1.5 3.5-2 7.5-2v-13c-4 0-6 .5-7.5 2z" />
+      <path d="M12 6.5v13" />
+    </>
+  ),
+  heart: (
+    <path d="M12 20s-7-4.4-7-9.3A4.2 4.2 0 0 1 12 7a4.2 4.2 0 0 1 7 3.7C19 15.6 12 20 12 20z" />
+  ),
+  leaf: (
+    <>
+      <path d="M20 4C10.5 4 4 9 4 16c0 2.6 1.4 4 4 4 7 0 12-6.5 12-16z" />
+      <path d="M4 20c4.5-6 8.5-9.5 12-11.5" />
+    </>
+  ),
+  brush: (
+    <>
+      <path d="m15.5 4.5 4 4L10 18H6v-4z" />
+      <path d="m13.5 6.5 4 4" />
+      <path d="M6 18c-1.6.5-2.2 1.6-2.2 3.2 1.6 0 2.7-.6 3.2-2.2" />
+    </>
+  ),
+  dumbbell: (
+    <>
+      <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="m4 11 8-7 8 7" />
+      <path d="M6 9.5V20h12V9.5" />
+      <path d="M10 20v-5h4v5" />
     </>
   ),
 }

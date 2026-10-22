@@ -20,7 +20,8 @@ import type { HomePhase } from '../lib/dashboard'
 import {
   formatShortDayKey,
   formatShortIsoDay,
-  goalIcon,
+  goalIconFor,
+  goalIconName,
   lootIcon,
   percent,
   RARITY_LABEL,
@@ -96,7 +97,7 @@ function ObjectivesPanel({
           title: objective.goalTitle,
           progress: objective.progress,
           target: objective.target,
-          icon: goalIcon(goals.findIndex((goal) => goal.id === objective.goalId)),
+          icon: goalIconFor(goals, objective.goalId) ?? 'banner',
         }))
       : goals
           .filter((goal) => goal.active)
@@ -105,7 +106,7 @@ function ObjectivesPanel({
             title: goal.title,
             progress: 0,
             target: goal.weeklyObjective,
-            icon: goalIcon(index),
+            icon: goalIconName(goal.icon, index),
           }))
 
   return (

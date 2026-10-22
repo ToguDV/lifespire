@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent } from 'react'
 import { nodeStatus } from '../../domain/selectors'
-import type { Day, GameMap, NodeStatus } from '../../domain/types'
+import type { Day, GameMap, Goal, NodeStatus } from '../../domain/types'
 import { Icon } from './Icon'
-import { NODE_TYPE_ICON, romanDay } from '../lib/format'
+import type { IconName } from './Icon'
+import { NODE_TYPE_ICON, goalIconFor, romanDay } from '../lib/format'
 import {
   buildMapLayout,
   classifyMapEdges,
@@ -40,6 +41,7 @@ interface NodeButtonProps {
   layout: MapNodeLayout
   day: Day
   map: GameMap
+  goalIcon: IconName | null
   revealed: boolean
   onReveal: (nodeId: string) => void
   onSelect: (nodeId: string) => void
@@ -67,10 +69,19 @@ function nodeClasses(layout: MapNodeLayout, status: NodeStatus): string {
   return classes.join(' ')
 }
 
-function NodeButton({ layout, day, map, revealed, onReveal, onSelect }: NodeButtonProps) {
+function NodeButton({
+  layout,
+  day,
+  map,
+  goalIcon,
+  revealed,
+  onReveal,
+  onSelect,
+}: NodeButtonProps) {
   const status = nodeStatus(map, day, layout.id)
   const actionable = status === 'available' || status === 'current'
   const showLabel = actionable || layout.type === 'boss'
+  const icon = goalIcon ?? NODE_TYPE_ICON[layout.type]
   const style: CSSProperties = {
     left: `${layout.left}%`,
     top: `${layout.top}%`,
@@ -90,6 +101,7 @@ function NodeButton({ layout, day, map, revealed, onReveal, onSelect }: NodeButt
       className={nodeClasses(layout, status)}
       style={style}
       data-node-id={layout.id}
+      data-node-icon={icon}
       data-status={status}
       data-label-side={layout.labelSide}
       data-revealed={revealed ? 'true' : undefined}
@@ -105,7 +117,12 @@ function NodeButton({ layout, day, map, revealed, onReveal, onSelect }: NodeButt
       ) : null}
 
       <span className="medallion">
-        <Icon name={NODE_TYPE_ICON[layout.type]} />
+        <Icon name={icon} />
+        {layout.type === 'elite' && goalIcon ? (
+          <span className="node__type-mark" aria-hidden="true">
+            <Icon name="elite" />
+          </span>
+        ) : null}
         {status === 'completed' ? (
           <span className="node__check" aria-hidden="true">
             <Icon name="check" />
@@ -136,6 +153,7 @@ function NodeButton({ layout, day, map, revealed, onReveal, onSelect }: NodeButt
 export interface MapGraphProps {
   map: GameMap
   day: Day
+  goals: readonly Goal[]
   onSelect: (nodeId: string) => void
 }
 
@@ -143,7 +161,7 @@ export interface MapGraphProps {
  * Decorative SVG plus HTML node buttons. The SVG is hidden from assistive
  * technology; every interaction lives in a real button with a descriptive name.
  */
-export function MapGraph({ map, day, onSelect }: MapGraphProps) {
+export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
   const layout = useMemo(() => buildMapLayout(map), [map])
   const edges = useMemo(() => classifyMapEdges(layout, map, day), [layout, map, day])
   const [revealedId, setRevealedId] = useState<string | null>(null)
@@ -237,6 +255,7 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
               layout={node}
               day={day}
               map={map}
+              goalIcon={goalIconFor(goals, node.node.task?.goalId)}
               revealed={revealedId === node.id}
               onReveal={setRevealedId}
               onSelect={handleSelect}
@@ -247,6 +266,7 @@ export function MapGraph({ map, day, onSelect }: MapGraphProps) {
             layout={layout.boss}
             day={day}
             map={map}
+            goalIcon={goalIconFor(goals, layout.boss.node.task?.goalId)}
             revealed={revealedId === layout.boss.id}
             onReveal={setRevealedId}
             onSelect={handleSelect}
