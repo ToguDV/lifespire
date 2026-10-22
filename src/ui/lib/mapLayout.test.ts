@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../../content/demo'
-import { DECISION_LAYERS } from '../../domain/balance'
 import { generateMap } from '../../domain/generator'
 import type { Day, GameMap, MapNode, NodeRewards, TaskSnapshot } from '../../domain/types'
 import {
   buildMapLayout,
   classifyMapEdges,
   mapEdgeId,
+  mapScrollTarget,
 } from './mapLayout'
 
 const now = new Date(2026, 9, 20, 9, 0, 0)
@@ -36,6 +36,8 @@ const snapshot: TaskSnapshot = {
 const rewards: NodeRewards = { xp: 15, gold: 15, lootRolls: 0, progress: 1 }
 
 function fakeMap(layerSizes: readonly number[]): GameMap {
+  const layerCount = layerSizes.length
+  const bossId = `n${layerCount}_0`
   const layers: MapNode[][] = layerSizes.map((size, layerIndex) =>
     Array.from({ length: size }, (_, index) => ({
       id: `n${layerIndex}_${index}`,
@@ -48,9 +50,9 @@ function fakeMap(layerSizes: readonly number[]): GameMap {
   )
 
   layers.forEach((layer, layerIndex) => {
-    const next = layerIndex < DECISION_LAYERS - 1 ? layers[layerIndex + 1] : null
+    const next = layerIndex < layerCount - 1 ? layers[layerIndex + 1] : null
     for (const node of layer) {
-      node.connections = next ? next.map((target) => target.id) : ['n4_0']
+      node.connections = next ? next.map((target) => target.id) : [bossId]
     }
   })
 
@@ -61,8 +63,8 @@ function fakeMap(layerSizes: readonly number[]): GameMap {
     generatorVersion: 1,
     layers,
     boss: {
-      id: 'n4_0',
-      layer: DECISION_LAYERS,
+      id: bossId,
+      layer: layerCount,
       type: 'boss',
       task: snapshot,
       rewards: { xp: 50, gold: 50, lootRolls: 1, progress: 1 },
@@ -89,11 +91,11 @@ function dayWith(map: GameMap, path: Day['path'] = []): Day {
 }
 
 describe('map layout', () => {
-  it('is deterministic and maps every stored node into four layers plus the boss', () => {
+  it('is deterministic and maps every stored node into its layers plus the boss', () => {
     const map = demoMap()
     const layout = buildMapLayout(map)
 
-    expect(layout.layers).toHaveLength(DECISION_LAYERS)
+    expect(layout.layers).toHaveLength(map.layers.length)
     expect(layout.layers.flat().map((node) => node.id)).toEqual(
       map.layers.flat().map((node) => node.id),
     )
@@ -177,6 +179,46 @@ describe('map layout', () => {
     expect((ys[ys.length - 1] as number) - layout.boss.y).toBeGreaterThan(80)
   })
 
+  it('derives height, camp, layer and boss positions from the layer count', () => {
+    const cases = [
+      { sizes: [2, 2, 2], height: 570, camp: 530, layers: [440, 310, 180] },
+      { sizes: [2, 2, 2, 2], height: 700, camp: 660, layers: [570, 440, 310, 180] },
+      {
+        sizes: [2, 2, 2, 2, 2],
+        height: 830,
+        camp: 790,
+        layers: [700, 570, 440, 310, 180],
+      },
+      {
+        sizes: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+        height: 2130,
+        camp: 2090,
+        layers: [
+          2000, 1870, 1740, 1610, 1480, 1350, 1220, 1090, 960, 830, 700, 570, 440, 310, 180,
+        ],
+      },
+    ]
+
+    for (const { sizes, height, camp, layers: ys } of cases) {
+      const layout = buildMapLayout(fakeMap(sizes))
+      expect(layout.height).toBe(height)
+      expect(layout.start.y).toBe(camp)
+      expect(layout.layers.map((layer) => layer[0]?.y)).toEqual(ys)
+      expect(layout.boss.y).toBe(90)
+
+      for (let index = 1; index < ys.length; index += 1) {
+        expect((ys[index - 1] as number) - (ys[index] as number)).toBe(130)
+      }
+
+      const anchors = [layout.start, layout.boss]
+      for (const node of layout.layers.flat()) {
+        for (const anchor of anchors) {
+          expect(Math.hypot(node.x - anchor.x, node.y - anchor.y)).toBeGreaterThan(80)
+        }
+      }
+    }
+  })
+
   it('draws one edge per connection and one from the start to every first node', () => {
     const map = fakeMap([2, 3, 3, 2])
     const layout = buildMapLayout(map)
@@ -188,6 +230,21 @@ describe('map layout', () => {
     for (const id of map.layers[0]?.map((node) => node.id) ?? []) {
       expect(layout.edges.some((edge) => edge.id === mapEdgeId('start', id))).toBe(true)
     }
+  })
+})
+
+describe('map scroll target', () => {
+  it('starts at the camp, follows the last resolved node, then the current selection', () => {
+    const map = fakeMap([2, 2, 2, 2])
+    const first = map.layers[0]?.[0] as MapNode
+    const second = map.layers[1]?.[0] as MapNode
+    const resolved = dayWith(map, [
+      { nodeId: first.id, action: 'complete', at: now.toISOString() },
+    ])
+
+    expect(mapScrollTarget(map, dayWith(map))).toBe('start')
+    expect(mapScrollTarget(map, resolved)).toBe(first.id)
+    expect(mapScrollTarget({ ...map, currentNodeId: second.id }, resolved)).toBe(second.id)
   })
 })
 

@@ -1,5 +1,10 @@
 # MVP-0 acceptance — M3-07
 
+> Historical record: this acceptance pass describes the original four-layer map
+> of the three-goal MVP-0 era (1–3 goals always produced four decision layers).
+> The current version allows 1–10 goals and derives 3–15 decision layers from
+> the goals that have at least one active routine; see [`SPEC.md`](../SPEC.md) §5.
+
 QA pass over the complete MVP-0 flow on branch `mvp-0`, against
 [`SPEC.md`](../SPEC.md) §10 and issue #21. Date: 2026-10-21.
 

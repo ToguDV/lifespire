@@ -35,7 +35,7 @@ days as real usage.
 | Keep or change the onboarding copy | Time to day 1 + where testers hesitate |
 | Keep or change the map trade-offs | Can testers explain effort, progress and reward before choosing? |
 | Keep or change the day/run close | Can testers explain what they earned and whether the bonus was kept? |
-| Keep or change the current node count | Do five nodes per day feel long, repetitive or trivial? |
+| Keep or change the current node count | Do four to six nodes per day feel long, repetitive or trivial? |
 | Whether the SPEC §12 defaults hold | Observed confusion about skips, missed days, elite progress or midnight |
 
 ## 2. Participants

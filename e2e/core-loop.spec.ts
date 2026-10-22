@@ -1,7 +1,19 @@
 import { expect, test } from '@playwright/test'
+import { MAX_DECISION_LAYERS, MIN_DECISION_LAYERS } from '../src/domain/balance'
 
 const DEMO_BUTTON = /Begin with demo data/i
 const ACTIONABLE_NODE = 'button[data-node-id][data-status="available"], button[data-node-id][data-status="current"]'
+
+async function readMapLayerCount(page: import('@playwright/test').Page): Promise<number> {
+  return page.evaluate(() => {
+    const raw = window.localStorage.getItem('lifespire:mvp0')
+    const document = JSON.parse(raw ?? '{}') as {
+      run?: { days?: Array<{ map?: { layers?: unknown[] } }> }
+    }
+    const day = document.run?.days?.find((entry) => entry.map)
+    return day?.map?.layers?.length ?? 0
+  })
+}
 
 async function startDemoRun(page: import('@playwright/test').Page) {
   await page.goto('/')
@@ -70,7 +82,11 @@ test.describe('core loop', () => {
     await startDemoRun(page)
     await openMap(page)
 
-    for (let step = 0; step < 5; step += 1) {
+    const layerCount = await readMapLayerCount(page)
+    expect(layerCount).toBeGreaterThanOrEqual(MIN_DECISION_LAYERS)
+    expect(layerCount).toBeLessThanOrEqual(MAX_DECISION_LAYERS)
+
+    for (let step = 0; step < layerCount + 1; step += 1) {
       await completeFirstNode(page)
     }
 
@@ -102,7 +118,8 @@ test.describe('map shape', () => {
 
     expect(map).toBeDefined()
     const layers = map?.layers ?? []
-    expect(layers).toHaveLength(4)
+    expect(layers.length).toBeGreaterThanOrEqual(MIN_DECISION_LAYERS)
+    expect(layers.length).toBeLessThanOrEqual(MAX_DECISION_LAYERS)
 
     for (const layer of layers) {
       expect(layer.length).toBeGreaterThanOrEqual(2)

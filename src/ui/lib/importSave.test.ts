@@ -3,7 +3,7 @@ import { createDemoSetup } from '../../content/demo'
 import { SCHEMA_VERSION } from '../../domain/balance'
 import { createRun, openDay } from '../../domain/lifecycle'
 import { createEmptyDocument, serializeDocument } from '../../domain/schema'
-import type { GameDocument } from '../../domain/types'
+import type { GameDocument, GameMap, Goal, Task } from '../../domain/types'
 import {
   readSaveFile,
   runPreviewLabel,
@@ -15,6 +15,13 @@ const now = new Date(2026, 9, 20, 9, 0, 0)
 
 function documentWithRun(closed = false): GameDocument {
   const setup = createDemoSetup(now)
+  return documentFromSetup(setup, closed)
+}
+
+function documentFromSetup(
+  setup: ReturnType<typeof createDemoSetup>,
+  closed = false,
+): GameDocument {
   const run = createRun({ setup, now, runId: 'run_import_preview' })
   return {
     ...createEmptyDocument(),
@@ -40,6 +47,151 @@ function documentWithRun(closed = false): GameDocument {
       closedAt: closed ? now.toISOString() : null,
     },
   }
+}
+
+function v1Save(): GameDocument {
+  const base = documentWithRun()
+  const run = base.run
+  if (!run) throw new Error('expected a run')
+  const task = {
+    taskId: 'demo-task-walk-north-trail',
+    title: 'Walk the north trail',
+    goalId: 'demo-goal-wayfarer',
+    goalTitle: 'Wayfarer',
+    effort: 'light' as const,
+  }
+  const v1Map: GameMap = {
+    id: 'map_v1_day_0',
+    seed: 'run:run_import_preview:day:0:g1',
+    dayIndex: 0,
+    generatorVersion: 1,
+    layers: [
+      [
+        {
+          id: 'n0_0',
+          layer: 0,
+          type: 'task',
+          task: { ...task },
+          rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+          connections: ['n1_0', 'n1_1'],
+        },
+        {
+          id: 'n0_1',
+          layer: 0,
+          type: 'task',
+          task: { ...task },
+          rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+          connections: ['n1_1'],
+        },
+      ],
+      [
+        {
+          id: 'n1_0',
+          layer: 1,
+          type: 'task',
+          task: { ...task },
+          rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+          connections: ['n2_0', 'n2_1'],
+        },
+        {
+          id: 'n1_1',
+          layer: 1,
+          type: 'elite',
+          task: { ...task },
+          rewards: { xp: 20, gold: 20, lootRolls: 1, progress: 1 },
+          connections: ['n2_1'],
+        },
+      ],
+      [
+        {
+          id: 'n2_0',
+          layer: 2,
+          type: 'task',
+          task: { ...task },
+          rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+          connections: ['n3_0', 'n3_1'],
+        },
+        {
+          id: 'n2_1',
+          layer: 2,
+          type: 'task',
+          task: { ...task },
+          rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+          connections: ['n3_1'],
+        },
+      ],
+      [
+        {
+          id: 'n3_0',
+          layer: 3,
+          type: 'task',
+          task: { ...task },
+          rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+          connections: ['n4_0'],
+        },
+        {
+          id: 'n3_1',
+          layer: 3,
+          type: 'task',
+          task: { ...task },
+          rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+          connections: ['n4_0'],
+        },
+      ],
+    ],
+    boss: {
+      id: 'n4_0',
+      layer: 4,
+      type: 'boss',
+      task: { ...task },
+      rewards: { xp: 40, gold: 40, lootRolls: 1, progress: 1 },
+      connections: [],
+    },
+    currentNodeId: null,
+    createdAt: now.toISOString(),
+  }
+
+  return {
+    ...base,
+    run: {
+      ...run,
+      generatorVersion: 1,
+      days: run.days.map((day) =>
+        day.index === 0
+          ? { ...day, status: 'in_progress' as const, map: v1Map, openedAt: now.toISOString() }
+          : day,
+      ),
+    },
+  }
+}
+
+function documentWithThreeGoals(): GameDocument {
+  const base = documentWithRun()
+  const createdAt = now.toISOString()
+  const goals: Goal[] = [
+    ...base.goals,
+    {
+      id: 'goal_import_focus',
+      title: 'Focus',
+      category: 'Practice',
+      weeklyObjective: 2,
+      active: true,
+      createdAt,
+    },
+  ]
+  const tasks: Task[] = [
+    ...base.tasks,
+    {
+      id: 'task_import_focus',
+      goalId: 'goal_import_focus',
+      title: 'Practice for twenty minutes',
+      effort: 'medium',
+      active: true,
+      createdAt,
+    },
+  ]
+  const setup = { name: 'Wren', goals, tasks }
+  return documentFromSetup(setup)
 }
 
 describe('import preview', () => {
@@ -101,6 +253,8 @@ describe('import preview', () => {
     expect(valid.ok).toBe(true)
     if (valid.ok) {
       expect(valid.document.run?.days[0]?.map).not.toBeNull()
+      expect(valid.document.run?.days[0]?.map?.layers).toHaveLength(4)
+      expect(valid.document.run?.days[0]?.map?.boss).toMatchObject({ id: 'n4_0', layer: 4 })
     }
 
     const broken = structuredClone(opened)
@@ -111,6 +265,36 @@ describe('import preview', () => {
     expect(invalid.reason).toBe('invalid')
     expect(invalid.message).toContain('not a valid LifeSpire save')
     expect(invalid.message).toContain('layers[0]')
+  })
+
+  it('loads a literal v1 save without migrating or regenerating its map', () => {
+    const document = v1Save()
+    const result = readSaveFile(serializeDocument(document))
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.document.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(result.document.run?.generatorVersion).toBe(1)
+    const map = result.document.run?.days[0]?.map
+    expect(map?.generatorVersion).toBe(1)
+    expect(map?.seed).toBe('run:run_import_preview:day:0:g1')
+    expect(map?.layers).toHaveLength(4)
+    expect(map?.boss).toMatchObject({ id: 'n4_0', layer: 4 })
+    expect(map).toEqual(document.run?.days[0]?.map)
+  })
+
+  it('round-trips a five-layer map generated from three active goals', () => {
+    const opened = openDay(documentWithThreeGoals(), { now })
+    const map = opened.run?.days[0]?.map
+    expect(map?.layers).toHaveLength(5)
+    expect(map?.boss).toMatchObject({ id: 'n5_0', layer: 5 })
+
+    const result = readSaveFile(serializeDocument(opened))
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const parsedMap = result.document.run?.days[0]?.map
+    expect(parsedMap?.layers).toHaveLength(5)
+    expect(parsedMap?.boss).toMatchObject({ id: 'n5_0', layer: 5 })
   })
 
   it('rejects malformed JSON, missing fields and future versions clearly', () => {

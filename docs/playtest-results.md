@@ -1,5 +1,9 @@
 # MVP-0 playtest results — M4-02
 
+> Historical record: this dry run describes the four-layer, three-goal MVP-0
+> build. The current version allows 1–10 goals and derives 3–15 decision layers
+> from the goals that have at least one active routine; see [`SPEC.md`](../SPEC.md) §5.
+
 > **Internal dry run — external tester sessions pending.**
 > No human testers were recruited or run in this environment. The only session
 > recorded here is a facilitator rehearsal of

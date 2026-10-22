@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
-import { STORAGE_KEY } from '../domain/balance'
+import { MAX_GOALS, STORAGE_KEY } from '../domain/balance'
 import { addDays, dayKey } from '../domain/dates'
 import { validateMap } from '../domain/generator'
 import { createRun } from '../domain/lifecycle'
@@ -1141,23 +1141,26 @@ describe('atomic onboarding journey', () => {
     expect(store.getState().toast).toBe('Add at least 4 routines to light the week.')
   })
 
-  it('rejects more than three goals and an out-of-range weekly objective', () => {
+  it('rejects more than ten goals and an out-of-range weekly objective', () => {
     const { store, base } = makeHarness()
     const setup = createDemoSetup(base)
-    const extra = setup.goals.map((goal, index) => ({
-      ...goal,
-      id: `extra-goal-${index}`,
-      title: `Extra ${index}`,
-    }))
-    const fourGoals = [...setup.goals, ...extra].slice(0, 4)
+    const extra = Array.from(
+      { length: MAX_GOALS - setup.goals.length + 1 },
+      (_, index) => ({
+        ...setup.goals[0]!,
+        id: `extra-goal-${index}`,
+        title: `Extra ${index}`,
+      }),
+    )
+    const tooManyGoals = [...setup.goals, ...extra]
 
     expect(
       store.getState().beginJourney(
-        { name: 'Ari', goals: fourGoals, tasks: setup.tasks },
+        { name: 'Ari', goals: tooManyGoals, tasks: setup.tasks },
         base,
       ),
     ).toBe(false)
-    expect(store.getState().toast).toBe('A run can hold at most 3 goals.')
+    expect(store.getState().toast).toBe(`A run can hold at most ${MAX_GOALS} goals.`)
 
     const invalidObjective = setup.goals.map((goal, index) =>
       index === 0 ? { ...goal, weeklyObjective: 8 } : goal,
@@ -1420,26 +1423,32 @@ describe('content constraints during an active run', () => {
     ).toHaveLength(3)
   })
 
-  it('allows three active goals but blocks a fourth during a run', () => {
+  it('allows ten active goals but blocks an eleventh during a run', () => {
     const { store, base } = makeHarness()
     onboardAndStart(store, base)
 
-    const third = store.getState().saveGoal(
-      { title: 'Hearth', category: 'Home', weeklyObjective: 2, active: true },
-      base,
+    for (let index = 0; index < MAX_GOALS - 2; index += 1) {
+      const added = store.getState().saveGoal(
+        { title: `Hearth ${index}`, category: 'Home', weeklyObjective: 2, active: true },
+        base,
+      )
+      expect(added.ok).toBe(true)
+    }
+    expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(
+      MAX_GOALS,
     )
-    expect(third.ok).toBe(true)
-    expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(3)
 
-    const fourth = store.getState().saveGoal(
+    const eleventh = store.getState().saveGoal(
       { title: 'Craft', category: 'Making', weeklyObjective: 2, active: true },
       base,
     )
-    expect(fourth.ok).toBe(false)
-    expect(fourth.errors).toContain(
-      'A run can hold at most 3 active goals. Archive one before adding another.',
+    expect(eleventh.ok).toBe(false)
+    expect(eleventh.errors).toContain(
+      `A run can hold at most ${MAX_GOALS} active goals. Archive one before adding another.`,
     )
-    expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(3)
+    expect(store.getState().document.goals.filter((goal) => goal.active)).toHaveLength(
+      MAX_GOALS,
+    )
   })
 
   it('blocks archiving the last active routine of an active goal', () => {

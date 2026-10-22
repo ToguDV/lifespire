@@ -18,6 +18,7 @@ src/
     rng.ts         RNG determinista por string seed
     rewards.ts     tabla de recompensas, loot, duplicados, nivel
     generator.ts   generación y validación del mapa
+    mapDepth.ts    profundidad del mapa según las metas activas
     lifecycle.ts   abrir día, seleccionar, resolver, reconciliar días/run
     runClose.ts    cierre de run y bonus semanal
     schema.ts      validación, serialize/deserialize, migración
@@ -158,7 +159,7 @@ export interface NodeRewards {
 
 export interface MapNode {
   id: string               // `n{layer}_{i}`
-  layer: number            // 0..3 decisiones; 4 = boss
+  layer: number            // 0..N-1 decisiones; N = boss
   type: NodeType
   task: TaskSnapshot | null
   rewards: NodeRewards     // total al completar (incluye bonus de cierre del boss)
@@ -170,7 +171,7 @@ export interface GameMap {
   seed: string
   dayIndex: number
   generatorVersion: number
-  layers: MapNode[][]      // 4 capas de 2..5 nodos
+  layers: MapNode[][]      // 3..15 capas de 2..5 nodos
   boss: MapNode
   currentNodeId: string | null
   createdAt: string
@@ -353,8 +354,8 @@ generateMap(input: {
 }): GameMap
 ```
 
-- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`.
-- 4 capas de decisión con 2–5 nodos + boss. Capa 0 disponible desde el start.
+- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 3` desde que el mapa crece hasta quince capas; los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
+- 3–15 capas de decisión con 2–5 nodos + boss. La profundidad depende solo de las metas con al menos una rutina activa: `resolveDecisionLayerCount = clamp(1, 10, goals) + offset`, con `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`, y el resultado acotado por `MAX_DECISION_LAYERS = 15`. Tabla: 1→3, 2→4, 3→5, 4→7, 5→8, 6→10, 7→11, 8→13, 9→14, 10→15. Las rutinas no cambian la profundidad, solo el ancho (`maxLayerSize = min(5, pool + 1)`). Capa 0 disponible desde el start.
 - Ancho de capa: la primera capa se sortea entre 2 y `min(5, pool + 1)` y cada
   capa siguiente deriva ±1 nodo de la anterior. Derivar poco mantiene la regla
   de vecinos (siempre hay cobertura) y evita capas que se abren o se cierran de
@@ -366,20 +367,30 @@ generateMap(input: {
 - Task/elite/boss requieren `TaskSnapshot`. Rest/treasure tienen `task: null`.
 - Sin tareas repetidas dentro de una capa. Entre capas se evita repetir mientras
   el pool lo permita; con pools pequeños se permite repetir entre capas.
-- Conexiones: cada nodo de capa 0–2 conecta a 1–2 nodos de la capa siguiente;
-  cada nodo de capa 3 conecta al boss. Todo nodo de la capa siguiente tiene al
-  menos una entrada; ningún nodo queda huérfano. El boss no tiene salida.
+- Conexiones: cada nodo de una capa de decisión conecta a 1–2 nodos de la capa
+  siguiente; cada nodo de la última capa conecta al boss. Todo nodo de la capa
+  siguiente tiene al menos una entrada; ningún nodo queda huérfano. El boss no
+  tiene salida. El boss es dinámico: `n{layers.length}_0`, con
+  `layer === layers.length`.
 - Conexiones de vecindario: un nodo solo alcanza su propio carril y los dos
   carriles contiguos (`|i − j| ≤ 1` por índice de capa). Ningún camino salta de
   un extremo al otro: el mapa se lee como carriles verticales con bifurcaciones
   locales. El primer pase ancla cada nodo a su carril, el segundo cubre la
   capa siguiente y el tercero ofrece una segunda rama (45 %) entre vecinos.
-- Geometría (`ui/lib/mapLayout.ts`): viewBox de 560×700, sin scroll vertical. Las
-  capas se reparten en Y 570/440/310/180, con el camp en 660 y el boss en 90
-  (≈130 px entre capas). Los carriles horizontales según el ancho de la capa son
+- Geometría (`ui/lib/mapLayout.ts`): viewBox de 560 × H, con
+  `H = 130 · layers + 180`; 3 capas → 570 px, 4 → 700 px (referencia clásica),
+  5 → 830 px y el máximo de 15 capas → 2.130 px. Las capas se reparten de abajo
+  a arriba con paso fijo de 130 px: `y = H − 40 − 90 − 130·k`; el camp queda en
+  `H − 40` y el boss siempre en 90. El canvas crece en alto y
+  `.map-canvas-wrap` hace scroll vertical cuando no cabe (a partir de cinco
+  capas en viewports normales; a cuatro capas no hay scroll). Los carriles
+  horizontales según el ancho de la capa son
   2 → 0.22/0.78, 3 → 0.26/0.5/0.74, 4 → 0.16/0.38/0.62/0.84 y
   5 → 0.12/0.31/0.5/0.69/0.88. Las capas de 5 nodos usan un medallón más
-  pequeño (`node--wide`) para que los carriles no se toquen a 360 px.
+  pequeño (`node--wide`) para que los carriles no se toquen a 360 px. A cuatro
+  capas la geometría coincide con el diseño anterior (700 px), salvo que los
+  pinos decorativos se retiraron: quedan los contornos, que se ciclan cada
+  cuatro capas, y un pequeño trazo decorativo anclado al campamento.
 - Boss: se prefiere una tarea de un goal con progreso pendiente y esfuerzo alto;
   desempate determinista por seed.
 - Si el pool tiene <4 tareas activas, el generador debe seguir produciendo un mapa
@@ -478,7 +489,7 @@ generateMap(input: {
 ### Nueva run (`runClose.ts`)
 
 - `startNewRun(document, { runId, now })` exige perfil, una run previa
-  `closed` **con `summary` ya escrito** y un setup válido (1–3 objetivos activos,
+  `closed` **con `summary` ya escrito** y un setup válido (1–10 objetivos activos,
   ≥4 rutinas activas, al menos una rutina activa por objetivo activo y objetivos
   semanales válidos) usando `validateSetup`. Un fallo lanza `DomainError` antes
   de construir nada: el documento no se modifica. El store reconcilia/finaliza
@@ -504,8 +515,10 @@ generateMap(input: {
   cada `day.map` por `validateMap` (generador), exige `day.index ===
   map.dayIndex`, que `day.id` sea `${run.id}:day:${day.index}`, que
   `map.currentNodeId` exista (o sea `null`) y que `day.path`/`day.rewards`
-  referencien nodos de ese mapa. Así un backup estructuralmente válido pero
-  injugable se rechaza antes de reemplazar el estado.
+  referencien nodos de ese mapa. `validateMap` acepta 3–15 capas de 2–5 nodos y
+  exige que el boss sea `n{layers.length}_0` con `layer === layers.length`. Así
+  un backup estructuralmente válido pero injugable se rechaza antes de
+  reemplazar el estado.
 - Si `localStorage` está corrupto o tiene una versión futura, el store hidrata un
   documento vacío **sin sobrescribir** la clave y expone `storageIssue` para
   mostrar `recovery`. Solo `resetAll` o un import válido desbloquean la escritura.
@@ -722,7 +735,7 @@ prototipo retirado:
 ## 7. Tests obligatorios por módulo
 
 - `rng`/`generator`: determinismo, golden seed, 1.000 mapas, invariantes y edge
-  cases (4 rutinas, 1 goal, 3 goals, pool pequeño/grande).
+  cases (4 rutinas, 1 goal, 3 goals, 10 goals, pool pequeño/grande).
 - `rewards`: tabla completa por tipo × esfuerzo, loot determinista por rareza,
   duplicados, niveles 0/99/100/199.
 - `lifecycle`: medianoche 23:59/00:00, ausencia de 3 días, día 7 completado y

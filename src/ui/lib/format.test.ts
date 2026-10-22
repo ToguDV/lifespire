@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDayKey, formatShortDayKey, percent, romanDay } from './format'
+import { formatDayKey, formatShortDayKey, percent, romanDay, toRoman } from './format'
 
 describe('date labels', () => {
   it('formats local day keys without UTC drift', () => {
@@ -20,5 +20,16 @@ describe('numeric labels', () => {
     expect(percent(1, 0)).toBe(0)
     expect(romanDay(0)).toBe('I')
     expect(romanDay(6)).toBe('VII')
+    expect(romanDay(14)).toBe('XV')
+    expect(romanDay(15)).toBe('XVI')
+  })
+
+  it('converts any supported number to roman numerals and falls back out of range', () => {
+    expect(toRoman(4)).toBe('IV')
+    expect(toRoman(9)).toBe('IX')
+    expect(toRoman(14)).toBe('XIV')
+    expect(toRoman(15)).toBe('XV')
+    expect(toRoman(0)).toBe('0')
+    expect(toRoman(4000)).toBe('4000')
   })
 })

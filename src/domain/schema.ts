@@ -1,4 +1,10 @@
-import { DECISION_LAYERS, MAX_WEEKLY_OBJECTIVE, RUN_DAYS, SCHEMA_VERSION } from './balance'
+import {
+  MAX_DECISION_LAYERS,
+  MAX_WEEKLY_OBJECTIVE,
+  MIN_DECISION_LAYERS,
+  RUN_DAYS,
+  SCHEMA_VERSION,
+} from './balance'
 import { isDayKey } from './dates'
 import { validateMap } from './generator'
 import type {
@@ -310,12 +316,19 @@ function validateMapNode(value: unknown, path: string): MapNode {
 function validateGameMap(value: unknown, path: string): GameMap {
   const raw = expectRecord(value, path)
   const layers = expectArray(raw.layers, `${path}.layers`)
-  if (layers.length !== DECISION_LAYERS) {
-    fail(`${path}.layers`, `must contain ${DECISION_LAYERS} decision layers`)
+  if (layers.length < MIN_DECISION_LAYERS || layers.length > MAX_DECISION_LAYERS) {
+    fail(
+      `${path}.layers`,
+      `must contain ${MIN_DECISION_LAYERS}–${MAX_DECISION_LAYERS} decision layers`,
+    )
   }
   const dayIndex = expectInteger(raw.dayIndex, `${path}.dayIndex`)
   if (dayIndex >= RUN_DAYS) {
     fail(`${path}.dayIndex`, `must be lower than ${RUN_DAYS}`)
+  }
+  const boss = validateMapNode(raw.boss, `${path}.boss`)
+  if (boss.layer !== layers.length) {
+    fail(`${path}.boss.layer`, `must match the ${layers.length} decision layers`)
   }
   return {
     id: expectString(raw.id, `${path}.id`),
@@ -327,7 +340,7 @@ function validateGameMap(value: unknown, path: string): GameMap {
         validateMapNode(node, `${path}.layers[${index}][${nodeIndex}]`),
       ),
     ),
-    boss: validateMapNode(raw.boss, `${path}.boss`),
+    boss,
     currentNodeId: expectNullableString(raw.currentNodeId, `${path}.currentNodeId`),
     createdAt: expectString(raw.createdAt, `${path}.createdAt`),
   }

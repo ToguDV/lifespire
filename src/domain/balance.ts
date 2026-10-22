@@ -4,17 +4,21 @@ export const SCHEMA_VERSION = 1
 export const STORAGE_KEY = 'lifespire:mvp0'
 
 export const RUN_DAYS = 7
-export const DECISION_LAYERS = 4
-export const BOSS_LAYER = DECISION_LAYERS
-export const GENERATOR_VERSION = 1
+export const MIN_GOALS = 1
+export const MAX_GOALS = 10
+
+export const MIN_DECISION_LAYERS = 3
+export const LAYER_OFFSET_MIN = 2
+export const LAYER_OFFSET_MAX = 5
+export const LAYER_OFFSET_GOALS = 2
+export const MAX_DECISION_LAYERS = LAYER_OFFSET_MAX + MAX_GOALS
+export const GENERATOR_VERSION = 3
 
 export const MIN_LAYER_NODES = 2
 export const MAX_LAYER_NODES = 5
 export const MIN_ELITES_PER_MAP = 1
 export const MAX_ELITES_PER_MAP = 2
 
-export const MIN_GOALS = 1
-export const MAX_GOALS = 3
 export const MIN_ACTIVE_TASKS = 4
 export const MIN_WEEKLY_OBJECTIVE = 1
 export const MAX_WEEKLY_OBJECTIVE = 7

@@ -10,8 +10,10 @@ weekly objectives — the more you complete, the more gold, XP, and loot you ear
 It's a local-first web app: a single profile, no accounts, no backend. Installable
 as a PWA and fully usable offline after the first load.
 
-The node map is the heart of the app: each day you pick a path through 4 layers
-plus a boss, with visible trade-offs between progress, effort, and reward.
+The node map is the heart of the app: each day you pick a path through 3–15 layers
+plus a boss, with visible trade-offs between progress, effort, and reward. The
+depth follows the goals that have active routines and the width follows your
+routines.
 
 ---
 
@@ -58,9 +60,10 @@ pnpm preview    # serve the build (test PWA / offline)
 
 ## How it works
 
-1. **Onboarding** — pick demo data or create 1–3 goals with their routines.
-2. **Each day** — open the day's map (4 decision layers + a boss, 2–5 nodes per
-   layer), pick a node, complete the real-world action, mark it done.
+1. **Onboarding** — pick demo data or create 1–10 goals with their routines.
+2. **Each day** — open the day's map (3–15 decision layers + a boss, 2–5 nodes
+   per layer; depth follows the goals with active routines), pick a node,
+   complete the real-world action, mark it done.
 3. **Rewards** — XP, gold, and loot are granted instantly. Tasks also add
    progress to their goal's weekly objective.
 4. **Close the day** — resolving the boss ends the day with a bonus.
@@ -76,8 +79,8 @@ immediately but give no progress, elites pay double in exchange for more effort.
 
 **In scope**
 
-- Onboarding with demo or custom data; 1–3 goals with routines
-- 7-day runs with deterministic maps (4 layers + boss)
+- Onboarding with demo or custom data; 1–10 goals with routines
+- 7-day runs with deterministic maps (3–15 layers + boss, driven by the goals with active routines)
 - Node types: task, elite, rest, treasure, boss
 - Instant rewards (XP, gold, loot), weekly progress, day & run summaries
 - New run keeping profile, gold, XP, and collection

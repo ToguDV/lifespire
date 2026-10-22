@@ -312,7 +312,7 @@ export function openDay(document: GameDocument, options: OpenDayOptions): GameDo
     runId: run.id,
     runSeed: run.seed,
     dayIndex: day.index,
-    generatorVersion: run.generatorVersion,
+    generatorVersion: GENERATOR_VERSION,
     goals: document.goals,
     tasks: document.tasks,
     objectives: run.objectives,

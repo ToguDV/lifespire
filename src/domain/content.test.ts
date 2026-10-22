@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
+import { MAX_GOALS } from './balance'
 import { createRun } from './lifecycle'
 import { createEmptyDocument } from './schema'
 import {
@@ -101,12 +102,21 @@ describe('validateContentConstraints', () => {
     expect(validateContentConstraints(document, document.goals, document.tasks).ok).toBe(true)
   })
 
-  it('rejects more than three active goals even without a run', () => {
-    const goals = [1, 2, 3, 4].map((index) => makeGoal({ id: `goal_${index}` }))
+  it('allows ten active goals and rejects an eleventh even without a run', () => {
     const document = createEmptyDocument()
-    const result = validateContentConstraints(document, goals, [])
+    const tenGoals = Array.from({ length: MAX_GOALS }, (_, index) =>
+      makeGoal({ id: `goal_${index}` }),
+    )
+    expect(validateContentConstraints(document, tenGoals, []).ok).toBe(true)
+
+    const elevenGoals = [
+      ...tenGoals,
+      makeGoal({ id: `goal_${MAX_GOALS}` }),
+    ]
+    const result = validateContentConstraints(document, elevenGoals, [])
     expect(result.ok).toBe(false)
     expect(result.errors).toContain(CONTENT_MESSAGES.tooManyGoals)
+    expect(CONTENT_MESSAGES.tooManyGoals).toContain(String(MAX_GOALS))
   })
 
   it('keeps a playable setup during an active run', () => {
