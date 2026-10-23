@@ -13,6 +13,7 @@ import { Button, Icon, Panel, Pips } from '../components'
 import { rewardFeedback } from '../lib/daySummary'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIconFor } from '../lib/format'
 import {
+  WHEEL_RECAP_DELAY_MS,
   WHEEL_SPIN_DURATION_MS,
   WHEEL_SPIN_TURNS,
   easeOutQuart,
@@ -148,6 +149,7 @@ export function NodeScreen() {
   const [revealed, setRevealed] = useState(false)
   const [rotation, setRotation] = useState(0)
   const spinRafRef = useRef<number | null>(null)
+  const advanceTimeoutRef = useRef<number | null>(null)
   const pointerRef = useRef<HTMLSpanElement>(null)
   const pointerAnimRef = useRef<Animation | null>(null)
   const resultRef = useRef<HTMLDivElement>(null)
@@ -188,10 +190,14 @@ export function NodeScreen() {
         cancelAnimationFrame(spinRafRef.current)
         spinRafRef.current = null
       }
+      if (advanceTimeoutRef.current !== null) {
+        window.clearTimeout(advanceTimeoutRef.current)
+        advanceTimeoutRef.current = null
+      }
       pointerAnimRef.current?.cancel()
       pointerAnimRef.current = null
     },
-    [],
+    [nodeId],
   )
 
   useEffect(() => {
@@ -294,8 +300,10 @@ export function NodeScreen() {
 
   const spinWheel = () => {
     if (spinning || revealed) return
+    const spinNodeId = node?.id
+    if (!spinNodeId) return
     if (prefersReducedMotion()) {
-      setRevealed(true)
+      navigate({ name: 'reward', nodeId: spinNodeId })
       return
     }
     const segmentIndex = rolledOutcome?.segmentIndex ?? 0
@@ -305,6 +313,15 @@ export function NodeScreen() {
     setSpinning(true)
     let start: number | null = null
     let lastSector = sectorIndexAtRotation(from, sectorDegrees)
+
+    // The settled outcome is final: after a short beat the recap opens on
+    // its own and there is no way back to spin again.
+    const forceRecap = () => {
+      const state = useAppStore.getState()
+      if (state.view.name === 'node' && state.view.nodeId === spinNodeId) {
+        state.navigate({ name: 'reward', nodeId: spinNodeId })
+      }
+    }
 
     const flickPointer = () => {
       const target = pointerRef.current
@@ -342,6 +359,11 @@ export function NodeScreen() {
       setSpinning(false)
       setRevealed(true)
       playWheelReveal()
+      if (advanceTimeoutRef.current !== null) window.clearTimeout(advanceTimeoutRef.current)
+      advanceTimeoutRef.current = window.setTimeout(() => {
+        advanceTimeoutRef.current = null
+        forceRecap()
+      }, WHEEL_RECAP_DELAY_MS)
     }
     spinRafRef.current = requestAnimationFrame(step)
   }
@@ -552,14 +574,6 @@ export function NodeScreen() {
                             ? `+${rolledOutcome.xp} XP`
                             : `+${rolledOutcome.xp} XP`}
                     </p>
-                    <Button
-                      variant="primary"
-                      disabled={resolving}
-                      onClick={() => navigate({ name: 'reward', nodeId: node.id })}
-                    >
-                      <Icon name="check" />
-                      Claim reward
-                    </Button>
                   </div>
                 ) : null}
               </div>
@@ -588,19 +602,21 @@ export function NodeScreen() {
               All weekly goals
             </button>
 
-            <NodeSkipNote boss={node.type === 'boss'} />
+            {isWheel && revealed ? null : <NodeSkipNote boss={node.type === 'boss'} />}
 
             {isWheel ? (
-              <div className="node-actions" aria-busy={resolving}>
-                <Button
-                  variant="quiet"
-                  disabled={resolving || spinning}
-                  aria-describedby="node-skip-note"
-                  onClick={() => record('skip')}
-                >
-                  Skip this step
-                </Button>
-              </div>
+              revealed ? null : (
+                <div className="node-actions" aria-busy={resolving}>
+                  <Button
+                    variant="quiet"
+                    disabled={resolving || spinning}
+                    aria-describedby="node-skip-note"
+                    onClick={() => record('skip')}
+                  >
+                    Skip this step
+                  </Button>
+                </div>
+              )
             ) : (
               <div className="node-actions" aria-busy={resolving}>
                 <Button

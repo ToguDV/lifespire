@@ -42,13 +42,10 @@ test.describe('wheel node', () => {
 
     await page.getByRole('button', { name: /Spin the wheel/i }).click()
     await expect(page.getByRole('status').filter({ hasText: /Spinning/i }).first()).toBeVisible()
-    await expect(
-      page.getByRole('button', { name: /Claim reward/i }),
-    ).toBeVisible({ timeout: 20000 })
-    await expect(page.locator('.wheel__result')).toBeVisible()
-
-    await page.getByRole('button', { name: /Claim reward/i }).click()
-    await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible()
+    // The settled outcome forces the recap open on its own: no re-spin.
+    await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible({
+      timeout: 20000,
+    })
     await expect(page.getByRole('button', { name: /^Done$/i })).toBeVisible()
 
     await page.getByRole('button', { name: /^Done$/i }).click()
@@ -84,14 +81,12 @@ test.describe('wheel node', () => {
     await forceWheelCurrent(page)
 
     await page.getByRole('button', { name: /Spin the wheel/i }).click()
-    await expect(
-      page.getByRole('button', { name: /Claim reward/i }),
-    ).toBeVisible({ timeout: 20000 })
-
-    await page.getByRole('button', { name: /Claim reward/i }).click()
-    await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible({
+      timeout: 20000,
+    })
     await expect(page.getByRole('button', { name: /^Done$/i })).toBeVisible()
     await expect(page.locator('.node-back')).toHaveCount(0)
     await expect(page.getByRole('button', { name: /Back to step/i })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Spin the wheel/i })).toHaveCount(0)
   })
 })

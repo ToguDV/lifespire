@@ -469,8 +469,8 @@ generateMap(input: {
   - `complete` concede recompensas, +1 de progreso si aplica y loot; en `wheel`
     sortea el outcome con `rollWheelOutcome` (misma semilla que la preview) y
     acredita `task` (XP/oro de task +1), `gold` (+20), `xp` (+25) o `rest` (+5).
-    El claim es en dos pasos: `node` muestra la preview y `reward` recapitula
-    lo que se va a registrar; solo Done resuelve y el recap no ofrece regreso;
+    El claim es en dos pasos: el giro termina con avance forzado al recap
+    tras un beat; sin re-spin. Solo Done resuelve y el recap no ofrece regreso;
   - `skip` concede 0 XP/oro/loot/progreso pero también registra evento y avanza
     (también en `wheel`: el skip está siempre disponible, el claim solo tras girar);
   - añade a `path`, registra un `RewardEvent` con id estable (los skip con ceros

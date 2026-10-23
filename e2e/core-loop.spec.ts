@@ -42,8 +42,7 @@ async function completeFirstNode(page: import('@playwright/test').Page) {
   await expect(spin.or(mark)).toBeVisible()
   if (await spin.isVisible()) {
     await spin.click()
-    await page.getByRole('button', { name: /Claim reward/i }).click({ timeout: 20000 })
-    await page.getByRole('button', { name: /^Done$/i }).click()
+    await page.getByRole('button', { name: /^Done$/i }).click({ timeout: 25000 })
   } else {
     await mark.click()
   }
