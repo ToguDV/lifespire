@@ -4,11 +4,13 @@ import { currentDay, xpIntoLevel, xpToNextLevel } from '../domain/selectors'
 import type { View } from '../domain/types'
 import { useAppStore } from '../state/store'
 import {
+  AnimatedNumber,
   DayPips,
   Icon,
   IconButton,
   LevelResource,
   Resource,
+  RewardToast,
   ThemeToggle,
   Toast,
 } from './components'
@@ -91,8 +93,10 @@ export default function App() {
   const storageWarning = useAppStore((state) => state.storageWarning)
   const view = useAppStore((state) => state.view)
   const toast = useAppStore((state) => state.toast)
+  const rewardToast = useAppStore((state) => state.rewardToast)
   const navigate = useAppStore((state) => state.navigate)
   const showToast = useAppStore((state) => state.showToast)
+  const clearRewardToast = useAppStore((state) => state.clearRewardToast)
 
   const [devOpen, setDevOpen] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
@@ -193,6 +197,19 @@ export default function App() {
   }, [view])
 
   const dismissToast = useCallback(() => showToast(null), [showToast])
+  const dismissRewardToast = useCallback(() => clearRewardToast(), [clearRewardToast])
+
+  useEffect(() => {
+    if (!rewardToast) return
+    if (
+      guardedView.name === 'node' ||
+      guardedView.name === 'reward' ||
+      guardedView.name === 'day-summary' ||
+      guardedView.name === 'run-summary'
+    ) {
+      clearRewardToast()
+    }
+  }, [guardedView.name, rewardToast, clearRewardToast])
 
   if (!hydrated) return null
 
@@ -347,7 +364,7 @@ export default function App() {
                 <>
                   <Resource
                     icon="coin"
-                    value={profile.gold}
+                    value={<AnimatedNumber value={profile.gold} />}
                     label={`${profile.gold} gold`}
                   />
                   <LevelResource
@@ -408,6 +425,9 @@ export default function App() {
       </div>
 
       <Toast message={toast} onDismiss={dismissToast} />
+      {rewardToast ? (
+        <RewardToast event={rewardToast} onDismiss={dismissRewardToast} />
+      ) : null}
 
       {import.meta.env.DEV ? (
         <button

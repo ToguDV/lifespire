@@ -1,0 +1,363 @@
+/* ============================================================
+   LifeSpire · Quiet juice
+   One-shot, slow and soft motion plus the reward toast. Nothing here
+   loops: every animation runs once and settles. The global
+   prefers-reduced-motion rule in tokens.css still silences all of it.
+   ============================================================ */
+
+/* Recently walked path draws itself once ---------------------- */
+
+.map-lines .path-done.path-recent {
+  stroke-dasharray: 320 320;
+  stroke-dashoffset: 320;
+  animation: path-draw 520ms var(--ease-out) both;
+}
+
+@keyframes path-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Freshly sealed node stamps its check ------------------------ */
+
+.node--just-done .medallion {
+  animation: node-stamp 240ms var(--ease-out) both;
+}
+
+@keyframes node-stamp {
+  from {
+    transform: scale(0.82);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.node--just-done .node__check {
+  animation: check-pop 260ms var(--ease-out) both;
+}
+
+@keyframes check-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Boss gate opening: solid frame, breathing halo (one shot) --- */
+
+.node--boss-open .boss-frame polygon {
+  stroke: var(--accent);
+  stroke-dasharray: none;
+}
+
+.boss-halo.is-open {
+  stroke: var(--accent);
+  animation: halo-in 600ms var(--ease-out) both;
+}
+
+@keyframes halo-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Wheel: settle once, never pulse ------------------------------ */
+
+.wheel-spinner[data-spinning="true"] .wheel__hub {
+  animation: none;
+}
+
+.wheel-spinner[data-revealed="true"] .wheel__seg--winner {
+  animation: wheel-winner-settle 600ms var(--ease-out) both;
+}
+
+@keyframes wheel-winner-settle {
+  from {
+    filter: brightness(1.6);
+  }
+  to {
+    filter: brightness(1);
+  }
+}
+
+.wheel__result-line {
+  animation: row-in 240ms var(--ease-out) both;
+}
+
+.wheel__result-reward {
+  animation: row-in 240ms var(--ease-out) both;
+  animation-delay: 90ms;
+}
+
+/* Reward toast: the rich recap after a completion --------------- */
+
+.reward-toast {
+  position: fixed;
+  right: 12px;
+  bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom) + 12px);
+  left: 12px;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-xl);
+  background: var(--ink);
+  color: var(--canvas);
+  box-shadow: var(--shadow-float);
+  animation: toast-in 220ms var(--ease-out) both;
+}
+
+.reward-toast__seal {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.reward-toast__seal .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.reward-toast__body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.reward-toast__body strong {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.reward-toast__bits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  opacity: 0.92;
+  font-variant-numeric: tabular-nums;
+}
+
+.reward-toast__bit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reward-toast__bit .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.reward-toast__bit--progress,
+.reward-toast__bit--loot {
+  font-weight: 700;
+}
+
+@media (min-width: 960px) {
+  .reward-toast {
+    right: 24px;
+    bottom: 24px;
+    left: auto;
+    margin: 0;
+  }
+}
+
+/* Summary staging: rows arrive, totals tick, relics land -------- */
+
+.path-row--enter,
+.summary-aim--enter {
+  animation: row-in 240ms var(--ease-out) both;
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.summary-loot .loot-grid .loot-card {
+  animation: loot-in 300ms var(--ease-out) both;
+}
+
+.summary-loot .loot-grid .loot-card:nth-child(2) {
+  animation-delay: 70ms;
+}
+
+.summary-loot .loot-grid .loot-card:nth-child(3) {
+  animation-delay: 140ms;
+}
+
+.summary-loot .loot-grid .loot-card:nth-child(4) {
+  animation-delay: 210ms;
+}
+
+@keyframes loot-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.summary-loot .loot-card--epic {
+  animation:
+    loot-in 300ms var(--ease-out) both,
+    epic-settle 700ms var(--ease-out) both;
+}
+
+@keyframes epic-settle {
+  from {
+    filter: brightness(1.35);
+  }
+  to {
+    filter: brightness(1);
+  }
+}
+
+.level-up--celebrate {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  animation: celebrate-in 400ms var(--ease-out) both;
+}
+
+@keyframes celebrate-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Counters tick instead of jumping ------------------------------- */
+
+.progress__bar > span,
+.stat__bar > span,
+.xp-mini > span {
+  transition: width 300ms var(--ease-out);
+}
+
+[data-animated-number] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Settings switches ---------------------------------------------- */
+
+.feedback-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.feedback-row:first-of-type {
+  border-top: 0;
+}
+
+.feedback-row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feedback-row__body strong {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.feedback-row__body span {
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.feedback-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-height: 44px;
+  padding: 4px 2px 4px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.feedback-switch__track {
+  position: relative;
+  display: block;
+  width: 40px;
+  height: 24px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  transition:
+    background-color var(--duration) ease,
+    border-color var(--duration) ease;
+}
+
+.feedback-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  transition:
+    left var(--duration) var(--ease-out),
+    background-color var(--duration) ease;
+}
+
+.feedback-switch[aria-checked="true"] .feedback-switch__track {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.feedback-switch[aria-checked="true"] .feedback-switch__thumb {
+  left: 18px;
+  background: var(--accent-deep);
+}

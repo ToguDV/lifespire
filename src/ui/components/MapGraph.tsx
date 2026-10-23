@@ -8,10 +8,12 @@ import { NODE_TYPE_ICON, goalIconFor, romanDay } from '../lib/format'
 import {
   buildMapLayout,
   classifyMapEdges,
+  mapEdgeId,
   mapScrollTarget,
   type MapEdgeTone,
   type MapNodeLayout,
 } from '../lib/mapLayout'
+import { playFeedback } from '../lib/feedback'
 import { nodeAriaLabel, nodeTitle } from '../lib/nodeCopy'
 
 /**
@@ -43,6 +45,8 @@ interface NodeButtonProps {
   map: GameMap
   goalIcon: IconName | null
   revealed: boolean
+  justDone: boolean
+  bossOpen: boolean
   onReveal: (nodeId: string) => void
   onSelect: (nodeId: string) => void
 }
@@ -75,6 +79,8 @@ function NodeButton({
   map,
   goalIcon,
   revealed,
+  justDone,
+  bossOpen,
   onReveal,
   onSelect,
 }: NodeButtonProps) {
@@ -86,6 +92,13 @@ function NodeButton({
     left: `${layout.left}%`,
     top: `${layout.top}%`,
   }
+  const className = [
+    nodeClasses(layout, status),
+    justDone ? 'node--just-done' : '',
+    bossOpen && layout.type === 'boss' ? 'node--boss-open' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     if (!revealed && event.detail > 0 && firstTapOnlyReveals()) {
@@ -98,7 +111,7 @@ function NodeButton({
   return (
     <button
       type="button"
-      className={nodeClasses(layout, status)}
+      className={className}
       style={style}
       data-node-id={layout.id}
       data-node-icon={icon}
@@ -167,6 +180,23 @@ export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
   const [revealedId, setRevealedId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // The segment walked most recently draws itself once; the node it reached
+  // stamps its seal. Both are pure derivations of the persisted path, so a
+  // reload simply replays the same quiet moment.
+  const lastEntry = day.path[day.path.length - 1]
+  const lastResolvedId = lastEntry?.nodeId ?? null
+  const prevId =
+    day.path.length > 1 ? (day.path[day.path.length - 2]?.nodeId ?? 'start') : 'start'
+  const recentEdgeId = lastResolvedId ? mapEdgeId(prevId, lastResolvedId) : null
+
+  const bossStatus = nodeStatus(map, day, layout.boss.id)
+  const bossOpen = bossStatus === 'available' || bossStatus === 'current'
+  const prevBossOpen = useRef(bossOpen)
+  useEffect(() => {
+    if (bossOpen && !prevBossOpen.current) playFeedback('bossUnlock')
+    prevBossOpen.current = bossOpen
+  }, [bossOpen])
+
   const handleSelect = (nodeId: string) => {
     setRevealedId(null)
     onSelect(nodeId)
@@ -223,13 +253,17 @@ export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
               />
             </g>
             <circle
-              className="boss-halo"
+              className={`boss-halo${bossOpen ? ' is-open' : ''}`}
               cx={layout.boss.x}
               cy={layout.boss.y}
               r={56}
             />
             {edges.map((edge) => (
-              <path key={edge.id} className={EDGE_CLASS[edge.tone]} d={edge.d} />
+              <path
+                key={edge.id}
+                className={`${EDGE_CLASS[edge.tone]}${edge.id === recentEdgeId ? ' path-recent' : ''}`}
+                d={edge.d}
+              />
             ))}
           </svg>
 
@@ -257,6 +291,8 @@ export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
               map={map}
               goalIcon={goalIconFor(goals, node.node.task?.goalId)}
               revealed={revealedId === node.id}
+              justDone={node.id === lastResolvedId && nodeStatus(map, day, node.id) === 'completed'}
+              bossOpen={false}
               onReveal={setRevealedId}
               onSelect={handleSelect}
             />
@@ -268,6 +304,11 @@ export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
             map={map}
             goalIcon={goalIconFor(goals, layout.boss.node.task?.goalId)}
             revealed={revealedId === layout.boss.id}
+            justDone={
+              layout.boss.id === lastResolvedId &&
+              nodeStatus(map, day, layout.boss.id) === 'completed'
+            }
+            bossOpen={bossOpen}
             onReveal={setRevealedId}
             onSelect={handleSelect}
           />

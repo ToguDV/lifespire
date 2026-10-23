@@ -4,6 +4,7 @@ import './styles/tokens.css'
 import './styles/app.css'
 import './styles/ui.css'
 import './styles/m3.css'
+import './styles/juice.css'
 import App from './App.tsx'
 
 createRoot(document.getElementById('root')!).render(

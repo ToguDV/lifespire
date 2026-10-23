@@ -49,7 +49,7 @@ test.describe('wheel node', () => {
     await expect(page.getByRole('button', { name: /^Done$/i })).toBeVisible()
 
     await page.getByRole('button', { name: /^Done$/i }).click()
-    await expect(page.getByRole('status').filter({ hasText: /Wheel:/ }).first()).toBeVisible()
+    await expect(page.locator('.reward-toast').filter({ hasText: /Wheel/ }).first()).toBeVisible()
     await expect(page.locator(`button[data-node-id="${wheelId}"]`)).toHaveAttribute(
       'data-status',
       'completed',
