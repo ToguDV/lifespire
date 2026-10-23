@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo'
-import { MAX_GOALS, STORAGE_KEY } from '../domain/balance'
+import { MAX_GOALS, SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
 import { addDays, dayKey } from '../domain/dates'
 import { validateMap } from '../domain/generator'
 import { createRun } from '../domain/lifecycle'
 import { createEmptyDocument, parseDocument, serializeDocument } from '../domain/schema'
 import { availableNodeIds, currentDay, levelForXp } from '../domain/selectors'
-import type { GameDocument, LootItem, Run } from '../domain/types'
+import type { GameDocument, Goal, LootItem, Run } from '../domain/types'
 import { devNow, getDevOffsetDays, resetDevClock } from './clock'
 import { createDocumentStorage } from './persistence'
 import type { StorageLike } from './persistence'
@@ -439,7 +439,9 @@ describe('import, recovery and reset', () => {
     const before = store.getState().document
 
     expect(
-      store.getState().importDocument({ schemaVersion: 2 } as unknown as GameDocument),
+      store.getState().importDocument({
+        schemaVersion: SCHEMA_VERSION + 1,
+      } as unknown as GameDocument),
     ).toBe(false)
     expect(store.getState().document).toBe(before)
     expect(store.getState().toast).toBe('That save comes from a newer version of LifeSpire.')
@@ -471,7 +473,7 @@ describe('import, recovery and reset', () => {
   })
 
   it('rejects a future schema version on load without touching the save', () => {
-    const raw = JSON.stringify({ schemaVersion: 2 })
+    const raw = JSON.stringify({ schemaVersion: SCHEMA_VERSION + 1 })
     const { store, memory } = makeHarness({ raw })
 
     expect(store.getState().storageIssue).toEqual({ reason: 'future-version' })
@@ -1239,6 +1241,63 @@ describe('goals and routines CRUD', () => {
     expect(store.getState().document.goals).toHaveLength(3)
   })
 
+  it('defaults a new goal icon and preserves it when editing without a choice', () => {
+    const { store, base } = makeHarness()
+    store.getState().completeOnboarding(createDemoSetup(base), base)
+
+    expect(
+      store.getState().saveGoal(
+        { title: 'Hearth', category: 'Home', weeklyObjective: 2, active: true },
+        base,
+      ).ok,
+    ).toBe(true)
+    const goal = store.getState().document.goals.find((item) => item.title === 'Hearth')
+    if (!goal) throw new Error('expected the created goal')
+    expect(goal.icon).toBe('banner')
+
+    expect(
+      store.getState().saveGoal(
+        {
+          id: goal.id,
+          title: goal.title,
+          category: goal.category,
+          icon: 'heart',
+          weeklyObjective: goal.weeklyObjective,
+          active: goal.active,
+        },
+        base,
+      ).ok,
+    ).toBe(true)
+    expect(
+      store.getState().document.goals.find((item) => item.id === goal.id)?.icon,
+    ).toBe('heart')
+
+    expect(
+      store.getState().saveGoal(
+        {
+          id: goal.id,
+          title: 'Hearthkeeping',
+          category: goal.category,
+          weeklyObjective: goal.weeklyObjective,
+          active: goal.active,
+        },
+        base,
+      ).ok,
+    ).toBe(true)
+    expect(
+      store.getState().document.goals.find((item) => item.id === goal.id)?.icon,
+    ).toBe('heart')
+
+    expect(store.getState().archiveGoal(goal.id, base).ok).toBe(true)
+    const archived = store.getState().document.goals.find((item) => item.id === goal.id)
+    if (!archived) throw new Error('expected the archived goal')
+    expect(archived.icon).toBe('heart')
+    expect(store.getState().saveGoal({ ...archived, active: true }, base).ok).toBe(true)
+    expect(
+      store.getState().document.goals.find((item) => item.id === goal.id)?.icon,
+    ).toBe('heart')
+  })
+
   it('creates, edits, archives and restores a routine', () => {
     const { store, memory, base } = makeHarness()
     const setup = createDemoSetup(base)
@@ -1358,10 +1417,11 @@ describe('goals and routines CRUD', () => {
 describe('content constraints during an active run', () => {
   it('blocks archiving the last active goal', () => {
     const { store, base } = makeHarness()
-    const goal = {
+    const goal: Goal = {
       id: 'goal_only',
       title: 'Wayfarer',
       category: 'Movement',
+      icon: 'compass',
       weeklyObjective: 4,
       active: true,
       createdAt: base.toISOString(),
@@ -1453,11 +1513,12 @@ describe('content constraints during an active run', () => {
 
   it('blocks archiving the last active routine of an active goal', () => {
     const { store, base } = makeHarness()
-    const goals = [
+    const goals: Goal[] = [
       {
         id: 'goal_a',
         title: 'Wayfarer',
         category: 'Movement',
+        icon: 'compass',
         weeklyObjective: 4,
         active: true,
         createdAt: base.toISOString(),
@@ -1466,6 +1527,7 @@ describe('content constraints during an active run', () => {
         id: 'goal_b',
         title: 'Craft',
         category: 'Making',
+        icon: 'quill',
         weeklyObjective: 3,
         active: true,
         createdAt: base.toISOString(),

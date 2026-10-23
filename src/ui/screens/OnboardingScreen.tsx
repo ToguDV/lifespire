@@ -14,11 +14,12 @@ import {
   MIN_WEEKLY_OBJECTIVE,
 } from '../../domain/balance'
 import { validateGoalInput, validateTaskInput } from '../../domain/content'
+import { nextGoalIcon } from '../../domain/goalIcons'
 import type { Effort, Goal, Task } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
-import { Button, Icon, Panel, ThemeToggle } from '../components'
-import { EFFORT_LABEL, goalIcon } from '../lib/format'
+import { Button, Icon, IconPicker, Panel, ThemeToggle } from '../components'
+import { EFFORT_LABEL, goalIconName } from '../lib/format'
 
 const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
@@ -63,6 +64,7 @@ export function OnboardingScreen() {
       id: createId('goal'),
       title: '',
       category: '',
+      icon: nextGoalIcon(goals),
       weeklyObjective: 3,
       active: true,
       createdAt: getNow().toISOString(),
@@ -251,6 +253,15 @@ export function OnboardingScreen() {
               </p>
             ) : null}
           </div>
+        </div>
+        <div className="field">
+          <IconPicker
+            compact
+            legend="Goal icon"
+            name={`goal-${goal.id}-icon`}
+            value={goal.icon}
+            onChange={(icon) => updateGoal(goal.id, { icon })}
+          />
         </div>
         <div className="draft-card__actions">
           <Button variant="quiet" onClick={() => removeGoal(goal.id)}>
@@ -642,7 +653,7 @@ export function OnboardingScreen() {
                     <section className="draft-group" key={goal.id} aria-label={goalLabel(index)}>
                       <div className="draft-group__head">
                         <span className="draft-group__crest">
-                          <Icon name={goalIcon(index)} />
+                          <Icon name={goalIconName(goal.icon, index)} />
                         </span>
                         <div>
                           <h2>{goalLabel(index)}</h2>
@@ -720,7 +731,7 @@ export function OnboardingScreen() {
                     <article className="draft-card" key={goal.id}>
                       <div className="review-goal__head">
                         <span className="draft-group__crest">
-                          <Icon name={goalIcon(index)} />
+                          <Icon name={goalIconName(goal.icon, index)} />
                         </span>
                         <div>
                           <h3>{goalLabel(index)}</h3>

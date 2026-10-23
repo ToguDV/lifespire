@@ -18,7 +18,7 @@ function makeRun(): Run {
 
 function makeDocument(run: Run): GameDocument {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     profile: {
       id: 'profile_1',
       name: 'Wren',

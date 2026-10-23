@@ -1,3 +1,5 @@
+import type { GoalIconId } from './goalIcons'
+
 export type Effort = 'light' | 'medium' | 'high'
 export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss'
 export type Rarity = 'common' | 'rare' | 'epic'
@@ -20,7 +22,7 @@ export type View =
   | { name: 'recovery'; reason: 'corrupt' | 'future-version' | 'import-error' }
 
 export interface GameDocument {
-  schemaVersion: 1
+  schemaVersion: 2
   profile: Profile | null
   goals: Goal[]
   tasks: Task[]
@@ -52,6 +54,7 @@ export interface Goal {
   id: string
   title: string
   category: string
+  icon: GoalIconId
   weeklyObjective: number
   active: boolean
   createdAt: string
@@ -61,7 +64,7 @@ export type GoalInput = Pick<
   Goal,
   'title' | 'category' | 'weeklyObjective' | 'active'
 > &
-  Partial<Pick<Goal, 'id' | 'createdAt'>>
+  Partial<Pick<Goal, 'id' | 'createdAt' | 'icon'>>
 
 export interface Task {
   id: string

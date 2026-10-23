@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { STORAGE_KEY } from '../domain/balance'
+import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
 import { createEmptyDocument, serializeDocument } from '../domain/schema'
 import type { GameDocument } from '../domain/types'
 import { createDocumentStorage } from './persistence'
@@ -40,7 +40,7 @@ describe('createDocumentStorage', () => {
 
     controller.storage.setItem(STORAGE_KEY, {
       state: valueFor({ ...document, settings: { theme: 'dark' } }),
-      version: 1,
+      version: SCHEMA_VERSION,
     })
 
     const raw = memory.getItem(STORAGE_KEY)
@@ -56,6 +56,42 @@ describe('createDocumentStorage', () => {
       throw new Error('Expected a synchronous persisted value')
     }
     expect(restored.state.document.settings.theme).toBe('dark')
+  })
+
+  it('migrates a version 1 save on read and reports the current version', () => {
+    const createdAt = '2026-10-20T09:00:00.000Z'
+    const legacyGoal = {
+      id: 'goal_legacy',
+      title: 'Read',
+      category: 'Mind',
+      weeklyObjective: 3,
+      active: true,
+      createdAt,
+    }
+    const legacy = {
+      ...createEmptyDocument(),
+      schemaVersion: 1,
+      goals: [legacyGoal],
+      onboardingDraft: {
+        step: 2,
+        mode: 'custom',
+        name: 'Ari',
+        goals: [{ ...legacyGoal, id: 'goal_draft' }],
+        tasks: [],
+      },
+    }
+    const memory = createMemoryStorage({ [STORAGE_KEY]: JSON.stringify(legacy) })
+    const controller = createDocumentStorage(memory)
+
+    const restored = controller.storage.getItem(STORAGE_KEY)
+    if (!restored || restored instanceof Promise) {
+      throw new Error('Expected a synchronous persisted value')
+    }
+    expect(restored.version).toBe(SCHEMA_VERSION)
+    expect(restored.state.document.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(restored.state.document.goals[0]?.icon).toBe('banner')
+    expect(restored.state.document.onboardingDraft?.goals[0]?.icon).toBe('banner')
+    expect(memory.getItem(STORAGE_KEY)).toBe(JSON.stringify(legacy))
   })
 
   it('blocks writes for corrupt JSON without overwriting it', () => {

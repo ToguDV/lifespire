@@ -153,9 +153,9 @@ function fullDocument(): GameDocument {
 }
 
 describe('createEmptyDocument', () => {
-  it('starts with schema v1 and safe defaults', () => {
+  it('starts with the current schema version and safe defaults', () => {
     expect(createEmptyDocument()).toEqual({
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
       profile: null,
       goals: [],
       tasks: [],
@@ -177,6 +177,16 @@ describe('serializeDocument and parseDocument', () => {
     }
   })
 
+  it('round-trips the common-life goal icons', () => {
+    for (const icon of ['wallet', 'briefcase', 'users', 'utensils'] as const) {
+      const document = fullDocument()
+      document.goals[0] = { ...document.goals[0]!, icon }
+      const parsed = parseDocument(serializeDocument(document))
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok) expect(parsed.value.goals[0]?.icon).toBe(icon)
+    }
+  })
+
   it('accepts a parsed object as well as JSON text', () => {
     const document = fullDocument()
     const parsed = parseDocument(document)
@@ -185,7 +195,7 @@ describe('serializeDocument and parseDocument', () => {
 
   it('writes readable JSON with two-space indentation', () => {
     const serialized = serializeDocument(createEmptyDocument())
-    expect(serialized).toContain('\n  "schemaVersion": 1')
+    expect(serialized).toContain(`\n  "schemaVersion": ${SCHEMA_VERSION}`)
     expect(serialized).not.toContain('hydrated')
     expect(serialized).not.toContain('toast')
   })
@@ -201,6 +211,7 @@ describe('serializeDocument and parseDocument', () => {
           id: 'goal_draft',
           title: '',
           category: '',
+          icon: 'book',
           weeklyObjective: 8,
           active: true,
           createdAt: now.toISOString(),
@@ -211,6 +222,55 @@ describe('serializeDocument and parseDocument', () => {
     const parsed = parseDocument(serializeDocument(document))
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(parsed.value.onboardingDraft).toEqual(document.onboardingDraft)
+  })
+
+  it('migrates a version 1 save to persisted goal icons', () => {
+    const legacy = JSON.parse(serializeDocument(fullDocument())) as Record<string, unknown>
+    legacy.schemaVersion = 1
+    for (const goal of legacy.goals as Array<Record<string, unknown>>) {
+      delete goal.icon
+    }
+
+    const parsed = parseDocument(legacy)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(parsed.value.goals.map((goal) => goal.icon)).toEqual(['banner', 'flame'])
+  })
+
+  it('migrates the icons of goals held in an onboarding draft', () => {
+    const draftGoal = {
+      id: 'goal_draft',
+      title: 'Read',
+      category: 'Mind',
+      weeklyObjective: 3,
+      active: true,
+      createdAt: now.toISOString(),
+    }
+    const legacy = {
+      ...createEmptyDocument(),
+      schemaVersion: 1,
+      onboardingDraft: {
+        step: 2,
+        mode: 'custom',
+        name: 'Ari',
+        goals: [draftGoal],
+        tasks: [],
+      },
+    }
+
+    const parsed = parseDocument(legacy)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.onboardingDraft?.goals[0]?.icon).toBe('banner')
+  })
+
+  it('rejects an unknown goal icon', () => {
+    const document = fullDocument()
+    document.goals[0] = { ...document.goals[0]!, icon: 'not-an-icon' as never }
+    const parsed = parseDocument(document)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContain('icon')
   })
 
   it('rejects malformed JSON', () => {
@@ -304,6 +364,7 @@ describe('serializeDocument and parseDocument', () => {
       id: `goal-cap-${index}`,
       title: `Cap goal ${index}`,
       category: 'Test',
+      icon: 'banner',
       weeklyObjective: 4,
       active: true,
       createdAt: now.toISOString(),

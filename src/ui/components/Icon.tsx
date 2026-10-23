@@ -33,6 +33,16 @@ export type IconName =
   | 'edit'
   | 'archive'
   | 'settings'
+  | 'book'
+  | 'heart'
+  | 'leaf'
+  | 'brush'
+  | 'dumbbell'
+  | 'home'
+  | 'wallet'
+  | 'briefcase'
+  | 'users'
+  | 'utensils'
 
 const ICON_SHAPES: Record<IconName, ReactNode> = {
   spire: (
@@ -105,11 +115,18 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
       <path d="m12 8 .9 3.1L16 12l-3.1.9L12 16l-.9-3.1L8 12l3.1-.9z" />
     </>
   ),
+  // The rest glyph sits slightly smaller than the set; scale it without fattening the stroke.
   campfire: (
-    <>
-      <path d="M12 19c-2.6 0-4.3-1.7-4.3-4 0-2.1 1.6-3.4 2.6-5.4.2-.4.4-.9.5-1.5 1.2.9 1.9 2.1 2.1 3.4.8-.6 1.3-1.5 1.5-2.6 1.5 1.3 2.5 3.3 2.5 5.2 0 2.8-1.8 4.9-4.9 4.9z" />
-      <path d="M6 20.2h12M7.2 18l11 2.2" />
-    </>
+    <g transform="translate(12 14.4) scale(1.4) translate(-12 -14.4)">
+      <path
+        vectorEffect="non-scaling-stroke"
+        d="M12 19c-2.6 0-4.3-1.7-4.3-4 0-2.1 1.6-3.4 2.6-5.4.2-.4.4-.9.5-1.5 1.2.9 1.9 2.1 2.1 3.4.8-.6 1.3-1.5 1.5-2.6 1.5 1.3 2.5 3.3 2.5 5.2 0 2.8-1.8 4.9-4.9 4.9z"
+      />
+      <path
+        vectorEffect="non-scaling-stroke"
+        d="M6 20.2h12M7.2 18l11 2.2"
+      />
+    </g>
   ),
   chest: (
     <>
@@ -136,8 +153,14 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
       <path d="m12 3 5.2 5.2M8.3 13.4l2.3 2.3" />
     </>
   ),
+  // The flame path is narrower than the rest; scale it to match their optical size.
   flame: (
-    <path d="M12 21c-3.1 0-5.2-2-5.2-4.8 0-2.6 1.9-4.2 3.1-6.6.3-.5.5-1.1.6-1.8 1.4 1.1 2.2 2.5 2.4 4.1 1-.8 1.6-1.8 1.9-3.1 1.9 1.6 3 4 3 6.3C17.8 19 15.5 21 12 21z" />
+    <g transform="translate(12 16.2) scale(1.5) translate(-12 -16.2)">
+      <path
+        vectorEffect="non-scaling-stroke"
+        d="M12 21c-3.1 0-5.2-2-5.2-4.8 0-2.6 1.9-4.2 3.1-6.6.3-.5.5-1.1.6-1.8 1.4 1.1 2.2 2.5 2.4 4.1 1-.8 1.6-1.8 1.9-3.1 1.9 1.6 3 4 3 6.3C17.8 19 15.5 21 12 21z"
+      />
+    </g>
   ),
   feather: (
     <>
@@ -191,6 +214,71 @@ const ICON_SHAPES: Record<IconName, ReactNode> = {
       <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
       <circle cx="15" cy="7" r="2" />
       <circle cx="9" cy="17" r="2" />
+    </>
+  ),
+  book: (
+    <>
+      <path d="M12 6.5C10.5 5 8.5 4.5 4.5 4.5v13c4 0 6 .5 7.5 2 1.5-1.5 3.5-2 7.5-2v-13c-4 0-6 .5-7.5 2z" />
+      <path d="M12 6.5v13" />
+    </>
+  ),
+  heart: (
+    <path d="M12 20s-7-4.4-7-9.3A4.2 4.2 0 0 1 12 7a4.2 4.2 0 0 1 7 3.7C19 15.6 12 20 12 20z" />
+  ),
+  leaf: (
+    <>
+      <path d="M20 4C10.5 4 4 9 4 16c0 2.6 1.4 4 4 4 7 0 12-6.5 12-16z" />
+      <path d="M4 20c4.5-6 8.5-9.5 12-11.5" />
+    </>
+  ),
+  brush: (
+    <>
+      <path d="m15.5 4.5 4 4L10 18H6v-4z" />
+      <path d="m13.5 6.5 4 4" />
+      <path d="M6 18c-1.6.5-2.2 1.6-2.2 3.2 1.6 0 2.7-.6 3.2-2.2" />
+    </>
+  ),
+  dumbbell: (
+    <>
+      <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
+    </>
+  ),
+  home: (
+    <>
+      <path d="m4 11 8-7 8 7" />
+      <path d="M6 9.5V20h12V9.5" />
+      <path d="M10 20v-5h4v5" />
+    </>
+  ),
+  wallet: (
+    <>
+      <path d="M4 7a2 2 0 0 1 2-2h11.5A2.5 2.5 0 0 1 20 7.5V17a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      <path d="M4 8.5h14.5" />
+      <path d="M16 11.5h4v4h-4a2 2 0 0 1 0-4z" />
+    </>
+  ),
+  briefcase: (
+    <>
+      <rect x="3.5" y="7" width="17" height="12" rx="2" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" />
+      <path d="M3.5 12.5h17" />
+      <path d="M10 12.5v1.5h4v-1.5" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" />
+      <path d="M15.5 5.5a3 3 0 0 1 0 5.8" />
+      <path d="M16.5 14.2c2.4.4 4 2.2 4 4.8" />
+    </>
+  ),
+  utensils: (
+    <>
+      <path d="M7 3v5a2 2 0 0 0 4 0V3" />
+      <path d="M9 8v13" />
+      <path d="M17 3v18" />
+      <path d="M17 3c-2.5 2.5-3.5 5-3.5 7.5 0 1.4.8 2.5 2 2.5H17" />
     </>
   ),
 }

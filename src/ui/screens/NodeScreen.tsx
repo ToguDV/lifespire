@@ -10,7 +10,7 @@ import type { MapNode, Run } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import { Button, Icon, Panel, Pips } from '../components'
 import { rewardFeedback } from '../lib/daySummary'
-import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL } from '../lib/format'
+import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIconFor } from '../lib/format'
 import {
   effortNote,
   nodeFlavor,
@@ -114,6 +114,7 @@ function NodeNotes({ node }: { node: MapNode }) {
 export function NodeScreen() {
   const view = useAppStore((state) => state.view)
   const run = useAppStore((state) => state.document.run)
+  const goals = useAppStore((state) => state.document.goals)
   const navigate = useAppStore((state) => state.navigate)
   const resolveNode = useAppStore((state) => state.resolveNode)
   const [resolving, setResolving] = useState(false)
@@ -196,6 +197,7 @@ export function NodeScreen() {
 
   const objective = node.task ? objectiveProgress(run, node.task.goalId) : null
   const taskBearing = node.task !== null
+  const goalCrest = goalIconFor(goals, node.task?.goalId)
   const lootRolls = node.rewards.lootRolls
 
   return (
@@ -209,7 +211,7 @@ export function NodeScreen() {
         <article className="panel node-spread" data-variant={node.type}>
           <header className="node-spread__art">
             <div className="node-medallion">
-              <Icon name={NODE_TYPE_ICON[node.type]} />
+              <Icon name={goalCrest ?? NODE_TYPE_ICON[node.type]} />
             </div>
             <span className="micro">{nodeTypeLine(node)}</span>
             <h1 id="node-title">{nodeTitle(node)}</h1>
@@ -219,7 +221,7 @@ export function NodeScreen() {
           <div className="node-spread__body">
             <div className="node-tags">
               <span className="chip chip--accent">
-                <Icon name={taskBearing ? 'banner' : NODE_TYPE_ICON[node.type]} />
+                <Icon name={goalCrest ?? NODE_TYPE_ICON[node.type]} />
                 {node.task ? node.task.goalTitle : `${NODE_TYPE_LABEL[node.type]} · no task`}
               </span>
 

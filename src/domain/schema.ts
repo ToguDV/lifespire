@@ -6,6 +6,8 @@ import {
   SCHEMA_VERSION,
 } from './balance'
 import { isDayKey } from './dates'
+import { GOAL_ICON_IDS, isGoalIconId, legacyGoalIcon } from './goalIcons'
+import type { GoalIconId } from './goalIcons'
 import { validateMap } from './generator'
 import type {
   Day,
@@ -47,8 +49,39 @@ export type SchemaResult = SchemaSuccess | SchemaFailure
 type RawObject = Record<string, unknown>
 type Migration = (document: RawObject) => RawObject
 
-/** Entry point for future schema upgrades. Version 1 is the current format. */
-const MIGRATIONS: Partial<Record<number, Migration>> = {}
+/** Entry point for future schema upgrades. Version 2 persists goal icons. */
+const MIGRATIONS: Partial<Record<number, Migration>> = {
+  1: migrateV1ToV2,
+}
+
+function migrateV1ToV2(document: RawObject): RawObject {
+  return {
+    ...document,
+    schemaVersion: 2,
+    goals: withMigratedGoalIcons(document.goals),
+    onboardingDraft: withMigratedDraftIcons(document.onboardingDraft),
+  }
+}
+
+/**
+ * Version 1 derived goal crests from their index. The migration keeps that
+ * cycle so existing saves look the same, then the icon becomes editable data.
+ * It uses the full goals array, matching the weekly rail's v1 index (the goals
+ * screen used the active-goal index, so the two could already disagree).
+ */
+function withMigratedGoalIcons(value: unknown): unknown {
+  if (!Array.isArray(value)) return value
+  return value.map((goal, index) => {
+    if (!isRecord(goal)) return goal
+    if (isGoalIconId(goal.icon)) return goal
+    return { ...goal, icon: legacyGoalIcon(index) }
+  })
+}
+
+function withMigratedDraftIcons(value: unknown): unknown {
+  if (!isRecord(value)) return value
+  return { ...value, goals: withMigratedGoalIcons(value.goals) }
+}
 
 const EFFORTS = ['light', 'medium', 'high'] as const
 const NODE_TYPES = ['task', 'elite', 'rest', 'treasure', 'boss'] as const
@@ -83,7 +116,7 @@ export function parseDocument(input: unknown): SchemaResult {
 
 /**
  * Applies migrations one version at a time, then validates the current shape.
- * There are no older versions yet; the loop is the entry point for v1+.
+ * Version 1 saves are upgraded by `MIGRATIONS[1]`; future bumps add an entry.
  */
 export function migrateDocument(input: unknown): SchemaResult {
   const raw = readObject(input)
@@ -256,6 +289,7 @@ function validateGoal(value: unknown, path: string): Goal {
     id: expectString(raw.id, `${path}.id`),
     title: expectString(raw.title, `${path}.title`),
     category: expectString(raw.category, `${path}.category`),
+    icon: expectEnum<GoalIconId>(raw.icon, `${path}.icon`, GOAL_ICON_IDS),
     weeklyObjective,
     active: expectBoolean(raw.active, `${path}.active`),
     createdAt: expectString(raw.createdAt, `${path}.createdAt`),
@@ -590,6 +624,7 @@ function validateDraftGoal(value: unknown, path: string): Goal {
     id: expectString(raw.id, `${path}.id`),
     title: expectString(raw.title, `${path}.title`),
     category: expectString(raw.category, `${path}.category`),
+    icon: expectEnum<GoalIconId>(raw.icon, `${path}.icon`, GOAL_ICON_IDS),
     weeklyObjective: expectNumber(raw.weeklyObjective, `${path}.weeklyObjective`),
     active: expectBoolean(raw.active, `${path}.active`),
     createdAt: expectString(raw.createdAt, `${path}.createdAt`),

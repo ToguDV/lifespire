@@ -4,7 +4,7 @@ import { useAppStore } from '../../state/store'
 import { Button, Dialog, Icon } from '../components'
 import { initialWeeklyTargets, validateNewRunSetup } from '../lib/newRun'
 import type { WeeklyTargets } from '../lib/newRun'
-import { goalIcon } from '../lib/format'
+import { goalIconName } from '../lib/format'
 
 export interface NewRunDialogProps {
   onClose: () => void
@@ -150,7 +150,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
                 <div className="new-run-goal" key={goal.id}>
                   <div className="new-run-goal__body">
                     <span className="new-run-goal__crest">
-                      <Icon name={goalIcon(index)} />
+                      <Icon name={goalIconName(goal.icon, index)} />
                     </span>
                     <div>
                       <strong>{goal.title}</strong>

@@ -16,7 +16,7 @@ import {
   Stat,
   StatStrip,
 } from '../components'
-import { goalIcon, percent, romanDay } from '../lib/format'
+import { goalIconFor, percent, romanDay } from '../lib/format'
 import {
   allAimsBonusCopy,
   duplicateGoldCopy,
@@ -154,9 +154,7 @@ function SealedBody({
                     title={objective.title}
                     progress={objective.progress}
                     target={objective.target}
-                    icon={goalIcon(
-                      goals.findIndex((goal) => goal.id === objective.goalId),
-                    )}
+                    icon={goalIconFor(goals, objective.goalId) ?? 'banner'}
                   />
                   <p className="summary-aim__bonus">
                     {objectiveBonusCopy(objective)}
@@ -379,9 +377,7 @@ function OpenWeek({ run, onCamp }: { run: Run; onCamp: () => void }) {
                     title={objective.goalTitle}
                     progress={objective.progress}
                     target={objective.target}
-                    icon={goalIcon(
-                      goals.findIndex((goal) => goal.id === objective.goalId),
-                    )}
+                    icon={goalIconFor(goals, objective.goalId) ?? 'banner'}
                   />
                 </li>
               ))}

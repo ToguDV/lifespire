@@ -14,6 +14,7 @@ import {
 } from '../domain/content'
 import type { ContentActionResult } from '../domain/content'
 import { dayKey } from '../domain/dates'
+import { isGoalIconId, nextGoalIcon } from '../domain/goalIcons'
 import {
   createRun,
   openDay as openDayDocument,
@@ -433,6 +434,9 @@ export function createAppStore(
             id: existing?.id ?? idFactory('goal'),
             title: input.title.trim(),
             category: input.category.trim() || existing?.category || 'General',
+            icon: isGoalIconId(input.icon)
+              ? input.icon
+              : existing?.icon ?? nextGoalIcon(current.goals),
             weeklyObjective: input.weeklyObjective,
             active: input.active,
             createdAt: existing?.createdAt ?? input.createdAt ?? at.toISOString(),

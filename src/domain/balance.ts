@@ -1,6 +1,6 @@
 import type { Effort, NodeRewards, NodeType, Rarity } from './types'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 export const STORAGE_KEY = 'lifespire:mvp0'
 
 export const RUN_DAYS = 7

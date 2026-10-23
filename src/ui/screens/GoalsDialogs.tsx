@@ -1,14 +1,20 @@
 import { useId, useState } from 'react'
-import { MAX_WEEKLY_OBJECTIVE, MIN_WEEKLY_OBJECTIVE } from '../../domain/balance'
+import {
+  MAX_GOALS,
+  MAX_WEEKLY_OBJECTIVE,
+  MIN_WEEKLY_OBJECTIVE,
+} from '../../domain/balance'
 import type { FieldErrors } from '../../domain/content'
+import { nextGoalIcon } from '../../domain/goalIcons'
+import type { GoalIconId } from '../../domain/goalIcons'
 import type { Effort, Goal, Task } from '../../domain/types'
 import { useAppStore } from '../../state/store'
-import { Button, Dialog, Icon } from '../components'
+import { Button, Dialog, Icon, IconPicker } from '../components'
 import { EFFORT_LABEL } from '../lib/format'
 
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
-const FIELD_KEYS = ['title', 'category', 'weeklyObjective', 'effort', 'goalId'] as const
+const FIELD_KEYS = ['title', 'category', 'icon', 'weeklyObjective', 'effort', 'goalId'] as const
 
 function nonFieldErrors(errors: string[], fieldErrors: FieldErrors): string[] {
   const fields = new Set(
@@ -25,8 +31,10 @@ export interface GoalDialogProps {
 
 export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
   const saveGoal = useAppStore((state) => state.saveGoal)
+  const goals = useAppStore((state) => state.document.goals)
   const [title, setTitle] = useState(goal?.title ?? '')
   const [category, setCategory] = useState(goal?.category ?? '')
+  const [icon, setIcon] = useState<GoalIconId>(() => goal?.icon ?? nextGoalIcon(goals))
   const [weeklyObjective, setWeeklyObjective] = useState(
     String(goal?.weeklyObjective ?? 3),
   )
@@ -40,6 +48,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       ...(goal ? { id: goal.id, createdAt: goal.createdAt } : {}),
       title,
       category,
+      icon,
       weeklyObjective: Number(weeklyObjective),
       active,
     })
@@ -70,8 +79,8 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       title={goal ? 'Edit goal' : 'Add a goal'}
       description={
         goal
-          ? 'Changes shape maps drawn from now on. This week’s targets stay fixed.'
-          : 'A goal holds the routines that move it. A run can hold up to three.'
+          ? 'Title and category shape maps drawn from now on. The icon updates across this run; weekly targets stay fixed.'
+          : `A goal holds the routines that move it. A run can hold up to ${MAX_GOALS} active goals.`
       }
       onClose={onClose}
       footer={
@@ -128,6 +137,24 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
             placeholder="e.g. Movement"
             onChange={(event) => setCategory(event.target.value)}
           />
+        </div>
+        <div className="field">
+          <IconPicker
+            name={`${formId}-icon`}
+            value={icon}
+            onChange={setIcon}
+            describedBy={
+              fieldErrors.icon ? `${formId}-icon-error` : `${formId}-icon-hint`
+            }
+          />
+          <p className="field-hint" id={`${formId}-icon-hint`}>
+            The crest marks this goal on maps and in weekly progress.
+          </p>
+          {fieldErrors.icon ? (
+            <p className="field-error" id={`${formId}-icon-error`}>
+              {fieldErrors.icon}
+            </p>
+          ) : null}
         </div>
         <div className="field">
           <label htmlFor={`${formId}-weekly`}>Weekly target</label>

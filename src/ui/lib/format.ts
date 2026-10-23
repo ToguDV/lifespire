@@ -1,5 +1,7 @@
 import { parseDayKey } from '../../domain/dates'
-import type { Effort, NodeType, Rarity } from '../../domain/types'
+import { legacyGoalIcon } from '../../domain/goalIcons'
+import type { GoalIconId } from '../../domain/goalIcons'
+import type { Effort, Goal, NodeType, Rarity } from '../../domain/types'
 import type { IconName } from '../components/Icon'
 
 const ROMAN_THOUSANDS = ['', 'M', 'MM', 'MMM']
@@ -53,10 +55,54 @@ export function percent(value: number, max: number): number {
   return Math.min(100, Math.max(0, (value / max) * 100))
 }
 
-export const GOAL_ICONS: readonly IconName[] = ['banner', 'flame', 'quill', 'gem']
+export const GOAL_ICON_LABEL: Record<GoalIconId, string> = {
+  banner: 'Banner',
+  flame: 'Flame',
+  quill: 'Quill',
+  gem: 'Gem',
+  compass: 'Compass',
+  star: 'Star',
+  sun: 'Sun',
+  moon: 'Moon',
+  key: 'Key',
+  cup: 'Cup',
+  pine: 'Pine',
+  lantern: 'Lantern',
+  feather: 'Feather',
+  ring: 'Ring',
+  scroll: 'Scroll',
+  crown: 'Crown',
+  map: 'Map',
+  tent: 'Tent',
+  book: 'Book',
+  heart: 'Heart',
+  leaf: 'Leaf',
+  brush: 'Brush',
+  dumbbell: 'Dumbbell',
+  home: 'Home',
+  wallet: 'Wallet',
+  briefcase: 'Briefcase',
+  users: 'People',
+  utensils: 'Utensils',
+}
 
-export function goalIcon(index: number): IconName {
-  return GOAL_ICONS[index % GOAL_ICONS.length] ?? 'banner'
+/** Goal crest safe for old fixtures: falls back to the legacy index cycle. */
+export function goalIconName(
+  icon: GoalIconId | undefined,
+  fallbackIndex = 0,
+): IconName {
+  return icon ?? legacyGoalIcon(fallbackIndex)
+}
+
+/** Resolves a node's goal crest; null when the goal is gone or absent. */
+export function goalIconFor(
+  goals: readonly Goal[],
+  goalId: string | null | undefined,
+): IconName | null {
+  if (!goalId) return null
+  const index = goals.findIndex((goal) => goal.id === goalId)
+  if (index < 0) return null
+  return goalIconName(goals[index]?.icon, index)
 }
 
 export const EFFORT_LABEL: Record<Effort, string> = {

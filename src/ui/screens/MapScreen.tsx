@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { availableNodeIds, currentDay, resolveNodeById } from '../../domain/selectors'
-import type { Day, GameMap, MapNode, NodeType, Run } from '../../domain/types'
+import type { Day, GameMap, Goal, MapNode, NodeType, Run } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
   AimRow,
@@ -13,7 +13,14 @@ import {
   ScreenHead,
 } from '../components'
 import type { IconName } from '../components'
-import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIcon, romanDay } from '../lib/format'
+import {
+  EFFORT_LABEL,
+  NODE_TYPE_ICON,
+  NODE_TYPE_LABEL,
+  goalIconFor,
+  goalIconName,
+  romanDay,
+} from '../lib/format'
 import { MAP_HEIGHT, MAP_WIDTH } from '../lib/mapLayout'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
@@ -25,20 +32,34 @@ const STATUS_COPY: Record<string, string> = {
   locked: 'Ahead',
 }
 
-const LEGEND: Array<{ type: NodeType; copy: string }> = [
-  { type: 'task', copy: '+1 toward weekly target · XP and gold by effort' },
-  { type: 'elite', copy: '+1 toward weekly target · doubled reward and a loot roll' },
+const LEGEND: Array<{ type: NodeType; icon?: IconName; copy: string }> = [
+  {
+    type: 'task',
+    icon: 'banner',
+    copy: 'Your goal crest · +1 toward weekly target · XP and gold by effort',
+  },
+  {
+    type: 'elite',
+    icon: 'star',
+    copy: 'Goal crest with a star · doubled reward and a loot roll',
+  },
   { type: 'rest', copy: '+5 XP · no weekly progress' },
   { type: 'treasure', copy: '+15 gold and a loot roll · no progress' },
-  { type: 'boss', copy: '+1 toward weekly target · closing bonus when completed' },
+  {
+    type: 'boss',
+    icon: 'crown',
+    copy: 'Your goal crest in the gate · closing bonus when completed',
+  },
 ]
 
 function ChoiceButton({
   node,
+  icon,
   open,
   onChoose,
 }: {
   node: MapNode
+  icon: IconName
   open: boolean
   onChoose: (nodeId: string) => void
 }) {
@@ -53,7 +74,7 @@ function ChoiceButton({
       onClick={() => onChoose(node.id)}
     >
       <span className="choice__icon">
-        <Icon name={NODE_TYPE_ICON[node.type]} />
+        <Icon name={icon} />
       </span>
       <span className="choice__body">
         <strong>{nodeTitle(node)}</strong>
@@ -68,12 +89,14 @@ function MapRail({
   run,
   day,
   map,
+  goals,
   onChoose,
   onGoals,
 }: {
   run: Run
   day: Day | null
   map: GameMap | null
+  goals: readonly Goal[]
   onChoose: (nodeId: string) => void
   onGoals: () => void
 }) {
@@ -113,6 +136,9 @@ function MapRail({
               <ChoiceButton
                 key={node.id}
                 node={node}
+                icon={
+                  goalIconFor(goals, node.task?.goalId) ?? NODE_TYPE_ICON[node.type]
+                }
                 open={index === 0}
                 onChoose={onChoose}
               />
@@ -152,17 +178,19 @@ function MapRail({
           }
         />
         {run.objectives.length > 0 ? (
-          run.objectives.map((objective) => (
-            <AimRow
-              key={objective.goalId}
-              title={objective.goalTitle}
-              progress={objective.progress}
-              target={objective.target}
-              icon={goalIcon(
-                run.objectives.findIndex((item) => item.goalId === objective.goalId),
-              )}
-            />
-          ))
+          run.objectives.map((objective) => {
+            const goalIndex = goals.findIndex((goal) => goal.id === objective.goalId)
+            const goal = goalIndex >= 0 ? goals[goalIndex] : undefined
+            return (
+              <AimRow
+                key={objective.goalId}
+                title={objective.goalTitle}
+                progress={objective.progress}
+                target={objective.target}
+                icon={goalIconName(goal?.icon, goalIndex)}
+              />
+            )
+          })
         ) : (
           <p className="panel-note">No weekly goals are recorded for this run.</p>
         )}
@@ -171,7 +199,7 @@ function MapRail({
       <div className="legend legend--detailed" aria-label="Node legend">
         {LEGEND.map((item) => (
           <span key={item.type}>
-            <Icon name={NODE_TYPE_ICON[item.type]} />
+            <Icon name={item.icon ?? NODE_TYPE_ICON[item.type]} />
             <b>{NODE_TYPE_LABEL[item.type]}</b>
             <small>{item.copy}</small>
           </span>
@@ -235,6 +263,7 @@ function EmptyMapFrame({ icon, micro, title, copy, day, action }: EmptyMapProps)
 
 export function MapScreen() {
   const run = useAppStore((state) => state.document.run)
+  const goals = useAppStore((state) => state.document.goals)
   const navigate = useAppStore((state) => state.navigate)
   const openDay = useAppStore((state) => state.openDay)
   const selectNode = useAppStore((state) => state.selectNode)
@@ -431,7 +460,7 @@ export function MapScreen() {
               </span>
               <span className="map-frame__day">Day {romanDay(day.index)}</span>
             </div>
-            <MapGraph map={map} day={day} onSelect={chooseNode} />
+            <MapGraph map={map} day={day} goals={goals} onSelect={chooseNode} />
           </div>
         ) : (
           <EmptyMapFrame
@@ -448,6 +477,7 @@ export function MapScreen() {
           run={run}
           day={day}
           map={hasMap ? map : null}
+          goals={goals}
           onChoose={chooseNode}
           onGoals={() => navigate({ name: 'goals' })}
         />
