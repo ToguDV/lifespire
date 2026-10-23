@@ -42,8 +42,9 @@ src/
 ```
 
 Los tests viven junto al módulo (`*.test.ts`). No se añaden librerías de UI,
-router ni kit visual. El mapa se dibuja con SVG propio. Las fuentes se sirven
-desde `public/fonts/` y se declaran en `tokens.css`.
+router ni kit visual; los iconos se resuelven con `lucide-react` a través del
+adaptador `Icon.tsx`/`iconMap.ts`. El mapa se dibuja con SVG propio. Las fuentes
+se sirven desde `public/fonts/` y se declaran en `tokens.css`.
 
 ## 2. Navegación sin router
 
@@ -301,9 +302,10 @@ confirmar (`beginJourney`). Los objetivos del borrador también guardan `icon`.
 `ring`, `scroll`, `crown`, `map`, `tent`, `book`, `heart`, `leaf`, `brush`,
 `dumbbell`, `home`, `wallet`, `briefcase`, `users`, `utensils`). El dominio
 posee la lista para validar sin importar React;
-la UI añade las etiquetas y el sprite. Los mapas resuelven el crest por
-`goalId` en render, de modo que un cambio de icono también actualiza un mapa ya
-dibujado sin alterar pasos ni recompensas.
+la UI añade las etiquetas y el mapa a componentes de `lucide-react`
+(`iconMap.ts`); `spire` se conserva como marca propia. Los mapas resuelven el
+crest por `goalId` en render, de modo que un cambio de icono también actualiza
+un mapa ya dibujado sin alterar pasos ni recompensas.
 
 `SCHEMA_VERSION` es 2. `MIGRATIONS[1]` rellena `goals[].icon` y
 `onboardingDraft.goals[].icon` con el ciclo legado `banner → flame → quill →
