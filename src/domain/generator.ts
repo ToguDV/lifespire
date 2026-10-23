@@ -114,10 +114,9 @@ function drawTask(
   pool: readonly TaskChoice[],
   usedInLayer: Set<string>,
   usedGlobally: Set<string>,
-  objectives: readonly RunObjective[],
+  objectivesByGoal: ReadonlyMap<string, RunObjective>,
   rng: Rng,
 ): TaskChoice {
-  const objectivesByGoal = new Map(objectives.map((objective) => [objective.goalId, objective] as const))
   const isPending = (choice: TaskChoice): boolean => {
     const objective = objectivesByGoal.get(choice.task.goalId)
     return !objective || objective.progress < objective.target
@@ -152,11 +151,10 @@ function drawTask(
  */
 function chooseBoss(
   pool: readonly TaskChoice[],
-  objectives: readonly RunObjective[],
+  objectivesByGoal: ReadonlyMap<string, RunObjective>,
   usedGlobally: ReadonlySet<string>,
   rng: Rng,
 ): TaskChoice {
-  const objectivesByGoal = new Map(objectives.map((objective) => [objective.goalId, objective] as const))
 
   const score = (choice: TaskChoice): [number, number, number] => {
     const objective = objectivesByGoal.get(choice.task.goalId)
@@ -291,6 +289,7 @@ function connectLayers(
  */
 export function generateMap(input: GenerateMapInput): GameMap {
   const pool = buildTaskPool(input)
+  const objectivesByGoal = new Map(input.objectives.map((objective) => [objective.goalId, objective] as const))
   if (pool.length === 0) {
     throw new MapGenerationError(
       'A map needs at least one active routine. Add a routine to an active goal and try again.',
@@ -398,7 +397,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
         }
       }
 
-      const choice = drawTask(pool, usedInLayer, usedGlobally, input.objectives, rng)
+      const choice = drawTask(pool, usedInLayer, usedGlobally, objectivesByGoal, rng)
       usedInLayer.add(choice.task.id)
       usedGlobally.add(choice.task.id)
       return {
@@ -421,7 +420,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
     })
   }
 
-  const bossChoice = chooseBoss(pool, input.objectives, usedGlobally, rng)
+  const bossChoice = chooseBoss(pool, objectivesByGoal, usedGlobally, rng)
   const boss: MapNode = {
     id: `n${layerCount}_0`,
     layer: layerCount,
