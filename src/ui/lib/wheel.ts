@@ -13,7 +13,7 @@ export function easeOutQuart(t: number): number {
 
 /** Physics of the spin, shared by the animation loop. */
 export const WHEEL_SPIN_TURNS = 4
-export const WHEEL_SPIN_DURATION_MS = 7000
+export const WHEEL_SPIN_DURATION_MS = 9100
 
 /**
  * Sector sitting under the top pointer for an absolute wheel rotation.

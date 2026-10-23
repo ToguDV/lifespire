@@ -546,7 +546,11 @@ export function NodeScreen() {
                             ? `+${rolledOutcome.xp} XP`
                             : `+${rolledOutcome.xp} XP`}
                     </p>
-                    <Button variant="primary" disabled={resolving} onClick={() => record('complete')}>
+                    <Button
+                      variant="primary"
+                      disabled={resolving}
+                      onClick={() => navigate({ name: 'reward', nodeId: node.id })}
+                    >
                       <Icon name="check" />
                       Claim reward
                     </Button>

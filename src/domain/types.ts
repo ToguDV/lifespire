@@ -15,6 +15,7 @@ export type View =
   | { name: 'home' }
   | { name: 'map' }
   | { name: 'node'; nodeId: string }
+  | { name: 'reward'; nodeId: string }
   | { name: 'day-summary'; dayId: string }
   | { name: 'run-summary' }
   | { name: 'goals' }

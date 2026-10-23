@@ -160,6 +160,7 @@ export function deriveInitialView(
 function sameView(a: View, b: View): boolean {
   if (a.name !== b.name) return false
   if (a.name === 'node' && b.name === 'node') return a.nodeId === b.nodeId
+  if (a.name === 'reward' && b.name === 'reward') return a.nodeId === b.nodeId
   if (a.name === 'day-summary' && b.name === 'day-summary') return a.dayId === b.dayId
   if (a.name === 'recovery' && b.name === 'recovery') return a.reason === b.reason
   return true

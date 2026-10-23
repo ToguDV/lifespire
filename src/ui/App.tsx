@@ -21,6 +21,7 @@ import { NodeScreen } from './screens/NodeScreen'
 import { OnboardingScreen } from './screens/OnboardingScreen'
 import { ProfileScreen } from './screens/ProfileScreen'
 import { RecoveryScreen } from './screens/RecoveryScreen'
+import { RewardScreen } from './screens/RewardScreen'
 import { RunSummaryScreen } from './screens/RunSummaryScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 
@@ -52,7 +53,7 @@ function viewKey(view: View): string {
 }
 
 function tabForView(view: View): string {
-  if (view.name === 'map' || view.name === 'node' || view.name === 'day-summary' || view.name === 'run-summary') {
+  if (view.name === 'map' || view.name === 'node' || view.name === 'reward' || view.name === 'day-summary' || view.name === 'run-summary') {
     return 'map'
   }
   if (view.name === 'home') return 'home'
@@ -75,6 +76,7 @@ const VIEW_TITLES: Record<string, string> = {
   camp: 'Camp · LifeSpire',
   map: 'Map · LifeSpire',
   node: 'Node detail · LifeSpire',
+  reward: 'Reward · LifeSpire',
   summary: 'Summary · LifeSpire',
   aims: 'Goals · LifeSpire',
   reliquary: 'Reliquary · LifeSpire',
@@ -115,7 +117,7 @@ export default function App() {
         ? { name: 'home' }
         : view.name === 'day-summary' && (!run || !summaryDay)
           ? { name: 'home' }
-          : (view.name === 'map' || view.name === 'node') &&
+          : (view.name === 'map' || view.name === 'node' || view.name === 'reward') &&
               (!run || run.status === 'closed' || !current)
             ? run?.status === 'closed'
               ? { name: 'run-summary' }
@@ -143,7 +145,7 @@ export default function App() {
       return
     }
     if (
-      (view.name === 'map' || view.name === 'node') &&
+      (view.name === 'map' || view.name === 'node' || view.name === 'reward') &&
       (!run || run.status === 'closed' || !current)
     ) {
       navigate(run?.status === 'closed' ? { name: 'run-summary' } : { name: 'home' })
@@ -219,6 +221,8 @@ export default function App() {
         return <MapScreen />
       case 'node':
         return <NodeScreen />
+      case 'reward':
+        return <RewardScreen />
       case 'day-summary':
         return <DaySummaryScreen dayId={guardedView.dayId} />
       case 'run-summary':

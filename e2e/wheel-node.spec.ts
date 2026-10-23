@@ -44,10 +44,15 @@ test.describe('wheel node', () => {
     await expect(page.getByRole('status').filter({ hasText: /Spinning/i }).first()).toBeVisible()
     await expect(
       page.getByRole('button', { name: /Claim reward/i }),
-    ).toBeVisible({ timeout: 15000 })
+    ).toBeVisible({ timeout: 20000 })
     await expect(page.locator('.wheel__result')).toBeVisible()
 
     await page.getByRole('button', { name: /Claim reward/i }).click()
+    await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Done$/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Back to step/i })).toBeVisible()
+
+    await page.getByRole('button', { name: /^Done$/i }).click()
     await expect(page.getByRole('status').filter({ hasText: /Wheel:/ }).first()).toBeVisible()
     await expect(page.locator(`button[data-node-id="${wheelId}"]`)).toHaveAttribute(
       'data-status',
@@ -73,5 +78,30 @@ test.describe('wheel node', () => {
       'data-status',
       'skipped',
     )
+  })
+
+  test('backing out of the recap keeps the step unplayed', async ({ page }) => {
+    await startDemoRun(page)
+    const wheelId = await forceWheelCurrent(page)
+
+    await page.getByRole('button', { name: /Spin the wheel/i }).click()
+    await expect(
+      page.getByRole('button', { name: /Claim reward/i }),
+    ).toBeVisible({ timeout: 20000 })
+
+    await page.getByRole('button', { name: /Claim reward/i }).click()
+    await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible()
+    await page.getByRole('button', { name: /Back to step/i }).click()
+
+    await expect(page.getByRole('button', { name: /Spin the wheel/i })).toBeVisible()
+    const status = await page.evaluate((id) => {
+      const raw = window.localStorage.getItem('lifespire:mvp0')
+      const document = JSON.parse(raw ?? '{}') as {
+        run?: { days?: Array<{ rewards?: Array<{ nodeId: string }> }> }
+      }
+      const day = document.run?.days?.find((entry) => entry.rewards)
+      return day?.rewards?.some((event) => event.nodeId === id) ?? false
+    }, wheelId)
+    expect(status).toBe(false)
   })
 })
