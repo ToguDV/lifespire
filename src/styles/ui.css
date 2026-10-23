@@ -1833,16 +1833,44 @@ button.text-link {
 .wheel__seg--xp { fill: var(--wheel-xp); stroke: var(--wheel-stroke); stroke-width: 1; }
 .wheel__seg--rest { fill: var(--wheel-rest); stroke: var(--wheel-stroke); stroke-width: 1; }
 
-.wheel__hub {
-  fill: var(--wheel-task);
-  stroke: var(--wheel-stroke);
-  stroke-width: 2;
+.wheel__frame {
+  position: relative;
+  width: 200px;
+  height: 200px;
 }
 
+/* static hub: never spins with the sectors */
+.wheel__hub {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--wheel-task);
+  border: 2px solid var(--wheel-stroke);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  color: var(--wheel-icon);
+  z-index: 2;
+}
+
+.wheel__hub--gold { background: var(--wheel-gold); }
+.wheel__hub--xp { background: var(--wheel-xp); }
+.wheel__hub--rest { background: var(--wheel-rest); }
+.wheel__hub--task { background: var(--wheel-task); }
+
 .wheel__hub-text {
-  fill: var(--wheel-icon);
   font-family: var(--font-display, serif);
-  font-size: 20px;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.wheel__hub .icon {
+  width: 22px;
+  height: 22px;
 }
 
 .wheel__svg .icon {
@@ -1855,17 +1883,65 @@ button.text-link {
   color: var(--wheel-icon);
 }
 
+/* hub heartbeat while the wheel spins */
+.wheel-spinner[data-spinning="true"] .wheel__hub {
+  animation: wheel-hub-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes wheel-hub-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* glow while spinning */
+.wheel-spinner[data-spinning="true"] .wheel {
+  box-shadow:
+    0 0 0 6px var(--hairline-strong),
+    0 12px 30px rgba(0, 0, 0, 0.35),
+    0 0 36px var(--accent-soft);
+}
+
+/* the drawn segment earns a ticking pointer */
 .wheel__pointer {
   position: absolute;
-  top: 0px;
+  top: -8px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2;
+  transform-origin: 50% 0;
+  z-index: 3;
   width: 0;
   height: 0;
   border-left: 10px solid transparent;
   border-right: 10px solid transparent;
   border-top: 18px solid var(--wheel-icon);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
+}
+
+.wheel-spinner[data-spinning="true"] .wheel__pointer {
+  animation: wheel-pointer-tick 0.3s ease-in-out infinite;
+}
+
+@keyframes wheel-pointer-tick {
+  0%, 100% { transform: translateX(-50%) rotate(-14deg); }
+  50% { transform: translateX(-50%) rotate(14deg); }
+}
+
+/* after the reveal only the winning sector stays lit */
+.wheel-spinner[data-revealed="true"] .wheel__seg {
+  opacity: 0.45;
+  transition: opacity 0.4s ease;
+}
+
+.wheel-spinner[data-revealed="true"] .wheel__seg--winner {
+  opacity: 1;
+  stroke: var(--wheel-icon);
+  stroke-width: 2;
+  animation: wheel-winner-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes wheel-winner-glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.45); }
 }
 
 .wheel__status {
@@ -1905,6 +1981,11 @@ button.text-link {
     transition: none;
   }
   .wheel__result {
+    animation: none;
+  }
+  .wheel-spinner[data-spinning="true"] .wheel__hub,
+  .wheel-spinner[data-spinning="true"] .wheel__pointer,
+  .wheel-spinner[data-revealed="true"] .wheel__seg--winner {
     animation: none;
   }
 }

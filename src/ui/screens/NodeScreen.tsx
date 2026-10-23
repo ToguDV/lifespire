@@ -418,35 +418,49 @@ export function NodeScreen() {
             ) : null}
 
             {isWheel ? (
-              <div className="wheel-spinner" data-spinning={spinning ? 'true' : 'false'}>
-                <div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>
-                  <svg viewBox="0 0 200 200" className="wheel__svg" aria-hidden="true">
-                    <g className="wheel__segments">
-                      {WHEEL_SECTORS.map((cat, i) => (
-                        <path
-                          key={i}
-                          d={sectorPath(i)}
-                          className={`wheel__seg wheel__seg--${cat}`}
-                        />
-                      ))}
-                    </g>
-                    <g className="wheel__icons">
-                      {WHEEL_SECTORS.map((cat, i) => {
-                        const pos = sectorIconPos(i)
-                        return (
-                          <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
-                            <g transform="translate(-10, -10)">
-                              <Icon name={sectorIcon(cat)} />
+              <div
+                className="wheel-spinner"
+                data-spinning={spinning ? 'true' : 'false'}
+                data-revealed={revealed ? 'true' : 'false'}
+              >
+                <div className="wheel__frame">
+                  <div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>
+                    <svg viewBox="0 0 200 200" className="wheel__svg" aria-hidden="true">
+                      <g className="wheel__segments">
+                        {WHEEL_SECTORS.map((cat, i) => (
+                          <path
+                            key={i}
+                            d={sectorPath(i)}
+                            className={`wheel__seg wheel__seg--${cat}${revealed && rolledOutcome?.segmentIndex === i ? ' wheel__seg--winner' : ''}`}
+                          />
+                        ))}
+                      </g>
+                      <g className="wheel__icons">
+                        {WHEEL_SECTORS.map((cat, i) => {
+                          const pos = sectorIconPos(i)
+                          return (
+                            <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+                              <g transform="translate(-10, -10)">
+                                <Icon name={sectorIcon(cat)} />
+                              </g>
                             </g>
-                          </g>
-                        )
-                      })}
-                    </g>
-                    <circle cx="100" cy="100" r="22" className="wheel__hub" />
-                    <text x="100" y="106" textAnchor="middle" className="wheel__hub-text">?</text>
-                  </svg>
+                          )
+                        })}
+                      </g>
+                    </svg>
+                  </div>
+                  <span className="wheel__pointer" aria-hidden="true" />
+                  <span
+                    className={`wheel__hub wheel__hub--${revealed && rolledOutcome ? rolledOutcome.outcome : 'mystery'}`}
+                    aria-hidden="true"
+                  >
+                    {revealed && rolledOutcome ? (
+                      <Icon name={sectorIcon(rolledOutcome.outcome)} />
+                    ) : (
+                      <span className="wheel__hub-text">?</span>
+                    )}
+                  </span>
                 </div>
-                <span className="wheel__pointer" aria-hidden="true" />
 
                 {!revealed && !spinning ? (
                   <Button variant="primary" onClick={spinWheel}>
