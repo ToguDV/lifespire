@@ -1,12 +1,14 @@
-import { BOSS_CLOSING_BONUS, GENERATOR_VERSION, RUN_DAYS } from './balance'
+import { BOSS_CLOSING_BONUS, GENERATOR_VERSION, RUN_DAYS, WHEEL_GOLD, WHEEL_OUTCOME_WEIGHTS, WHEEL_PENDING_WEIGHT, WHEEL_REST_XP, WHEEL_SECTORS, WHEEL_XP } from './balance'
 import { addDays, dayKey, parseDayKey } from './dates'
-import { generateMap } from './generator'
-import { acquireLoot, applyXp, rollLootItem } from './rewards'
+import { buildTaskPool, generateMap } from './generator'
+import { createRng } from './rng'
+import { acquireLoot, applyXp, rewardsForNode, rollLootItem } from './rewards'
 import { availableNodeIds, currentDay, resolveNodeById } from './selectors'
 import type {
   Day,
   DaySummary,
   GameDocument,
+  Goal,
   LootItem,
   MapNode,
   Profile,
@@ -17,6 +19,9 @@ import type {
   RunObjective,
   RunSetup,
   RunTotals,
+  Task,
+  TaskSnapshot,
+  WheelOutcome,
 } from './types'
 
 /** A rejected lifecycle transition with a message that can be shown to the player. */
@@ -383,12 +388,102 @@ interface ResolutionResult {
   duplicateGold: number
   closingBonus: boolean
   objectives: RunObjective[]
+  wheelOutcome: WheelOutcome | null
+  wheelTask: TaskSnapshot | null
 }
+
+// The visual sector layout lives in balance.ts next to the outcome weights.
+export { WHEEL_SECTORS }
 
 /**
  * Applies a completed node. Gold in the returned event total includes any
  * duplicate conversion; `profile.gold` is credited once for each part.
  */
+
+export function rollWheelOutcome(input: {
+  runId: string
+  dayIndex: number
+  nodeId: string
+  goals: readonly Goal[]
+  tasks: readonly Task[]
+  objectives: readonly RunObjective[]
+}): {
+  outcome: WheelOutcome
+  task: TaskSnapshot | null
+  xp: number
+  gold: number
+  progress: number
+  objectives: RunObjective[]
+  segmentIndex: number
+} {
+  const objectivesByGoal = new Map(input.objectives.map((o) => [o.goalId, o] as const))
+  const pool = buildTaskPool(input.goals, input.tasks)
+  const seed = `${input.runId}:day:${input.dayIndex}:node:${input.nodeId}:wheel`
+  const rng = createRng(seed)
+  const category = rng.weightedPick(
+    ['task', 'gold', 'xp', 'rest'] as const,
+    (outcome) => WHEEL_OUTCOME_WEIGHTS[outcome],
+  )
+
+  if (category === 'gold') {
+    return { outcome: 'gold', task: null, xp: 0, gold: WHEEL_GOLD, progress: 0, objectives: [...input.objectives], segmentIndex: 5 + rng.int(2) }
+  }
+  if (category === 'xp') {
+    return { outcome: 'xp', task: null, xp: WHEEL_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 7 + rng.int(2) }
+  }
+  if (category === 'rest') {
+    return { outcome: 'rest', task: null, xp: WHEEL_REST_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 9 }
+  }
+
+  // task
+  if (pool.length === 0) {
+    return { outcome: 'rest', task: null, xp: WHEEL_REST_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 9 }
+  }
+
+  const pendingWeight = (choice: (typeof pool)[number]): number => {
+    const objective = objectivesByGoal.get(choice.task.goalId)
+    const pending =
+      !objective || objective.progress < objective.target
+        ? WHEEL_PENDING_WEIGHT
+        : 1
+    return pending
+  }
+  const choice = rng.weightedPick(pool, pendingWeight)
+
+  const effort = choice.task.effort
+  const baseRewards = rewardsForNode('task', effort)
+
+  const wheelTask = {
+    taskId: choice.task.id,
+    title: choice.task.title,
+    goalId: choice.task.goalId,
+    goalTitle: choice.goalTitle,
+    effort,
+  }
+
+  const goalId = choice.task.goalId
+  const objectiveIndex = input.objectives.findIndex((o) => o.goalId === goalId)
+  const progress = objectiveIndex >= 0 ? 1 : 0
+  const objectives =
+    progress === 1
+      ? input.objectives.map((objective, index) =>
+          index === objectiveIndex
+            ? { ...objective, progress: objective.progress + 1 }
+            : objective,
+        )
+      : [...input.objectives]
+
+  return {
+    outcome: 'task',
+    task: wheelTask,
+    xp: baseRewards.xp,
+    gold: baseRewards.gold,
+    progress,
+    objectives,
+    segmentIndex: rng.int(5),
+  }
+}
+
 function applyCompletion(input: {
   profile: Profile | null
   run: Run
@@ -396,6 +491,8 @@ function applyCompletion(input: {
   node: MapNode
   idBase: string
   obtainedAt: string
+  goals: readonly Goal[]
+  tasks: readonly Task[]
 }): ResolutionResult {
   const startingProfile = input.profile
   if (!startingProfile) {
@@ -403,6 +500,36 @@ function applyCompletion(input: {
   }
 
   const { node } = input
+
+  // Wheel: resolve a random outcome at completion time.
+  if (node.type === 'wheel') {
+    const rolled = rollWheelOutcome({
+      runId: input.idBase,
+      dayIndex: input.dayIndex,
+      nodeId: node.id,
+      goals: input.goals,
+      tasks: input.tasks,
+      objectives: input.run.objectives,
+    })
+
+    let profile = applyXp(startingProfile, rolled.xp)
+    profile = { ...profile, gold: profile.gold + rolled.gold }
+
+    return {
+      profile,
+      xp: rolled.xp,
+      gold: rolled.gold,
+      progress: rolled.progress,
+      lootItem: null,
+      duplicateCatalogId: null,
+      duplicateGold: 0,
+      closingBonus: false,
+      objectives: rolled.objectives,
+      wheelOutcome: rolled.outcome,
+      wheelTask: rolled.task,
+    }
+  }
+
   let profile = applyXp(startingProfile, node.rewards.xp)
   profile = { ...profile, gold: profile.gold + node.rewards.gold }
 
@@ -452,6 +579,8 @@ function applyCompletion(input: {
     duplicateGold,
     closingBonus: node.type === 'boss',
     objectives,
+    wheelOutcome: null,
+    wheelTask: null,
   }
 }
 
@@ -466,6 +595,8 @@ function applySkip(profile: Profile | null, objectives: RunObjective[]): Resolut
     duplicateGold: 0,
     closingBonus: false,
     objectives,
+    wheelOutcome: null,
+    wheelTask: null,
   }
 }
 
@@ -539,6 +670,8 @@ export function resolveNode(
           node,
           idBase,
           obtainedAt: at,
+          goals: document.goals,
+          tasks: document.tasks,
         })
       : applySkip(document.profile, run.objectives)
 
@@ -554,10 +687,10 @@ export function resolveNode(
     nodeId: node.id,
     nodeType: node.type,
     action: options.action,
-    taskId: node.task?.taskId ?? null,
-    taskTitle: node.task?.title ?? null,
-    goalId: node.task?.goalId ?? null,
-    goalTitle: node.task?.goalTitle ?? null,
+    taskId: (node.task ?? resolution.wheelTask)?.taskId ?? null,
+    taskTitle: (node.task ?? resolution.wheelTask)?.title ?? null,
+    goalId: (node.task ?? resolution.wheelTask)?.goalId ?? null,
+    goalTitle: (node.task ?? resolution.wheelTask)?.goalTitle ?? null,
     xp: resolution.xp,
     gold: resolution.gold,
     progress: resolution.progress,
@@ -565,6 +698,7 @@ export function resolveNode(
     duplicateCatalogId: resolution.duplicateCatalogId,
     duplicateGold: resolution.duplicateGold,
     closingBonus: resolution.closingBonus,
+    wheelOutcome: resolution.wheelOutcome,
     at,
   }
 

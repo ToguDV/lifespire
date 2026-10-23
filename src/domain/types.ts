@@ -1,7 +1,8 @@
 import type { GoalIconId } from './goalIcons'
 
 export type Effort = 'light' | 'medium' | 'high'
-export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss'
+export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss' | 'wheel'
+export type WheelOutcome = 'task' | 'gold' | 'xp' | 'rest'
 export type Rarity = 'common' | 'rare' | 'epic'
 export type DayStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'missed'
 export type RunStatus = 'active' | 'closed'
@@ -14,6 +15,7 @@ export type View =
   | { name: 'home' }
   | { name: 'map' }
   | { name: 'node'; nodeId: string }
+  | { name: 'reward'; nodeId: string }
   | { name: 'day-summary'; dayId: string }
   | { name: 'run-summary' }
   | { name: 'goals' }
@@ -136,6 +138,7 @@ export interface RewardEvent {
   duplicateCatalogId: string | null
   duplicateGold: number
   closingBonus: boolean
+  wheelOutcome?: WheelOutcome | null
   at: string
 }
 

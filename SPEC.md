@@ -40,7 +40,7 @@ Concrete criteria:
 - 1–10 goals, each with its routines/tasks and a weekly objective.
 - A 7-day run with one map per day.
 - Maps with 3–15 decision layers + a final boss, with 3–5 nodes per layer. Depth follows the goals that have at least one active routine and their weekly targets; routines shape layer width.
-- Node types: task, elite, rest, treasure, and boss.
+- Node types: task, elite, rest, treasure, wheel, and boss.
 - Path selection, completing or skipping nodes, instant rewards.
 - XP, simple leveling, gold, and collectible loot with no gameplay effects.
 - Weekly objective progress, day summary, and run summary.
@@ -68,7 +68,7 @@ Concrete criteria:
 | **Weekly target** (weekly objective in the domain model) | The number of times a goal must be completed during the run. |
 | **Run** | A 7-day window starting from its creation. |
 | **Day** | A map with a path that is resolved once. |
-| **Node** | A stop on the map: task, elite, rest, treasure, or boss. |
+| **Node** | A stop on the map: task, elite, rest, treasure, wheel, or boss. |
 | **Path** | The sequence of nodes chosen up to the boss. |
 | **Daily boss** | The final node; completing it closes the day with a bonus. |
 
@@ -124,6 +124,7 @@ Node types:
 | Elite | Difficult routine | +1 | Double reward and a loot roll |
 | Rest | Break, no task | — | Small XP |
 | Treasure | Direct reward | — | Gold and a loot roll |
+| Wheel | Mystery: task, gold, XP or rest | 0 or +1 | Surprise outcome (task rewards apply if a task is drawn) |
 | Boss | Main task of the day | +1 | High reward + closing bonus |
 
 Path choice must have visible trade-offs: tasks advance the week, treasures give an immediate reward but no progress, and elites give more resources in exchange for more effort.
@@ -138,6 +139,7 @@ Effort multiplier: light `×1`, medium `×1.5`, high `×2`.
 | Elite | 20 × multiplier | 20 × multiplier | 1 roll | +1 |
 | Rest | 5 | 0 | — | — |
 | Treasure | 0 | 15 | 1 roll | — |
+| Wheel | 0 or task XP | 0 or 20 | — | 0 or +1 |
 | Boss | 20 × multiplier + 20 | 20 × multiplier + 20 | 1 roll | +1 |
 
 - **Loot:** a small pool of 10–12 items with common, rare, or epic rarity. No effects in the POC; it is a collection and fantasy element. Duplicates convert to gold.
@@ -153,7 +155,8 @@ Minimum screens:
 1. **Onboarding:** brief explanation, optional name, choose demo or create goals/routines, confirm weekly objectives.
 2. **Home / Run:** current day, map access, objective progress, gold, XP, and level.
 3. **Map:** main screen; traveled path, available nodes, locked nodes, and weekly objectives panel.
-4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons.
+4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons. The wheel spins on the node, then the reward recap opens on its own.
+5. **Reward recap (wheel):** outcome summary with a "Done" button that records it; no way back, so no task is skipped by accident.
 5. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
 6. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
 7. **Goals and routines:** minimal CRUD for goals, tasks, effort, weekly frequency, and the goal icon that marks its map nodes.

@@ -56,6 +56,7 @@ export type View =
   | { name: 'home' }
   | { name: 'map' }
   | { name: 'node'; nodeId: string }
+  | { name: 'reward'; nodeId: string }
   | { name: 'day-summary'; dayId: string }
   | { name: 'run-summary' }
   | { name: 'goals' }
@@ -99,7 +100,8 @@ se guarda.
 
 ```ts
 export type Effort = 'light' | 'medium' | 'high'
-export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss'
+export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss' | 'wheel'
+export type WheelOutcome = 'task' | 'gold' | 'xp' | 'rest'
 export type Rarity = 'common' | 'rare' | 'epic'
 export type DayStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'missed'
 export type RunStatus = 'active' | 'closed'
@@ -173,7 +175,7 @@ export interface GameMap {
   seed: string
   dayIndex: number
   generatorVersion: number
-  layers: MapNode[][]      // 3..15 capas de 2..5 nodos
+  layers: MapNode[][]      // 3..15 capas de 3..5 nodos (2..5 en saves legacy < v4)
   boss: MapNode
   currentNodeId: string | null
   createdAt: string
@@ -202,6 +204,7 @@ export interface RewardEvent {
   duplicateCatalogId: string | null
   duplicateGold: number
   closingBonus: boolean
+  wheelOutcome?: WheelOutcome | null
   at: string
 }
 
@@ -326,6 +329,7 @@ REWARDS = {
   rest:     { xp: 5,  gold: 0,  lootRolls: 0, progress: 0 },
   treasure: { xp: 0,  gold: 15, lootRolls: 1, progress: 0 },
   boss:     { xp: 20, gold: 20, lootRolls: 1, progress: 1 },
+  wheel:    { xp: 0,  gold: 0,  lootRolls: 0, progress: 0 },
 }
 BOSS_CLOSING_BONUS = { xp: 20, gold: 20 }
 ```
@@ -354,6 +358,15 @@ BOSS_CLOSING_BONUS = { xp: 20, gold: 20 }
   `DaySummary.duplicateGold` suma sus conversiones. `closingBonusXp/Gold` muestran
   los 20/20 del boss por separado (0 si se saltó), aunque ya estén incluidos en
   el total del evento.
+- Wheel (`lifecycle.ts:rollWheelOutcome` + `WHEEL_SECTORS` en `balance.ts`):
+  semilla estable `${runId}:day:${dayIndex}:node:${nodeId}:wheel`; la preview de
+  la UI y `applyCompletion` usan los mismos inputs, sin doble tirada. Pesos
+  `WHEEL_OUTCOME_WEIGHTS = { task: 50, gold: 20, xp: 20, rest: 10 }` y sectores
+  visuales proporcionales 5/2/2/1 (`task` 0–4, `gold` 5–6, `xp` 7–8, `rest` 9).
+  Payouts: `task` = recompensa de task según effort +1 progreso (pendientes pesan
+  `WHEEL_PENDING_WEIGHT = 4`); `gold` = `WHEEL_GOLD = 20`; `xp` = `WHEEL_XP = 25`;
+  `rest` = `WHEEL_REST_XP = 5`. Pool vacío → `rest` (segmento 9). El evento
+  guarda `wheelOutcome` y el snapshot sorteado (`taskId/title/goal`), sin loot.
 
 ### Mapa (`generator.ts`)
 
@@ -370,7 +383,7 @@ generateMap(input: {
 }): GameMap
 ```
 
-- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 4` desde que las capas tienen al menos tres nodos, una frontera fuerza el cruce y la profundidad suma los weekly targets; los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
+- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 5` (añade el nodo wheel); los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
 - 3–15 capas de decisión con 3–5 nodos + boss. La profundidad depende de las metas con al menos una rutina activa y de la suma de sus weekly targets: `resolveDecisionLayerCount = clamp(3, 15, goals + offset + floor(weeklyTargetSum / 7))`, con `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))` y `MAX_DECISION_LAYERS = 15`. La tabla base es 1→3, 2→4, 3→5, 4→7, 5→8, 6→10, 7→11, 8→13, 9→14, 10→15; cada siete weekly targets suma una capa. Las rutinas no cambian la profundidad por sí solas, solo el ancho (`maxLayerSize = max(3, min(5, pool + 1))`). Capa 0 disponible desde el start.
 - Ancho de capa: la primera capa se sortea entre 3 y `max(3, min(5, pool + 1))` y
   cada capa siguiente deriva ±1 nodo de la anterior. Derivar poco mantiene la
@@ -381,10 +394,14 @@ generateMap(input: {
   conserva el índice de carril, así que toda ruta start→boss cruza al menos una
   vez. Si todas las capas quedaran pares, una capa del medio pasa a 5 (o a 3)
   para garantizar que el carril central exacto aparezca en el mapa.
-- Cada capa: al menos 1 task, como máximo 1 rest **o** treasure, y 1–2 elites en
-  todo el mapa. Una capa más ancha que el pool **obliga** a llevar rest o
-  treasure.
-- Task/elite/boss requieren `TaskSnapshot`. Rest/treasure tienen `task: null`.
+- Cada capa: al menos 1 task, como máximo 1 especial (rest, treasure **o**
+  wheel), y 1–2 elites en todo el mapa. Una capa más ancha que el pool
+  **obliga** a llevar un especial.
+- Wheel en el mapa: al menos 1 por mapa, `wheelCount = max(1, min(3,
+  ceil(layers / 5)))`; ocupa slots especiales (nunca desplaza task/elite) y se
+  valida como especial único por capa (`validateMap`). `task: null`,
+  `rewards` en ceros; el payout real se sortea en `resolveNode`.
+- Task/elite/boss requieren `TaskSnapshot`. Rest/treasure/wheel tienen `task: null`.
 - Sin tareas repetidas dentro de una capa. Entre capas se evita repetir mientras
   el pool lo permita; con pools pequeños se permite repetir entre capas.
 - Conexiones: cada nodo de una capa de decisión conecta a 1–2 nodos de la capa
@@ -449,8 +466,13 @@ generateMap(input: {
 - `resolveNode(document, { dayId, nodeId, action, now, runId? })`:
   - exige run activo, día actual, día `in_progress` con mapa y que el nodo sea el
     actual o esté disponible por conexión;
-  - `complete` concede recompensas, +1 de progreso si aplica y loot;
-  - `skip` concede 0 XP/oro/loot/progreso pero también registra evento y avanza;
+  - `complete` concede recompensas, +1 de progreso si aplica y loot; en `wheel`
+    sortea el outcome con `rollWheelOutcome` (misma semilla que la preview) y
+    acredita `task` (XP/oro de task +1), `gold` (+20), `xp` (+25) o `rest` (+5).
+    El claim es en dos pasos: el giro termina con avance forzado al recap
+    tras un beat; sin re-spin. Solo Done resuelve y el recap no ofrece regreso;
+  - `skip` concede 0 XP/oro/loot/progreso pero también registra evento y avanza
+    (también en `wheel`: el skip está siempre disponible, el claim solo tras girar);
   - añade a `path`, registra un `RewardEvent` con id estable (los skip con ceros
     y `action: 'skip'`), limpia `currentNodeId` y recalcula `run.totals` desde
     los eventos persistidos;
@@ -769,6 +791,10 @@ prototipo retirado:
   duplicados, niveles 0/99/100/199.
 - `lifecycle`: medianoche 23:59/00:00, ausencia de 3 días, día 7 completado y
   missed, idempotencia, resolución duplicada, reload entre resoluciones.
+- `wheel` (`wheel.test.ts` + `ui/lib/wheel.test.ts`): sectores 5/2/2/1
+  proporcionales a los pesos, determinismo preview↔resolución, `segmentIndex`
+  por categoría, payouts, fallback con pool vacío, skip en ceros, doble resolve,
+  totales/summary, y rotación que aterriza en el segmento sorteado.
 - `runClose`: 0/parcial/todos los objetivos, bonus por objetivo y total, raro
   garantizado, duplicados convertidos a oro, missed/0 días jugados,
   idempotencia, `summary.totals === run.totals`, deltas del perfil, nueva run

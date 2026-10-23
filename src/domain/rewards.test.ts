@@ -49,6 +49,11 @@ const EXPECTED: Record<NodeType, NodeRewards[]> = {
     { xp: 50, gold: 50, lootRolls: 1, progress: 1 },
     { xp: 60, gold: 60, lootRolls: 1, progress: 1 },
   ],
+  wheel: [
+    { xp: 0, gold: 0, lootRolls: 0, progress: 0 },
+    { xp: 0, gold: 0, lootRolls: 0, progress: 0 },
+    { xp: 0, gold: 0, lootRolls: 0, progress: 0 },
+  ],
 }
 
 const CASES = (Object.keys(EXPECTED) as NodeType[]).flatMap((type) =>
@@ -68,8 +73,8 @@ describe('rewardsForNode', () => {
     expect(rewardsForNode(type, effort)).toEqual(expected)
   })
 
-  it('covers the full 5 × 3 table', () => {
-    expect(CASES).toHaveLength(15)
+  it('covers the full 6 × 3 table', () => {
+    expect(CASES).toHaveLength(18)
   })
 
   it('only scales task, elite and boss XP and gold', () => {

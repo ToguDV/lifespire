@@ -85,7 +85,7 @@ button.text-link:hover {
 }
 
 .panel-note strong {
-  color: var(--ink);
+  color: var(--done-ink);
 }
 
 .settings-note {
@@ -149,7 +149,7 @@ button.text-link:hover {
 }
 
 .btn--danger:hover {
-  border-color: var(--ink);
+  border-color: var(--done-ink);
   background: var(--surface);
   box-shadow: 0 10px 24px -20px rgba(0, 0, 0, 0.55);
 }
@@ -505,7 +505,7 @@ button.text-link:hover {
 }
 
 .legend--detailed b {
-  color: var(--ink);
+  color: var(--done-ink);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -925,7 +925,7 @@ button.text-link:hover {
 .dialog__close:hover {
   border-color: var(--hairline);
   background: var(--surface-sunken);
-  color: var(--ink);
+  color: var(--done-ink);
 }
 
 .dialog__body {
@@ -1802,4 +1802,179 @@ button.text-link {
   width: 100%;
   min-height: 44px;
   text-transform: uppercase;
+}
+
+.wheel-spinner {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  padding: 12px 0;
+  position: relative;
+}
+
+.wheel {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px var(--hairline-strong), 0 12px 30px rgba(0,0,0,0.35);
+  /* rotation is driven frame-by-frame in NodeScreen; no CSS transition */
+}
+
+.wheel__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* wheel segments follow the app palette */
+.wheel__seg--task { fill: var(--wheel-task); stroke: var(--wheel-stroke); stroke-width: 1; }
+.wheel__seg--gold { fill: var(--wheel-gold); stroke: var(--wheel-stroke); stroke-width: 1; }
+.wheel__seg--xp { fill: var(--wheel-xp); stroke: var(--wheel-stroke); stroke-width: 1; }
+.wheel__seg--rest { fill: var(--wheel-rest); stroke: var(--wheel-stroke); stroke-width: 1; }
+
+.wheel__frame {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+/* static hub: never spins with the sectors */
+.wheel__hub {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--wheel-task);
+  border: 2px solid var(--wheel-stroke);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  color: var(--wheel-icon);
+  z-index: 2;
+}
+
+.wheel__hub--gold { background: var(--wheel-gold); }
+.wheel__hub--xp { background: var(--wheel-xp); }
+.wheel__hub--rest { background: var(--wheel-rest); }
+.wheel__hub--task { background: var(--wheel-task); }
+
+.wheel__hub-text {
+  font-family: var(--font-display, serif);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.wheel__hub .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.wheel__svg .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--wheel-icon);
+}
+
+.wheel__icons .icon {
+  color: var(--wheel-icon);
+}
+
+/* hub heartbeat while the wheel spins */
+.wheel-spinner[data-spinning="true"] .wheel__hub {
+  animation: wheel-hub-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes wheel-hub-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* glow while spinning */
+.wheel-spinner[data-spinning="true"] .wheel {
+  box-shadow:
+    0 0 0 6px var(--hairline-strong),
+    0 12px 30px rgba(0, 0, 0, 0.35),
+    0 0 36px var(--accent-soft);
+}
+
+/* the drawn segment earns a ticking pointer */
+.wheel__pointer {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: 50% 0;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 18px solid var(--wheel-icon);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
+}
+
+/* the pointer flick is driven by the animation loop (one flick per sector) */
+
+/* after the reveal only the winning sector stays lit */
+.wheel-spinner[data-revealed="true"] .wheel__seg {
+  opacity: 0.45;
+  transition: opacity 0.4s ease;
+}
+
+.wheel-spinner[data-revealed="true"] .wheel__seg--winner {
+  opacity: 1;
+  stroke: var(--wheel-icon);
+  stroke-width: 2;
+  animation: wheel-winner-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes wheel-winner-glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.45); }
+}
+
+.wheel__status {
+  font-family: var(--font-body, sans-serif);
+  color: var(--ink-muted);
+}
+
+.wheel__result {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 12px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  animation: wheel-pop 0.4s ease;
+}
+
+@keyframes wheel-pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.wheel__result-line {
+  font-family: var(--font-display, serif);
+  font-size: 1.25rem;
+  color: var(--ink-strong);
+}
+
+.wheel__result-reward {
+  font-family: var(--font-body, sans-serif);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel__result {
+    animation: none;
+  }
+  .wheel-spinner[data-spinning="true"] .wheel__hub,
+  .wheel-spinner[data-revealed="true"] .wheel__seg--winner {
+    animation: none;
+  }
 }

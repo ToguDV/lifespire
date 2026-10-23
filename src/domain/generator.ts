@@ -55,14 +55,9 @@ export class MapGenerationError extends Error {
   }
 }
 
-interface TaskChoice {
-  task: Task
-  goalTitle: string
-}
-
 const EFFORT_ORDER: Record<Effort, number> = { light: 0, medium: 1, high: 2 }
-const NODE_TYPES: readonly NodeType[] = ['task', 'elite', 'rest', 'treasure', 'boss']
-const SPECIAL_TYPES = ['rest', 'treasure'] as const
+const NODE_TYPES: readonly NodeType[] = ['task', 'elite', 'rest', 'treasure', 'boss', 'wheel']
+// (no longer used)
 
 function compareStrings(a: string, b: string): number {
   if (a < b) return -1
@@ -88,14 +83,19 @@ function snapshotOf(choice: TaskChoice): TaskSnapshot {
  * Builds the active routine pool. Active routines whose goal is missing or
  * inactive are ignored, and duplicate ids are collapsed defensively.
  */
-function buildTaskPool(input: GenerateMapInput): TaskChoice[] {
+export interface TaskChoice {
+  task: Task
+  goalTitle: string
+}
+
+export function buildTaskPool(goals: readonly Goal[], tasks: readonly Task[]): TaskChoice[] {
   const goalsById = new Map(
-    input.goals.filter((goal) => goal.active).map((goal) => [goal.id, goal] as const),
+    goals.filter((goal) => goal.active).map((goal) => [goal.id, goal] as const),
   )
   const seen = new Set<string>()
   const pool: TaskChoice[] = []
 
-  for (const task of input.tasks) {
+  for (const task of tasks) {
     if (!task.active || seen.has(task.id)) continue
     const goal = goalsById.get(task.goalId)
     if (!goal) continue
@@ -288,7 +288,7 @@ function connectLayers(
  * no ambient clock, randomness, store or UI is involved.
  */
 export function generateMap(input: GenerateMapInput): GameMap {
-  const pool = buildTaskPool(input)
+  const pool = buildTaskPool(input.goals, input.tasks)
   const objectivesByGoal = new Map(input.objectives.map((objective) => [objective.goalId, objective] as const))
   if (pool.length === 0) {
     throw new MapGenerationError(
@@ -368,9 +368,30 @@ export function generateMap(input: GenerateMapInput): GameMap {
     for (const layerIndex of candidates.slice(0, requested)) specialLayers.add(layerIndex)
   }
 
-  const specialTypes = new Map<number, 'rest' | 'treasure'>()
+  // The wheel is a rare mystery node: at least one per map, scaling with depth.
+  const wheelCount = Math.max(1, Math.min(3, Math.ceil(layerCount / 5)))
+  // Make sure there are enough special slots to host every wheel.
+  if (specialLayers.size < wheelCount) {
+    const extraCandidates = rng
+      .shuffle(range(layerCount))
+      .filter((layerIndex) => spareSlots(layerIndex) > 0 && !specialLayers.has(layerIndex))
+    for (const layerIndex of extraCandidates) {
+      if (specialLayers.size >= wheelCount) break
+      specialLayers.add(layerIndex)
+    }
+  }
+
+  const wheelLayers = new Set(
+    rng.shuffle([...specialLayers]).slice(0, Math.min(wheelCount, specialLayers.size)),
+  )
+
+  const specialTypes = new Map<number, 'rest' | 'treasure' | 'wheel'>()
   for (const layerIndex of [...specialLayers].sort((a, b) => a - b)) {
-    specialTypes.set(layerIndex, rng.pick(SPECIAL_TYPES))
+    if (wheelLayers.has(layerIndex)) {
+      specialTypes.set(layerIndex, 'wheel')
+    } else {
+      specialTypes.set(layerIndex, rng.pick(['rest', 'treasure'] as const))
+    }
   }
 
   const layerSpecs = layerSizes.map((size, layerIndex) => {
@@ -588,7 +609,7 @@ export function validateMap(map: GameMap): MapValidation {
       ids.push(node.id)
 
       if (node.type === 'task') taskNodes += 1
-      if (node.type === 'rest' || node.type === 'treasure') specialNodes += 1
+      if (node.type === 'rest' || node.type === 'treasure' || node.type === 'wheel') specialNodes += 1
       if (node.type === 'elite') eliteCount += 1
 
       if (isTaskBearing(node.type)) {
@@ -624,7 +645,7 @@ export function validateMap(map: GameMap): MapValidation {
     addIf(
       specialNodes > 1,
       errors,
-      `layers[${layerIndex}] must contain at most one rest or treasure node`,
+      `layers[${layerIndex}] must contain at most one rest, treasure or wheel node`,
     )
     layerIds.push(ids)
   })
