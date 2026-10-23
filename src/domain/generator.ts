@@ -114,23 +114,35 @@ function drawTask(
   pool: readonly TaskChoice[],
   usedInLayer: Set<string>,
   usedGlobally: Set<string>,
+  objectives: readonly RunObjective[],
   rng: Rng,
 ): TaskChoice {
+  const objectivesByGoal = new Map(objectives.map((objective) => [objective.goalId, objective] as const))
+  const isPending = (choice: TaskChoice): boolean => {
+    const objective = objectivesByGoal.get(choice.task.goalId)
+    return !objective || objective.progress < objective.target
+  }
+
+  const preferPending = <T extends TaskChoice>(candidates: readonly T[]): T[] => {
+    const pending = candidates.filter(isPending)
+    return pending.length > 0 ? pending : [...candidates]
+  }
+
   const unusedInLayerAndMap = pool.filter(
     (choice) => !usedInLayer.has(choice.task.id) && !usedGlobally.has(choice.task.id),
   )
   if (unusedInLayerAndMap.length > 0) {
-    return rng.pick(unusedInLayerAndMap)
+    return rng.pick(preferPending(unusedInLayerAndMap))
   }
 
   // Pools smaller than the map force reuse, but reuse inside one layer is the
   // last resort (only possible with a single active routine).
   const unusedInLayer = pool.filter((choice) => !usedInLayer.has(choice.task.id))
   if (unusedInLayer.length > 0) {
-    return rng.pick(unusedInLayer)
+    return rng.pick(preferPending(unusedInLayer))
   }
 
-  return rng.pick(pool)
+  return rng.pick(preferPending(pool))
 }
 
 /**
@@ -386,7 +398,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
         }
       }
 
-      const choice = drawTask(pool, usedInLayer, usedGlobally, rng)
+      const choice = drawTask(pool, usedInLayer, usedGlobally, input.objectives, rng)
       usedInLayer.add(choice.task.id)
       usedGlobally.add(choice.task.id)
       return {
