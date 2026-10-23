@@ -136,7 +136,7 @@ export function RewardScreen() {
             <div className="node-medallion">
               <Icon name="wheel" />
             </div>
-            <span className="micro">Wheel reward · no task</span>
+            <span className="micro">Wheel reward</span>
             <h1 id="reward-title">Your reward</h1>
             <p className="node-flavor">The wheel has settled. Keeping the step records this.</p>
           </header>

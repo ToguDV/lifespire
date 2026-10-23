@@ -359,7 +359,9 @@ export function NodeScreen() {
             <div className="node-medallion">
               <Icon name={goalCrest ?? NODE_TYPE_ICON[node.type]} />
             </div>
-            <span className="micro">{nodeTypeLine(node)}</span>
+            <span className="micro">
+              {isWheel ? 'Wheel node' : nodeTypeLine(node)}
+            </span>
             <h1 id="node-title">{nodeTitle(node)}</h1>
             <p className="node-flavor">{nodeFlavor(node)}</p>
           </header>
@@ -368,7 +370,11 @@ export function NodeScreen() {
             <div className="node-tags">
               <span className="chip chip--accent">
                 <Icon name={goalCrest ?? NODE_TYPE_ICON[node.type]} />
-                {node.task ? node.task.goalTitle : `${NODE_TYPE_LABEL[node.type]} · no task`}
+                {node.task
+                  ? node.task.goalTitle
+                  : isWheel
+                    ? NODE_TYPE_LABEL[node.type]
+                    : `${NODE_TYPE_LABEL[node.type]} · no task`}
               </span>
 
               {node.rewards.progress > 0 ? (
