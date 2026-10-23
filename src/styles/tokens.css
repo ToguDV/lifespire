@@ -109,6 +109,13 @@
   --accent-deep: #385342;
   --accent-soft: #dfe7de;
   --accent-wash: rgba(77, 107, 90, 0.075);
+  /* Wheel (dark segments) */
+  --wheel-task: #20241e;
+  --wheel-gold: #385342;
+  --wheel-xp: #4d6b5a;
+  --wheel-rest: #263229;
+  --wheel-stroke: #40453a;
+  --wheel-icon: #f1f0ea;
   --on-accent: #f8f7f2;
   --scrim: rgba(22, 26, 20, 0.42);
   --shadow-soft: 0 1px 2px rgba(29, 33, 25, 0.04), 0 16px 40px -32px rgba(29, 33, 25, 0.4);

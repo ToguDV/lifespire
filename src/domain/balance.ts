@@ -12,7 +12,7 @@ export const LAYER_OFFSET_MIN = 2
 export const LAYER_OFFSET_MAX = 5
 export const LAYER_OFFSET_GOALS = 2
 export const MAX_DECISION_LAYERS = LAYER_OFFSET_MAX + MAX_GOALS
-export const GENERATOR_VERSION = 4
+export const GENERATOR_VERSION = 5
 /** First generator version that enforces three-node layers and forced crossings. */
 export const STRICT_LAYER_RULES_VERSION = 4
 /** Maps generated before `STRICT_LAYER_RULES_VERSION` may contain two-node layers. */
@@ -43,6 +43,7 @@ export const REWARDS: Record<NodeType, NodeRewards> = {
   rest: { xp: 5, gold: 0, lootRolls: 0, progress: 0 },
   treasure: { xp: 0, gold: 15, lootRolls: 1, progress: 0 },
   boss: { xp: 20, gold: 20, lootRolls: 1, progress: 1 },
+  wheel: { xp: 0, gold: 0, lootRolls: 0, progress: 0 },
 }
 
 export const BOSS_CLOSING_BONUS = { xp: 20, gold: 20 }
@@ -61,3 +62,11 @@ export const LOOT_RARITY_WEIGHTS: Record<Rarity, number> = {
 
 export const OBJECTIVE_BONUS = { xp: 50, gold: 50, lootRolls: 1 }
 export const ALL_OBJECTIVES_BONUS = { xp: 100, gold: 100, lootRolls: 1, guaranteedRare: 1 }
+
+// Wheel node outcome weights and payouts.
+export const WHEEL_OUTCOME_WEIGHTS = { task: 50, gold: 20, xp: 20, rest: 10 } as const
+export const WHEEL_GOLD = 20
+export const WHEEL_XP = 25
+export const WHEEL_REST_XP = 5
+/** Pending goals weigh this many times more than completed ones in task selection. */
+export const WHEEL_PENDING_WEIGHT = 4

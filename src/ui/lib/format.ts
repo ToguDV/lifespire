@@ -123,6 +123,7 @@ export const NODE_TYPE_LABEL: Record<NodeType, string> = {
   rest: 'Rest',
   treasure: 'Treasure',
   boss: 'Boss',
+  wheel: 'Wheel',
 }
 
 export const NODE_TYPE_ICON: Record<NodeType, IconName> = {
@@ -131,6 +132,7 @@ export const NODE_TYPE_ICON: Record<NodeType, IconName> = {
   rest: 'campfire',
   treasure: 'chest',
   boss: 'crown',
+  wheel: 'wheel',
 }
 
 const LOOT_ICONS: Record<string, IconName> = {

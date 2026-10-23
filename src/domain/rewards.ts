@@ -37,7 +37,7 @@ function roundUnits(value: number): number {
  */
 export function rewardsForNode(type: NodeType, effort: Effort): NodeRewards {
   const base = REWARDS[type]
-  if (type === 'rest' || type === 'treasure') {
+  if (type === 'rest' || type === 'treasure' || type === 'wheel') {
     return { ...base }
   }
 

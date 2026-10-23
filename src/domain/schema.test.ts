@@ -73,6 +73,7 @@ const reward: RewardEvent = {
   duplicateCatalogId: null,
   duplicateGold: 0,
   closingBonus: false,
+  wheelOutcome: null,
   at: now.toISOString(),
 }
 
