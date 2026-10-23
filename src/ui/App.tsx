@@ -7,7 +7,6 @@ import {
   DayPips,
   Icon,
   IconButton,
-  IconSprite,
   LevelResource,
   Resource,
   ThemeToggle,
@@ -237,7 +236,6 @@ export default function App() {
 
   return (
     <>
-      <IconSprite />
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
