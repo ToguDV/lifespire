@@ -33,6 +33,7 @@ import type {
   OnboardingSetup,
   Profile,
   ResolutionAction,
+  RewardEvent,
   Run,
   RunSetup,
   StorageIssue,
@@ -58,6 +59,8 @@ export interface AppState {
   view: View
   history: View[]
   toast: string | null
+  /** Rich reward recap shown after a completion. Transient, never persisted. */
+  rewardToast: RewardEvent | null
 
   navigate(view: View): void
   back(): void
@@ -84,6 +87,8 @@ export interface AppState {
   resetAll(): void
   newId(prefix: string): string
   showToast(message: string | null): void
+  showRewardToast(event: RewardEvent | null): void
+  clearRewardToast(): void
 
   devStartDemoRun(now?: Date): void
   devRestartRun(now?: Date): void
@@ -183,6 +188,7 @@ export function createAppStore(
         view: { name: 'onboarding' },
         history: [],
         toast: null,
+        rewardToast: null,
 
         navigate: (nextView) => {
           const { view, history } = get()
@@ -644,6 +650,14 @@ export function createAppStore(
 
         showToast: (message) => {
           set({ toast: message })
+        },
+
+        showRewardToast: (event) => {
+          set({ rewardToast: event })
+        },
+
+        clearRewardToast: () => {
+          set({ rewardToast: null })
         },
 
         devStartDemoRun: (at = nowProvider()) => {

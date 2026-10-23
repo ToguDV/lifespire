@@ -3,7 +3,8 @@ import { currentDay, nodeStatus, resolveNodeById } from '../../domain/selectors'
 import { rollWheelOutcome } from '../../domain/lifecycle'
 import { useAppStore } from '../../state/store'
 import { Button, Icon, Panel } from '../components'
-import { rewardFeedback } from '../lib/daySummary'
+import { playFeedback } from '../lib/feedback'
+import { playForRewardEvent } from '../lib/resolveFeedback'
 
 /**
  * Second step of the wheel claim: the outcome is recomputed with the same
@@ -60,6 +61,7 @@ export function RewardScreen() {
     confirmingRef.current = true
     setConfirming(true)
 
+    const levelBefore = useAppStore.getState().document.profile?.level ?? null
     resolveNode(node.id, 'complete')
 
     const state = useAppStore.getState()
@@ -72,7 +74,17 @@ export function RewardScreen() {
       return
     }
 
-    state.showToast(rewardFeedback(event))
+    playForRewardEvent(event)
+    const levelAfter = state.document.profile?.level ?? null
+    if (levelBefore !== null && levelAfter !== null && levelAfter > levelBefore) {
+      try {
+        window.setTimeout(() => playFeedback('levelUp'), 450)
+      } catch {
+        // Decorative only.
+      }
+    }
+
+    state.showRewardToast(event)
     navigate({ name: 'map' })
   }
 

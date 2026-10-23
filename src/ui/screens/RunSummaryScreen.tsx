@@ -5,6 +5,7 @@ import type { Run } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
   AimRow,
+  AnimatedNumber,
   Button,
   DayPips,
   EmptyLootCard,
@@ -17,6 +18,7 @@ import {
   StatStrip,
 } from '../components'
 import { goalIconFor, percent, romanDay } from '../lib/format'
+import { playFeedback } from '../lib/feedback'
 import {
   allAimsBonusCopy,
   duplicateGoldCopy,
@@ -41,6 +43,32 @@ function SealedBody({
   const summary = run.summary
   const profile = useAppStore((state) => state.document.profile)
   const goals = useAppStore((state) => state.document.goals)
+
+  // The weekly close shimmers once per session: seal, then the guaranteed
+  // rare (or the first new relic) a beat later.
+  useEffect(() => {
+    if (!summary) return
+    const key = `lifespire:sealed:week:${run.id}`
+    try {
+      if (window.sessionStorage.getItem(key)) return
+      window.sessionStorage.setItem(key, 'played')
+    } catch {
+      return
+    }
+    const timers = [
+      window.setTimeout(() => playFeedback('seal'), 200),
+      window.setTimeout(
+        () => playFeedback(summary.guaranteedRare ? 'lootEpic' : 'lootRare'),
+        550,
+      ),
+    ]
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer)
+    }
+    // The summary object is stable once sealed; the run id is the key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run.id])
+
   if (!summary) return null
 
   const aggregate = objectiveAggregate(summary.objectives)
@@ -110,19 +138,19 @@ function SealedBody({
         <div className="summary-totals" aria-label="Run totals">
           <div className="total">
             <strong>
-              <Icon name="star" />+{totals.xp}
+              <Icon name="star" />+<AnimatedNumber value={totals.xp} />
             </strong>
             <span>Experience</span>
           </div>
           <div className="total">
             <strong>
-              <Icon name="coin" />+{totals.gold}
+              <Icon name="coin" />+<AnimatedNumber value={totals.gold} />
             </strong>
             <span>Gold</span>
           </div>
           <div className="total">
             <strong>
-              <Icon name="gem" />+{totals.lootCount}
+              <Icon name="gem" />+<AnimatedNumber value={totals.lootCount} />
             </strong>
             <span>Relics</span>
           </div>
@@ -148,8 +176,12 @@ function SealedBody({
             </p>
           ) : (
             <ul className="summary-aims">
-              {summary.objectives.map((objective) => (
-                <li className="summary-aim" key={objective.goalId}>
+              {summary.objectives.map((objective, index) => (
+                <li
+                  className="summary-aim summary-aim--enter"
+                  style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
+                  key={objective.goalId}
+                >
                   <AimRow
                     title={objective.title}
                     progress={objective.progress}

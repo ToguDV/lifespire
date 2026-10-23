@@ -10,7 +10,9 @@ import type { MapNode, Run } from '../../domain/types'
 import { rollWheelOutcome } from '../../domain/lifecycle'
 import { useAppStore } from '../../state/store'
 import { Button, Icon, Panel, Pips } from '../components'
+import { playFeedback } from '../lib/feedback'
 import { rewardFeedback } from '../lib/daySummary'
+import { playForRewardEvent } from '../lib/resolveFeedback'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIconFor } from '../lib/format'
 import {
   WHEEL_RECAP_DELAY_MS,
@@ -143,6 +145,7 @@ export function NodeScreen() {
   const tasks = useAppStore((state) => state.document.tasks)
   const navigate = useAppStore((state) => state.navigate)
   const resolveNode = useAppStore((state) => state.resolveNode)
+  const showToast = useAppStore((state) => state.showToast)
   const [resolving, setResolving] = useState(false)
   const resolvingRef = useRef(false)
   const [spinning, setSpinning] = useState(false)
@@ -209,6 +212,7 @@ export function NodeScreen() {
     resolvingRef.current = true
     setResolving(true)
 
+    const levelBefore = useAppStore.getState().document.profile?.level ?? null
     resolveNode(node.id, action)
 
     const state = useAppStore.getState()
@@ -221,12 +225,26 @@ export function NodeScreen() {
       return
     }
 
+    playForRewardEvent(event)
+    const levelAfter = state.document.profile?.level ?? null
+    if (action === 'complete' && levelBefore !== null && levelAfter !== null && levelAfter > levelBefore) {
+      try {
+        window.setTimeout(() => playFeedback('levelUp'), 450)
+      } catch {
+        // Decorative only.
+      }
+    }
+
     if (node.type === 'boss') {
       navigate({ name: 'day-summary', dayId: day.id })
       return
     }
 
-    state.showToast(rewardFeedback(event))
+    if (action === 'complete') {
+      state.showRewardToast(event)
+    } else {
+      showToast(rewardFeedback(event))
+    }
     navigate({ name: 'map' })
   }
 

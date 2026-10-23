@@ -22,6 +22,7 @@ import {
   romanDay,
 } from '../lib/format'
 import { MAP_HEIGHT, MAP_WIDTH } from '../lib/mapLayout'
+import { playFeedback } from '../lib/feedback'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
 const STATUS_COPY: Record<string, string> = {
@@ -348,6 +349,7 @@ export function MapScreen() {
     const nextRun = useAppStore.getState().document.run
     const nextDay = currentDay(nextRun)
     if (nextDay?.map?.currentNodeId === nodeId) {
+      playFeedback('select')
       navigate({ name: 'node', nodeId })
     }
   }

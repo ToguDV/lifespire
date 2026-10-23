@@ -14,6 +14,7 @@ import {
   SaveImport,
   ScreenHead,
 } from '../components'
+import { useFeedbackPrefs } from '../lib/feedback'
 import { saveFileName } from '../lib/importSave'
 import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
@@ -29,6 +30,7 @@ export function SettingsScreen() {
   const resetAll = useAppStore((state) => state.resetAll)
   const showToast = useAppStore((state) => state.showToast)
   const navigate = useAppStore((state) => state.navigate)
+  const [feedback, setFeedback] = useFeedbackPrefs()
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
 
@@ -93,6 +95,52 @@ export function SettingsScreen() {
               them.
             </p>
           </div>
+        </Panel>
+
+        <Panel pad>
+          <PanelHead label="Feedback" aside={<span className="chip chip--quiet">Calm</span>} />
+          <div className="feedback-row">
+            <div className="feedback-row__body">
+              <strong>Sound</strong>
+              <span>Soft chimes for steps, loot and seals. Never loops.</span>
+            </div>
+            <button
+              type="button"
+              className="feedback-switch"
+              role="switch"
+              aria-checked={feedback.sound}
+              aria-label="Sound"
+              onClick={() => setFeedback({ sound: !feedback.sound })}
+            >
+              <span className="feedback-switch__track" aria-hidden="true">
+                <span className="feedback-switch__thumb" />
+              </span>
+              {feedback.sound ? 'On' : 'Off'}
+            </button>
+          </div>
+          <div className="feedback-row">
+            <div className="feedback-row__body">
+              <strong>Vibration</strong>
+              <span>Short taps on mobile only. Desktop never buzzes.</span>
+            </div>
+            <button
+              type="button"
+              className="feedback-switch"
+              role="switch"
+              aria-checked={feedback.haptics}
+              aria-label="Vibration"
+              onClick={() => setFeedback({ haptics: !feedback.haptics })}
+            >
+              <span className="feedback-switch__track" aria-hidden="true">
+                <span className="feedback-switch__thumb" />
+              </span>
+              {feedback.haptics ? 'On' : 'Off'}
+            </button>
+          </div>
+          <p className="panel-note">
+            Both default to on and respect reduced motion for animation. Sound and
+            vibration stay subtle by design; either can be silenced here.
+          </p>
         </Panel>
 
         <Panel pad>

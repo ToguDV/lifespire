@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
-import { xpIntoLevel, xpToNextLevel } from '../../domain/selectors'
+import { levelForXp, xpIntoLevel, xpToNextLevel } from '../../domain/selectors'
 import type { Day, DaySummary } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
   AimRow,
+  AnimatedNumber,
   Button,
   Icon,
   LootCard,
@@ -15,6 +16,8 @@ import {
   closingBonusCopy,
   dayPathReward,
 } from '../lib/daySummary'
+import { lootFeedbackKind } from '../lib/resolveFeedback'
+import { playFeedback } from '../lib/feedback'
 import {
   NODE_TYPE_ICON,
   NODE_TYPE_LABEL,
@@ -71,6 +74,28 @@ function SummaryBody({
   const goals = useAppStore((state) => state.document.goals)
   const rows = buildDayPath(day)
   const waitNoteId = 'day-summary-wait-note'
+  const leveledUp = profile
+    ? levelForXp(profile.xp) > levelForXp(Math.max(0, profile.xp - summary.xp))
+    : false
+
+  // New relics shimmer once, the first time the sealed day is read. The
+  // session flag keeps reloads and revisits quiet.
+  useEffect(() => {
+    if (summary.loot.length === 0) return
+    const key = `lifespire:sealed:${day.id}`
+    try {
+      if (window.sessionStorage.getItem(key)) return
+      window.sessionStorage.setItem(key, 'played')
+    } catch {
+      return
+    }
+    const timers = summary.loot.slice(0, 4).map((item, index) =>
+      window.setTimeout(() => playFeedback(lootFeedbackKind(item.rarity)), 250 + index * 220),
+    )
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer)
+    }
+  }, [day.id, summary.loot])
 
   return (
     <div className="summary-wrap">
@@ -102,11 +127,12 @@ function SummaryBody({
           {rows.length === 0 ? (
             <li className="panel-note">No steps were recorded on this day.</li>
           ) : (
-            rows.map((row) => {
+            rows.map((row, index) => {
               const done = row.action === 'complete'
               return (
                 <li
-                  className={`path-row ${done ? 'is-done' : 'is-skipped'}`}
+                  className={`path-row ${done ? 'is-done' : 'is-skipped'} path-row--enter`}
+                  style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
                   key={row.nodeId}
                 >
                   <span className={`path-row__medallion ${done ? 'is-done' : 'is-skipped'}`}>
@@ -158,19 +184,19 @@ function SummaryBody({
         <div className="summary-totals" aria-label="Rewards earned">
           <div className="total">
             <strong>
-              <Icon name="star" />+{summary.xp}
+              <Icon name="star" />+<AnimatedNumber value={summary.xp} />
             </strong>
             <span>Experience</span>
           </div>
           <div className="total">
             <strong>
-              <Icon name="coin" />+{summary.gold}
+              <Icon name="coin" />+<AnimatedNumber value={summary.gold} />
             </strong>
             <span>Gold</span>
           </div>
           <div className="total">
             <strong>
-              <Icon name="gem" />+{summary.loot.length}
+              <Icon name="gem" />+<AnimatedNumber value={summary.loot.length} />
             </strong>
             <span>Relics</span>
           </div>
@@ -223,10 +249,19 @@ function SummaryBody({
         </section>
 
         {profile ? (
-          <div className="level-up">
+          <div className={`level-up${leveledUp ? ' level-up--celebrate' : ''}`}>
             <Icon name="star" />
-            Level {profile.level} · {xpIntoLevel(profile.xp)} / 100 to the next ·{' '}
-            {xpToNextLevel(profile.xp)} to go
+            {leveledUp ? (
+              <span>
+                Level {profile.level} — the ascent deepens. {xpIntoLevel(profile.xp)} / 100
+                into this level · {xpToNextLevel(profile.xp)} to go
+              </span>
+            ) : (
+              <span>
+                Level {profile.level} · {xpIntoLevel(profile.xp)} / 100 to the next ·{' '}
+                {xpToNextLevel(profile.xp)} to go
+              </span>
+            )}
           </div>
         ) : null}
 
