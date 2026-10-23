@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BOSS_CLOSING_BONUS } from '../../domain/balance'
+import { BOSS_CLOSING_BONUS, WHEEL_SECTORS } from '../../domain/balance'
 import {
   currentDay,
   nodeStatus,
@@ -12,6 +12,12 @@ import { useAppStore } from '../../state/store'
 import { Button, Icon, Panel, Pips } from '../components'
 import { rewardFeedback } from '../lib/daySummary'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIconFor } from '../lib/format'
+import {
+  nextWheelRotation,
+  prefersReducedMotion,
+  wheelSectorCenter,
+  wheelSectorDegrees,
+} from '../lib/wheel'
 import {
   effortNote,
   nodeFlavor,
@@ -136,6 +142,8 @@ export function NodeScreen() {
   const [spinning, setSpinning] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [rotation, setRotation] = useState(0)
+  const spinTimeoutRef = useRef<number | null>(null)
+  const resultRef = useRef<HTMLDivElement>(null)
 
   const day = currentDay(run)
   const map = day?.map ?? null
@@ -164,7 +172,22 @@ export function NodeScreen() {
     setTrackedNodeId(nodeId)
     setSpinning(false)
     setRevealed(false)
+    setRotation(0)
   }
+
+  useEffect(
+    () => () => {
+      if (spinTimeoutRef.current !== null) {
+        window.clearTimeout(spinTimeoutRef.current)
+        spinTimeoutRef.current = null
+      }
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (revealed) resultRef.current?.focus({ preventScroll: true })
+  }, [revealed])
 
   const record = (action: 'complete' | 'skip') => {
     if (!node || !day || resolvingRef.current) return
@@ -224,20 +247,15 @@ export function NodeScreen() {
   const goalCrest = goalIconFor(goals, node.task?.goalId)
   const lootRolls = node.rewards.lootRolls
 
-  const WHEEL_SECTORS = [
-    'task', 'task', 'task', 'task', 'task', 'task',
-    'gold', 'gold',
-    'xp', 'xp',
-    'rest', 'rest',
-  ] as const
-
+  const sectorDegrees = wheelSectorDegrees()
   const sectorIcon = (cat: (typeof WHEEL_SECTORS)[number]) =>
     cat === 'task' ? 'scroll' : cat === 'gold' ? 'coin' : cat === 'xp' ? 'star' : 'campfire'
 
   const sectorPath = (i: number) => {
-    const center = i * 30 - 90
-    const start = center - 15
-    const end = center + 15
+    const center = wheelSectorCenter(i, sectorDegrees)
+    const half = sectorDegrees / 2
+    const start = center - half
+    const end = center + half
     const toRad = (d: number) => (d * Math.PI) / 180
     const x1 = 100 + 90 * Math.cos(toRad(start))
     const y1 = 100 + 90 * Math.sin(toRad(start))
@@ -247,30 +265,11 @@ export function NodeScreen() {
   }
 
   const sectorIconPos = (i: number) => {
-    const center = i * 30 - 90
+    const center = wheelSectorCenter(i, sectorDegrees)
     const rad = (center * Math.PI) / 180
     return { x: 100 + 62 * Math.cos(rad), y: 100 + 62 * Math.sin(rad) }
   }
   const isWheel = node.type === 'wheel'
-
-  const spinWheel = () => {
-    if (spinning || revealed) return
-    const prefersReduced =
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReduced) {
-      setRevealed(true)
-      return
-    }
-    const segmentIndex = rolledOutcome?.segmentIndex ?? 0
-    setSpinning(true)
-    setRotation((prev) => prev + 2880 - (segmentIndex * 30 + 15))
-    window.setTimeout(() => {
-      setSpinning(false)
-      setRevealed(true)
-    }, 5000)
-  }
 
   const rolledOutcome =
     isWheel && run && day
@@ -283,6 +282,24 @@ export function NodeScreen() {
           objectives: run.objectives,
         })
       : null
+
+  const spinWheel = () => {
+    if (spinning || revealed) return
+    if (prefersReducedMotion()) {
+      setRevealed(true)
+      return
+    }
+    const segmentIndex = rolledOutcome?.segmentIndex ?? 0
+    setSpinning(true)
+    setRotation((prev) => nextWheelRotation(prev, segmentIndex, 8, sectorDegrees))
+    if (spinTimeoutRef.current !== null) window.clearTimeout(spinTimeoutRef.current)
+    spinTimeoutRef.current = window.setTimeout(() => {
+      spinTimeoutRef.current = null
+      setSpinning(false)
+      setRevealed(true)
+    }, 5000)
+  }
+
   return (
     <section className="screen screen--node" data-screen="node" aria-labelledby="node-title">
       <button className="node-back" type="button" onClick={() => navigate({ name: 'map' })}>
@@ -438,10 +455,19 @@ export function NodeScreen() {
                   </Button>
                 ) : null}
 
-                {spinning ? <p className="wheel__status">Spinning…</p> : null}
+                {spinning ? (
+                  <p className="wheel__status" role="status">
+                    Spinning…
+                  </p>
+                ) : null}
 
                 {revealed && rolledOutcome ? (
-                  <div className="wheel__result">
+                  <div
+                    className="wheel__result"
+                    aria-live="polite"
+                    ref={resultRef}
+                    tabIndex={-1}
+                  >
                     <p className="wheel__result-line">
                       {rolledOutcome.outcome === 'task'
                         ? `Task: ${rolledOutcome.task?.title ?? 'a task'}`
@@ -494,7 +520,18 @@ export function NodeScreen() {
 
             <NodeSkipNote boss={node.type === 'boss'} />
 
-            {isWheel ? null : (
+            {isWheel ? (
+              <div className="node-actions" aria-busy={resolving}>
+                <Button
+                  variant="quiet"
+                  disabled={resolving || spinning}
+                  aria-describedby="node-skip-note"
+                  onClick={() => record('skip')}
+                >
+                  Skip this step
+                </Button>
+              </div>
+            ) : (
               <div className="node-actions" aria-busy={resolving}>
                 <Button
                   variant="primary"

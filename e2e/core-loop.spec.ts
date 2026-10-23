@@ -37,7 +37,15 @@ async function openMap(page: import('@playwright/test').Page) {
 
 async function completeFirstNode(page: import('@playwright/test').Page) {
   await page.locator(ACTIONABLE_NODE).first().click()
-  await page.getByRole('button', { name: /Mark complete/i }).click()
+  const spin = page.getByRole('button', { name: /Spin the wheel/i })
+  const mark = page.getByRole('button', { name: /Mark complete/i })
+  await expect(spin.or(mark)).toBeVisible()
+  if (await spin.isVisible()) {
+    await spin.click()
+    await page.getByRole('button', { name: /Claim reward/i }).click({ timeout: 15000 })
+  } else {
+    await mark.click()
+  }
 }
 
 test.describe('core loop', () => {
@@ -191,7 +199,7 @@ test.describe('mobile map labels', () => {
     await startDemoRun(page)
     await openMap(page)
 
-    const node = page.locator(ACTIONABLE_NODE).first()
+    const node = page.locator(`${ACTIONABLE_NODE}:not([data-node-icon="wheel"])`).first()
     const label = node.locator('.node__label')
 
     await expect(label).toBeHidden()

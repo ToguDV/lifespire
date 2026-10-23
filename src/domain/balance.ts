@@ -1,4 +1,4 @@
-import type { Effort, NodeRewards, NodeType, Rarity } from './types'
+import type { Effort, NodeRewards, NodeType, Rarity, WheelOutcome } from './types'
 
 export const SCHEMA_VERSION = 2
 export const STORAGE_KEY = 'lifespire:mvp0'
@@ -65,6 +65,13 @@ export const ALL_OBJECTIVES_BONUS = { xp: 100, gold: 100, lootRolls: 1, guarante
 
 // Wheel node outcome weights and payouts.
 export const WHEEL_OUTCOME_WEIGHTS = { task: 50, gold: 20, xp: 20, rest: 10 } as const
+// Ten visual sectors proportional to the real weights: 5 task, 2 gold, 2 xp, 1 rest.
+export const WHEEL_SECTORS: ReadonlyArray<WheelOutcome> = [
+  'task', 'task', 'task', 'task', 'task',
+  'gold', 'gold',
+  'xp', 'xp',
+  'rest',
+]
 export const WHEEL_GOLD = 20
 export const WHEEL_XP = 25
 export const WHEEL_REST_XP = 5

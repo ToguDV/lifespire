@@ -68,7 +68,7 @@ Concrete criteria:
 | **Weekly target** (weekly objective in the domain model) | The number of times a goal must be completed during the run. |
 | **Run** | A 7-day window starting from its creation. |
 | **Day** | A map with a path that is resolved once. |
-| **Node** | A stop on the map: task, elite, rest, treasure, or boss. |
+| **Node** | A stop on the map: task, elite, rest, treasure, wheel, or boss. |
 | **Path** | The sequence of nodes chosen up to the boss. |
 | **Daily boss** | The final node; completing it closes the day with a bonus. |
 

@@ -1809,6 +1809,7 @@ button.text-link {
   gap: 16px;
   justify-items: center;
   padding: 12px 0;
+  position: relative;
 }
 
 .wheel {
@@ -1818,10 +1819,6 @@ button.text-link {
   border-radius: 50%;
   box-shadow: 0 0 0 6px var(--hairline-strong), 0 12px 30px rgba(0,0,0,0.35);
   transition: transform 5s cubic-bezier(0.05, 0.9, 0.1, 1);
-}
-
-.wheel--spinning {
-  transform: rotate(1440deg);
 }
 
 .wheel__svg {
@@ -1858,9 +1855,6 @@ button.text-link {
   color: var(--wheel-icon);
 }
 
-.wheel-spinner {
-  position: relative;
-}
 .wheel__pointer {
   position: absolute;
   top: 0px;
@@ -1907,9 +1901,8 @@ button.text-link {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wheel--spinning {
+  .wheel {
     transition: none;
-    transform: none;
   }
   .wheel__result {
     animation: none;

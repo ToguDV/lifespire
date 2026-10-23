@@ -1,4 +1,4 @@
-import { BOSS_CLOSING_BONUS, GENERATOR_VERSION, RUN_DAYS, WHEEL_GOLD, WHEEL_OUTCOME_WEIGHTS, WHEEL_PENDING_WEIGHT, WHEEL_REST_XP, WHEEL_XP } from './balance'
+import { BOSS_CLOSING_BONUS, GENERATOR_VERSION, RUN_DAYS, WHEEL_GOLD, WHEEL_OUTCOME_WEIGHTS, WHEEL_PENDING_WEIGHT, WHEEL_REST_XP, WHEEL_SECTORS, WHEEL_XP } from './balance'
 import { addDays, dayKey, parseDayKey } from './dates'
 import { buildTaskPool, generateMap } from './generator'
 import { createRng } from './rng'
@@ -8,6 +8,7 @@ import type {
   Day,
   DaySummary,
   GameDocument,
+  Goal,
   LootItem,
   MapNode,
   Profile,
@@ -18,6 +19,9 @@ import type {
   RunObjective,
   RunSetup,
   RunTotals,
+  Task,
+  TaskSnapshot,
+  WheelOutcome,
 } from './types'
 
 /** A rejected lifecycle transition with a message that can be shown to the player. */
@@ -384,32 +388,28 @@ interface ResolutionResult {
   duplicateGold: number
   closingBonus: boolean
   objectives: RunObjective[]
-  wheelOutcome: import('./types').WheelOutcome | null
-  wheelTask: import('./types').TaskSnapshot | null
+  wheelOutcome: WheelOutcome | null
+  wheelTask: TaskSnapshot | null
 }
+
+// The visual sector layout lives in balance.ts next to the outcome weights.
+export { WHEEL_SECTORS }
 
 /**
  * Applies a completed node. Gold in the returned event total includes any
  * duplicate conversion; `profile.gold` is credited once for each part.
  */
-// Fixed 12-sector wheel layout: 6 task, 2 gold, 2 xp, 2 rest.
-export const WHEEL_SECTORS: ReadonlyArray<import('./types').WheelOutcome> = [
-  'task', 'task', 'task', 'task', 'task', 'task',
-  'gold', 'gold',
-  'xp', 'xp',
-  'rest', 'rest',
-]
 
 export function rollWheelOutcome(input: {
   runId: string
   dayIndex: number
   nodeId: string
-  goals: readonly import('./types').Goal[]
-  tasks: readonly import('./types').Task[]
+  goals: readonly Goal[]
+  tasks: readonly Task[]
   objectives: readonly RunObjective[]
 }): {
-  outcome: import('./types').WheelOutcome
-  task: import('./types').TaskSnapshot | null
+  outcome: WheelOutcome
+  task: TaskSnapshot | null
   xp: number
   gold: number
   progress: number
@@ -426,18 +426,18 @@ export function rollWheelOutcome(input: {
   )
 
   if (category === 'gold') {
-    return { outcome: 'gold', task: null, xp: 0, gold: WHEEL_GOLD, progress: 0, objectives: [...input.objectives], segmentIndex: 6 + rng.int(2) }
+    return { outcome: 'gold', task: null, xp: 0, gold: WHEEL_GOLD, progress: 0, objectives: [...input.objectives], segmentIndex: 5 + rng.int(2) }
   }
   if (category === 'xp') {
-    return { outcome: 'xp', task: null, xp: WHEEL_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 8 + rng.int(2) }
+    return { outcome: 'xp', task: null, xp: WHEEL_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 7 + rng.int(2) }
   }
   if (category === 'rest') {
-    return { outcome: 'rest', task: null, xp: WHEEL_REST_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 10 + rng.int(2) }
+    return { outcome: 'rest', task: null, xp: WHEEL_REST_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 9 }
   }
 
   // task
   if (pool.length === 0) {
-    return { outcome: 'rest', task: null, xp: WHEEL_REST_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 10 + rng.int(2) }
+    return { outcome: 'rest', task: null, xp: WHEEL_REST_XP, gold: 0, progress: 0, objectives: [...input.objectives], segmentIndex: 9 }
   }
 
   const pendingWeight = (choice: (typeof pool)[number]): number => {
@@ -480,7 +480,7 @@ export function rollWheelOutcome(input: {
     gold: baseRewards.gold,
     progress,
     objectives,
-    segmentIndex: rng.int(6),
+    segmentIndex: rng.int(5),
   }
 }
 
@@ -491,8 +491,8 @@ function applyCompletion(input: {
   node: MapNode
   idBase: string
   obtainedAt: string
-  goals: readonly import('./types').Goal[]
-  tasks: readonly import('./types').Task[]
+  goals: readonly Goal[]
+  tasks: readonly Task[]
 }): ResolutionResult {
   const startingProfile = input.profile
   if (!startingProfile) {
