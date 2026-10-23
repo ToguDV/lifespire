@@ -5,6 +5,29 @@ export function wheelSectorDegrees(count: number = WHEEL_SECTORS.length): number
   return 360 / count
 }
 
+/** Suspenseful stop: fast launch, long progressive tail. */
+export function easeOutQuart(t: number): number {
+  const clamped = Math.min(1, Math.max(0, t))
+  return 1 - (1 - clamped) ** 4
+}
+
+/** Physics of the spin, shared by the animation loop. */
+export const WHEEL_SPIN_TURNS = 4
+export const WHEEL_SPIN_DURATION_MS = 7000
+
+/**
+ * Sector sitting under the top pointer for an absolute wheel rotation.
+ * Inverts the target math: sector i is centered at `i * degrees - 90`.
+ */
+export function sectorIndexAtRotation(
+  rotationDeg: number,
+  sectorDegrees: number = wheelSectorDegrees(),
+): number {
+  const count = Math.max(1, Math.round(360 / sectorDegrees))
+  const pointerAngle = (((-rotationDeg % 360) + 360) % 360 + 360) % 360
+  return Math.floor(pointerAngle / sectorDegrees) % count
+}
+
 /** Rotation (mod 360) that brings `segmentIndex` under the top pointer. */
 export function wheelTargetRotation(
   segmentIndex: number,

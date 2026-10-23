@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { WHEEL_SECTORS } from '../../domain/balance'
 import {
+  easeOutQuart,
   nextWheelRotation,
+  sectorIndexAtRotation,
   wheelSectorCenter,
   wheelTargetRotation,
 } from './wheel'
@@ -33,5 +35,24 @@ describe('wheel rotation', () => {
     const norm = (value: number): number => (((value % 360) + 360) % 360 + 360) % 360
     expect(norm(fromZero)).toBeCloseTo(norm(fromSpun), 10)
     expect(norm(fromZero)).toBeCloseTo(wheelTargetRotation(9, degrees), 10)
+  })
+})
+
+describe('spin physics', () => {
+  it('easeOutQuart starts at 0, ends at 1 and rushes early', () => {
+    expect(easeOutQuart(0)).toBe(0)
+    expect(easeOutQuart(1)).toBe(1)
+    expect(easeOutQuart(0.5)).toBeCloseTo(0.9375, 10)
+    expect(easeOutQuart(0.25)).toBeGreaterThan(0.25)
+  })
+
+  it('reports the sector under the pointer for any rotation', () => {
+    const degrees = 360 / WHEEL_SECTORS.length
+    for (let index = 0; index < WHEEL_SECTORS.length; index += 1) {
+      expect(sectorIndexAtRotation(wheelTargetRotation(index, degrees), degrees)).toBe(
+        index,
+      )
+    }
+    expect(sectorIndexAtRotation(0, degrees)).toBe(0)
   })
 })

@@ -13,11 +13,16 @@ import { Button, Icon, Panel, Pips } from '../components'
 import { rewardFeedback } from '../lib/daySummary'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIconFor } from '../lib/format'
 import {
+  WHEEL_SPIN_DURATION_MS,
+  WHEEL_SPIN_TURNS,
+  easeOutQuart,
   nextWheelRotation,
   prefersReducedMotion,
+  sectorIndexAtRotation,
   wheelSectorCenter,
   wheelSectorDegrees,
 } from '../lib/wheel'
+import { playWheelReveal, playWheelTick } from '../lib/wheelSound'
 import {
   effortNote,
   nodeFlavor,
@@ -142,7 +147,9 @@ export function NodeScreen() {
   const [spinning, setSpinning] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [rotation, setRotation] = useState(0)
-  const spinTimeoutRef = useRef<number | null>(null)
+  const spinRafRef = useRef<number | null>(null)
+  const pointerRef = useRef<HTMLSpanElement>(null)
+  const pointerAnimRef = useRef<Animation | null>(null)
   const resultRef = useRef<HTMLDivElement>(null)
 
   const day = currentDay(run)
@@ -177,10 +184,12 @@ export function NodeScreen() {
 
   useEffect(
     () => () => {
-      if (spinTimeoutRef.current !== null) {
-        window.clearTimeout(spinTimeoutRef.current)
-        spinTimeoutRef.current = null
+      if (spinRafRef.current !== null) {
+        cancelAnimationFrame(spinRafRef.current)
+        spinRafRef.current = null
       }
+      pointerAnimRef.current?.cancel()
+      pointerAnimRef.current = null
     },
     [],
   )
@@ -290,14 +299,51 @@ export function NodeScreen() {
       return
     }
     const segmentIndex = rolledOutcome?.segmentIndex ?? 0
+    const from = rotation
+    const to = nextWheelRotation(from, segmentIndex, WHEEL_SPIN_TURNS, sectorDegrees)
+    const total = to - from
     setSpinning(true)
-    setRotation((prev) => nextWheelRotation(prev, segmentIndex, 8, sectorDegrees))
-    if (spinTimeoutRef.current !== null) window.clearTimeout(spinTimeoutRef.current)
-    spinTimeoutRef.current = window.setTimeout(() => {
-      spinTimeoutRef.current = null
+    let start: number | null = null
+    let lastSector = sectorIndexAtRotation(from, sectorDegrees)
+
+    const flickPointer = () => {
+      const target = pointerRef.current
+      if (!target || typeof target.animate !== 'function') return
+      pointerAnimRef.current?.cancel()
+      pointerAnimRef.current = target.animate(
+        [
+          { transform: 'translateX(-50%) rotate(0deg)' },
+          { transform: 'translateX(-50%) rotate(-18deg)', offset: 0.4 },
+          { transform: 'translateX(-50%) rotate(0deg)' },
+        ],
+        { duration: 110 },
+      )
+    }
+
+    const step = (nowMs: number) => {
+      if (start === null) start = nowMs
+      const t = Math.min(1, (nowMs - start) / WHEEL_SPIN_DURATION_MS)
+      const angle = from + total * easeOutQuart(t)
+      setRotation(angle)
+      const sector = sectorIndexAtRotation(angle, sectorDegrees)
+      if (sector !== lastSector) {
+        lastSector = sector
+        // easeOutQuart derivative: velocity fades to zero, so the tick rate
+        // follows the wheel like a real ratchet.
+        const velocity = (total * 4 * (1 - t) ** 3) / (WHEEL_SPIN_DURATION_MS / 1000)
+        playWheelTick(velocity / 900)
+        flickPointer()
+      }
+      if (t < 1) {
+        spinRafRef.current = requestAnimationFrame(step)
+        return
+      }
+      spinRafRef.current = null
       setSpinning(false)
       setRevealed(true)
-    }, 5000)
+      playWheelReveal()
+    }
+    spinRafRef.current = requestAnimationFrame(step)
   }
 
   return (
@@ -449,7 +495,7 @@ export function NodeScreen() {
                       </g>
                     </svg>
                   </div>
-                  <span className="wheel__pointer" aria-hidden="true" />
+                  <span ref={pointerRef} className="wheel__pointer" aria-hidden="true" />
                   <span
                     className={`wheel__hub wheel__hub--${revealed && rolledOutcome ? rolledOutcome.outcome : 'mystery'}`}
                     aria-hidden="true"

@@ -1818,7 +1818,7 @@ button.text-link {
   height: 200px;
   border-radius: 50%;
   box-shadow: 0 0 0 6px var(--hairline-strong), 0 12px 30px rgba(0,0,0,0.35);
-  transition: transform 5s cubic-bezier(0.05, 0.9, 0.1, 1);
+  /* rotation is driven frame-by-frame in NodeScreen; no CSS transition */
 }
 
 .wheel__svg {
@@ -1917,14 +1917,7 @@ button.text-link {
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
 }
 
-.wheel-spinner[data-spinning="true"] .wheel__pointer {
-  animation: wheel-pointer-tick 0.3s ease-in-out infinite;
-}
-
-@keyframes wheel-pointer-tick {
-  0%, 100% { transform: translateX(-50%) rotate(-14deg); }
-  50% { transform: translateX(-50%) rotate(14deg); }
-}
+/* the pointer flick is driven by the animation loop (one flick per sector) */
 
 /* after the reveal only the winning sector stays lit */
 .wheel-spinner[data-revealed="true"] .wheel__seg {
@@ -1977,14 +1970,10 @@ button.text-link {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wheel {
-    transition: none;
-  }
   .wheel__result {
     animation: none;
   }
   .wheel-spinner[data-spinning="true"] .wheel__hub,
-  .wheel-spinner[data-spinning="true"] .wheel__pointer,
   .wheel-spinner[data-revealed="true"] .wheel__seg--winner {
     animation: none;
   }
