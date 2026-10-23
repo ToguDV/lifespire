@@ -35,6 +35,15 @@ async function openMap(page: import('@playwright/test').Page) {
   await expect(page.getByRole('group', { name: /Day map/i })).toBeVisible()
 }
 
+/** First node that is playable now and is not the mystery wheel. */
+function firstSteadyNode(page: import('@playwright/test').Page) {
+  return page
+    .locator(
+      'button[data-node-id]:is([data-status="available"], [data-status="current"]):not([data-node-icon="wheel"])',
+    )
+    .first()
+}
+
 async function completeFirstNode(page: import('@playwright/test').Page) {
   await page.locator(ACTIONABLE_NODE).first().click()
   const spin = page.getByRole('button', { name: /Spin the wheel/i })
@@ -199,7 +208,7 @@ test.describe('mobile map labels', () => {
     await startDemoRun(page)
     await openMap(page)
 
-    const node = page.locator(`${ACTIONABLE_NODE}:not([data-node-icon="wheel"])`).first()
+    const node = firstSteadyNode(page)
     const label = node.locator('.node__label')
 
     await expect(label).toBeHidden()
