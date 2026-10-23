@@ -121,15 +121,6 @@ export function RewardScreen() {
 
   return (
     <section className="screen screen--node" data-screen="reward" aria-labelledby="reward-title">
-      <button
-        className="node-back"
-        type="button"
-        onClick={() => navigate({ name: 'node', nodeId: node.id })}
-      >
-        <Icon name="arrow-left" />
-        Back to the step
-      </button>
-
       <div className="node-detail">
         <article className="panel node-spread">
           <header className="node-spread__art">
@@ -172,13 +163,6 @@ export function RewardScreen() {
               >
                 <Icon name="check" />
                 Done
-              </Button>
-              <Button
-                variant="quiet"
-                disabled={confirming}
-                onClick={() => navigate({ name: 'node', nodeId: node.id })}
-              >
-                Back to step
               </Button>
             </div>
           </div>

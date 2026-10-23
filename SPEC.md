@@ -156,7 +156,7 @@ Minimum screens:
 2. **Home / Run:** current day, map access, objective progress, gold, XP, and level.
 3. **Map:** main screen; traveled path, available nodes, locked nodes, and weekly objectives panel.
 4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons. The wheel claims in two steps: spin on the node, then a reward recap.
-5. **Reward recap (wheel):** outcome summary with a "Done" button that records it; going back records nothing, so no task is skipped by accident.
+5. **Reward recap (wheel):** outcome summary with a "Done" button that records it; no way back, so no task is skipped by accident.
 5. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
 6. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
 7. **Goals and routines:** minimal CRUD for goals, tasks, effort, weekly frequency, and the goal icon that marks its map nodes.

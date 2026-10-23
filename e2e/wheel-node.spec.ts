@@ -50,7 +50,6 @@ test.describe('wheel node', () => {
     await page.getByRole('button', { name: /Claim reward/i }).click()
     await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Done$/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Back to step/i })).toBeVisible()
 
     await page.getByRole('button', { name: /^Done$/i }).click()
     await expect(page.getByRole('status').filter({ hasText: /Wheel:/ }).first()).toBeVisible()
@@ -80,9 +79,9 @@ test.describe('wheel node', () => {
     )
   })
 
-  test('backing out of the recap keeps the step unplayed', async ({ page }) => {
+  test('the recap is a dead end until Done', async ({ page }) => {
     await startDemoRun(page)
-    const wheelId = await forceWheelCurrent(page)
+    await forceWheelCurrent(page)
 
     await page.getByRole('button', { name: /Spin the wheel/i }).click()
     await expect(
@@ -91,17 +90,8 @@ test.describe('wheel node', () => {
 
     await page.getByRole('button', { name: /Claim reward/i }).click()
     await expect(page.getByRole('heading', { name: /Your reward/i })).toBeVisible()
-    await page.getByRole('button', { name: /Back to step/i }).click()
-
-    await expect(page.getByRole('button', { name: /Spin the wheel/i })).toBeVisible()
-    const status = await page.evaluate((id) => {
-      const raw = window.localStorage.getItem('lifespire:mvp0')
-      const document = JSON.parse(raw ?? '{}') as {
-        run?: { days?: Array<{ rewards?: Array<{ nodeId: string }> }> }
-      }
-      const day = document.run?.days?.find((entry) => entry.rewards)
-      return day?.rewards?.some((event) => event.nodeId === id) ?? false
-    }, wheelId)
-    expect(status).toBe(false)
+    await expect(page.getByRole('button', { name: /^Done$/i })).toBeVisible()
+    await expect(page.locator('.node-back')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Back to step/i })).toHaveCount(0)
   })
 })
