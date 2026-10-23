@@ -85,7 +85,7 @@ button.text-link:hover {
 }
 
 .panel-note strong {
-  color: var(--ink);
+  color: var(--done-ink);
 }
 
 .settings-note {
@@ -149,7 +149,7 @@ button.text-link:hover {
 }
 
 .btn--danger:hover {
-  border-color: var(--ink);
+  border-color: var(--done-ink);
   background: var(--surface);
   box-shadow: 0 10px 24px -20px rgba(0, 0, 0, 0.55);
 }
@@ -505,7 +505,7 @@ button.text-link:hover {
 }
 
 .legend--detailed b {
-  color: var(--ink);
+  color: var(--done-ink);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -925,7 +925,7 @@ button.text-link:hover {
 .dialog__close:hover {
   border-color: var(--hairline);
   background: var(--surface-sunken);
-  color: var(--ink);
+  color: var(--done-ink);
 }
 
 .dialog__body {
@@ -1802,4 +1802,116 @@ button.text-link {
   width: 100%;
   min-height: 44px;
   text-transform: uppercase;
+}
+
+.wheel-spinner {
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  padding: 12px 0;
+}
+
+.wheel {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px var(--hairline-strong), 0 12px 30px rgba(0,0,0,0.35);
+  transition: transform 5s cubic-bezier(0.05, 0.9, 0.1, 1);
+}
+
+.wheel--spinning {
+  transform: rotate(1440deg);
+}
+
+.wheel__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* wheel segments follow the app palette */
+.wheel__seg--task { fill: var(--wheel-task); stroke: var(--wheel-stroke); stroke-width: 1; }
+.wheel__seg--gold { fill: var(--wheel-gold); stroke: var(--wheel-stroke); stroke-width: 1; }
+.wheel__seg--xp { fill: var(--wheel-xp); stroke: var(--wheel-stroke); stroke-width: 1; }
+.wheel__seg--rest { fill: var(--wheel-rest); stroke: var(--wheel-stroke); stroke-width: 1; }
+
+.wheel__hub {
+  fill: var(--wheel-task);
+  stroke: var(--wheel-stroke);
+  stroke-width: 2;
+}
+
+.wheel__hub-text {
+  fill: var(--wheel-icon);
+  font-family: var(--font-display, serif);
+  font-size: 20px;
+}
+
+.wheel__svg .icon {
+  width: 16px;
+  height: 16px;
+  color: var(--wheel-icon);
+}
+
+.wheel__icons .icon {
+  color: var(--wheel-icon);
+}
+
+.wheel-spinner {
+  position: relative;
+}
+.wheel__pointer {
+  position: absolute;
+  top: 0px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 18px solid var(--wheel-icon);
+}
+
+.wheel__status {
+  font-family: var(--font-body, sans-serif);
+  color: var(--ink-muted);
+}
+
+.wheel__result {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 12px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 12px;
+  background: var(--surface-raised);
+  animation: wheel-pop 0.4s ease;
+}
+
+@keyframes wheel-pop {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.wheel__result-line {
+  font-family: var(--font-display, serif);
+  font-size: 1.25rem;
+  color: var(--ink-strong);
+}
+
+.wheel__result-reward {
+  font-family: var(--font-body, sans-serif);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel--spinning {
+    transition: none;
+    transform: none;
+  }
+  .wheel__result {
+    animation: none;
+  }
 }

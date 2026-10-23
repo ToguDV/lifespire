@@ -84,7 +84,8 @@ function withMigratedDraftIcons(value: unknown): unknown {
 }
 
 const EFFORTS = ['light', 'medium', 'high'] as const
-const NODE_TYPES = ['task', 'elite', 'rest', 'treasure', 'boss'] as const
+const NODE_TYPES = ['task', 'elite', 'rest', 'treasure', 'boss', 'wheel'] as const
+const WHEEL_OUTCOMES = ['task', 'gold', 'xp', 'rest'] as const
 const RARITIES = ['common', 'rare', 'epic'] as const
 const DAY_STATUSES = ['locked', 'available', 'in_progress', 'completed', 'missed'] as const
 const RUN_STATUSES = ['active', 'closed'] as const
@@ -415,6 +416,10 @@ function validateRewardEvent(value: unknown, path: string): RewardEvent {
     ),
     duplicateGold: expectInteger(raw.duplicateGold, `${path}.duplicateGold`),
     closingBonus: expectBoolean(raw.closingBonus, `${path}.closingBonus`),
+    wheelOutcome:
+      raw.wheelOutcome === undefined || raw.wheelOutcome === null
+        ? null
+        : expectEnum(raw.wheelOutcome, `${path}.wheelOutcome`, WHEEL_OUTCOMES),
     at: expectString(raw.at, `${path}.at`),
   }
 }

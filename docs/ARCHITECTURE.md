@@ -99,7 +99,7 @@ se guarda.
 
 ```ts
 export type Effort = 'light' | 'medium' | 'high'
-export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss'
+export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss' | 'wheel'
 export type Rarity = 'common' | 'rare' | 'epic'
 export type DayStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'missed'
 export type RunStatus = 'active' | 'closed'
@@ -326,6 +326,7 @@ REWARDS = {
   rest:     { xp: 5,  gold: 0,  lootRolls: 0, progress: 0 },
   treasure: { xp: 0,  gold: 15, lootRolls: 1, progress: 0 },
   boss:     { xp: 20, gold: 20, lootRolls: 1, progress: 1 },
+  wheel:    { xp: 0,  gold: 0,  lootRolls: 0, progress: 0 },
 }
 BOSS_CLOSING_BONUS = { xp: 20, gold: 20 }
 ```
@@ -370,7 +371,7 @@ generateMap(input: {
 }): GameMap
 ```
 
-- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 4` desde que las capas tienen al menos tres nodos, una frontera fuerza el cruce y la profundidad suma los weekly targets; los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
+- Semilla: `${runSeed}:day:${dayIndex}:g${generatorVersion}`. `GENERATOR_VERSION = 5` (añade el nodo wheel); los mapas ya persistidos conservan su `generatorVersion` y no se regeneran.
 - 3–15 capas de decisión con 3–5 nodos + boss. La profundidad depende de las metas con al menos una rutina activa y de la suma de sus weekly targets: `resolveDecisionLayerCount = clamp(3, 15, goals + offset + floor(weeklyTargetSum / 7))`, con `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))` y `MAX_DECISION_LAYERS = 15`. La tabla base es 1→3, 2→4, 3→5, 4→7, 5→8, 6→10, 7→11, 8→13, 9→14, 10→15; cada siete weekly targets suma una capa. Las rutinas no cambian la profundidad por sí solas, solo el ancho (`maxLayerSize = max(3, min(5, pool + 1))`). Capa 0 disponible desde el start.
 - Ancho de capa: la primera capa se sortea entre 3 y `max(3, min(5, pool + 1))` y
   cada capa siguiente deriva ±1 nodo de la anterior. Derivar poco mantiene la

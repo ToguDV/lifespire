@@ -7,6 +7,7 @@ import {
   resolveNodeById,
 } from '../../domain/selectors'
 import type { MapNode, Run } from '../../domain/types'
+import { rollWheelOutcome } from '../../domain/lifecycle'
 import { useAppStore } from '../../state/store'
 import { Button, Icon, Panel, Pips } from '../components'
 import { rewardFeedback } from '../lib/daySummary'
@@ -81,6 +82,18 @@ function NodeNotes({ node }: { node: MapNode }) {
       </p>
     )
   }
+  if (node.type === 'wheel') {
+    return (
+      <p className="node-note">
+        <Icon name="wheel" />
+        <span>
+          A turn of the wheel: it may ask for a task (more likely for goals that are still
+          pending), or grant gold, XP, or a rest. The result is revealed when you keep the
+          step.
+        </span>
+      </p>
+    )
+  }
   if (node.type === 'elite') {
     return (
       <p className="node-note">
@@ -115,10 +128,14 @@ export function NodeScreen() {
   const view = useAppStore((state) => state.view)
   const run = useAppStore((state) => state.document.run)
   const goals = useAppStore((state) => state.document.goals)
+  const tasks = useAppStore((state) => state.document.tasks)
   const navigate = useAppStore((state) => state.navigate)
   const resolveNode = useAppStore((state) => state.resolveNode)
   const [resolving, setResolving] = useState(false)
   const resolvingRef = useRef(false)
+  const [spinning, setSpinning] = useState(false)
+  const [revealed, setRevealed] = useState(false)
+  const [rotation, setRotation] = useState(0)
 
   const day = currentDay(run)
   const map = day?.map ?? null
@@ -141,6 +158,13 @@ export function NodeScreen() {
     if (redirectTo === 'map') navigate({ name: 'map' })
     else navigate({ name: 'node', nodeId: redirectTo })
   }, [redirectTo, navigate])
+
+  const [trackedNodeId, setTrackedNodeId] = useState(nodeId)
+  if (trackedNodeId !== nodeId) {
+    setTrackedNodeId(nodeId)
+    setSpinning(false)
+    setRevealed(false)
+  }
 
   const record = (action: 'complete' | 'skip') => {
     if (!node || !day || resolvingRef.current) return
@@ -200,6 +224,65 @@ export function NodeScreen() {
   const goalCrest = goalIconFor(goals, node.task?.goalId)
   const lootRolls = node.rewards.lootRolls
 
+  const WHEEL_SECTORS = [
+    'task', 'task', 'task', 'task', 'task', 'task',
+    'gold', 'gold',
+    'xp', 'xp',
+    'rest', 'rest',
+  ] as const
+
+  const sectorIcon = (cat: (typeof WHEEL_SECTORS)[number]) =>
+    cat === 'task' ? 'scroll' : cat === 'gold' ? 'coin' : cat === 'xp' ? 'star' : 'campfire'
+
+  const sectorPath = (i: number) => {
+    const center = i * 30 - 90
+    const start = center - 15
+    const end = center + 15
+    const toRad = (d: number) => (d * Math.PI) / 180
+    const x1 = 100 + 90 * Math.cos(toRad(start))
+    const y1 = 100 + 90 * Math.sin(toRad(start))
+    const x2 = 100 + 90 * Math.cos(toRad(end))
+    const y2 = 100 + 90 * Math.sin(toRad(end))
+    return `M100,100 L${x1},${y1} A90,90 0 0,1 ${x2},${y2} Z`
+  }
+
+  const sectorIconPos = (i: number) => {
+    const center = i * 30 - 90
+    const rad = (center * Math.PI) / 180
+    return { x: 100 + 62 * Math.cos(rad), y: 100 + 62 * Math.sin(rad) }
+  }
+  const isWheel = node.type === 'wheel'
+
+  const spinWheel = () => {
+    if (spinning || revealed) return
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) {
+      setRevealed(true)
+      return
+    }
+    const segmentIndex = rolledOutcome?.segmentIndex ?? 0
+    setSpinning(true)
+    setRotation((prev) => prev + 2880 - (segmentIndex * 30 + 15))
+    window.setTimeout(() => {
+      setSpinning(false)
+      setRevealed(true)
+    }, 5000)
+  }
+
+  const rolledOutcome =
+    isWheel && run && day
+      ? rollWheelOutcome({
+          runId: run.id,
+          dayIndex: day.index,
+          nodeId: node.id,
+          goals,
+          tasks,
+          objectives: run.objectives,
+        })
+      : null
   return (
     <section className="screen screen--node" data-screen="node" aria-labelledby="node-title">
       <button className="node-back" type="button" onClick={() => navigate({ name: 'map' })}>
@@ -263,7 +346,16 @@ export function NodeScreen() {
                 <small>{effortNote(node)}</small>
               </div>
 
-              {node.type === 'treasure' ? (
+              {node.type === 'wheel' ? (
+                <div className="node-fact">
+                  <span className="micro">Outcome</span>
+                  <strong>
+                    <Icon name="wheel" />
+                    Surprise
+                  </strong>
+                  <small>Task, gold, XP or rest</small>
+                </div>
+              ) : node.type === 'treasure' ? (
                 <div className="node-fact">
                   <span className="micro">Fortune</span>
                   <strong>
@@ -308,6 +400,75 @@ export function NodeScreen() {
               )
             ) : null}
 
+            {isWheel ? (
+              <div className="wheel-spinner" data-spinning={spinning ? 'true' : 'false'}>
+                <div className="wheel" style={{ transform: `rotate(${rotation}deg)` }}>
+                  <svg viewBox="0 0 200 200" className="wheel__svg" aria-hidden="true">
+                    <g className="wheel__segments">
+                      {WHEEL_SECTORS.map((cat, i) => (
+                        <path
+                          key={i}
+                          d={sectorPath(i)}
+                          className={`wheel__seg wheel__seg--${cat}`}
+                        />
+                      ))}
+                    </g>
+                    <g className="wheel__icons">
+                      {WHEEL_SECTORS.map((cat, i) => {
+                        const pos = sectorIconPos(i)
+                        return (
+                          <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+                            <g transform="translate(-10, -10)">
+                              <Icon name={sectorIcon(cat)} />
+                            </g>
+                          </g>
+                        )
+                      })}
+                    </g>
+                    <circle cx="100" cy="100" r="22" className="wheel__hub" />
+                    <text x="100" y="106" textAnchor="middle" className="wheel__hub-text">?</text>
+                  </svg>
+                </div>
+                <span className="wheel__pointer" aria-hidden="true" />
+
+                {!revealed && !spinning ? (
+                  <Button variant="primary" onClick={spinWheel}>
+                    <Icon name="wheel" />
+                    Spin the wheel
+                  </Button>
+                ) : null}
+
+                {spinning ? <p className="wheel__status">Spinning…</p> : null}
+
+                {revealed && rolledOutcome ? (
+                  <div className="wheel__result">
+                    <p className="wheel__result-line">
+                      {rolledOutcome.outcome === 'task'
+                        ? `Task: ${rolledOutcome.task?.title ?? 'a task'}`
+                        : rolledOutcome.outcome === 'gold'
+                          ? `Gold`
+                          : rolledOutcome.outcome === 'xp'
+                            ? `Experience`
+                            : `Rest`}
+                    </p>
+                    <p className="wheel__result-reward">
+                      {rolledOutcome.outcome === 'task'
+                        ? `+${rolledOutcome.xp} XP · +${rolledOutcome.gold} gold · +1 toward weekly target`
+                        : rolledOutcome.outcome === 'gold'
+                          ? `+${rolledOutcome.gold} gold`
+                          : rolledOutcome.outcome === 'xp'
+                            ? `+${rolledOutcome.xp} XP`
+                            : `+${rolledOutcome.xp} XP`}
+                    </p>
+                    <Button variant="primary" disabled={resolving} onClick={() => record('complete')}>
+                      <Icon name="check" />
+                      Claim reward
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
             <NodeNotes node={node} />
 
             {node.type === 'boss' ? (
@@ -333,24 +494,26 @@ export function NodeScreen() {
 
             <NodeSkipNote boss={node.type === 'boss'} />
 
-            <div className="node-actions" aria-busy={resolving}>
-              <Button
-                variant="primary"
-                disabled={resolving}
-                onClick={() => record('complete')}
-              >
-                <Icon name="check" />
-                Mark complete
-              </Button>
-              <Button
-                variant="quiet"
-                disabled={resolving}
-                aria-describedby="node-skip-note"
-                onClick={() => record('skip')}
-              >
-                Skip this step
-              </Button>
-            </div>
+            {isWheel ? null : (
+              <div className="node-actions" aria-busy={resolving}>
+                <Button
+                  variant="primary"
+                  disabled={resolving}
+                  onClick={() => record('complete')}
+                >
+                  <Icon name="check" />
+                  Mark complete
+                </Button>
+                <Button
+                  variant="quiet"
+                  disabled={resolving}
+                  aria-describedby="node-skip-note"
+                  onClick={() => record('skip')}
+                >
+                  Skip this step
+                </Button>
+              </div>
+            )}
           </div>
         </article>
       </div>

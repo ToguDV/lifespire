@@ -15,21 +15,26 @@ const FLAVOR: Record<MapNode['type'], string> = {
   elite: 'A harder climb, and a richer prize. The trail will not ask twice.',
   rest: 'Not every step is a climb. Let the fire burn low and take what quiet gives.',
   treasure: 'A cache left by another traveller. It asks nothing of the week.',
+  wheel: 'A turn of fate. It may ask for a task, or simply give.',
   boss: 'The gate of the day. Finish here and the week takes its shape.',
 }
 
 const REST_TITLE = 'A quiet rest'
 const TREASURE_TITLE = 'A hidden cache'
+const WHEEL_TITLE = 'A turn of the wheel'
 
 export function nodeTitle(node: MapNode): string {
   if (node.task) return node.task.title
-  return node.type === 'treasure' ? TREASURE_TITLE : REST_TITLE
+  if (node.type === 'treasure') return TREASURE_TITLE
+  if (node.type === 'wheel') return WHEEL_TITLE
+  return REST_TITLE
 }
 
 export function nodeTypeLine(node: MapNode): string {
   const type = NODE_TYPE_LABEL[node.type]
-  if (node.type === 'rest') return `${type} node · no task`
-  if (node.type === 'treasure') return `${type} node · no task`
+  if (node.type === 'rest' || node.type === 'treasure' || node.type === 'wheel') {
+    return `${type} node · no task`
+  }
   const effort = node.task ? EFFORT_LABEL[node.task.effort] : 'Unknown'
   return `${type} node · ${effort} effort`
 }
@@ -43,6 +48,7 @@ function pluralRolls(count: number): string {
 }
 
 export function nodeRewardLine(node: MapNode): string {
+  if (node.type === 'wheel') return 'A surprise: task, gold, XP or rest'
   const parts: string[] = []
   if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} XP`)
   if (node.rewards.gold > 0) parts.push(`+${node.rewards.gold} gold`)

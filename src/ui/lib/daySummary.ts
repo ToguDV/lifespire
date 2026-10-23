@@ -47,11 +47,21 @@ export function buildDayPath(day: Day): DayPathRow[] {
 }
 
 /** Transient message shown after a node resolution, before leaving the screen. */
-export function rewardFeedback(event: Pick<RewardEvent,
-  'action' | 'xp' | 'gold' | 'lootItem' | 'duplicateGold' | 'duplicateCatalogId' | 'progress'
->): string {
+export function rewardFeedback(
+  event: Pick<RewardEvent, 'action' | 'xp' | 'gold' | 'lootItem' | 'duplicateGold' | 'duplicateCatalogId' | 'progress'> &
+    Partial<Pick<RewardEvent, 'nodeType' | 'wheelOutcome' | 'taskTitle'>>,
+): string {
   if (event.action === 'skip') {
     return 'Step skipped · no XP, gold, loot or weekly progress.'
+  }
+
+  if (event.nodeType === 'wheel') {
+    if (event.wheelOutcome === 'task') {
+      return `Wheel: ${event.taskTitle ?? 'a task'} · +${event.xp} XP · +${event.gold} gold · +1 toward weekly target`
+    }
+    if (event.wheelOutcome === 'gold') return `Wheel: +${event.gold} gold`
+    if (event.wheelOutcome === 'xp') return `Wheel: +${event.xp} XP`
+    if (event.wheelOutcome === 'rest') return `Wheel: rest · +${event.xp} XP`
   }
 
   const parts: string[] = ['Step kept']
