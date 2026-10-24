@@ -54,6 +54,9 @@ jobs:
 
   quality:
     runs-on: ubuntu-latest
+    env:
+      # Dummy URL: prisma generate resolves config without connecting.
+      DATABASE_URL: postgresql://lifespire:lifespire@localhost:5433/lifespire
     steps:
       - uses: actions/checkout@v7
 
@@ -72,6 +75,9 @@ jobs:
 
       - name: Approve native builds
         run: pnpm approve-builds --all
+
+      - name: Prisma generate
+        run: pnpm --filter @lifespire/api prisma:generate
 
       - name: Lint
         run: pnpm lint
@@ -94,9 +100,6 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.critical == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: apps/web
     steps:
       - uses: actions/checkout@v7
 
@@ -109,14 +112,12 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
-        working-directory: .
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
-        working-directory: .
+        run: pnpm --filter @lifespire/web exec playwright install --with-deps chromium
 
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: pnpm --filter @lifespire/web test:e2e
 
       - name: Upload report
         if: ${{ !cancelled() }}
@@ -167,6 +168,9 @@ jobs:
 
       - name: Approve native builds
         run: pnpm approve-builds --all
+
+      - name: Prisma generate
+        run: pnpm --filter @lifespire/api prisma:generate
 
       - name: Migrate test database
         run: pnpm --filter @lifespire/api prisma:deploy
