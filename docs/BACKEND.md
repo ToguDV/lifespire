@@ -20,7 +20,8 @@ apps/api/
                        TotpAdminGuard, decorators, request-id
     prisma/            PrismaService (adapter-pg) + module
     auth/              login, accept-invite, refresh, logout, password,
-                       TOTP setup/enable, Argon2id, invite tokens
+                       TOTP setup/enable, Argon2id, invite tokens, native
+                       client gate (ADR-0005)
     users/             GET/PATCH /v1/me, export, delete
     admin/             user CRUD, invites, resets, TOTP reset, audit
     devices/           list, revoke
@@ -30,10 +31,12 @@ apps/api/
     cli/               admin:create, admin:reset-link
   prisma/schema.prisma user/role/status, tokens, devices, sessions,
                        document/revisions/mutations, audit
+apps/mobile/           Expo Android app; shares app-core and native auth
 packages/core/         pure domain, source of truth (CJS build at dist/cjs
-                       for the server; TS sources for Vite/Vitest). The API
-                       enforces full game-rule validation via parseDocument;
+                       for the server; TS sources for Vite/Vitest/Metro). The
+                       API enforces full game-rule validation via parseDocument;
                        see ADR-0003.
+packages/app-core/     shared store/persistence/sync/UI helpers
 packages/api-client/   dependency-free typed fetch client + conflict error
 infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
                        dev compose, backup.sh
@@ -50,10 +53,18 @@ infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
 - Passwords: Argon2id, 12–256 chars. Login errors are generic to avoid
   enumeration; disabled accounts get an explicit 403.
 - Access: JWT 15 min (`sub`, `email`, `role`, `sid`, `did`, `totpVerified`).
+- **Native grant (ADR-0005):** a request is native only with
+  `X-Client-Platform: android|ios` and no `Origin`/`Sec-Fetch-Site` headers.
+  Those browser-forbidden headers cannot be removed by page JavaScript, so web
+  keeps the HttpOnly cookie and cannot opt into the body token. Native
+  login/accept-invite return `refreshToken`; native refresh accepts
+  `{ refreshToken }`. Rotation, hashing, family reuse detection and revocation
+  are identical.
 - Refresh: opaque 32-byte token, sha256 in DB, HttpOnly cookie
   `__Secure-ls_rt` (`Secure` in prod, `SameSite=Lax`, `Path=/v1/auth`),
   rotated per use, 30-day expiry, family-based reuse detection (reuse revokes
-  the whole family).
+  the whole family). Native clients store the same token in the OS keychain and
+  send it in the refresh body; they do not receive a cookie.
 - **TOTP mandatory for admins.** Login without setup returns
   `totpSetupRequired: true`; `POST /v1/auth/totp/setup` returns an otpauth URL
   plus 10 hashed one-time recovery codes; admin routes require a verified
@@ -125,6 +136,10 @@ behavior. The server never interprets dates — it stores the document.
   overwrites (versions + idempotency).
 - Rate limits: 120 req/min global, 10/min login/invite, 5/min reset.
 - Logs redact `authorization`, cookies, passwords and documents.
+- Native token gate: the header is spoofable in principle, but the absence of
+  `Origin`/`Sec-Fetch-Site` is what keeps the token out of browser JavaScript.
+  This is a closed-beta tradeoff; a PKCE/Custom Tab flow is the long-term path
+  if third-party clients appear. The refresh token is never logged.
 - Accepted tradeoff: disabled accounts are enumerable via the login `403`
   (anyone holding valid credentials for a disabled account can distinguish it
   from a bad-password `401`); accepted so operators and users get a clear
@@ -175,8 +190,13 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
 
 ## 7. Testing
 
-- `pnpm --filter @lifespire/api test` — 33 unit tests (versions, crypto,
-  invites, TOTP adapter, env, structural + rule gates, metrics counters). No DB needed.
+- `pnpm --filter @lifespire/api test` — unit tests (versions, crypto,
+  invites, TOTP adapter, env, structural + rule gates, metrics counters, native
+  client gate). No DB needed.
+- `pnpm --filter @lifespire/api-client test` covers cookie mode, native token
+  capture/rotation and refusal without a stored token.
+- `pnpm --filter @lifespire/mobile test` covers the local notification planner.
+  A Postgres e2e flow for the native grant is a follow-up.
 - `pnpm --filter @lifespire/api test:e2e` — 11 flows against Postgres:
   (a) admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/
   replay/key-reuse/revisions, device revoke, disable, last-admin guard;
@@ -193,13 +213,11 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
 
 ## 8. Follow-ups (not in this PR)
 
-- Web sync engine + conflict dialog + per-account local keys (`M5-client`,
-  calling `/v1` same-origin per the §6 contract). Conservative auto-merge
-  landed in ADR-0004.
-- Web move is done (`apps/web`); `src/domain` ↔ `packages/core` dedup
-  (re-export shims) landed in #46 — web files are one-line shims, core is
-  the source of truth.
+- Native auth e2e (Postgres): login → body refresh → rotation/reuse/revoke,
+  including the browser-header rejection case.
 - Journal/operation sync if conflicts still hurt in real use (see ADR-0001).
+- Remote push (APNs/FCM/Expo Push) is intentionally out of scope; local
+  reminders need no server registration.
 
 ## 9. Ops evidence (2026-10-24, closes #47)
 

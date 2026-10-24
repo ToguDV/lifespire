@@ -10,9 +10,11 @@ Fuentes: [`SPEC.md`](../SPEC.md) y [`design/DESIGN.md`](../design/DESIGN.md)
 ## 1. Estructura
 
 Monorepo pnpm (`pnpm-workspace.yaml`): `apps/web` (Vite + React),
-`apps/api` (NestJS sync API), `packages/core` (dominio puro compartido en
-extracción), `packages/api-client` (cliente tipado). Detalle del backend en
-[`BACKEND.md`](./BACKEND.md) y decisiones en [`adr/`](./adr/).
+`apps/mobile` (Expo + React Native, Android), `apps/api` (NestJS sync API),
+`packages/core` (dominio puro, fuente única), `packages/app-core` (store,
+persistencia, sync y helpers puros compartidos) y `packages/api-client`
+(cliente tipado). Detalle del backend en [`BACKEND.md`](./BACKEND.md), de la
+app Android en [`MOBILE.md`](./MOBILE.md) y decisiones en [`adr/`](./adr/).
 
 ```text
 apps/web/src/
@@ -66,15 +68,19 @@ apps/web/src/
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
 apps/api/src/      auth, users, admin, devices, sync, health, audit, prisma, cli
-packages/core/src/ dominio puro, fuente única (los tests de dominio/contenido
-  viven aquí; apps/web solo conserva shims; ver adr/0003-monorepo.md)
-packages/api-client/src/ cliente fetch tipado
+apps/mobile/src/        shell nativo, tokens, componentes, pantallas, mapa SVG,
+  notificaciones locales y adaptadores de plataforma (ver MOBILE.md)
+packages/core/src/      dominio puro, fuente única (tests de dominio/contenido)
+packages/app-core/src/  store Zustand, persistencia, reloj, sync engine/manager,
+  authStore factory y helpers puros de UI compartidos por web y Android
+packages/api-client/src/ cliente fetch tipado (cookie web / token nativo)
 ```
 
-Los tests viven junto al módulo (`*.test.ts`). No se añaden librerías de UI,
-router ni kit visual; los iconos se resuelven con `lucide-react` a través del
-adaptador `Icon.tsx`/`iconMap.ts`. El mapa se dibuja con SVG propio. Las fuentes
-se sirven desde `public/fonts/` y se declaran en `tokens.css`.
+Los tests viven junto al módulo (`*.test.ts` en web/core, `*.test.ts(x)` con
+Jest en Android). No se añaden librerías de UI, router ni kit visual; los
+iconos se resuelven con `lucide-react`/`lucide-react-native` a través de sus
+adaptadores. El mapa se dibuja con SVG propio en ambas plataformas. Las fuentes
+web se sirven desde `public/fonts/` y las de Android desde Expo fonts.
 
 ## 2. Navegación sin router
 
@@ -95,7 +101,9 @@ export type View =
   | { name: 'recovery'; reason: 'corrupt' | 'future-version' | 'import-error' }
 ```
 
-`navigate(view)` apila la vista anterior; `back()` desapila. La vista inicial se
+La app Android reutiliza este mismo `view`/`history` (sin router nativo); el
+botón atrás de Android llama a `back()` y la pantalla de recap de la rueda
+bloquea el retroceso. `navigate(view)` apila la vista anterior; `back()` desapila. La vista inicial se
 deriva al hidratar: sin perfil → `onboarding`; run cerrado → `run-summary`; si el
 día actual está abierto y su mapa tiene `currentNodeId` → `node` para ese nodo;
 si no → `home`. La vista sigue siendo transitoria: el detalle se reconstruye
@@ -107,7 +115,8 @@ desde el documento persistido, nunca se guarda `view` en `localStorage`.
 
 - `lifespire:mvp0` (`STORAGE_KEY`): el `GameDocument` versionado. El slice que
   gestiona Zustand es `{ document }`, pero el adaptador escribe el documento
-  directo, sin el envoltorio de `persist`.
+  directo, sin el envoltorio de `persist`. En Android el mismo contrato se
+  implementa sobre `expo-sqlite/kv-store` síncrono; las claves son idénticas.
 - `lifespire:mvp0:backup` (`STORAGE_BACKUP_KEY`): copia raw del save anterior,
   best-effort, antes de un import o de un reset destructivo. No se actualiza en
   cada escritura.
@@ -657,6 +666,19 @@ generateMap(input: {
   `lifespire-recovery-<fecha-local>.json`. Funciona aunque el save esté bloqueado
   o no se pueda parsear; si no hay save, avisa de que no hay nada que descargar.
 
+### Persistencia Android
+
+- `apps/mobile/src/platform/storage.ts` implementa `StorageLike` sobre
+  `expo-sqlite/kv-store` con `getItemSync`/`setItemSync`/`removeItemSync`. La
+  hidratación de Zustand es síncrona, como en web, así que la app no muestra un
+  save vacío mientras lee.
+- El controlador es el mismo (`createDocumentStorage`); el aviso
+  `storageWarning`, el backup, las guardas de versión futura y las claves por
+  cuenta se comparten. La sincronización multi-pestaña no aplica (instancia
+  única); `AppState` y NetInfo sustituyen a los eventos de ventana/red.
+- El refresh token no se guarda aquí: vive en `expo-secure-store`. El save
+  exportado es el mismo JSON legible y el import usa las mismas validaciones.
+
 ### Multi-pestaña
 
 - El adaptador recuerda el último raw que leyó o escribió (`lastWrittenRaw`).
@@ -673,6 +695,11 @@ generateMap(input: {
   no se puede leer, se conserva el documento actual y también se avisa.
 
 ## 5. Store (Zustand)
+
+El store vive en `packages/app-core/src/state/store.ts`; web y Android crean su
+singleton inyectando el controlador de storage (`documentStorage` en web,
+SQLite KV en Android). `createAppStore(deps)` acepta storage, reloj, factoría
+de ids y zona horaria, y sigue siendo la única fuente de acciones.
 
 Estado:
 
@@ -882,7 +909,41 @@ prototipo retirado:
   requisito de HTTPS para instalar en un teléfono están en
   [`PWA.md`](./PWA.md).
 
+### App Android (Expo, SDK 58)
+
+- **Alcance:** paridad funcional con web (onboarding, mapa, nodo, rueda, recap,
+  resumen de día/semana, metas/rutinas, reliquary, ajustes, recovery, dev panel
+  solo en `__DEV__`) más notificaciones locales. El panel admin y las push
+  remotas quedan fuera; ver `SPEC.md`.
+- **Shell:** `AppShell.tsx` reproduce las guardas de vista del shell web con
+  topbar, tabbar (Map/Camp/Goals/Relics), toasts, `ConflictDialog` y enlaces
+  `lifespire://`. `Screen` usa el safe area raíz; las pantallas no lo duplican.
+- **Diseño:** `src/theme/tokens.ts` porta las paletas, tipografía, spacing y
+  radios de `tokens.css`; `useTheme` resuelve `light|dark|system`. Los
+  componentes RN son la contraparte de `apps/web/src/ui/components`.
+- **Mapa/rueda:** `MapCanvas` reutiliza `mapLayout`/`classifyMapEdges` y
+  pinta aristas en `react-native-svg`; los nodos son `Pressable` posicionados
+  por porcentaje. La rueda usa `WHEEL_SECTORS`, `nextWheelRotation` y la
+  misma semilla determinista.
+- **Auth/sync:** `src/sync/api.ts` crea el cliente en modo `native`; el refresh
+  token va a `expo-secure-store` y el acceso vive en memoria. El servidor solo
+  lo devuelve con el gate de `X-Client-Platform` sin `Origin`/
+  `Sec-Fetch-Site` (ADR-0005). El motor de sync, el manager y el auto-merge son
+  los de `app-core`; NetInfo/AppState sustituyen a navigator/window.
+- **Notificaciones:** preferencias device-local en `lifespire:notifications`
+  (fuera del documento), planner puro (`day-open`, `evening`, `run-end`) y
+  scheduler `expo-notifications` con canal `daily-path`. Se reprograman al
+  cambiar el documento/prefs y al volver a foreground; no se piden alarmas
+  exactas. Ver `MOBILE.md` §5.
+- **Datos:** export/import JSON con `expo-file-system` + `expo-sharing` +
+  `expo-document-picker`, mismos gates de 2 MB y `readSaveFile`. El esquema
+  `GameDocument` no cambia.
+
 ## 7. Tests obligatorios por módulo
+
+La app Android añade `apps/mobile/src/notifications/planner.test.ts` (Jest) para
+las reglas de recordatorios; el resto de la lógica compartida se cubre con la
+suite de web a través de los shims. Ver [`MOBILE.md`](./MOBILE.md) §8.
 
 - `rng`/`generator`: determinismo, golden seed, 1.000 mapas, invariantes y edge
   cases (4 rutinas, 1 goal, 3 goals, 10 goals, pool pequeño/grande).

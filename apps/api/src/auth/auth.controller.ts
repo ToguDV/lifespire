@@ -4,8 +4,17 @@ import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/public.decorator';
 import { AuthService, REFRESH_COOKIE } from './auth.service';
-import { AcceptInviteDto, ChangePasswordDto, LoginDto, ResetPasswordDto, TotpSetupDto, TotpVerifyDto } from './dto';
+import {
+  AcceptInviteDto,
+  ChangePasswordDto,
+  LoginDto,
+  RefreshDto,
+  ResetPasswordDto,
+  TotpSetupDto,
+  TotpVerifyDto,
+} from './dto';
 import { CurrentUser } from '../common/current-user.decorator';
+import { isNativeClient } from './native-client';
 
 function cookieFlags(nodeEnv: string): { secure: boolean; sameSite: 'lax' } {
   return { secure: nodeEnv === 'production', sameSite: 'lax' };
@@ -36,6 +45,14 @@ export class AuthController {
       device: deviceOf(req, dto.deviceName),
       totpCode: dto.totpCode,
     });
+    if (isNativeClient(req)) {
+      return {
+        accessToken: out.accessToken,
+        user: out.user,
+        totpSetupRequired: out.totpSetupRequired,
+        refreshToken: out.refreshToken,
+      };
+    }
     const env = process.env.NODE_ENV ?? 'development';
     res.cookie(REFRESH_COOKIE, out.refreshToken, {
       httpOnly: true,
@@ -56,6 +73,9 @@ export class AuthController {
       password: dto.password,
       device: deviceOf(req, dto.deviceName),
     });
+    if (isNativeClient(req)) {
+      return { accessToken: out.accessToken, refreshToken: out.refreshToken };
+    }
     const env = process.env.NODE_ENV ?? 'development';
     res.cookie(REFRESH_COOKIE, out.refreshToken, {
       httpOnly: true,
@@ -70,8 +90,13 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const token = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+  async refresh(
+    @Body() dto: RefreshDto | undefined,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const native = isNativeClient(req);
+    const token = native ? dto?.refreshToken : (req.cookies?.[REFRESH_COOKIE] as string | undefined);
     if (!token) {
       const { ApiError } = await import('../common/api-error');
       throw new ApiError({ status: 401, code: 'AUTH_TOKEN_EXPIRED', title: 'Missing refresh token' });
@@ -81,6 +106,9 @@ export class AuthController {
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
+    if (native) {
+      return { accessToken: out.accessToken, refreshToken: out.refreshToken };
+    }
     const env = process.env.NODE_ENV ?? 'development';
     res.cookie(REFRESH_COOKIE, out.refreshToken, {
       httpOnly: true,

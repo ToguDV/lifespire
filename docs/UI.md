@@ -14,7 +14,9 @@ system.
 | Dialogs, toast, empty states, dev panel, recovery, settings | `apps/web/src/styles/ui.css` |
 | Onboarding and goal/routine editors | `apps/web/src/styles/m3.css` |
 | Alegreya + Alegreya Sans WOFF2 | `public/fonts/*.woff2` |
-| Icon adapter (`IconName` → Lucide) | `apps/web/src/ui/components/Icon.tsx`, `iconMap.ts` |
+| Icon adapter (`IconName` → Lucide) | `apps/web/src/ui/components/Icon.tsx`, `iconMap.ts`; `apps/mobile/src/components/Icon.tsx`, `iconMap.ts` |
+| Android tokens and components | `apps/mobile/src/theme/tokens.ts`, `apps/mobile/src/components/` |
+| Android screens and shell | `apps/mobile/src/AppShell.tsx`, `apps/mobile/src/screens/` |
 
 The static HTML proposal that used to live in `design/` has been retired; the
 app and `design/DESIGN.md` are the only references now. No UI kit or router is
@@ -51,6 +53,23 @@ downloads the versioned JSON document; import uses a visually hidden file input
 inside a `btn` label, so the 44 px target, focus ring and keyboard activation are
 preserved. The preview is a `Dialog` with a definition list, and the destructive
 reset also requires typing `RESET` before its final button enables.
+
+## Android shell
+
+The Android app reuses the same `view` union and store navigation, not a router.
+`AppShell.tsx` renders a compact topbar (brand, day label, gold/level, settings)
+and a four-item tabbar (Map, Camp, Goals, Relics); Settings is a full screen
+from the topbar. The node detail, wheel recap, day summary and run summary are
+reached from Map/Camp with the same guards. The hardware back button maps to
+`back()` and is blocked on the wheel recap. Safe areas are handled once at the
+root; `Screen` only adds padding and the scroll container.
+
+The component vocabulary mirrors web: `Button`, `IconButton`, `Icon`, `Panel`,
+`PanelHead`, `ScreenHead`, `Progress`, `Pips`, `DayPips`, `Stat`, `StatStrip`,
+`EffortDots`, `AimRow`, `LootCard`, `Dialog`, `Toast`, `RewardToast`,
+`IconPicker`, `AnimatedNumber` and `MapCanvas`. `MapCanvas` reuses the pure
+map layout; the wheel reuses the sector and rotation math. Long dialogs scroll
+inside the modal so forms remain usable on 360 dp screens.
 
 ## PWA
 
@@ -95,3 +114,8 @@ Visible `:focus-visible`, a skip link, 44 px primary targets, labelled icon
 buttons, semantic headings, keyboard-operable navigation and focus trapping in
 dialogs. `prefers-reduced-motion` is handled by `tokens.css`; new animations use
 the same duration/easing tokens.
+
+Android uses 48 dp targets, TalkBack roles/labels/state, safe areas, a scrollable
+dialog body, `AccessibilityInfo.isReduceMotionEnabled` for the wheel/counters
+and the same contrast tokens. Notification permission is only requested from
+Settings, never on a cold start.

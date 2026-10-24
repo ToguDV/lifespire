@@ -8,8 +8,8 @@ import type { PersistedSlice, StorageLike } from './persistence'
 // Lets the fail-open test simulate a migration or parser that throws without
 // replacing the real validators for the rest of the suite.
 const schemaControl = vi.hoisted(() => ({ throwOnParse: false }))
-vi.mock('../domain/schema', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../domain/schema')>()
+vi.mock('@lifespire/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@lifespire/core')>()
   return {
     ...actual,
     parseDocument: (input: unknown) => {

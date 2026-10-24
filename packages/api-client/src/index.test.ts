@@ -131,8 +131,102 @@ describe('api-client', () => {
     }
   });
 
-  it('covers auth endpoints with typed results', async () => {
-    const paths: string[] = [];
+  it('keeps the web cookie mode unchanged', async () => {
+    const seen: Record<string, string> = {}
+    const origFetch = globalThis.fetch
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      Object.assign(seen, init?.headers as Record<string, string>)
+      return new Response(
+        JSON.stringify({
+          accessToken: 'web-token',
+          user: { id: 'u1', email: 'a@b.c', role: 'USER', status: 'ACTIVE' },
+          totpSetupRequired: false,
+        }),
+        { status: 200 },
+      )
+    }) as typeof fetch
+    try {
+      const api = createApiClient({ baseUrl: 'https://api.example.com' })
+      await api.login('a@b.c', 'password123456', 'web')
+      expect(seen['X-Client-Platform']).toBeUndefined()
+    } finally {
+      globalThis.fetch = origFetch
+    }
+  })
+
+  it('native mode captures and rotates the refresh token', async () => {
+    const calls: Array<{ path: string; headers: Record<string, string>; body: unknown }> = []
+    let accessToken: string | null = null
+    let refreshToken: string | null = null
+    const origFetch = globalThis.fetch
+    globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+      const target = String(url)
+      const path = target.slice(target.indexOf('/v1'))
+      calls.push({
+        path,
+        headers: (init?.headers as Record<string, string>) ?? {},
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      })
+      if (path === '/v1/auth/login') {
+        return new Response(
+          JSON.stringify({
+            accessToken: 'access-1',
+            refreshToken: 'refresh-1',
+            user: { id: 'u1', email: 'a@b.c', role: 'USER', status: 'ACTIVE' },
+            totpSetupRequired: false,
+          }),
+          { status: 200 },
+        )
+      }
+      if (path === '/v1/auth/refresh') {
+        return new Response(
+          JSON.stringify({ accessToken: 'access-2', refreshToken: 'refresh-2' }),
+          { status: 200 },
+        )
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }) as typeof fetch
+    try {
+      const api = createApiClient({
+        baseUrl: 'https://api.example.com',
+        mode: 'native',
+        platform: 'android',
+        getAccessToken: () => accessToken,
+        setAccessToken: (next) => {
+          accessToken = next
+        },
+        getRefreshToken: () => refreshToken,
+        setRefreshToken: (next) => {
+          refreshToken = next
+        },
+      })
+      await api.login('a@b.c', 'password123456', 'android')
+      expect(accessToken).toBe('access-1')
+      expect(refreshToken).toBe('refresh-1')
+      expect(calls[0]?.headers['X-Client-Platform']).toBe('android')
+
+      await api.refresh()
+      expect(accessToken).toBe('access-2')
+      expect(refreshToken).toBe('refresh-2')
+      expect(calls[1]?.body).toEqual({ refreshToken: 'refresh-1' })
+    } finally {
+      globalThis.fetch = origFetch
+    }
+  })
+
+  it('native mode refuses to refresh without a stored token', async () => {
+    const api = createApiClient({
+      baseUrl: 'https://api.example.com',
+      mode: 'native',
+      getAccessToken: () => null,
+      setAccessToken: () => undefined,
+      getRefreshToken: () => null,
+      setRefreshToken: () => undefined,
+    })
+    await expect(api.refresh()).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('covers auth endpoints with typed results', async () => {    const paths: string[] = [];
     const origFetch = globalThis.fetch;
     globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
       const target = String(url);

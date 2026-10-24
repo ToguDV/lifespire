@@ -1,10 +1,23 @@
 {
   "files": [],
   "references": [
-    { "path": "./apps/web/tsconfig.app.json" },
-    { "path": "./apps/web/tsconfig.node.json" },
-    { "path": "./packages/core" },
-    { "path": "./packages/api-client" },
-    { "path": "./apps/api" }
+    {
+      "path": "./apps/web/tsconfig.app.json"
+    },
+    {
+      "path": "./apps/web/tsconfig.node.json"
+    },
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/app-core"
+    },
+    {
+      "path": "./packages/api-client"
+    },
+    {
+      "path": "./apps/api"
+    }
   ]
 }

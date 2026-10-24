@@ -661,4 +661,62 @@ describe('sync API e2e (postgres)', () => {
     expect(after.body.metrics.bytesIn).toBeGreaterThan(before.body.metrics.bytesIn);
     expect(after.body.metrics.avgPushLatencyMs).toBeGreaterThanOrEqual(0);
   }, 60_000);
+  it('(l) native refresh grant returns a body token and rejects browser requests', async () => {
+    const email = `native-${suffix}@example.com`;
+    const password = 'native-password-123';
+    await prisma.user.create({
+      data: {
+        email,
+        passwordHash: await hashPassword(password),
+        role: 'USER',
+        status: 'ACTIVE',
+        activatedAt: new Date(),
+      },
+    });
+    const ip = nextIp();
+    const srv = app.getHttpServer();
+    const login = await request(srv)
+      .post('/v1/auth/login')
+      .set('X-Client-Platform', 'android')
+      .set('X-Forwarded-For', ip)
+      .send({ email, password, deviceName: 'android-pixel' })
+      .expect(200);
+    expect(typeof login.body.accessToken).toBe('string');
+    expect(typeof login.body.refreshToken).toBe('string');
+    expect(login.body.refreshToken.length).toBeGreaterThan(20);
+
+    const rotated = await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'android')
+      .set('X-Forwarded-For', ip)
+      .send({ refreshToken: login.body.refreshToken })
+      .expect(200);
+    expect(typeof rotated.body.accessToken).toBe('string');
+    expect(rotated.body.refreshToken).not.toBe(login.body.refreshToken);
+
+    // A browser-like request cannot use the body token: without the cookie it
+    // is treated as a web refresh and fails.
+    await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'android')
+      .set('Origin', 'http://localhost:5173')
+      .set('X-Forwarded-For', ip)
+      .send({ refreshToken: rotated.body.refreshToken })
+      .expect(401);
+
+    // Reuse detection still revokes the family, including the rotated token.
+    await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'android')
+      .set('X-Forwarded-For', ip)
+      .send({ refreshToken: login.body.refreshToken })
+      .expect(401);
+    await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'android')
+      .set('X-Forwarded-For', ip)
+      .send({ refreshToken: rotated.body.refreshToken })
+      .expect(401);
+  }, 60_000);
+
 });

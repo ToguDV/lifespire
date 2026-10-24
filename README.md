@@ -8,10 +8,13 @@ LifeSpire turns a person's goals and routines into a daily node map inspired by
 with weekly objectives — the more you complete, the more gold, XP, and loot you
 earn.
 
-It's a local-first web app: a single profile, playable as a guest with no
-server. Installable as a PWA and fully usable offline after the first load.
-An optional closed-beta sync API (NestJS + Postgres) links a user's devices;
-see `docs/BACKEND.md`.
+It's local-first on **web and Android**: one profile, playable as a guest with
+no server. The web app is installable as a PWA and fully usable offline after
+the first load. The Android app (Expo/React Native) shares the same domain,
+save format and optional sync, and adds device-local reminders for the daily
+map, an unresolved evening and the end of the run. An optional closed-beta sync
+API (NestJS + Postgres) links a user's devices; see `docs/BACKEND.md` and
+`docs/MOBILE.md`.
 
 The node map is the heart of the app: each day you pick a path through 3–15 layers
 plus a boss, with visible trade-offs between progress, effort, and reward. The
@@ -38,10 +41,14 @@ Mobile layouts are fully supported:
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm dev        # dev server
+pnpm dev        # web dev server
+pnpm dev:mobile # Android app (Expo)
 ```
 
-Open the printed URL. On first launch you can load **demo data** and start a run
+Open the printed web URL. For Android, open the project in Expo Go or run a
+development build with `pnpm --filter @lifespire/mobile android:native`.
+`docs/MOBILE.md` covers the SDK, the server URL override, local notifications
+and the release checklist. On first launch you can load **demo data** and start a run
 in one click, or create your own goals and routines.
 
 ### Full local stack (single command, hot reload)
@@ -67,8 +74,8 @@ with `docker compose -f infra/docker-compose.local.yml exec -T api pnpm --filter
 pnpm lint       # oxlint
 pnpm typecheck  # TypeScript (tsc -b)
 pnpm typecheck:e2e  # E2E TypeScript (tsc -p tsconfig.e2e.json)
-pnpm test       # Vitest
-pnpm build      # typecheck + production build
+pnpm test       # Vitest (web/core/API) + Jest (Android planner)
+pnpm build      # typecheck + production build + Android JS bundle
 pnpm preview    # serve the build (test PWA / offline)
 ```
 

@@ -44,57 +44,11 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-/**
- * Runtime list of the semantic icon names. The union type is derived from it
- * so the icon map, the picker and the persisted goal ids can never drift apart.
- */
-export const ICON_NAMES = [
-  'spire',
-  'map',
-  'tent',
-  'banner',
-  'gem',
-  'sun',
-  'moon',
-  'coin',
-  'star',
-  'chevron-right',
-  'chevron-left',
-  'arrow-left',
-  'check',
-  'lock',
-  'scroll',
-  'elite',
-  'campfire',
-  'chest',
-  'crown',
-  'compass',
-  'quill',
-  'flame',
-  'feather',
-  'lantern',
-  'key',
-  'cup',
-  'ring',
-  'pine',
-  'plus',
-  'edit',
-  'archive',
-  'settings',
-  'book',
-  'heart',
-  'leaf',
-  'brush',
-  'dumbbell',
-  'home',
-  'wheel',
-  'wallet',
-  'briefcase',
-  'users',
-  'utensils',
-] as const
+import { ICON_NAMES } from '@lifespire/app-core/ui/icons'
+import type { IconName } from '@lifespire/app-core/ui/icons'
 
-export type IconName = (typeof ICON_NAMES)[number]
+export { ICON_NAMES }
+export type { IconName }
 
 /**
  * Semantic name → Lucide component. The app keeps its own vocabulary and the
