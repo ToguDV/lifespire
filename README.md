@@ -4,8 +4,9 @@
 
 LifeSpire turns a person's goals and routines into a daily node map inspired by
 *Slay the Spire*. Each day you choose a path; each node is a real-world action
-(a task, a rest, a treasure, or the daily boss). A **run** lasts 7 days with
-weekly objectives — the more you complete, the more gold, XP, and loot you earn.
+(a task, a rest, a treasure, a wheel, or the daily boss). A **run** lasts 7 days
+with weekly objectives — the more you complete, the more gold, XP, and loot you
+earn.
 
 It's a local-first web app: a single profile, no accounts, no backend. Installable
 as a PWA and fully usable offline after the first load.
@@ -51,6 +52,7 @@ in one click, or create your own goals and routines.
 ```bash
 pnpm lint       # oxlint
 pnpm typecheck  # TypeScript (tsc -b)
+pnpm typecheck:e2e  # E2E TypeScript (tsc -p tsconfig.e2e.json)
 pnpm test       # Vitest
 pnpm build      # typecheck + production build
 pnpm preview    # serve the build (test PWA / offline)
@@ -81,7 +83,7 @@ immediately but give no progress, elites pay double in exchange for more effort.
 
 - Onboarding with demo or custom data; 1–10 goals with routines
 - 7-day runs with deterministic maps (3–15 layers + boss, driven by the goals with active routines)
-- Node types: task, elite, rest, treasure, boss
+- Node types: task, elite, rest, treasure, wheel, boss
 - Instant rewards (XP, gold, loot), weekly progress, day & run summaries
 - New run keeping profile, gold, XP, and collection
 - Local persistence with JSON export/import and reset
@@ -129,7 +131,10 @@ Maps are rendered with custom SVG. No graph library, no UI kit.
 
 ## Persistence
 
-All game state lives in a single versioned `localStorage` key. Settings →
+The versioned game document lives in `lifespire:mvp0` (compact JSON in storage,
+readable two-space JSON on export). A best-effort previous copy is kept under
+`lifespire:mvp0:backup` before a destructive import or reset, and sound/haptics
+preferences live separately under `lifespire:feedback-prefs`. Settings →
 export/import produces a readable JSON backup or restores one. The dev panel
 only exists in `pnpm dev`.
 
