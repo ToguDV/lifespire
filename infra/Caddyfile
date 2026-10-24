@@ -1,0 +1,42 @@
+# LifeSpire — same-origin reverse proxy.
+# The web build (apps/web/dist) is served statically; /api/* goes to the Nest API.
+# Replace {$DOMAIN} via environment when running compose.
+{
+  email {$ACME_EMAIL:admin@example.com}
+}
+
+{$DOMAIN:app.example.com} {
+  encode gzip
+
+  # Never cache API or auth.
+  @api path /api/* /v1/* /health/* /docs*
+  header @api Cache-Control "no-store"
+
+  handle /api/* {
+    uri strip_prefix /api
+    reverse_proxy api:3000
+  }
+
+  handle /v1/* {
+    reverse_proxy api:3000
+  }
+
+  handle /health/* {
+    reverse_proxy api:3000
+  }
+
+  handle /docs* {
+    reverse_proxy api:3000
+  }
+
+  handle {
+    root * /srv/web
+    try_files {path} /index.html
+    file_server
+    header {
+      Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+      Referrer-Policy "no-referrer"
+      X-Content-Type-Options "nosniff"
+    }
+  }
+}

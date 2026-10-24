@@ -27,3 +27,13 @@ test-results
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets and local env
+.env
+.env.*
+!.env.example
+!.env.dev.example
+apps/api/dist
+apps/api/coverage
+packages/*/dist
+packages/*/coverage

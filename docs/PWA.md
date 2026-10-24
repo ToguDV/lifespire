@@ -44,19 +44,19 @@ the app intentionally has no custom install button.
 
 A phone cannot install the app from a plain `http://<LAN-IP>:4173` origin.
 Installation and service workers require **HTTPS** (or `localhost` on the same
-device). Serving this build from a public HTTPS origin is outside the current scope: there is
-no deployment, custom domain, backend or account system in this milestone. For a
-local demo, use a trusted HTTPS tunnel or a local certificate; do not treat that
-as a production deployment.
+device). Serving this build from a public HTTPS origin is covered by the VPS
+setup in `infra/` (Caddy terminates TLS for the web build and the sync API);
+see `docs/BACKEND.md` §6. For a local demo, use a trusted HTTPS tunnel or a
+local certificate; do not treat that as a production deployment.
 
 ## Icons
 
 The icon set is original and derived from the tower symbol in
-`public/favicon.svg`. Regenerate the PNGs with:
+`apps/web/public/favicon.svg`. Regenerate the PNGs with:
 
 ```bash
-python3 scripts/generate-pwa-icons.py
+python3 apps/web/scripts/generate-pwa-icons.py
 ```
 
 The script draws the favicon geometry with Pillow and writes the standard,
-maskable and Apple touch icons into `public/icons/`.
+maskable and Apple touch icons into `apps/web/public/icons/`.

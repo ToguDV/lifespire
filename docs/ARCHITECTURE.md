@@ -9,22 +9,27 @@ Fuentes: [`SPEC.md`](../SPEC.md) y [`design/DESIGN.md`](../design/DESIGN.md)
 
 ## 1. Estructura
 
+Monorepo pnpm (`pnpm-workspace.yaml`): `apps/web` (Vite + React),
+`apps/api` (NestJS sync API), `packages/core` (dominio puro compartido en
+extracción), `packages/api-client` (cliente tipado). Detalle del backend en
+[`BACKEND.md`](./BACKEND.md) y decisiones en [`adr/`](./adr/).
+
 ```text
-src/
+apps/web/src/
   App.tsx          wrapper del shell (`export { default } from './ui/App'`)
   domain/          lógica pura, sin React, sin store, sin Date.now/Math.random
-    types.ts       tipos y enums del dominio
+    types.ts       tipos y enums del dominio (GameDocument schemaVersion 3)
     balance.ts     constantes de recompensas, niveles, pesos, límites y claves de storage
     content.ts     validación de metas/rutinas y constraints de contenido
-    dates.ts       fechas locales YYYY-MM-DD, sin drift UTC
+    dates.ts       fechas locales YYYY-MM-DD, sin drift UTC; dayKey con timeZone opcional
     goalIcons.ts   catálogo cerrado de iconos de meta y ciclo legado
     rng.ts         RNG determinista por string seed
     rewards.ts     tabla de recompensas, loot, duplicados, nivel
     generator.ts   generación y validación del mapa
     mapDepth.ts    profundidad del mapa según metas activas y weekly targets
-    lifecycle.ts   abrir día, seleccionar, resolver, reconciliar días/run
+    lifecycle.ts   abrir día, seleccionar, resolver, reconciliar días/run (en zona de la run)
     runClose.ts    cierre de run y bonus semanal
-    schema.ts      validación, serialize/deserialize, migración
+    schema.ts      validación, serialize/deserialize, migración (v1→v2→v3 run.timeZone)
     selectors.ts   valores derivados (nivel, día actual, estado de nodo)
     fixtures/
       golden-map.json  fixture determinista para los tests del generador
@@ -35,7 +40,8 @@ src/
   state/
     store.ts       Zustand + persist, acciones de aplicación
     persistence.ts adaptador de storage, backup, multi-pestaña y avisos
-    clock.ts       reloj inyectable + offset de desarrollo (no persistido)
+    clock.ts       reloj inyectable + offset de desarrollo (no persistido) + zona del dispositivo
+  sync/            (pendiente M5-cliente: motor de sync y estado; ver BACKEND.md §8)
   ui/
     App.tsx        shell, navegación y guardas de flujo
     components/    Button, Panel, Progress, Stat, Dialog, Icon, etc.
@@ -52,6 +58,9 @@ src/
     juice.css      microinteracciones y feedback visual
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
+apps/api/src/      auth, users, admin, devices, sync, health, audit, prisma, cli
+packages/core/src/ dominio puro (copia en extracción; ver adr/0003-monorepo.md)
+packages/api-client/src/ cliente fetch tipado
 ```
 
 Los tests viven junto al módulo (`*.test.ts`). No se añaden librerías de UI,
@@ -111,12 +120,12 @@ desde Settings. El export de Recovery usa el raw literal (`exportRawSave`),
 incluso si el save está bloqueado o es ilegible.
 
 ```ts
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 export const STORAGE_KEY = 'lifespire:mvp0'
 export const STORAGE_BACKUP_KEY = 'lifespire:mvp0:backup'
 
 export interface GameDocument {
-  schemaVersion: 2
+  schemaVersion: 3
   profile: Profile | null
   goals: Goal[]
   tasks: Task[]
@@ -311,6 +320,7 @@ export interface Run {
   seed: string
   generatorVersion: number
   startDate: string        // YYYY-MM-DD
+  timeZone: string | null  // IANA de la run; null = legacy device-local
   status: RunStatus
   objectives: RunObjective[]
   days: Day[]              // siempre 7
@@ -345,9 +355,12 @@ la UI añade las etiquetas y el mapa a componentes de `lucide-react`
 crest por `goalId` en render, de modo que un cambio de icono también actualiza
 un mapa ya dibujado sin alterar pasos ni recompensas.
 
-`SCHEMA_VERSION` es 2. `MIGRATIONS[1]` rellena `goals[].icon` y
+`SCHEMA_VERSION` es 3. `MIGRATIONS[1]` rellena `goals[].icon` y
 `onboardingDraft.goals[].icon` con el ciclo legado `banner → flame → quill →
 gem` según el índice, conservando el aspecto de los saves anteriores.
+`MIGRATIONS[2]` fija `run.timeZone = null` en saves v2: conservan la
+interpretación device-local que tenían al crearse. Las runs nuevas guardan la
+zona IANA del dispositivo y todos los límites de día se calculan en ella.
 
 `RunObjective.progress` se incrementa solo al completar nodos task/elite/boss cuyo
 `goalId` coincida. Elite da `+1`, no `+2`.

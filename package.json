@@ -1,39 +1,27 @@
 {
-  "name": "lifespire",
+  "name": "lifespire-monorepo",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "typecheck": "tsc -b",
-    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:e2e": "playwright test",
-    "test:e2e:install": "playwright install --with-deps chromium",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "lucide-react": "^1.61.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "zustand": "^5.0.15"
+    "dev": "pnpm --filter @lifespire/web dev",
+    "dev:api": "pnpm --filter @lifespire/api start:dev",
+    "build": "pnpm -r build",
+    "build:web": "pnpm --filter @lifespire/web build",
+    "build:api": "pnpm --filter @lifespire/api build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "typecheck:e2e": "pnpm --filter @lifespire/web typecheck:e2e",
+    "test": "pnpm -r test",
+    "test:web": "pnpm --filter @lifespire/web test",
+    "test:api": "pnpm --filter @lifespire/api test",
+    "test:e2e": "pnpm --filter @lifespire/web test:e2e",
+    "preview": "pnpm --filter @lifespire/web preview"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1",
-    "@types/node": "^24.13.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
     "oxlint": "^1.81.0",
-    "typescript": "~6.0.2",
-    "vite": "^8.3.0",
-    "vite-plugin-pwa": "^2.0.0",
-    "vitest": "^5.0.5"
+    "typescript": "~6.0.2"
   },
-  "description": "LifeSpire — a local-first daily path game.",
   "engines": {
     "node": ">=22"
   },
