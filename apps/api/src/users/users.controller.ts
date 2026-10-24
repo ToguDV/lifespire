@@ -1,4 +1,4 @@
-import { Controller, Delete, Get } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../common/current-user.decorator';
@@ -41,9 +41,18 @@ export class UsersController {
   }
 
   @Delete()
-  async remove(@CurrentUser() user: { sub: string }) {
-    // Hard delete with cascade; backups expire separately. Returns 204 via interceptor default.
+  @HttpCode(204)
+  async remove(@CurrentUser() user: { sub: string }): Promise<void> {
+    // Hard delete with cascade; backups expire separately.
+    const me = await this.prisma.user.findUnique({ where: { id: user.sub } });
+    if (me && me.role === 'ADMIN' && me.status === 'ACTIVE') {
+      const remaining = await this.prisma.user.count({
+        where: { role: 'ADMIN', status: 'ACTIVE', id: { not: user.sub } },
+      });
+      if (remaining === 0) {
+        throw new ApiError({ status: 400, code: 'FORBIDDEN', title: 'Cannot remove the last active admin' });
+      }
+    }
     await this.prisma.user.delete({ where: { id: user.sub } });
-    return { ok: true };
   }
 }

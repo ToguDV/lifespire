@@ -1,4 +1,5 @@
 import { IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { INVITE_TOKEN_PATTERN } from './invite-token';
 
 export class LoginDto {
   @IsEmail()
@@ -20,7 +21,7 @@ export class LoginDto {
 
 export class AcceptInviteDto {
   @IsString()
-  @Matches(/^[A-Za-z0-9_-]{43}$/, { message: 'invalid token format' })
+  @Matches(INVITE_TOKEN_PATTERN, { message: 'invalid token format' })
   token!: string;
 
   @IsString()
@@ -39,7 +40,7 @@ export class RefreshDto {
 
 export class ResetPasswordDto {
   @IsString()
-  @Matches(/^[A-Za-z0-9_-]{43}$/, { message: 'invalid token format' })
+  @Matches(INVITE_TOKEN_PATTERN, { message: 'invalid token format' })
   token!: string;
 
   @IsString()
@@ -61,4 +62,10 @@ export class TotpVerifyDto {
   @IsString()
   @Length(6, 8)
   code!: string;
+}
+
+export class TotpSetupDto {
+  @IsString()
+  @Length(1, 256)
+  currentPassword!: string;
 }

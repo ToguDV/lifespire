@@ -8,7 +8,7 @@ import { ApiError } from '../common/api-error';
 import { sha256Hex } from '../common/crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateInviteToken, INVITE_TOKEN_TTL_MS, RESET_TOKEN_TTL_MS } from './invite-token';
-import { isStrongPassword } from './password-policy';
+import { isAllowedPasswordLength } from './password-policy';
 import { hashPassword, verifyPassword } from './password';
 import { decryptSecret, encryptSecret, generateRecoveryCodes } from './totp-crypto';
 import { checkTotp, createTotpSecret, totpUri } from './totp';
@@ -155,7 +155,7 @@ export class AuthService {
     password: string;
     device: DeviceInfo;
   }): Promise<{ accessToken: string; refreshToken: string; userId: string }> {
-    if (!isStrongPassword(input.password)) {
+    if (!isAllowedPasswordLength(input.password)) {
       throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
     }
     const tokenHash = sha256Hex(input.token);
@@ -178,13 +178,17 @@ export class AuthService {
     }
 
     const passwordHash = await hashPassword(input.password);
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
-        data: { passwordHash, status: 'ACTIVE', activatedAt: new Date() },
-      }),
-      this.prisma.accountToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
-    ]);
+    const claimed = await this.prisma.accountToken.updateMany({
+      where: { id: record.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      throw new ApiError({ status: 400, code: 'INVITE_USED', title: 'Invitation already used' });
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, status: 'ACTIVE', activatedAt: new Date() },
+    });
 
     const device = await this.upsertDevice(user.id, input.device);
     const refreshToken = opaqueToken();
@@ -249,23 +253,35 @@ export class AuthService {
     }
 
     const next = opaqueToken();
-    await this.prisma.$transaction([
-      this.prisma.refreshSession.update({
-        where: { id: session.id },
-        data: { rotatedAt: new Date() },
-      }),
-      this.prisma.refreshSession.create({
-        data: {
-          userId: session.userId,
-          deviceId: session.deviceId,
-          familyId: session.familyId,
-          tokenHash: sha256Hex(next),
-          expiresAt: new Date(Date.now() + this.refreshTtlDays() * 24 * 60 * 60 * 1000),
-          ip: input.ip ?? null,
-          userAgent: input.userAgent ?? null,
-        },
-      }),
-    ]);
+    const rotatedAt = new Date();
+    const rotation = await this.prisma.refreshSession.updateMany({
+      where: { id: session.id, rotatedAt: null, revokedAt: null },
+      data: { rotatedAt },
+    });
+    if (rotation.count === 0) {
+      await this.prisma.refreshSession.updateMany({
+        where: { familyId: session.familyId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await this.audit.log({
+        actorId: session.userId,
+        action: 'auth.refresh_reused',
+        metadata: { familyId: session.familyId },
+        ip: input.ip,
+      });
+      throw new ApiError({ status: 401, code: 'AUTH_REFRESH_REUSED', title: 'Session reused' });
+    }
+    await this.prisma.refreshSession.create({
+      data: {
+        userId: session.userId,
+        deviceId: session.deviceId,
+        familyId: session.familyId,
+        tokenHash: sha256Hex(next),
+        expiresAt: new Date(Date.now() + this.refreshTtlDays() * 24 * 60 * 60 * 1000),
+        ip: input.ip ?? null,
+        userAgent: input.userAgent ?? null,
+      },
+    });
     const created = await this.prisma.refreshSession.findUniqueOrThrow({
       where: { tokenHash: sha256Hex(next) },
     });
@@ -298,7 +314,7 @@ export class AuthService {
   }
 
   async resetPassword(input: { token: string; password: string }): Promise<void> {
-    if (!isStrongPassword(input.password)) {
+    if (!isAllowedPasswordLength(input.password)) {
       throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
     }
     const tokenHash = sha256Hex(input.token);
@@ -307,18 +323,24 @@ export class AuthService {
       include: { user: true },
     });
     if (!record || record.type !== 'PASSWORD_RESET') {
-      throw new ApiError({ status: 400, code: 'INVITE_INVALID', title: 'Invalid reset link' });
+      throw new ApiError({ status: 400, code: 'RESET_INVALID', title: 'Invalid reset link' });
     }
     if (record.usedAt) {
-      throw new ApiError({ status: 400, code: 'INVITE_USED', title: 'Reset link already used' });
+      throw new ApiError({ status: 400, code: 'RESET_USED', title: 'Reset link already used' });
     }
     if (record.expiresAt.getTime() < Date.now()) {
-      throw new ApiError({ status: 400, code: 'INVITE_EXPIRED', title: 'Reset link expired' });
+      throw new ApiError({ status: 400, code: 'RESET_EXPIRED', title: 'Reset link expired' });
     }
     const passwordHash = await hashPassword(input.password);
+    const claimed = await this.prisma.accountToken.updateMany({
+      where: { id: record.id, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      throw new ApiError({ status: 400, code: 'RESET_USED', title: 'Reset link already used' });
+    }
     await this.prisma.$transaction([
       this.prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
-      this.prisma.accountToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
       this.prisma.refreshSession.updateMany({
         where: { userId: record.userId, revokedAt: null },
         data: { revokedAt: new Date() },
@@ -328,7 +350,7 @@ export class AuthService {
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    if (!isStrongPassword(newPassword)) {
+    if (!isAllowedPasswordLength(newPassword)) {
       throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
     }
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -339,16 +361,32 @@ export class AuthService {
         title: 'Current password is incorrect',
       });
     }
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash: await hashPassword(newPassword) },
-    });
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash: await hashPassword(newPassword) },
+      }),
+      this.prisma.refreshSession.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
     await this.audit.log({ actorId: userId, targetId: userId, action: 'auth.password_changed' });
   }
 
   /** Step 1 of TOTP setup: generates a secret + otpauth URL + one-time recovery codes. */
-  async totpSetup(userId: string): Promise<{ otpauthUrl: string; manualSecret: string; recoveryCodes: string[] }> {
+  async totpSetup(
+    userId: string,
+    currentPassword: string,
+  ): Promise<{ otpauthUrl: string; manualSecret: string; recoveryCodes: string[] }> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!user.passwordHash || !(await verifyPassword(user.passwordHash, currentPassword))) {
+      throw new ApiError({
+        status: 401,
+        code: 'AUTH_INVALID_CREDENTIALS',
+        title: 'Current password is incorrect',
+      });
+    }
     const secret = createTotpSecret();
     const otpauthUrl = totpUri(user.email, secret);
     const recoveryCodes = generateRecoveryCodes(10);
@@ -365,7 +403,7 @@ export class AuthService {
   }
 
   /** Step 2: confirms the authenticator by verifying a code, enabling TOTP. */
-  async totpEnable(userId: string, code: string): Promise<void> {
+  async totpEnable(userId: string, code: string, keepSessionId?: string): Promise<void> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (!user.totpSecretEnc) {
       throw new ApiError({ status: 400, code: 'AUTH_TOTP_INVALID', title: 'Run setup first' });
@@ -375,6 +413,12 @@ export class AuthService {
       throw new ApiError({ status: 400, code: 'AUTH_TOTP_INVALID', title: 'Invalid code' });
     }
     await this.prisma.user.update({ where: { id: userId }, data: { totpEnabledAt: new Date() } });
+    await this.prisma.refreshSession.updateMany({
+      where: keepSessionId
+        ? { userId, id: { not: keepSessionId }, revokedAt: null }
+        : { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
     await this.audit.log({ actorId: userId, targetId: userId, action: 'auth.totp_enabled' });
   }
 
@@ -391,8 +435,11 @@ export class AuthService {
         // Fall through to recovery codes.
       }
     }
-    const match = await this.prisma.recoveryCode.findUnique({ where: { codeHash: sha256Hex(code) } });
-    if (!match || match.userId !== userId || match.usedAt) {
+    const codeHash = sha256Hex(code);
+    const match = await this.prisma.recoveryCode.findUnique({
+      where: { userId_codeHash: { userId, codeHash } },
+    });
+    if (!match || match.usedAt) {
       throw new ApiError({ status: 401, code: 'AUTH_TOTP_INVALID', title: 'Invalid two-factor code' });
     }
     await this.prisma.recoveryCode.update({ where: { id: match.id }, data: { usedAt: new Date() } });
@@ -400,19 +447,16 @@ export class AuthService {
   }
 
   private async upsertDevice(userId: string, info: DeviceInfo) {
-    const existing = await this.prisma.device.findFirst({
-      where: { userId, name: info.name, revokedAt: null },
-    });
-    if (existing) {
-      return this.prisma.device.update({
-        where: { id: existing.id },
-        data: { lastSeenAt: new Date(), userAgent: info.userAgent ?? existing.userAgent },
-      });
-    }
-    return this.prisma.device.create({
-      data: {
+    const name = info.name.slice(0, 120);
+    return this.prisma.device.upsert({
+      where: { userId_name: { userId, name } },
+      update: {
+        lastSeenAt: new Date(),
+        ...(info.userAgent !== undefined ? { userAgent: info.userAgent.slice(0, 500) } : {}),
+      },
+      create: {
         userId,
-        name: info.name.slice(0, 120),
+        name,
         platform: info.platform?.slice(0, 60) ?? null,
         userAgent: info.userAgent?.slice(0, 500) ?? null,
       },

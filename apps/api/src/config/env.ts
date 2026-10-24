@@ -14,6 +14,7 @@ const envSchema = z.object({
   PUBLIC_WEB_URL: z.string().default('http://localhost:5173'),
   ALLOW_PUBLIC_URL_FALLBACK: z.string().default('false'),
   MAX_DOCUMENT_BYTES: z.coerce.number().int().positive().default(524288),
+  MAX_REQUEST_BYTES: z.coerce.number().int().positive().default(1048576),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -24,5 +25,15 @@ export function validateEnv(config: Record<string, unknown>): Env {
     const details = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Invalid environment: ${details}`);
   }
-  return parsed.data;
+  const env = parsed.data;
+  // Fail closed in production: a localhost PUBLIC_WEB_URL is only allowed
+  // when the operator explicitly opts in via ALLOW_PUBLIC_URL_FALLBACK=true.
+  if (
+    env.NODE_ENV === 'production' &&
+    env.PUBLIC_WEB_URL.includes('localhost') &&
+    env.ALLOW_PUBLIC_URL_FALLBACK !== 'true'
+  ) {
+    throw new Error('Invalid environment: PUBLIC_WEB_URL must be set in production');
+  }
+  return env;
 }

@@ -69,13 +69,15 @@ model AccountToken {
 model RecoveryCode {
   id        String    @id @default(uuid()) @db.Uuid
   userId    String    @db.Uuid
-  codeHash  String    @unique
+  codeHash  String
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, codeHash])
   @@index([userId])
+  @@index([codeHash])
 }
 
 model Device {
@@ -91,6 +93,7 @@ model Device {
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions RefreshSession[]
 
+  @@unique([userId, name])
   @@index([userId])
 }
 

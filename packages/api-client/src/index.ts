@@ -35,6 +35,13 @@ export interface ApiClientOptions {
   getAccessToken?: () => string | null;
 }
 
+/** Wraps a version in ETag quotes unless already quoted (`"n"` / `W/"n"`). */
+function asQuoted(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.startsWith('"') || trimmed.startsWith('W/"')) return value;
+  return `"${value}"`;
+}
+
 async function problemMessage(res: Response): Promise<string> {
   try {
     const body = (await res.json()) as { title?: string; code?: string };
@@ -83,7 +90,7 @@ export function createApiClient(options: ApiClientOptions) {
 
     async getSync(ifNoneMatch?: string): Promise<SyncSnapshot | null> {
       const headers: Record<string, string> = {};
-      if (ifNoneMatch) headers['If-None-Match'] = `"${ifNoneMatch}"`;
+      if (ifNoneMatch) headers['If-None-Match'] = asQuoted(ifNoneMatch);
       const { res, data } = await request<SyncSnapshot>('/v1/sync', { headers });
       if (res.status === 304) return null;
       return data;
@@ -95,7 +102,7 @@ export function createApiClient(options: ApiClientOptions) {
         'Idempotency-Key': opts.idempotencyKey,
       };
       if (opts.create) headers['If-None-Match'] = '*';
-      else if (opts.ifMatch) headers['If-Match'] = `"${opts.ifMatch}"`;
+      else if (opts.ifMatch) headers['If-Match'] = asQuoted(opts.ifMatch);
       const { data } = await request<SyncPushResult>('/v1/sync', {
         method: 'PUT',
         headers,

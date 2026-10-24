@@ -9,11 +9,23 @@
   encode gzip
 
   # Never cache API or auth.
-  @api path /api/* /v1/* /docs*
+  @api path /api/* /v1/* /health/* /docs*
   header @api Cache-Control "no-store"
 
   handle /api/* {
     uri strip_prefix /api
+    reverse_proxy api:3000
+  }
+
+  handle /v1/* {
+    reverse_proxy api:3000
+  }
+
+  handle /health/* {
+    reverse_proxy api:3000
+  }
+
+  handle /docs* {
     reverse_proxy api:3000
   }
 

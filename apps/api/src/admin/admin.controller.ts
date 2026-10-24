@@ -5,7 +5,7 @@ import { Roles } from '../common/roles.decorator';
 import { TotpAdminGuard } from '../common/totp-admin.guard';
 import { CurrentUser } from '../common/current-user.decorator';
 import { AdminService } from './admin.service';
-import { CreateUserDto, ListUsersQuery, UpdateUserDto } from './dto';
+import { CreateUserDto, AuditQuery, ListUsersQuery, UpdateUserDto } from './dto';
 
 function ipOf(req: Request): string | undefined {
   return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip;
@@ -64,7 +64,7 @@ export class AdminController {
   }
 
   @Get('audit')
-  audit(@CurrentUser() user: { sub: string }, @Query('page') page?: string) {
-    return this.admin.auditLog(user.sub, Number(page ?? 1), 50);
+  audit(@CurrentUser() user: { sub: string }, @Query() q: AuditQuery) {
+    return this.admin.auditLog(user.sub, q.page ?? 1, q.pageSize ?? 50);
   }
 }

@@ -4,6 +4,8 @@ export const INVITE_TOKEN_BYTES = 32;
 export const INVITE_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 export const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
+export const INVITE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
 /** 32 random bytes encoded as unpadded base64url (43 chars). */
 export function generateInviteToken(): string {
   return randomBytes(INVITE_TOKEN_BYTES)
@@ -13,5 +15,5 @@ export function generateInviteToken(): string {
 
 export function isInviteTokenFormat(token: string): boolean {
   if (typeof token !== 'string') return false;
-  return /^[A-Za-z0-9_-]{43}$/.test(token);
+  return INVITE_TOKEN_PATTERN.test(token);
 }

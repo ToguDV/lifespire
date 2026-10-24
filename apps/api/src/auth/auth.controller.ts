@@ -4,7 +4,7 @@ import { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/public.decorator';
 import { AuthService, REFRESH_COOKIE } from './auth.service';
-import { AcceptInviteDto, ChangePasswordDto, LoginDto, ResetPasswordDto, TotpVerifyDto } from './dto';
+import { AcceptInviteDto, ChangePasswordDto, LoginDto, ResetPasswordDto, TotpSetupDto, TotpVerifyDto } from './dto';
 import { CurrentUser } from '../common/current-user.decorator';
 
 function cookieFlags(nodeEnv: string): { secure: boolean; sameSite: 'lax' } {
@@ -114,19 +114,22 @@ export class AuthController {
   }
 
   @Post('change-password')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   async changePassword(@CurrentUser() user: { sub: string }, @Body() dto: ChangePasswordDto) {
     await this.auth.changePassword(user.sub, dto.currentPassword, dto.newPassword);
     return { ok: true };
   }
 
   @Post('totp/setup')
-  async totpSetup(@CurrentUser() user: { sub: string }) {
-    return this.auth.totpSetup(user.sub);
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async totpSetup(@CurrentUser() user: { sub: string }, @Body() dto: TotpSetupDto) {
+    return this.auth.totpSetup(user.sub, dto.currentPassword);
   }
 
   @Post('totp/enable')
-  async totpEnable(@CurrentUser() user: { sub: string }, @Body() dto: TotpVerifyDto) {
-    await this.auth.totpEnable(user.sub, dto.code);
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  async totpEnable(@CurrentUser() user: { sub: string; sid: string }, @Body() dto: TotpVerifyDto) {
+    await this.auth.totpEnable(user.sub, dto.code, user.sid);
     return { ok: true };
   }
 }

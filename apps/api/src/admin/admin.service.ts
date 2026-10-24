@@ -147,7 +147,19 @@ export class AdminService {
     if (patch.role || patch.status === 'DISABLED') {
       await this.guardLastAdmin(userId, patch);
     }
-    const updated = await this.prisma.user.update({ where: { id: userId }, data: patch });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(hashtext('lifespire-admin-mutations'))`);
+      const row = await tx.user.update({ where: { id: userId }, data: patch });
+      if (row.role !== 'ADMIN' || row.status !== 'ACTIVE') {
+        const remaining = await tx.user.count({
+          where: { role: 'ADMIN', status: 'ACTIVE', id: { not: userId } },
+        });
+        if (remaining === 0) {
+          throw new ApiError({ status: 400, code: 'FORBIDDEN', title: 'Cannot remove the last active admin' });
+        }
+      }
+      return row;
+    });
     if (patch.status === 'DISABLED') {
       await this.prisma.refreshSession.updateMany({
         where: { userId, revokedAt: null },
@@ -161,7 +173,16 @@ export class AdminService {
   async removeUser(adminId: string, userId: string, ip?: string) {
     await this.requireAdmin(adminId);
     await this.guardLastAdmin(userId, { role: 'USER', status: 'DISABLED' });
-    await this.prisma.user.delete({ where: { id: userId } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(hashtext('lifespire-admin-mutations'))`);
+      await tx.user.delete({ where: { id: userId } });
+      const remaining = await tx.user.count({
+        where: { role: 'ADMIN', status: 'ACTIVE', id: { not: userId } },
+      });
+      if (remaining === 0) {
+        throw new ApiError({ status: 400, code: 'FORBIDDEN', title: 'Cannot remove the last active admin' });
+      }
+    });
     await this.audit.log({ actorId: adminId, targetId: null, action: 'admin.user_deleted', metadata: { userId }, ip });
     return { ok: true };
   }

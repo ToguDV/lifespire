@@ -61,8 +61,9 @@ infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
   take effect immediately). TOTP secrets are AES-256-GCM encrypted.
 - Roles re-checked in DB on every admin call; the last active admin cannot be
   disabled, demoted or deleted (recovery via `admin:create` CLI on the server).
-- Logout revokes one session; logout-all revokes all; password change/reset
-  revokes all sessions.
+- Logout revokes one session; logout-all revokes all; password change
+  (`POST /v1/auth/password`) and password reset both revoke all sessions
+  (all devices must log in again).
 
 ## 3. Sync protocol (snapshot, `/v1`)
 
@@ -90,7 +91,8 @@ Rules:
   (`updateMany where version = expected`); exactly one wins, the other gets
   `412`.
 - Writes keep the last 30 revisions and 7 days of idempotency keys.
-- Documents are limited to 512 KB (`413`), requests to 1 MB.
+- Documents are limited to 512 KB (`413` document gate); request bodies are
+  limited to 1 MB (Express JSON parser limit, `413` on overflow).
 - Schema gate: server accepts `schemaVersion 3`. Older is `426`
   (update the app); newer is `422` (update the server). Deploy the API before
   the web.
@@ -114,10 +116,20 @@ behavior. The server never interprets dates — it stores the document.
   overwrites (versions + idempotency).
 - Rate limits: 120 req/min global, 10/min login/invite, 5/min reset.
 - Logs redact `authorization`, cookies, passwords and documents.
+- Accepted tradeoff: disabled accounts are enumerable via the login `403`
+  (anyone holding valid credentials for a disabled account can distinguish it
+  from a bad-password `401`); accepted so operators and users get a clear
+  disabled signal instead of a misleading generic error.
 - Security headers via helmet + CSP/`frame-ancestors` at Caddy; same-origin
-  `/api` proxy keeps cookies `SameSite=Lax` without CORS wildcard.
+  contract: the web calls `/v1` directly and Caddy proxies `/v1`, `/health`
+  and `/docs` to the API (plus a legacy `/api` strip-prefix rule), so cookies
+  stay `SameSite=Lax` without a CORS wildcard.
 
 ## 6. Runbook (VPS)
+
+Same-origin contract: the web build calls `/v1` directly (same origin);
+Caddy proxies `/v1/*`, `/health/*` and `/docs*` to `api:3000`, and keeps a
+legacy `/api/*` strip-prefix rule pointing at the same backend.
 
 ```bash
 # first deploy
@@ -142,17 +154,25 @@ API e2e against it.
 
 ## 7. Testing
 
-- `pnpm --filter @lifespire/api test` — 26 unit tests (versions, crypto,
+- `pnpm --filter @lifespire/api test` — 28 unit tests (versions, crypto,
   invites, TOTP adapter, env, structural gate). No DB needed.
-- `pnpm --filter @lifespire/api test:e2e` — full flow against Postgres:
-  admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/replay/
-  key-reuse/revisions, device revoke, disable, last-admin guard.
+- `pnpm --filter @lifespire/api test:e2e` — 10 flows against Postgres:
+  (a) admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/
+  replay/key-reuse/revisions, device revoke, disable, last-admin guard;
+  (b) password-reset link (single-use, revokes sessions); (c) TOTP
+  required/wrong-code/recovery-code single-use; (d) sync validation gates
+  (headers, 512 KB document cap, schema 426/422, malformed 422);
+  (e) expired invite; (f) refresh reuse kills the family; (g) concurrent
+  writers/refreshes (one wins); (h) admin self-delete (last blocked 400,
+  second 204); (i) audit pagination 400 on bad page; (j) totp/enable
+  throttle 429.
 - Dev DB: `docker compose -f infra/docker-compose.dev.yml up -d`, then
   `DATABASE_URL=… pnpm --filter @lifespire/api prisma:migrate`.
 
 ## 8. Follow-ups (not in this PR)
 
-- Web sync engine + conflict dialog + per-account local keys (`M5-client`).
+- Web sync engine + conflict dialog + per-account local keys (`M5-client`,
+  calling `/v1` same-origin per the §6 contract).
 - `@lifespire/core` build output so the server can import full rule validation.
 - Web move is done (`apps/web`); `src/domain` ↔ `packages/core` dedup
   (re-export shims) is still open.

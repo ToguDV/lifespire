@@ -10,7 +10,7 @@ export class DevicesController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
-  async list(@CurrentUser() user: { sub: string }) {
+  async list(@CurrentUser() user: { sub: string; did: string | null }) {
     const rows = await this.prisma.device.findMany({
       where: { userId: user.sub },
       orderBy: { lastSeenAt: 'desc' },
@@ -21,7 +21,7 @@ export class DevicesController {
       platform: d.platform,
       lastSeenAt: d.lastSeenAt,
       revokedAt: d.revokedAt,
-      current: false,
+      current: d.id === user.did,
     }));
   }
 

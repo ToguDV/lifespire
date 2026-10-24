@@ -20,6 +20,30 @@ function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
+/**
+ * Robust If-None-Match matcher: accepts `"n"`, `W/"n"`, comma-separated
+ * lists, and `*` (matches when the document exists — callers 404 first).
+ */
+function ifNoneMatchHits(header: string | undefined, version: bigint): boolean {
+  if (header === undefined) return false;
+  const etag = formatETag(version);
+  return header
+    .split(',')
+    .map((part) => part.trim())
+    .some((part) => part === '*' || part === etag || part === `W/${etag}`);
+}
+
+/** Detects a Prisma unique-violation raised by the SyncMutation write. */
+function isSyncMutationConflict(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const err = error as { code?: unknown; message?: unknown; meta?: unknown };
+  if (err.code !== 'P2002') return false;
+  if (typeof err.message === 'string' && err.message.includes('SyncMutation')) return true;
+  const target = (err.meta as { target?: unknown } | undefined)?.target;
+  if (Array.isArray(target)) return target.includes('key');
+  return typeof target === 'string' && target.includes('key');
+}
+
 @Injectable()
 export class SyncService {
   constructor(
@@ -38,7 +62,7 @@ export class SyncService {
       throw new ApiError({ status: 404, code: 'SYNC_INVALID_DOCUMENT', title: 'No cloud save' });
     }
     const version = row.version.toString();
-    if (ifNoneMatch && ifNoneMatch.trim() === formatETag(row.version)) {
+    if (ifNoneMatchHits(ifNoneMatch, row.version)) {
       return { notModified: true as const, version, updatedAt: row.updatedAt };
     }
     return {
@@ -143,10 +167,12 @@ export class SyncService {
         });
         await this.audit.log({ actorId: userId, action: 'sync.push', metadata: { version: '1' }, ip: input.ip });
         return { version: '1', updatedAt: created.updatedAt, created: true };
-      } catch {
+      } catch (e) {
+        const replayed = await this.replayMutation(userId, input.idempotencyKey as string, requestHash, 'recorded');
+        if (replayed) return replayed;
         const fresh = await this.prisma.syncDocument.findUnique({ where: { userId } });
         if (fresh) return this.conflict(fresh);
-        throw new ApiError({ status: 500, code: 'VALIDATION_FAILED', title: 'Sync failed' });
+        throw e;
       }
     }
 
@@ -161,35 +187,44 @@ export class SyncService {
 
     // Atomic compare-and-swap: only one concurrent writer wins.
     const target = nextVersion(current.version);
-    const res = await this.prisma.$transaction(async (tx) => {
-      const swapped = await tx.syncDocument.updateMany({
-        where: { userId, version: current.version },
-        data: {
-          version: target,
-          schemaVersion,
-          document: document as Prisma.InputJsonValue,
-          checksum,
-          sizeBytes: size,
-          updatedByDeviceId: input.deviceId,
-        },
+    let res: { version: bigint; updatedAt: Date } | null;
+    try {
+      res = await this.prisma.$transaction(async (tx) => {
+        const swapped = await tx.syncDocument.updateMany({
+          where: { userId, version: current.version },
+          data: {
+            version: target,
+            schemaVersion,
+            document: document as Prisma.InputJsonValue,
+            checksum,
+            sizeBytes: size,
+            updatedByDeviceId: input.deviceId,
+          },
+        });
+        if (swapped.count === 0) return null;
+        await tx.syncRevision.create({
+          data: { userId, version: target, schemaVersion, document: document as Prisma.InputJsonValue, checksum, deviceId: input.deviceId },
+        });
+        await tx.syncMutation.create({
+          data: { userId, key: input.idempotencyKey as string, requestHash, version: target },
+        });
+        // Best-effort pruning inside the same transaction.
+        const cutoffRev = target - BigInt(SYNC_REVISIONS_KEPT);
+        if (cutoffRev > 0n) {
+          await tx.syncRevision.deleteMany({ where: { userId, version: { lte: cutoffRev } } });
+        }
+        await tx.syncMutation.deleteMany({
+          where: { userId, createdAt: { lt: new Date(Date.now() - IDEMPOTENCY_TTL_DAYS * 24 * 60 * 60 * 1000) } },
+        });
+        return tx.syncDocument.findUniqueOrThrow({ where: { userId } });
       });
-      if (swapped.count === 0) return null;
-      await tx.syncRevision.create({
-        data: { userId, version: target, schemaVersion, document: document as Prisma.InputJsonValue, checksum, deviceId: input.deviceId },
-      });
-      await tx.syncMutation.create({
-        data: { userId, key: input.idempotencyKey as string, requestHash, version: target },
-      });
-      // Best-effort pruning inside the same transaction.
-      const cutoffRev = target - BigInt(SYNC_REVISIONS_KEPT);
-      if (cutoffRev > 0n) {
-        await tx.syncRevision.deleteMany({ where: { userId, version: { lte: cutoffRev } } });
-      }
-      await tx.syncMutation.deleteMany({
-        where: { userId, createdAt: { lt: new Date(Date.now() - IDEMPOTENCY_TTL_DAYS * 24 * 60 * 60 * 1000) } },
-      });
-      return tx.syncDocument.findUniqueOrThrow({ where: { userId } });
-    });
+    } catch (e) {
+      // A concurrent retry may have recorded the same idempotency key first.
+      if (!isSyncMutationConflict(e)) throw e;
+      const replayed = await this.replayMutation(userId, input.idempotencyKey as string, requestHash, 'current');
+      if (replayed) return replayed;
+      throw e;
+    }
     if (!res) {
       const fresh = await this.prisma.syncDocument.findUnique({ where: { userId } });
       if (fresh) return this.conflict(fresh);
@@ -234,6 +269,33 @@ export class SyncService {
     } catch {
       // Concurrent identical retry already recorded — safe to ignore.
     }
+  }
+
+  /**
+   * Re-reads a previously recorded idempotency mutation: same content replays
+   * its version, different content is a 422 key-reuse. Returns null when no
+   * mutation was recorded for the key.
+   */
+  private async replayMutation(
+    userId: string,
+    key: string,
+    requestHash: string,
+    versionStyle: 'current' | 'recorded',
+  ): Promise<{ version: string; updatedAt: Date; created: boolean } | null> {
+    const mutation = await this.prisma.syncMutation.findUnique({
+      where: { userId_key: { userId, key } },
+    });
+    if (!mutation) return null;
+    if (mutation.requestHash !== requestHash) {
+      throw new ApiError({
+        status: 422,
+        code: 'IDEMPOTENCY_KEY_REUSED',
+        title: 'Idempotency key already used with different content',
+      });
+    }
+    const doc = await this.prisma.syncDocument.findUniqueOrThrow({ where: { userId } });
+    const version = versionStyle === 'recorded' ? mutation.version : doc.version;
+    return { version: version.toString(), updatedAt: doc.updatedAt, created: false };
   }
 }
 

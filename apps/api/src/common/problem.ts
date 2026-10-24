@@ -20,9 +20,13 @@ export const ERROR_CODES = [
   'INVITE_INVALID',
   'INVITE_EXPIRED',
   'INVITE_USED',
+  'RESET_INVALID',
+  'RESET_EXPIRED',
+  'RESET_USED',
   'FORBIDDEN',
   'RATE_LIMITED',
   'VALIDATION_FAILED',
+  'INTERNAL',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

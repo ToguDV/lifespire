@@ -37,4 +37,23 @@ describe('api-client', () => {
       globalThis.fetch = origFetch;
     }
   });
+
+  it('does not double-quote already-quoted versions', async () => {
+    const seen: Record<string, string> = {};
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      Object.assign(seen, init?.headers as Record<string, string>);
+      return new Response(JSON.stringify({ version: '8', updatedAt: '2026-10-24T00:00:00.000Z' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof fetch;
+    try {
+      const api = createApiClient({ baseUrl: 'https://api.example.com' });
+      await api.putSync({ a: 1 }, { ifMatch: '"7"', idempotencyKey: 'k' });
+      expect(seen['If-Match']).toBe('"7"');
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });

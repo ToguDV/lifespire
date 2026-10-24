@@ -37,3 +37,17 @@ export class ListUsersQuery {
   @Min(1)
   pageSize?: number = 20;
 }
+
+export class AuditQuery {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number = 50;
+}
