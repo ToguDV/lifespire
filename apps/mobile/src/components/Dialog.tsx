@@ -98,7 +98,8 @@ const styles = StyleSheet.create({
   close: {
     width: 44,
     height: 44,
-    flex: 'none',
+    flexGrow: 0,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.full,
