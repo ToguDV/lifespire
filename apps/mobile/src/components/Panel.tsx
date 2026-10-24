@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
-import { radius, space } from '../theme/tokens'
+import { radius, shadows, space } from '../theme/tokens'
 import { Text } from './Text'
 
 export function Panel({
@@ -66,9 +66,13 @@ export function ScreenHead({
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="bodyMd" tone="muted">
-            {subtitle}
-          </Text>
+          typeof subtitle === 'string' ? (
+            <Text variant="bodyMd" tone="muted">
+              {subtitle}
+            </Text>
+          ) : (
+            subtitle
+          )
         ) : null}
       </View>
       {aside ? <View style={styles.aside}>{aside}</View> : null}
@@ -79,7 +83,8 @@ export function ScreenHead({
 const styles = StyleSheet.create({
   panel: {
     borderWidth: 1,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
+    ...shadows.soft,
   },
   head: {
     flexDirection: 'row',

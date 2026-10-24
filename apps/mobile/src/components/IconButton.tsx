@@ -37,8 +37,8 @@ export function IconButton({
         {
           width: size,
           height: size,
-          borderColor: active ? colors.accent : colors.hairline,
-          backgroundColor: active ? colors.accentSoft : colors.surface,
+          borderColor: active ? colors.accent : 'transparent',
+          backgroundColor: active ? colors.accentSoft : 'transparent',
           opacity: disabled ? 0.4 : pressed ? 0.75 : 1,
         },
         style,
