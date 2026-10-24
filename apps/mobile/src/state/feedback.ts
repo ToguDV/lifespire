@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics'
 import { useSyncExternalStore } from 'react'
+import { devWarn } from '../lib/devLogger'
 import { kv } from '../platform/storage'
 
 export type FeedbackKind =
@@ -34,7 +35,8 @@ function readStored(): FeedbackPrefs {
     if (!raw) return { ...DEFAULT_PREFS }
     const parsed = JSON.parse(raw) as Partial<FeedbackPrefs>
     return { haptics: typeof parsed.haptics === 'boolean' ? parsed.haptics : DEFAULT_PREFS.haptics }
-  } catch {
+  } catch (error) {
+    devWarn('feedback', 'feedback preferences could not be read', error)
     return { ...DEFAULT_PREFS }
   }
 }
@@ -57,8 +59,8 @@ export function setFeedbackPrefs(patch: Partial<FeedbackPrefs>): FeedbackPrefs {
   cached = next
   try {
     kv.setItem(FEEDBACK_PREFS_KEY, JSON.stringify(next))
-  } catch {
-    // Preferences are a nicety; a failed write must never break the game.
+  } catch (error) {
+    devWarn('feedback', 'feedback preferences could not be saved', error)
   }
   emit()
   return { ...next }
@@ -75,12 +77,20 @@ export function useFeedbackPrefs(): FeedbackPrefs {
   return useSyncExternalStore(subscribe, snapshot, snapshot)
 }
 
+let hapticsWarned = false
+
+function reportHaptics(error: unknown): void {
+  if (hapticsWarned) return
+  hapticsWarned = true
+  devWarn('feedback', 'haptics are unavailable on this device', error)
+}
+
 function impact(style: Haptics.ImpactFeedbackStyle): void {
-  void Haptics.impactAsync(style).catch(() => undefined)
+  void Haptics.impactAsync(style).catch(reportHaptics)
 }
 
 function notify(type: Haptics.NotificationFeedbackType): void {
-  void Haptics.notificationAsync(type).catch(() => undefined)
+  void Haptics.notificationAsync(type).catch(reportHaptics)
 }
 
 function later(delay: number, play: () => void): void {

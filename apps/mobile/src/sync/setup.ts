@@ -7,6 +7,7 @@ import NetInfo from '@react-native-community/netinfo'
 import { AppState } from 'react-native'
 import { create } from 'zustand'
 import { documentStorage, kv } from '../platform/storage'
+import { devError, devWarn } from '../lib/devLogger'
 import { useAppStore } from '../state/store'
 import { engineApi } from './api'
 import { useAuthStore } from './auth'
@@ -37,20 +38,26 @@ export const syncEngine = createSyncEngine({
   getLocalDocument: () => useAppStore.getState().document,
   applyRemoteDocument: (document) => {
     const parsed = parseDocument(document)
-    if (!parsed.ok) return
+    if (!parsed.ok) {
+      devWarn('sync', 'remote document rejected by the schema', undefined, {
+        reason: parsed.reason,
+      })
+      return
+    }
     syncManager.suppressRemoteApply(() => {
       useAppStore.setState({ document: parsed.value })
     })
     try {
       useAppStore.getState().reconcile(getNow())
-    } catch {
-      // Reconcile is best-effort after a remote apply.
+    } catch (error) {
+      devWarn('sync', 'reconcile after a remote apply failed', error)
     }
   },
   getDevOffset: () => {
     try {
       return getDevOffsetDays()
-    } catch {
+    } catch (error) {
+      devWarn('sync', 'could not read the development clock offset', error)
       return 0
     }
   },
@@ -59,8 +66,8 @@ export const syncEngine = createSyncEngine({
   onBeforeAutoMergePush: () => {
     try {
       documentStorage.backup()
-    } catch {
-      // Backup is best-effort; the merge itself is already validated.
+    } catch (error) {
+      devWarn('sync', 'pre-merge backup failed', error)
     }
   },
 })
@@ -91,13 +98,19 @@ export async function initSync(): Promise<() => void> {
 
   try {
     await useAuthStore.getState().restore()
-  } catch {
-    // Guest mode when the backend is unreachable.
+  } catch (error) {
+    devError('auth', 'session restore failed; continuing as guest', error)
   }
   const restoredUser = useAuthStore.getState().user
   if (!restoredUser) setRefreshToken(null)
   const userId = restoredUser?.id ?? null
-  await syncManager.switchToAccount(userId)
+  try {
+    await syncManager.switchToAccount(userId)
+  } catch (error) {
+    devError('sync', 'account switch failed; the local save is still usable', error, {
+      signedIn: userId !== null,
+    })
+  }
   syncEngineToUi()
   syncEngine.startPolling()
 
@@ -106,9 +119,13 @@ export async function initSync(): Promise<() => void> {
     online = state.isConnected !== false
     if (!wasOnline && online) syncEngine.handleOnline()
   })
-  void NetInfo.fetch().then((state) => {
-    online = state.isConnected !== false
-  })
+  void NetInfo.fetch()
+    .then((state) => {
+      online = state.isConnected !== false
+    })
+    .catch((error: unknown) => {
+      devWarn('sync', 'could not read the initial network state', error)
+    })
 
   let appState = AppState.currentState ?? 'active'
   const appStateSubscription = AppState.addEventListener('change', (next) => {
@@ -128,7 +145,12 @@ export async function initSync(): Promise<() => void> {
     const nextId = state.user?.id ?? null
     if (nextId === previousUserId) return
     previousUserId = nextId
-    void syncManager.switchToAccount(nextId).then(syncEngineToUi)
+    void syncManager
+      .switchToAccount(nextId)
+      .then(syncEngineToUi)
+      .catch((error: unknown) => {
+        devError('sync', 'account switch after an auth change failed', error, { nextId })
+      })
   })
 
   let stopped = false

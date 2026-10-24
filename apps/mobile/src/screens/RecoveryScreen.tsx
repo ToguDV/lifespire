@@ -12,6 +12,7 @@ import { SaveImportDialog } from '../components/SaveImportDialog'
 import { Screen } from '../components/Screen'
 import { Text } from '../components/Text'
 import { exportRaw, pickAndValidateSave } from '../lib/exportImport'
+import { devError } from '../lib/devLogger'
 import { useAppStore } from '../state/store'
 
 type RecoveryReason = 'corrupt' | 'future-version' | 'import-error'
@@ -51,6 +52,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
       if ('canceled' in result) return
       setImportResult(result)
     } catch (error) {
+      devError('files', 'recovery import failed', error)
       showToast(error instanceof Error ? error.message : 'Could not read that file.')
     } finally {
       setBusy(false)
@@ -64,6 +66,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
       return
     }
     void exportRaw(raw).catch((error: unknown) => {
+      devError('files', 'raw save export failed', error)
       showToast(error instanceof Error ? error.message : 'Could not share the raw save.')
     })
   }

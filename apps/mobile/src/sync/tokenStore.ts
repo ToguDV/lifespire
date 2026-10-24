@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store'
+import { devError } from '../lib/devLogger'
 
 const REFRESH_TOKEN_KEY = 'lifespire.refresh-token'
 
@@ -10,7 +11,8 @@ export async function loadRefreshToken(): Promise<string | null> {
   if (loaded) return cached
   try {
     cached = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY)
-  } catch {
+  } catch (error) {
+    devError('auth', 'could not read the refresh token from SecureStore', error)
     cached = null
   }
   loaded = true
@@ -30,8 +32,12 @@ export function setRefreshToken(token: string | null): void {
   cached = token
   loaded = true
   if (token) {
-    void SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token).catch(() => undefined)
+    void SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token).catch((error: unknown) => {
+      devError('auth', 'could not persist the refresh token in SecureStore', error)
+    })
   } else {
-    void SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch(() => undefined)
+    void SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY).catch((error: unknown) => {
+      devError('auth', 'could not clear the refresh token from SecureStore', error)
+    })
   }
 }

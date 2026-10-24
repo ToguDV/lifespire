@@ -8,6 +8,7 @@ import {
 import { SYNC_BASE_URL_KEY } from '@lifespire/app-core/sync/storageKeys'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
+import { devWarn } from '../lib/devLogger'
 import { kv } from '../platform/storage'
 import { useAuthStore } from './auth'
 import { getRefreshToken, setRefreshToken } from './tokenStore'
@@ -54,15 +55,16 @@ function buildApiClient(): ApiClient {
     getAccessToken: () => {
       try {
         return useAuthStore.getState().getAccessToken()
-      } catch {
+      } catch (error) {
+        devWarn('auth', 'could not read the access token', error)
         return null
       }
     },
     setAccessToken: (token) => {
       try {
         useAuthStore.getState().setAccessToken(token)
-      } catch {
-        // The token stays in the caller if the store is not ready.
+      } catch (error) {
+        devWarn('auth', 'could not store the access token', error)
       }
     },
     getRefreshToken,
@@ -88,8 +90,8 @@ export function refreshSyncApi(): ApiClient {
   engineApiTarget.current = syncApi
   try {
     useAuthStore.getState().configure(syncApi)
-  } catch {
-    // Store is always ready in the app; tests may call this early.
+  } catch (error) {
+    devWarn('auth', 'could not configure the auth store with the new API client', error)
   }
   return syncApi
 }

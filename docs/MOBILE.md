@@ -173,6 +173,40 @@ Manual Android checklist before a release:
    near-future time and confirm tap-to-map. Disable and confirm cancellation.
 6. Light/dark/system themes, 360 dp width, TalkBack and large font scale.
 
+### 8.1 Development diagnostics
+
+`apps/mobile/src/lib/devLogger.ts` installs one global development logger from
+the app entry point. It is a no-op when `__DEV__` is false:
+
+- unhandled JS errors are printed with their stack and forwarded to the
+  previous React Native handler (so LogBox still works);
+- `unhandledrejection` events are printed when the runtime exposes the event;
+- `devError(scope, message, error?, context?)` and `devWarn(...)` prefix
+  messages with `[LifeSpire][scope]`;
+- context keys matching token/password/secret/authorization/cookie/document/save
+  become `[redacted]`, and long strings are truncated. Saves and refresh
+  tokens are never printed;
+- best-effort catches (sync, auth restore, notifications, SecureStore, file
+  export/import, haptics) now log once instead of failing silently. The UI
+  still shows its normal toast/panel error.
+
+Where to read the output:
+
+```bash
+# terminal running expo start: bundling + console output
+pnpm dev:mobile
+
+# React Native DevTools: press j in the Expo terminal
+# or shake the device → Open React Native DevTools
+
+# native crashes / modules before JS is up
+adb logcat -s ReactNativeJS:V
+adb logcat -b crash
+```
+
+The console output is a development aid only. Release builds do not print
+these messages and never include the redacted context.
+
 ## 9. Internal builds (EAS)
 
 ```bash

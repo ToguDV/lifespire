@@ -14,6 +14,7 @@ import { Text } from '../components/Text'
 import { Dialog } from '../components/Dialog'
 import type { ImportResult } from '@lifespire/app-core/ui/importSave'
 import { exportDocument, pickAndValidateSave } from '../lib/exportImport'
+import { devError } from '../lib/devLogger'
 import { useAppStore } from '../state/store'
 import { setFeedbackPrefs, useFeedbackPrefs } from '../state/feedback'
 import { useNotificationPrefs, setNotificationPrefs, isTimeValue } from '../notifications/prefs'
@@ -68,7 +69,12 @@ export function SettingsScreen() {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    void getNotificationPermission().then(setPermission)
+    void getNotificationPermission()
+      .then(setPermission)
+      .catch((error: unknown) => {
+        devError('notifications', 'could not read the notification permission', error)
+        setPermission('undetermined')
+      })
   }, [])
 
   const exportSave = async () => {
@@ -77,6 +83,7 @@ export function SettingsScreen() {
       await exportDocument(document)
       showToast('Save shared as a JSON file.')
     } catch (error) {
+      devError('files', 'save export failed', error)
       showToast(error instanceof Error ? error.message : 'Could not export the save.')
     } finally {
       setBusy(false)
@@ -90,6 +97,7 @@ export function SettingsScreen() {
       if ('canceled' in result) return
       setImportResult(result)
     } catch (error) {
+      devError('files', 'save import failed', error)
       showToast(error instanceof Error ? error.message : 'Could not read that file.')
     } finally {
       setBusy(false)
@@ -104,26 +112,36 @@ export function SettingsScreen() {
   }
 
   const enableNotifications = async (enabled: boolean) => {
-    if (!enabled) {
-      const next = setNotificationPrefs({ enabled: false })
+    try {
+      if (!enabled) {
+        const next = setNotificationPrefs({ enabled: false })
+        await syncScheduledNotifications(document, next)
+        return
+      }
+      const result = await requestNotificationPermission()
+      setPermission(result)
+      if (result !== 'granted') {
+        setNotificationPrefs({ enabled: false })
+        showToast('Notifications are blocked in system settings.')
+        return
+      }
+      const next = setNotificationPrefs({ enabled: true })
       await syncScheduledNotifications(document, next)
-      return
+      showToast('Daily reminders are on.')
+    } catch (error) {
+      devError('notifications', 'could not enable or disable reminders', error, { enabled })
+      showToast('Notifications could not be updated on this device.')
     }
-    const result = await requestNotificationPermission()
-    setPermission(result)
-    if (result !== 'granted') {
-      setNotificationPrefs({ enabled: false })
-      showToast('Notifications are blocked in system settings.')
-      return
-    }
-    const next = setNotificationPrefs({ enabled: true })
-    await syncScheduledNotifications(document, next)
-    showToast('Daily reminders are on.')
   }
 
   const updatePrefs = async (patch: Partial<NotificationPrefs>) => {
-    const next = setNotificationPrefs(patch)
-    await syncScheduledNotifications(document, next)
+    try {
+      const next = setNotificationPrefs(patch)
+      await syncScheduledNotifications(document, next)
+    } catch (error) {
+      devError('notifications', 'could not update notification preferences', error)
+      showToast('That reminder setting could not be saved.')
+    }
   }
 
   return (
@@ -425,8 +443,8 @@ function SyncSection() {
     try {
       await login(email, password, totp.trim() || undefined)
       showToast('Signed in. Sync starts on this device.')
-    } catch {
-      // Auth store exposes the error.
+    } catch (error) {
+      devError('auth', 'sign-in failed', error)
     } finally {
       setBusy(false)
     }
@@ -449,6 +467,7 @@ function SyncSection() {
       setServerInput(validation.normalized)
       setServerNotice(`Pointing at ${validation.normalized}. Sign in again.`)
     } catch (error) {
+      devError('auth', 'server check or switch failed', error)
       setServerError(error instanceof Error ? error.message : 'That server could not be reached.')
     } finally {
       setChecking(false)
@@ -456,11 +475,16 @@ function SyncSection() {
   }
 
   const clearServer = async () => {
-    await logout()
-    clearStoredBaseUrl()
-    refreshSyncApi()
-    setServerInput('')
-    setServerNotice('Using the build default server. Sign in again.')
+    try {
+      await logout()
+      clearStoredBaseUrl()
+      refreshSyncApi()
+      setServerInput('')
+      setServerNotice('Using the build default server. Sign in again.')
+    } catch (error) {
+      devError('auth', 'could not clear the server override', error)
+      setServerError('The server override could not be cleared.')
+    }
   }
 
   return (
@@ -513,7 +537,9 @@ function SyncSection() {
                 variant="secondary"
                 small
                 onPress={() => {
-                  void acceptInvite(extractToken(inviteToken), invitePassword).catch(() => undefined)
+                  void acceptInvite(extractToken(inviteToken), invitePassword).catch((error: unknown) => {
+                    devError('auth', 'invite acceptance failed', error)
+                  })
                 }}
               >
                 Accept invite
@@ -525,7 +551,9 @@ function SyncSection() {
                 variant="secondary"
                 small
                 onPress={() => {
-                  void resetPassword(extractToken(resetToken), resetNewPassword).catch(() => undefined)
+                  void resetPassword(extractToken(resetToken), resetNewPassword).catch((error: unknown) => {
+                    devError('auth', 'password reset failed', error)
+                  })
                 }}
               >
                 Set new password

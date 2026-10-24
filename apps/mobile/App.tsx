@@ -11,12 +11,17 @@ import { AlegreyaSans_400Regular } from '@expo-google-fonts/alegreya-sans/400Reg
 import { AlegreyaSans_500Medium } from '@expo-google-fonts/alegreya-sans/500Medium'
 import { AlegreyaSans_700Bold } from '@expo-google-fonts/alegreya-sans/700Bold'
 import { AppShell } from './src/AppShell'
+import { devError, installDevLogging } from './src/lib/devLogger'
 import { ErrorBoundary } from './src/components/ErrorBoundary'
 import { initSync } from './src/sync/setup'
 import { useTheme } from './src/theme/ThemeProvider'
 import { useAppStore } from './src/state/store'
 
-void SplashScreen.preventAutoHideAsync().catch(() => undefined)
+installDevLogging()
+
+void SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
+  devError('bootstrap', 'could not hold the splash screen', error)
+})
 
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
@@ -31,16 +36,22 @@ export default function App() {
 
   useEffect(() => {
     if (!fontsLoaded && !fontError) return
-    void SplashScreen.hideAsync().catch(() => undefined)
+    void SplashScreen.hideAsync().catch((error: unknown) => {
+      devError('bootstrap', 'could not hide the splash screen', error)
+    })
   }, [fontsLoaded, fontError])
 
   useEffect(() => {
     let cleanup: (() => void) | undefined
     let cancelled = false
-    void initSync().then((stop) => {
-      if (cancelled) stop()
-      else cleanup = stop
-    })
+    void initSync()
+      .then((stop) => {
+        if (cancelled) stop()
+        else cleanup = stop
+      })
+      .catch((error: unknown) => {
+        devError('bootstrap', 'sync initialization failed', error)
+      })
     return () => {
       cancelled = true
       cleanup?.()

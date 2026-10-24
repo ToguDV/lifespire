@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications'
 import { AppState, Platform } from 'react-native'
 import { useEffect } from 'react'
 import type { GameDocument } from '@lifespire/core'
+import { devError, devWarn } from '../lib/devLogger'
 import { useAppStore } from '../state/store'
 import { buildNotificationPlan } from './planner'
 import type { PlannedNotification } from './planner'
@@ -61,8 +62,8 @@ export async function cancelAppNotifications(): Promise<void> {
         })
         .map((request) => Notifications.cancelScheduledNotificationAsync(request.identifier)),
     )
-  } catch {
-    // Cancellation is best-effort; a stale reminder is harmless.
+  } catch (error) {
+    devWarn('notifications', 'could not cancel scheduled notifications', error)
   }
 }
 
@@ -83,8 +84,12 @@ export async function applyNotificationPlan(plan: PlannedNotification[]): Promis
           channelId: CHANNEL_ID,
         },
       })
-    } catch {
-      // One bad trigger must not block the rest of the plan.
+    } catch (error) {
+      devError('notifications', 'could not schedule a reminder', error, {
+        id: item.id,
+        kind: item.kind,
+        triggerAt: item.triggerAt.toISOString(),
+      })
     }
   }
 }
@@ -117,10 +122,16 @@ export function useNotificationSync(): void {
     let cancelled = false
     const timer = setTimeout(() => {
       if (cancelled) return
-      void syncScheduledNotifications(document, prefs)
+      void syncScheduledNotifications(document, prefs).catch((error: unknown) => {
+        devError('notifications', 'rescheduling failed', error)
+      })
     }, 350)
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void syncScheduledNotifications(document, prefs)
+      if (state === 'active') {
+        void syncScheduledNotifications(document, prefs).catch((error: unknown) => {
+          devError('notifications', 'foreground rescheduling failed', error)
+        })
+      }
     })
     return () => {
       cancelled = true
@@ -141,5 +152,7 @@ export function scheduleImmediateTest(): void {
       sound: false,
     },
     trigger: null,
-  }).catch(() => undefined)
+  }).catch((error: unknown) => {
+    devWarn('notifications', 'test notification could not be scheduled', error)
+  })
 }

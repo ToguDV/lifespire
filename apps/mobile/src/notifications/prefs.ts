@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { devWarn } from '../lib/devLogger'
 import { kv } from '../platform/storage'
 
 export const NOTIFICATION_PREFS_KEY = 'lifespire:notifications'
@@ -57,7 +58,8 @@ function readStored(): NotificationPrefs {
   try {
     const raw = kv.getItem(NOTIFICATION_PREFS_KEY)
     return raw ? sanitize(JSON.parse(raw)) : { ...DEFAULT_NOTIFICATION_PREFS }
-  } catch {
+  } catch (error) {
+    devWarn('notifications', 'notification preferences could not be read', error)
     return { ...DEFAULT_NOTIFICATION_PREFS }
   }
 }
@@ -80,8 +82,8 @@ export function setNotificationPrefs(patch: Partial<NotificationPrefs>): Notific
   cached = next
   try {
     kv.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(next))
-  } catch {
-    // Preferences are best-effort.
+  } catch (error) {
+    devWarn('notifications', 'notification preferences could not be saved', error)
   }
   emit()
   return { ...next }

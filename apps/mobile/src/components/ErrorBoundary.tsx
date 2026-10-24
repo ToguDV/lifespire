@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
+import { devError } from '../lib/devLogger'
 import { useTheme } from '../theme/ThemeProvider'
 import { space } from '../theme/tokens'
 import { Button } from './Button'
@@ -19,7 +20,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('LifeSpire crashed', error, info.componentStack)
+    devError('app', 'render crash', error, { componentStack: info.componentStack ?? '' })
   }
 
   render(): ReactNode {

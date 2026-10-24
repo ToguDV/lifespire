@@ -24,6 +24,7 @@ import { RecoveryScreen } from './screens/RecoveryScreen'
 import { RewardScreen } from './screens/RewardScreen'
 import { RunSummaryScreen } from './screens/RunSummaryScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
+import { devError } from './lib/devLogger'
 import { useNotificationSync } from './notifications/scheduler'
 import { useAppStore } from './state/store'
 
@@ -109,7 +110,11 @@ export function AppShell() {
     const schedule = () => {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
-        useAppStore.getState().reconcile()
+        try {
+          useAppStore.getState().reconcile()
+        } catch (error) {
+          devError('app', 'midnight reconcile failed', error)
+        }
         schedule()
       }, msUntilNextLocalMidnight())
     }
@@ -128,19 +133,29 @@ export function AppShell() {
       else if (path === 'goals') useAppStore.getState().navigate({ name: 'goals' })
       else if (path === 'relics' || path === 'profile') useAppStore.getState().navigate({ name: 'profile' })
     }
-    void Linking.getInitialURL().then(handleUrl)
+    void Linking.getInitialURL()
+      .then(handleUrl)
+      .catch((error: unknown) => {
+        devError('navigation', 'could not read the initial deep link', error)
+      })
     const subscription = Linking.addEventListener('url', (event) => handleUrl(event.url))
     const notificationSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data as { url?: unknown } | null
       if (typeof data?.url === 'string') handleUrl(data.url)
     })
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      const data = response?.notification.request.content.data as { url?: unknown } | null
-      if (typeof data?.url === 'string') {
-        handleUrl(data.url)
-        void Notifications.clearLastNotificationResponseAsync()
-      }
-    })
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        const data = response?.notification.request.content.data as { url?: unknown } | null
+        if (typeof data?.url === 'string') {
+          handleUrl(data.url)
+          void Notifications.clearLastNotificationResponseAsync().catch((error: unknown) => {
+            devError('notifications', 'could not clear the last notification response', error)
+          })
+        }
+      })
+      .catch((error: unknown) => {
+        devError('notifications', 'could not read the last notification response', error)
+      })
     return () => {
       subscription.remove()
       notificationSubscription.remove()
