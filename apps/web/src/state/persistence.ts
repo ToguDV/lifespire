@@ -29,10 +29,12 @@ export interface DocumentStorageController {
   blockWrites(issue: StorageIssue): void
   unblockWrites(): void
   isBlocked(): boolean
-  read(): string | null
+  read(activeKey?: string): string | null
   /** Copies the current raw save to the backup key, if a save exists. */
-  backup(): void
-  clear(): void
+  backup(activeKey?: string): void
+  clear(activeKey?: string): void
+  getActiveKey(): string
+  setActiveKey(key: string): void
 }
 
 export interface DocumentStorageOptions {
@@ -95,8 +97,9 @@ export function createDocumentStorage(
   let writeStatusListener: ((warning: StorageWriteWarning) => void) | null = null
   let externalChangeListener: ExternalChangeListener | null = null
   let conflictListener: ConflictListener | null = null
-  /** Last raw text this controller read from or wrote to storage. */
-  let lastWrittenRaw: string | null = null
+  let activeKey = STORAGE_KEY
+  /** Last raw text per save key (per-account support). */
+  const lastWrittenByKey = new Map<string, string | null>()
 
   const block = (issue: StorageIssue): void => {
     blocked = true
@@ -114,7 +117,7 @@ export function createDocumentStorage(
       let raw: string | null
       try {
         raw = storage.getItem(name)
-        lastWrittenRaw = raw
+        lastWrittenByKey.set(name, raw)
         if (raw === null) return null
 
         // Parsing and migrations are untrusted: any exception must leave the
@@ -139,6 +142,7 @@ export function createDocumentStorage(
       // Persist the compact document; serializeDocument keeps the readable
       // two-space format for user-facing exports only.
       const next = JSON.stringify(value.state.document)
+      const lastWrittenRaw = lastWrittenByKey.get(name) ?? null
       if (next === lastWrittenRaw) return
 
       let current: string | null
@@ -157,7 +161,7 @@ export function createDocumentStorage(
 
       try {
         storage.setItem(name, next)
-        lastWrittenRaw = next
+        lastWrittenByKey.set(name, next)
         reportWrite(!persistent)
       } catch {
         // The app keeps working from memory; the shell warns that a reload
@@ -169,28 +173,38 @@ export function createDocumentStorage(
       if (blocked) return
       try {
         storage.removeItem(name)
-        if (name === STORAGE_KEY) lastWrittenRaw = null
+        lastWrittenByKey.set(name, null)
       } catch {
         // Ignore unavailable storage.
       }
     },
   }
 
+  const isTrackedSaveKey = (key: string | null): boolean => {
+    if (!key) return false
+    if (key === STORAGE_KEY) return true
+    if (!key.startsWith(`${STORAGE_KEY}:u:`)) return false
+    return !key.endsWith(':backup') && !key.endsWith(':meta')
+  }
+
   // Storage events never fire in the tab that wrote them, so this notification
   // is safe against same-tab write loops.
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('storage', (event: StorageEvent) => {
-      if (event.key !== STORAGE_KEY) return
-      if (event.newValue === lastWrittenRaw) return
+      if (!isTrackedSaveKey(event.key)) return
+      if (event.newValue === lastWrittenByKey.get(event.key as string)) return
       externalChangeListener?.()
     })
   }
 
-  const backup = (): void => {
+  const backupKeyForSave = (saveKey: string): string =>
+    saveKey === STORAGE_KEY ? STORAGE_BACKUP_KEY : `${saveKey}:backup`
+
+  const backup = (saveKey: string = activeKey): void => {
     try {
-      const raw = storage.getItem(STORAGE_KEY)
+      const raw = storage.getItem(saveKey)
       if (raw === null) return
-      storage.setItem(STORAGE_BACKUP_KEY, raw)
+      storage.setItem(backupKeyForSave(saveKey), raw)
     } catch {
       // A backup is best-effort: destructive actions still proceed.
     }
@@ -218,21 +232,25 @@ export function createDocumentStorage(
       pendingIssue = null
     },
     isBlocked: () => blocked,
-    read: () => {
+    read: (saveKey: string = activeKey) => {
       try {
-        return storage.getItem(STORAGE_KEY)
+        return storage.getItem(saveKey)
       } catch {
         return null
       }
     },
     backup,
-    clear: () => {
+    clear: (saveKey: string = activeKey) => {
       try {
-        storage.removeItem(STORAGE_KEY)
-        lastWrittenRaw = null
+        storage.removeItem(saveKey)
+        lastWrittenByKey.set(saveKey, null)
       } catch {
         // Ignore unavailable storage.
       }
+    },
+    getActiveKey: () => activeKey,
+    setActiveKey: (key) => {
+      activeKey = key
     },
   }
 }
