@@ -25,6 +25,19 @@ function doc(payload: Record<string, unknown> = {}) {
   };
 }
 
+/** Minimal rule-valid goal (passes core parseDocument). */
+function goal(id: string) {
+  return {
+    id,
+    title: 'Read',
+    category: 'health',
+    icon: 'star',
+    weeklyObjective: 3,
+    active: true,
+    createdAt: '2026-10-24T00:00:00.000Z',
+  };
+}
+
 function refreshCookieOf(res: request.Response): string | undefined {
   const raw = (res.headers['set-cookie'] as unknown as string[] | undefined) ?? [];
   return raw.find((c) => c.startsWith('__Secure-ls_rt='))?.split(';')[0];
@@ -179,7 +192,7 @@ describe('sync API e2e (postgres)', () => {
 
     // 13. Changed content bumps to 2.
     const key3 = randomUUID();
-    const changed = { ...doc(), goals: [{ id: 'g1' }] };
+    const changed = { ...doc(), goals: [goal('g1')] };
     const put2 = await user
       .put('/v1/sync')
       .set('Authorization', `Bearer ${userToken}`)
@@ -378,14 +391,14 @@ describe('sync API e2e (postgres)', () => {
     // Missing If-Match.
     const noMatch = await auth(request(srv).put('/v1/sync'))
       .set('Idempotency-Key', randomUUID())
-      .send({ document: doc({ goals: [{ id: 'x' }] }) })
+      .send({ document: doc() })
       .expect(400);
     expect(noMatch.body.code).toBe('VALIDATION_FAILED');
 
     // Missing Idempotency-Key.
     const noKey = await auth(request(srv).put('/v1/sync'))
       .set('If-Match', '"1"')
-      .send({ document: doc({ goals: [{ id: 'x' }] }) })
+      .send({ document: doc() })
       .expect(400);
     expect(noKey.body.code).toBe('IDEMPOTENCY_KEY_MISSING');
 
@@ -421,6 +434,15 @@ describe('sync API e2e (postgres)', () => {
       .send({ document: { foo: 'bar' } })
       .expect(422);
     expect(bad.body.code).toBe('SYNC_INVALID_DOCUMENT');
+
+    // Structurally valid but rule-invalid: passes the shape gate, fails core game rules.
+    const ruleBroken = await auth(request(srv).put('/v1/sync'))
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: doc({ goals: [{ id: 'x' }] }) })
+      .expect(422);
+    expect(ruleBroken.body.code).toBe('SYNC_RULE_VIOLATION');
+    expect(ruleBroken.body.detail).toMatch(/goals\[0\]/);
   }, 60_000);
 
   it('(e) expired invite token is rejected', async () => {
@@ -503,13 +525,13 @@ describe('sync API e2e (postgres)', () => {
         .set('Authorization', `Bearer ${token}`)
         .set('If-Match', '"1"')
         .set('Idempotency-Key', randomUUID())
-        .send({ document: doc({ goals: [{ id: 'race-a' }] }) }),
+        .send({ document: doc({ goals: [goal('race-a')] }) }),
       request(srv)
         .put('/v1/sync')
         .set('Authorization', `Bearer ${token}`)
         .set('If-Match', '"1"')
         .set('Idempotency-Key', randomUUID())
-        .send({ document: doc({ goals: [{ id: 'race-b' }] }) }),
+        .send({ document: doc({ goals: [goal('race-b')] }) }),
     ]);
     expect([r1.status, r2.status].sort()).toEqual([200, 412]);
 

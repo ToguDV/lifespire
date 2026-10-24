@@ -6,12 +6,12 @@ import {
   MAX_LAYER_NODES,
   MIN_ELITES_PER_MAP,
   MIN_LAYER_NODES,
-} from './balance'
-import { generateMap, MapGenerationError, validateMap } from './generator'
-import type { GenerateMapInput } from './generator'
-import { resolveDecisionLayerCount } from './mapDepth'
-import { rewardsForNode } from './rewards'
-import type { Effort, GameMap, Goal, MapNode, RunObjective, Task } from './types'
+} from './balance.js'
+import { generateMap, MapGenerationError, validateMap } from './generator.js'
+import type { GenerateMapInput } from './generator.js'
+import { resolveDecisionLayerCount } from './mapDepth.js'
+import { rewardsForNode } from './rewards.js'
+import type { Effort, GameMap, Goal, MapNode, RunObjective, Task } from './types.js'
 
 const NOW = '2026-10-20T09:00:00.000Z'
 

@@ -7,7 +7,7 @@ import {
   MIN_DECISION_LAYERS,
   MIN_GOALS,
   WEEKLY_TARGETS_PER_EXTRA_LAYER,
-} from './balance'
+} from './balance.js'
 
 export interface DecisionLayerInput {
   /** Active goals that own at least one active routine. */

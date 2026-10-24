@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup } from '../content/demo'
-import { createRun } from './lifecycle'
-import { DomainError } from './lifecycle'
+import { createDemoSetup } from '../content/demo.js'
+import { createRun } from './lifecycle.js'
+import { DomainError } from './lifecycle.js'
 
 function setup() {
   return createDemoSetup(new Date(2026, 9, 20, 12, 0, 0))

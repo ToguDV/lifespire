@@ -5,7 +5,7 @@ import {
   createLootItemFromCatalog,
   findLootById,
   lootByRarity,
-} from './loot'
+} from './loot.js'
 
 describe('loot catalog', () => {
   it('has exactly twelve original items', () => {

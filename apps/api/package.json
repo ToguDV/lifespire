@@ -21,7 +21,9 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "admin:create": "ts-node -T src/cli/admin-create.ts",
-    "admin:reset-link": "ts-node -T src/cli/admin-reset-link.ts"
+    "admin:reset-link": "ts-node -T src/cli/admin-reset-link.ts",
+    "pretypecheck": "pnpm --filter @lifespire/core build",
+    "prebuild": "pnpm --filter @lifespire/core build"
   },
   "dependencies": {
     "@lifespire/core": "workspace:*",

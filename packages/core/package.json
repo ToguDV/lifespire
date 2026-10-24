@@ -3,14 +3,27 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/cjs/index.js",
+  "types": "./dist/cjs/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./domain/*": "./src/domain/*.ts",
-    "./content/*": "./src/content/*.ts"
+    ".": {
+      "import": "./src/index.ts",
+      "require": "./dist/cjs/index.js",
+      "default": "./src/index.ts"
+    },
+    "./domain/*": {
+      "import": "./src/domain/*.ts",
+      "require": "./dist/cjs/domain/*.js",
+      "default": "./src/domain/*.ts"
+    },
+    "./content/*": {
+      "import": "./src/content/*.ts",
+      "require": "./dist/cjs/content/*.js",
+      "default": "./src/content/*.ts"
+    }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json && node -e \"require('node:fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }) + '\\n')\"",
     "lint": "oxlint",
     "typecheck": "tsc -b",
     "test": "vitest run"

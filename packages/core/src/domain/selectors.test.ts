@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createRun } from './lifecycle'
+import { createRun } from './lifecycle.js'
 import {
   countActiveGoals,
   countActiveTasks,
@@ -10,8 +10,8 @@ import {
   safeCount,
   xpIntoLevel,
   xpToNextLevel,
-} from './selectors'
-import type { Goal, MapNode, Run, Task } from './types'
+} from './selectors.js'
+import type { Goal, MapNode, Run, Task } from './types.js'
 
 const now = new Date(2026, 9, 20, 9, 0, 0)
 

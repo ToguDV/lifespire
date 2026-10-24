@@ -1,5 +1,5 @@
-import { MAX_WEEKLY_OBJECTIVE, MIN_WEEKLY_OBJECTIVE } from '../domain/balance'
-import type { Goal, OnboardingDraft, OnboardingSetup, Task } from '../domain/types'
+import { MAX_WEEKLY_OBJECTIVE, MIN_WEEKLY_OBJECTIVE } from '../domain/balance.js'
+import type { Goal, OnboardingDraft, OnboardingSetup, Task } from '../domain/types.js'
 
 export const DEFAULT_TRAVELLER = 'Wayfarer'
 export const ONBOARDING_STEPS = 4

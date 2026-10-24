@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup } from '../content/demo'
-import { createLootItem, LOOT_CATALOG } from '../content/loot'
+import { createDemoSetup } from '../content/demo.js'
+import { createLootItem, LOOT_CATALOG } from '../content/loot.js'
 import {
   ALL_OBJECTIVES_BONUS,
   DUPLICATE_GOLD,
   OBJECTIVE_BONUS,
   RUN_DAYS,
   XP_PER_LEVEL,
-} from './balance'
-import { addDays, dayKey } from './dates'
-import { computeRunTotals, createRun, DomainError } from './lifecycle'
+} from './balance.js'
+import { addDays, dayKey } from './dates.js'
+import { computeRunTotals, createRun, DomainError } from './lifecycle.js'
 import {
   closeRun,
   finalizeIfNeeded,
   finalizeRun,
   startNewRun,
-} from './runClose'
-import { createEmptyDocument, parseDocument, serializeDocument } from './schema'
-import { levelForXp } from './selectors'
+} from './runClose.js'
+import { createEmptyDocument, parseDocument, serializeDocument } from './schema.js'
+import { levelForXp } from './selectors.js'
 import type {
   Day,
   GameDocument,
@@ -28,7 +28,7 @@ import type {
   Run,
   RunObjective,
   RunTotals,
-} from './types'
+} from './types.js'
 
 const start = new Date(2026, 9, 20, 9, 0, 0)
 const end = new Date(2026, 9, 26, 9, 0, 0)

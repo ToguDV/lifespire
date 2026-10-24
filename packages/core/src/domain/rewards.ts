@@ -4,11 +4,11 @@ import {
   EFFORT_MULTIPLIER,
   LOOT_RARITY_WEIGHTS,
   REWARDS,
-} from './balance'
-import { createLootItem, lootByRarity } from '../content/loot'
-import type { LootCatalogEntry } from '../content/loot'
-import { createRng } from './rng'
-import { levelForXp } from './selectors'
+} from './balance.js'
+import { createLootItem, lootByRarity } from '../content/loot.js'
+import type { LootCatalogEntry } from '../content/loot.js'
+import { createRng } from './rng.js'
+import { levelForXp } from './selectors.js'
 import type {
   Effort,
   LootItem,
@@ -16,7 +16,7 @@ import type {
   NodeType,
   Profile,
   Rarity,
-} from './types'
+} from './types.js'
 
 const RARITY_ORDER: readonly Rarity[] = ['common', 'rare', 'epic']
 

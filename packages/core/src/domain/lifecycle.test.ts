@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup } from '../content/demo'
-import { BOSS_CLOSING_BONUS, DUPLICATE_GOLD, GENERATOR_VERSION, RUN_DAYS } from './balance'
-import { dayKey, daysBetween } from './dates'
-import { validateMap } from './generator'
+import { createDemoSetup } from '../content/demo.js'
+import { BOSS_CLOSING_BONUS, DUPLICATE_GOLD, GENERATOR_VERSION, RUN_DAYS } from './balance.js'
+import { dayKey, daysBetween } from './dates.js'
+import { validateMap } from './generator.js'
 import {
   computeDaySummary,
   computeRunTotals,
@@ -12,15 +12,15 @@ import {
   reconcileDays,
   resolveNode,
   selectNode,
-} from './lifecycle'
-import { rollLootItem, rewardsForNode } from './rewards'
-import { createEmptyDocument, parseDocument, serializeDocument } from './schema'
+} from './lifecycle.js'
+import { rollLootItem, rewardsForNode } from './rewards.js'
+import { createEmptyDocument, parseDocument, serializeDocument } from './schema.js'
 import {
   availableNodeIds,
   currentDay,
   nodeStatus,
   resolveNodeById,
-} from './selectors'
+} from './selectors.js'
 import type {
   Day,
   Effort,
@@ -33,7 +33,7 @@ import type {
   ResolutionAction,
   Run,
   TaskSnapshot,
-} from './types'
+} from './types.js'
 
 const now = new Date(2026, 9, 20, 8, 30, 0)
 

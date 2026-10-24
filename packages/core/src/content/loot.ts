@@ -1,4 +1,4 @@
-import type { LootItem, Rarity } from '../domain/types'
+import type { LootItem, Rarity } from '../domain/types.js'
 
 export interface LootCatalogEntry {
   id: string

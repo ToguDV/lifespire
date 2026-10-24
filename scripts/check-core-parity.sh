@@ -66,16 +66,18 @@ for dir in "apps/web/src/domain" "apps/web/src/content"; do
 done
 
 core_version=$(grep -Eo 'export const SCHEMA_VERSION = [0-9]+' "$ROOT/packages/core/src/domain/balance.ts" | grep -Eo '[0-9]+')
-server_version=$(grep -Eo 'const SERVER_SCHEMA_VERSION = [0-9]+' "$ROOT/apps/api/src/sync/sync.service.ts" | grep -Eo '[0-9]+')
 
-if [[ -z "${core_version:-}" || -z "${server_version:-}" ]]; then
-  echo "FAIL: could not parse SCHEMA_VERSION ($core_version) or SERVER_SCHEMA_VERSION ($server_version)" >&2
+# The API must not hardcode the schema version: it imports SCHEMA_VERSION from
+# the core build output (#49). structuralCheck keeps the cheap shape gate, and
+# SyncService.put enforces full game-rule validation (422 SYNC_RULE_VIOLATION).
+if grep -Eq 'const SERVER_SCHEMA_VERSION' "$ROOT/apps/api/src/sync/sync.service.ts"; then
+  echo "FAIL: sync.service.ts still hardcodes SERVER_SCHEMA_VERSION (import SCHEMA_VERSION from @lifespire/core)" >&2
   fail=1
-elif [[ "$core_version" != "$server_version" ]]; then
-  echo "FAIL: SCHEMA_VERSION ($core_version) != SERVER_SCHEMA_VERSION ($server_version)" >&2
-  fail=1
+elif grep -Eq "from '@lifespire/core'" "$ROOT/apps/api/src/sync/sync.service.ts"; then
+  echo "OK: sync.service.ts imports SCHEMA_VERSION from @lifespire/core (core v$core_version)"
 else
-  echo "OK: SCHEMA_VERSION ($core_version) matches SERVER_SCHEMA_VERSION ($server_version)"
+  echo "FAIL: sync.service.ts does not import from @lifespire/core" >&2
+  fail=1
 fi
 
 exit "$fail"
