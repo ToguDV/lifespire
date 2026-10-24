@@ -1886,3 +1886,96 @@ button.text-link {
     animation: none;
   }
 }
+
+/* Sync status + conflict dialog ---------------------------------- */
+
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.sync-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ink-soft);
+  flex: none;
+}
+
+.sync-status--synced .sync-status__dot {
+  background: var(--ok, #3d7a44);
+}
+
+.sync-status--dirty .sync-status__dot,
+.sync-status--pushing .sync-status__dot,
+.sync-status--pulling .sync-status__dot {
+  background: var(--warn, #a06a00);
+}
+
+.sync-status--offline .sync-status__dot,
+.sync-status--error .sync-status__dot,
+.sync-status--conflict .sync-status__dot {
+  background: var(--danger, #a33);
+}
+
+.sync-status__anchor {
+  position: fixed;
+  inset-inline-end: 12px;
+  inset-block-end: 12px;
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.conflict-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .conflict-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.conflict-side {
+  border: 1px solid var(--line, #ddd);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.conflict-side h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.conflict-meta {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.conflict-meta div {
+  display: grid;
+  gap: 2px;
+}
+
+.conflict-meta dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+}
+
+.conflict-meta dd {
+  margin: 0;
+}
+
+.sync-panel {
+  display: grid;
+  gap: 8px;
+}
