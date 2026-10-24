@@ -1977,5 +1977,52 @@ button.text-link {
 
 .sync-panel {
   display: grid;
-  gap: 8px;
+  gap: 20px;
+  align-content: start;
+}
+
+.sync-panel > .panel-note:first-child {
+  margin-bottom: -6px;
+}
+
+.sync-form {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+
+.sync-panel > .sync-form + .sync-form {
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+}
+
+.sync-field {
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  min-width: 0;
+}
+
+.sync-field .field__label {
+  margin-bottom: 1px;
+}
+
+.sync-field .field-hint {
+  margin-top: 1px;
+}
+
+.sync-field .input[aria-invalid='true'] {
+  border-color: var(--hairline-strong);
+  box-shadow: 0 0 0 3px var(--accent-wash);
+}
+
+.sync-form > .settings-actions {
+  margin-top: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sync-panel .input {
+    transition: border-color var(--duration) ease, box-shadow var(--duration) ease;
+  }
 }

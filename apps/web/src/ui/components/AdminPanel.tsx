@@ -87,26 +87,29 @@ function TotpSetup() {
         then sign in again with an authenticator code.
       </p>
       {!totpSetup ? (
-        <form onSubmit={(event) => void submitStart(event)}>
-          <label className="field__label" htmlFor="admin-totp-password">
-            Current password
-          </label>
-          <input
-            id="admin-totp-password"
-            className="input"
-            type="password"
-            autoComplete="current-password"
-            value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-            required
-          />
+        <form className="sync-form" onSubmit={(event) => void submitStart(event)}>
+          <div className="sync-field">
+            <label className="field__label" htmlFor="admin-totp-password">
+              Current password
+            </label>
+            <input
+              id="admin-totp-password"
+              className="input"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Your current password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              required
+            />
+          </div>
           {authError ? (
             <p className="panel-note" role="alert">
               {authError}
             </p>
           ) : null}
           <div className="settings-actions">
-            <Button variant="secondary" type="submit" disabled={busy}>
+            <Button variant="primary" type="submit" disabled={busy}>
               {busy ? 'Starting…' : 'Start setup'}
             </Button>
           </div>
@@ -144,27 +147,30 @@ function TotpSetup() {
               {copied ? 'Copied' : 'Copy secret + codes'}
             </Button>
           </div>
-          <form onSubmit={(event) => void submitConfirm(event)}>
-            <label className="field__label" htmlFor="admin-totp-code">
-              Authenticator code
-            </label>
-            <input
-              id="admin-totp-code"
-              className="input"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              required
-            />
+          <form className="sync-form" onSubmit={(event) => void submitConfirm(event)}>
+            <div className="sync-field">
+              <label className="field__label" htmlFor="admin-totp-code">
+                Authenticator code
+              </label>
+              <input
+                id="admin-totp-code"
+                className="input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123 456"
+                value={code}
+                onChange={(event) => setCode(event.target.value)}
+                required
+              />
+            </div>
             {authError ? (
               <p className="panel-note" role="alert">
                 {authError}
               </p>
             ) : null}
             <div className="settings-actions">
-              <Button variant="secondary" type="submit" disabled={busy}>
+              <Button variant="primary" type="submit" disabled={busy}>
                 {busy ? 'Confirming…' : 'Enable two-factor'}
               </Button>
             </div>
@@ -246,23 +252,26 @@ export function AdminPanel() {
         <TotpSetup />
       ) : (
         <div className="sync-panel">
-          <form onSubmit={(event) => void submitCreate(event)}>
+          <form className="sync-form" onSubmit={(event) => void submitCreate(event)}>
             <p className="panel-note">
               <strong>Create an account.</strong> The invite link works once — deliver it
               yourself; the server never sends email.
             </p>
-            <label className="field__label" htmlFor="admin-email">
-              Email
-            </label>
-            <input
-              id="admin-email"
-              className="input"
-              type="email"
-              autoComplete="off"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
+            <div className="sync-field">
+              <label className="field__label" htmlFor="admin-email">
+                Email
+              </label>
+              <input
+                id="admin-email"
+                className="input"
+                type="email"
+                autoComplete="off"
+                placeholder="teammate@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </div>
             <span className="field__label" id="admin-role-label">
               Role
             </span>
@@ -288,7 +297,7 @@ export function AdminPanel() {
               </p>
             ) : null}
             <div className="settings-actions">
-              <Button variant="secondary" type="submit" disabled={creating}>
+              <Button variant="primary" type="submit" disabled={creating}>
                 {creating ? 'Creating…' : 'Create account'}
               </Button>
             </div>
