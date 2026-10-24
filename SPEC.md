@@ -8,7 +8,7 @@
 
 LifeSpire turns a person's goals and routines into a daily node map inspired by *Slay the Spire*. Each day the user chooses a path; each node represents a real-world action: a task, a rest, a treasure, a wheel, or the daily boss. A **run** lasts 7 days and has weekly objectives; the more the user completes, the more gold, XP, and loot they earn.
 
-This document defines the current scope: a local-first vertical slice to validate the core loop. It does not cover the full product vision.
+This document defines the current scope: a local-first vertical slice to validate the core loop on web and Android. It does not cover the full product vision.
 
 ## 2. Hypothesis and success criteria
 
@@ -35,6 +35,8 @@ Concrete criteria:
 ### Inside scope
 
 - Responsive web app, installable as a PWA and functional offline after the first load.
+- Native Android app (Expo/React Native) with the same daily loop, goals,
+  collection, save format, import/export and optional account sync.
 - A single local profile. Optional closed-beta sync: multi-user NestJS API
   with closed registration (admin invites) and snapshot sync between a user's
   devices; the app stays local-first and playable as a guest without a server.
@@ -48,19 +50,26 @@ Concrete criteria:
 - XP, simple leveling, gold, and collectible loot with no gameplay effects.
 - Weekly objective progress, day summary, and run summary.
 - New run while keeping the profile, gold, XP, and collection.
-- Local persistence with JSON export/import and reset.
+- Local persistence with JSON export/import and reset (localStorage on web,
+  synchronous SQLite KV on Android; the save is interchangeable).
+- Device-local notifications on Android: a daily map reminder, an evening nudge
+  for an unresolved day, and a week-end reminder. Configurable times and
+  toggles, deep link to the map, no push service.
 - Dev panel to advance days and simulate a week.
 - Unit tests for core logic: map generation, rewards, progress, and run completion.
 
 ### Outside scope
 
-- Push notifications (accounts/sync exist as a closed-beta API; public
-  signup, password recovery by email, and native push are still out).
+- Remote push notifications (accounts/sync exist as a closed-beta API; public
+  signup, password recovery by email, and APNs/FCM push are still out).
+- A verified iOS release, an in-app admin panel, and native sound feedback.
+  The iOS code path exists but is not part of this release.
 - Combat, cards, deckbuilding, relics with effects, shop, or economy.
 - Calendar, health, or other app integrations.
 - Automatic task verification, timers, or app blocking.
 - Social features, rankings, complex achievements.
-- Native apps. Cross-platform support will come later by wrapping the web build with Tauri or Capacitor.
+- A second native platform (iOS) verified in this release. The Android app is
+  native; a web wrapper (Tauri/Capacitor) is no longer the plan.
 - Recovering missed days, multiple simultaneous runs, i18n, themes, analytics, or monetization.
 
 ## 4. Concepts and rules
@@ -195,15 +204,20 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 
 ## 9. Proposed architecture
 
-- React 19 + TypeScript + Vite, reusing the existing scaffold.
+- Web: React 19 + TypeScript + Vite, reusing the existing scaffold.
+- Android: Expo SDK 58 + React Native 0.88 + TypeScript, consuming the same
+  `@lifespire/core` domain and `@lifespire/app-core` store/sync package.
+- Notifications: `expo-notifications`, a pure planner and a device scheduler;
+  no server registration and no push credentials.
 - PWA via `vite-plugin-pwa`: manifest, icons, and offline cache.
 - Simple global state with Zustand + persist, or `useReducer` if avoiding dependencies is preferred.
 - Domain logic in pure, testable functions: map generation, node resolution, reward calculation, and run evaluation.
 - Map rendered with custom SVG; no graph library.
 - CSS with custom tokens, mobile-first, no heavy UI kit.
 - No router in the POC: navigation via view state.
-- Vitest tests for core logic, Playwright E2E tests for critical flows, and
-  guided manual tests for the full flow.
+- Vitest tests for core/web logic, Jest + jest-expo for the Android planner,
+  Playwright E2E tests for critical web flows, and guided manual tests for the
+  Android release checklist (docs/MOBILE.md).
 - Dev panel only in the development environment: advance day, restart run, and reset data.
 - Basic accessibility: nodes as buttons, visible focus, sufficient contrast, 44px touch targets, and reduced-motion support.
 - Original visual direction inspired by dark fantasy, parchment, and gold; no reused art or names from *Slay the Spire*.
@@ -223,7 +237,16 @@ The demo is considered complete when it can be run without failures:
 9. Start a new run and confirm that the profile, XP, gold, and collection are preserved.
 10. Test the interface at 360px and on desktop; verify PWA installation and offline reload.
 11. Export and import data, and confirm that the state is restored.
-12. Run the tests for generation, rewards, and weekly close.
+12. Export a web save, import it on Android, play a day, export it again and
+    open it on web without losing the map, path, rewards or schema version.
+13. On Android, enable notifications, verify the test notification, set a
+    near-future reminder, tap it and land on the map; seal the day and confirm
+    its reminder is cancelled. Disable reminders and confirm everything is
+    cancelled, including after a force-stop.
+14. Sign in on Android, play one day on Android and one on web, and verify
+    snapshot sync plus the keep-mine/keep-cloud conflict path offline.
+15. Run the tests for generation, rewards, weekly close, and the Android
+    notification planner.
 
 ## 11. Build order
 
@@ -234,6 +257,9 @@ Each milestone must leave something playable or demonstrable:
 - **M2 — Loop:** complete/skip, rewards, weekly progress, and day summary.
 - **M3 — Run:** onboarding, goals/routines CRUD, weekly summary, new run, PWA, responsive layout, and export/import.
 - **M4 — Playtest:** test with 3–5 people, adjust node count, rewards, and onboarding friction.
+- **M5 — Android:** Expo shell, shared store/sync extraction, native auth,
+  full screen parity, local notifications, save interchange and release
+  checklist.
 
 ## 12. Risks and open decisions
 
@@ -257,8 +283,9 @@ Open decisions with a default proposal:
 
 ## 13. Future beyond the MVP
 
-Notifications, shop and gold sinks, relics/cards with effects, social features
-and rankings, calendar or health integrations, missed-day recovery mode,
-adaptive content, and native wrappers with Tauri/Capacitor. Sync between a
-user's devices exists as a closed-beta API (`docs/BACKEND.md`); public signup,
-email delivery and realtime are not part of the current scope.
+Remote push notifications, shop and gold sinks, relics/cards with effects,
+social features and rankings, calendar or health integrations, missed-day
+recovery mode, adaptive content, and an iOS release. Device-local Android
+reminders are in scope; sync between a user's devices exists as a closed-beta
+API (`docs/BACKEND.md`); public signup, email delivery and realtime are not
+part of the current scope.
