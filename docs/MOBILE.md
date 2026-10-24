@@ -142,6 +142,17 @@ the rest of the app remains fully usable.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
   recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.
+- The mobile topbar is the 56 dp shell header: 21 px spire mark plus wordmark on
+  the left, gold (16 px coin), `Lv N`, the theme switch and Settings on the
+  right. It does not show the day pips or `Day N of 7`; each screen's
+  `ScreenHead` carries them. The topbar uses a 14 px gutter and a hairline
+  bottom border on the canvas background; the tab labels use the 10/13
+  uppercase `tab` variant (0.6 tracking), active in `ink` and inactive in
+  `inkSoft`. The theme switch and Settings are 44 dp targets, and the brand
+  truncates before the fixed resource cluster on narrow screens.
+- The splash screen has a night variant (`#131511`) next to the light canvas
+  (`#F1F0EA`), and the root view repaints the Android system background with
+  the resolved theme.
 - Haptics follow the web feedback vocabulary through `expo-haptics`; the
   haptics toggle is the device feedback preference.
 - Every screen uses safe areas, 48 dp touch targets, TalkBack labels/state and

@@ -4,6 +4,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { useFonts } from 'expo-font'
+import * as SystemUI from 'expo-system-ui'
 import { Alegreya_400Regular } from '@expo-google-fonts/alegreya/400Regular'
 import { Alegreya_400Regular_Italic } from '@expo-google-fonts/alegreya/400Regular_Italic'
 import { Alegreya_600SemiBold } from '@expo-google-fonts/alegreya/600SemiBold'
@@ -39,11 +40,11 @@ export default function App() {
   const hydrated = useAppStore((state) => state.hydrated)
 
   useEffect(() => {
-    if (!fontsLoaded && !fontError) return
+    if (!(fontsLoaded || fontError) || !hydrated) return
     void SplashScreen.hideAsync().catch((error: unknown) => {
       devError('bootstrap', 'could not hide the splash screen', error)
     })
-  }, [fontsLoaded, fontError])
+  }, [fontsLoaded, fontError, hydrated])
 
   useEffect(() => {
     let cleanup: (() => void) | undefined
@@ -75,6 +76,13 @@ export default function App() {
 
 function Root() {
   const { scheme, colors } = useTheme()
+
+  useEffect(() => {
+    void SystemUI.setBackgroundColorAsync(colors.background).catch((error: unknown) => {
+      devError('app', 'could not paint the system background', error)
+    })
+  }, [colors.background])
+
   return (
     <SafeAreaView edges={['top']} style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

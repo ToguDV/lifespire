@@ -11,7 +11,7 @@ import { AnimatedNumber } from './components/AnimatedNumber'
 import { ConflictDialog } from './components/ConflictDialog'
 import { Icon } from './components/Icon'
 import { IconButton } from './components/IconButton'
-import { DayPips } from './components/Progress'
+import { ThemeToggle } from './components/ThemeToggle'
 import { RewardToast, Toast } from './components/Toast'
 import { Text } from './components/Text'
 import { DaySummaryScreen } from './screens/DaySummaryScreen'
@@ -67,9 +67,6 @@ export function AppShell() {
   const run = document.run
   const profile = document.profile
   const day = currentDay(run)
-  const todayKey = useAppStore((state) => state.todayKey)
-  const today = run?.days.find((candidate) => candidate.date === todayKey()) ?? null
-  const labelDay = today ?? day
   useNotificationSync()
   const summaryDay =
     view.name === 'day-summary'
@@ -214,42 +211,47 @@ export function AppShell() {
 
   const activeTab = tabForView(guardedView)
   const immersive = guardedView.name === 'reward'
-  const dayLabel = labelDay
-    ? `Day ${labelDay.index + 1} of 7`
-    : !run
-      ? 'No run yet'
-      : run.status === 'closed'
-        ? 'Week sealed'
-        : 'Week spent'
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {!immersive ? (
       <View style={[styles.topbar, { borderColor: colors.hairline, backgroundColor: colors.background }]}>
         <View style={styles.brandRow}>
-          <Icon name="spire" size={20} color={colors.ink} />
-          <Text variant="headingSm">LifeSpire</Text>
-        </View>
-        <View style={styles.dayBlock}>
-          {run ? <DayPips days={run.days} currentIndex={labelDay?.index} /> : null}
-          <Text variant="caption" tone="muted">{dayLabel}</Text>
+          <Icon name="spire" size={21} color={colors.accentDeep} />
+          <Text
+            variant="brand"
+            numberOfLines={1}
+            maxFontSizeMultiplier={1.3}
+            style={[styles.brandWord, { color: colors.inkStrong }]}
+          >
+            LifeSpire
+          </Text>
         </View>
         <View style={styles.topbarRight}>
           {profile ? (
-            <View style={styles.resource} accessibilityLabel={`${profile.gold} gold, level ${profile.level}`}>
-              <Icon name="coin" size={13} color={colors.accentDeep} />
-              <AnimatedNumber value={profile.gold} />
-              <View style={[styles.level, { borderColor: colors.accent }]}>
-                <Text variant="micro" tone="deep">{profile.level}</Text>
-              </View>
+            <View
+              style={styles.resource}
+              accessible
+              accessibilityLabel={`${profile.gold} gold, level ${profile.level}`}
+            >
+              <Icon name="coin" size={16} color={colors.accentDeep} />
+              <AnimatedNumber
+                value={profile.gold}
+                variant="resource"
+                maxFontSizeMultiplier={1.3}
+                style={{ color: colors.ink }}
+              />
+              <Text variant="level" tone="muted" maxFontSizeMultiplier={1.3}>
+                Lv {profile.level}
+              </Text>
             </View>
           ) : null}
+          <ThemeToggle />
           <IconButton
             icon="settings"
             label="Settings"
             active={guardedView.name === 'settings'}
             onPress={() => navigate({ name: 'settings' })}
-            size={36}
           />
         </View>
       </View>
@@ -293,9 +295,13 @@ export function AppShell() {
               style={styles.tab}
             >
               {active ? <View style={[styles.tabBar, { backgroundColor: colors.accent }]} /> : null}
-              <Icon name={tab.icon} size={21} color={active ? colors.inkStrong : colors.inkSoft} />
-              <Text variant="micro" style={active ? { color: colors.inkStrong } : { color: colors.inkSoft }}>
-                {tab.label.toUpperCase()}
+              <Icon name={tab.icon} size={21} color={active ? colors.ink : colors.inkSoft} />
+              <Text
+                variant="tab"
+                maxFontSizeMultiplier={1.3}
+                style={active ? { color: colors.ink } : { color: colors.inkSoft }}
+              >
+                {tab.label}
               </Text>
             </Pressable>
           )
@@ -316,15 +322,15 @@ const styles = StyleSheet.create({
     minHeight: layout.topbarHeight,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    paddingHorizontal: layout.screenPadding,
+    justifyContent: 'space-between',
+    gap: space.xs,
+    paddingHorizontal: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  dayBlock: { flex: 1, alignItems: 'center', gap: 2 },
-  topbarRight: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1, minWidth: 0 },
+  brandWord: { flexShrink: 1 },
+  topbarRight: { flexDirection: 'row', alignItems: 'center', gap: 2, flexShrink: 0 },
   resource: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  level: { minWidth: 22, height: 22, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginLeft: 2 },
   warning: { flexDirection: 'row', alignItems: 'center', gap: space.xs, borderBottomWidth: 1, paddingHorizontal: layout.screenPadding, paddingVertical: space.xs },
   warningText: { flex: 1 },
   content: { flex: 1 },

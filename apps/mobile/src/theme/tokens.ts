@@ -140,6 +140,9 @@ export type TextVariant =
   | 'button'
   | 'numeral'
   | 'brand'
+  | 'tab'
+  | 'resource'
+  | 'level'
 
 export const type: Record<TextVariant, TextStyle> = {
   displayXl: { fontFamily: fonts.display, fontSize: 44, lineHeight: 48, letterSpacing: -0.66 },
@@ -172,6 +175,26 @@ export const type: Record<TextVariant, TextStyle> = {
     lineHeight: 18,
     letterSpacing: 2.07,
     textTransform: 'uppercase',
+  },
+  tab: {
+    fontFamily: fonts.uiBold,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  resource: {
+    fontFamily: fonts.uiBold,
+    fontSize: 12.8,
+    lineHeight: 16,
+    letterSpacing: 0,
+    fontVariant: ['tabular-nums'],
+  },
+  level: {
+    fontFamily: fonts.uiBold,
+    fontSize: 11.5,
+    lineHeight: 15,
+    letterSpacing: 0.46,
   },
 }
 

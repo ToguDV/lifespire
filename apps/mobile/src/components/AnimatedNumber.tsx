@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Animated, Easing } from 'react-native'
+import type { TextStyle } from 'react-native'
 import { useReducedMotion } from '../theme/motion'
+import type { TextVariant } from '../theme/tokens'
 import { Text } from './Text'
 
 /** Counts up to the new value; reduced motion jumps straight to it. */
@@ -9,11 +11,15 @@ export function AnimatedNumber({
   prefix = '',
   suffix = '',
   variant = 'bodySm',
+  style,
+  maxFontSizeMultiplier = 2,
 }: {
   value: number
   prefix?: string
   suffix?: string
-  variant?: 'bodySm' | 'headingMd' | 'bodyMd'
+  variant?: TextVariant
+  style?: TextStyle
+  maxFontSizeMultiplier?: number
 }) {
   const reduced = useReducedMotion()
   const [display, setDisplay] = useState(value)
@@ -43,7 +49,7 @@ export function AnimatedNumber({
   }, [value, reduced, progress])
 
   return (
-    <Text variant={variant}>
+    <Text variant={variant} style={style} maxFontSizeMultiplier={maxFontSizeMultiplier}>
       {prefix}
       {display}
       {suffix}

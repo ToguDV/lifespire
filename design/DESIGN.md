@@ -230,13 +230,13 @@ components:
     border: "1px solid {colors.hairline}"
   bottom-tabs:
     backgroundColor: "{colors.canvas}"
-    textColor: "{colors.ink-muted}"
+    textColor: "{colors.ink-soft}"
     typography: "{typography.caption}"
     height: 64px
     border: "1px solid {colors.hairline}"
   tab-active:
     backgroundColor: "transparent"
-    textColor: "{colors.ink-strong}"
+    textColor: "{colors.ink}"
     typography: "{typography.button}"
     padding: "8px 4px"
     border: "2px 0 0 {colors.accent} solid"
@@ -582,9 +582,11 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 ### Navigation
 
-**`topbar`** — Mobile and desktop run header.
-- Background `{colors.canvas}`, height 56px, bottom border `{colors.hairline}`.
-- Left: wordmark + spire mark. Center/left: day pips and `Day 3 of 7`. Right: gold, level, XP meter, theme switch.
+**`topbar`** — Run header.
+- Background `{colors.canvas}`, height 56px on phones, 14px horizontal gutter, bottom border `{colors.hairline}`.
+- Mobile: left, the 21px spire mark plus the wordmark; right, gold (16px coin), `Lv N`, the theme switch and Settings.
+- The day pips and `Day 3 of 7` are **not** in the mobile topbar: each screen carries them in its `screen-head`.
+- At 960px and above the same bar adds the run label, pips, day label and XP meter.
 
 **`sidebar`** — Desktop run rail.
 - Width 240px from 960–1279px and 256px at 1280px and above; background `{colors.surface-sunken}`, right border `{colors.hairline}`.
@@ -596,8 +598,8 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`bottom-tabs`** — Mobile primary navigation.
 - Background `{colors.canvas}`, height 64px, top border `{colors.hairline}`, four equal tabs.
-- Default: 20px line icon above 10.5px uppercase label in `{colors.ink-muted}`.
-- Active: `{colors.ink-strong}` label/icon and a 26px × 2px moss bar at the top edge (`tab-active`).
+- Default: 21px line icon above a 10px uppercase label (`tab`, 13px line, 0.6px tracking) in `{colors.ink-soft}`.
+- Active: `{colors.ink}` label/icon and a 26px × 2px moss bar at the top edge (`tab-active`).
 
 ### Map
 
@@ -683,7 +685,7 @@ primary action stays near the first viewport on a 390×844 screen.
 
 **`chip-accent`** — Moss-soft background, moss-deep text, moss border. Used for weekly target deltas and current-day markers.
 
-**`day-pip`** — 6px diamond. Active `{colors.accent}`; completed days filled; future days `{colors.hairline-strong}`. Day 3 is a filled current pip in the screen head; the topbar shows completed days only.
+**`day-pip`** — 7px diamond. Active `{colors.accent}`; completed days filled; future days `{colors.hairline-strong}`. Day 3 is a filled current pip in the screen head; the mobile topbar omits the pips and the `Day 3 of 7` label.
 
 **`progress-pip`** — 6×13px rounded bar for weekly goals. Filled `{colors.accent}`, empty `{colors.hairline}`. Pips are always paired with a numeric `3 / 5` label; they are not the only signal.
 
