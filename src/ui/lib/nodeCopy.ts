@@ -47,23 +47,29 @@ function pluralRolls(count: number): string {
   return `${count} loot roll${count === 1 ? '' : 's'}`
 }
 
-export function nodeRewardLine(node: MapNode): string {
+export function nodeRewardLine(
+  node: MapNode,
+  progress: 0 | 1 = node.rewards.progress,
+): string {
   if (node.type === 'wheel') return 'A surprise: task, gold, XP or rest'
   const parts: string[] = []
   if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} XP`)
   if (node.rewards.gold > 0) parts.push(`+${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
-  if (node.rewards.progress > 0) parts.push('+1 toward weekly target')
+  if (progress > 0) parts.push('+1 toward weekly target')
   if (node.type === 'boss') parts.push('closing bonus')
   return parts.join(' · ')
 }
 
-export function nodeRewardSummary(node: MapNode): string {
+export function nodeRewardSummary(
+  node: MapNode,
+  progress: 0 | 1 = node.rewards.progress,
+): string {
   const parts: string[] = []
   if (node.rewards.xp > 0) parts.push(`plus ${node.rewards.xp} experience`)
   if (node.rewards.gold > 0) parts.push(`plus ${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
-  if (node.rewards.progress > 0) parts.push('plus one toward the weekly target')
+  if (progress > 0) parts.push('plus one toward the weekly target')
   if (node.type === 'boss') {
     parts.push(
       `includes a closing bonus of ${BOSS_CLOSING_BONUS.xp} experience and ${BOSS_CLOSING_BONUS.gold} gold`,
@@ -72,7 +78,11 @@ export function nodeRewardSummary(node: MapNode): string {
   return parts.join(', ')
 }
 
-export function nodeAriaLabel(node: MapNode, status: NodeStatus): string {
+export function nodeAriaLabel(
+  node: MapNode,
+  status: NodeStatus,
+  progress: 0 | 1 = node.rewards.progress,
+): string {
   const type = NODE_TYPE_LABEL[node.type].toLowerCase()
   const title = nodeTitle(node)
 
@@ -85,7 +95,7 @@ export function nodeAriaLabel(node: MapNode, status: NodeStatus): string {
     return `A veiled ${type} node, locked.`
   }
 
-  const reward = nodeRewardSummary(node)
+  const reward = nodeRewardSummary(node, progress)
   if (status === 'current') {
     return `${title}, ${type} node, ${reward}. Current step. Open details.`
   }

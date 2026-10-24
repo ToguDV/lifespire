@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BOSS_CLOSING_BONUS, WHEEL_SECTORS } from '../../domain/balance'
 import {
   currentDay,
+  nodeProgress,
   nodeStatus,
   objectiveProgress,
   resolveNodeById,
@@ -316,6 +317,12 @@ export function NodeScreen() {
         })
       : null
 
+  // Before the wheel settles the node itself grants no progress; afterwards the
+  // recap and the Goal block must agree with the rolled outcome.
+  const settledWheel = isWheel && revealed ? rolledOutcome : null
+  const weeklyProgress: 0 | 1 = settledWheel?.progress ? 1 : nodeProgress(run, node)
+  const weeklyGoalTitle = settledWheel?.task?.goalTitle ?? node.task?.goalTitle ?? null
+
   const spinWheel = () => {
     if (spinning || revealed) return
     const spinNodeId = node?.id
@@ -417,7 +424,7 @@ export function NodeScreen() {
                     : `${NODE_TYPE_LABEL[node.type]} · no task`}
               </span>
 
-              {node.rewards.progress > 0 ? (
+              {weeklyProgress > 0 ? (
                 <span className="chip">
                   <Icon name="plus" />
                   +1 toward weekly target
@@ -489,9 +496,11 @@ export function NodeScreen() {
 
               <div className="node-fact">
                 <span className="micro">Goal</span>
-                <strong>{node.rewards.progress > 0 ? '+1' : '—'}</strong>
+                <strong>{weeklyProgress > 0 ? '+1' : '—'}</strong>
                 <small>
-                  {node.task ? `${node.task.goalTitle} this week` : 'No weekly progress'}
+                  {weeklyProgress > 0 && weeklyGoalTitle
+                    ? `${weeklyGoalTitle} this week`
+                    : 'No weekly progress'}
                 </small>
               </div>
             </div>
@@ -585,7 +594,9 @@ export function NodeScreen() {
                     </p>
                     <p className="wheel__result-reward">
                       {rolledOutcome.outcome === 'task'
-                        ? `+${rolledOutcome.xp} XP · +${rolledOutcome.gold} gold · +1 toward weekly target`
+                        ? `+${rolledOutcome.xp} XP · +${rolledOutcome.gold} gold${
+                            rolledOutcome.progress > 0 ? ' · +1 toward weekly target' : ''
+                          }`
                         : rolledOutcome.outcome === 'gold'
                           ? `+${rolledOutcome.gold} gold`
                           : rolledOutcome.outcome === 'xp'

@@ -170,6 +170,41 @@ describe('reward feedback', () => {
     expect(text).toContain('incl. +10 gold duplicate')
     expect(text).toContain('+1 toward weekly target')
   })
+
+  it('does not promise weekly progress for a wheel task outside the run goals', () => {
+    const text = rewardFeedback({
+      action: 'complete',
+      nodeType: 'wheel',
+      wheelOutcome: 'task',
+      taskTitle: 'Walk the north trail',
+      xp: 10,
+      gold: 10,
+      lootItem: null,
+      duplicateGold: 0,
+      duplicateCatalogId: null,
+      progress: 0,
+    })
+    expect(text).toContain('Wheel: Walk the north trail')
+    expect(text).toContain('+10 XP')
+    expect(text).toContain('+10 gold')
+    expect(text).not.toContain('+1 toward weekly target')
+  })
+
+  it('reports weekly progress for a wheel task that advances a goal', () => {
+    const text = rewardFeedback({
+      action: 'complete',
+      nodeType: 'wheel',
+      wheelOutcome: 'task',
+      taskTitle: 'Walk the north trail',
+      xp: 10,
+      gold: 10,
+      lootItem: null,
+      duplicateGold: 0,
+      duplicateCatalogId: null,
+      progress: 1,
+    })
+    expect(text).toContain('+1 toward weekly target')
+  })
 })
 
 describe('summary reward copy', () => {

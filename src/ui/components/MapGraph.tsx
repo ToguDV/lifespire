@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent } from 'react'
-import { nodeStatus } from '../../domain/selectors'
-import type { Day, GameMap, Goal, NodeStatus } from '../../domain/types'
+import { nodeProgress, nodeStatus } from '../../domain/selectors'
+import type { Day, GameMap, Goal, NodeStatus, Run } from '../../domain/types'
 import { Icon } from './Icon'
 import type { IconName } from './Icon'
 import { NODE_TYPE_ICON, goalIconFor, romanDay } from '../lib/format'
@@ -43,6 +43,7 @@ interface NodeButtonProps {
   layout: MapNodeLayout
   day: Day
   map: GameMap
+  run: Run | null
   goalIcon: IconName | null
   revealed: boolean
   justDone: boolean
@@ -77,6 +78,7 @@ function NodeButton({
   layout,
   day,
   map,
+  run,
   goalIcon,
   revealed,
   justDone,
@@ -118,7 +120,7 @@ function NodeButton({
       data-status={status}
       data-label-side={layout.labelSide}
       data-revealed={revealed ? 'true' : undefined}
-      aria-label={nodeAriaLabel(layout.node, status)}
+      aria-label={nodeAriaLabel(layout.node, status, nodeProgress(run, layout.node))}
       aria-current={status === 'current' ? 'step' : undefined}
       disabled={!actionable}
       onClick={actionable ? handleClick : undefined}
@@ -167,6 +169,7 @@ export interface MapGraphProps {
   map: GameMap
   day: Day
   goals: readonly Goal[]
+  run: Run | null
   onSelect: (nodeId: string) => void
 }
 
@@ -174,7 +177,7 @@ export interface MapGraphProps {
  * Decorative SVG plus HTML node buttons. The SVG is hidden from assistive
  * technology; every interaction lives in a real button with a descriptive name.
  */
-export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
+export function MapGraph({ map, day, goals, run, onSelect }: MapGraphProps) {
   const layout = useMemo(() => buildMapLayout(map), [map])
   const edges = useMemo(() => classifyMapEdges(layout, map, day), [layout, map, day])
   const [revealedId, setRevealedId] = useState<string | null>(null)
@@ -289,6 +292,7 @@ export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
               layout={node}
               day={day}
               map={map}
+              run={run}
               goalIcon={goalIconFor(goals, node.node.task?.goalId)}
               revealed={revealedId === node.id}
               justDone={node.id === lastResolvedId && nodeStatus(map, day, node.id) === 'completed'}
@@ -302,6 +306,7 @@ export function MapGraph({ map, day, goals, onSelect }: MapGraphProps) {
             layout={layout.boss}
             day={day}
             map={map}
+            run={run}
             goalIcon={goalIconFor(goals, layout.boss.node.task?.goalId)}
             revealed={revealedId === layout.boss.id}
             justDone={
