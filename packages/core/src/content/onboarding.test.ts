@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup } from './demo'
+import { createDemoSetup } from './demo.js'
 import {
   createEmptyDraft,
   draftToSetup,
   suggestedWeeklyObjective,
   withSuggestedObjectives,
-} from './onboarding'
-import type { Task } from '../domain/types'
+} from './onboarding.js'
+import type { Task } from '../domain/types.js'
 
 const now = new Date(2026, 9, 20, 8, 0, 0)
 

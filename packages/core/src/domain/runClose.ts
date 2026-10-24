@@ -1,9 +1,9 @@
-import { validateSetup } from '../content/demo'
-import { lootByRarity } from '../content/loot'
-import { ALL_OBJECTIVES_BONUS, OBJECTIVE_BONUS, RUN_DAYS } from './balance'
-import { computeRunTotals, createRun, DomainError } from './lifecycle'
-import { createRng } from './rng'
-import { acquireLoot, applyXp, buildLootItem, rollLootItem } from './rewards'
+import { validateSetup } from '../content/demo.js'
+import { lootByRarity } from '../content/loot.js'
+import { ALL_OBJECTIVES_BONUS, OBJECTIVE_BONUS, RUN_DAYS } from './balance.js'
+import { computeRunTotals, createRun, DomainError } from './lifecycle.js'
+import { createRng } from './rng.js'
+import { acquireLoot, applyXp, buildLootItem, rollLootItem } from './rewards.js'
 import type {
   GameDocument,
   LootItem,
@@ -12,7 +12,7 @@ import type {
   RunObjective,
   RunSummary,
   RunTotals,
-} from './types'
+} from './types.js'
 
 /**
  * Weekly rolls are not tied to a played day, so they use `RUN_DAYS` as their

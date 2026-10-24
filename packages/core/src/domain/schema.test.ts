@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup } from '../content/demo'
-import { MAX_DECISION_LAYERS, SCHEMA_VERSION } from './balance'
-import { generateMap } from './generator'
-import { createRun } from './lifecycle'
+import { createDemoSetup } from '../content/demo.js'
+import { MAX_DECISION_LAYERS, SCHEMA_VERSION } from './balance.js'
+import { generateMap } from './generator.js'
+import { createRun } from './lifecycle.js'
 import {
   createEmptyDocument,
   migrateDocument,
   parseDocument,
   serializeDocument,
-} from './schema'
+} from './schema.js'
 import type {
   Day,
   DaySummary,
@@ -20,7 +20,7 @@ import type {
   Run,
   Task,
   TaskSnapshot,
-} from './types'
+} from './types.js'
 
 const now = new Date(2026, 9, 20, 8, 0, 0)
 

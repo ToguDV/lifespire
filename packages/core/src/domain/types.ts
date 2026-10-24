@@ -1,4 +1,4 @@
-import type { GoalIconId } from './goalIcons'
+import type { GoalIconId } from './goalIcons.js'
 
 export type Effort = 'light' | 'medium' | 'high'
 export type NodeType = 'task' | 'elite' | 'rest' | 'treasure' | 'boss' | 'wheel'

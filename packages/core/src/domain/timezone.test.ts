@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayKey, isValidTimeZone } from './dates'
+import { dayKey, isValidTimeZone } from './dates.js'
 
 describe('isValidTimeZone', () => {
   it('accepts IANA zones and rejects garbage', () => {

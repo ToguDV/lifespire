@@ -4,9 +4,9 @@ import {
   MIN_ACTIVE_TASKS,
   MIN_GOALS,
   MIN_WEEKLY_OBJECTIVE,
-} from './balance'
-import { isGoalIconId } from './goalIcons'
-import type { Effort, GameDocument, Goal, Task } from './types'
+} from './balance.js'
+import { isGoalIconId } from './goalIcons.js'
+import type { Effort, GameDocument, Goal, Task } from './types.js'
 
 /** Field-level messages shown next to a control (keyed by form field). */
 export interface FieldErrors {

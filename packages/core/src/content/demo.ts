@@ -3,8 +3,8 @@ import {
   MAX_WEEKLY_OBJECTIVE,
   MIN_ACTIVE_TASKS,
   MIN_WEEKLY_OBJECTIVE,
-} from '../domain/balance'
-import type { Goal, OnboardingSetup, Task } from '../domain/types'
+} from '../domain/balance.js'
+import type { Goal, OnboardingSetup, Task } from '../domain/types.js'
 
 export const DEMO_NAME = 'Wren'
 

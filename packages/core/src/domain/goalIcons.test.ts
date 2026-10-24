@@ -4,7 +4,7 @@ import {
   isGoalIconId,
   legacyGoalIcon,
   nextGoalIcon,
-} from './goalIcons'
+} from './goalIcons.js'
 
 describe('goal icons', () => {
   it('keeps the legacy four-icon cycle for migrated saves', () => {

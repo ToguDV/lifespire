@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_DECISION_LAYERS, MIN_DECISION_LAYERS } from './balance'
-import { resolveDecisionLayerCount } from './mapDepth'
+import { MAX_DECISION_LAYERS, MIN_DECISION_LAYERS } from './balance.js'
+import { resolveDecisionLayerCount } from './mapDepth.js'
 
 function depth(goalsWithActiveRoutines: number, weeklyTargetSum: number): number {
   return resolveDecisionLayerCount({ goalsWithActiveRoutines, weeklyTargetSum })

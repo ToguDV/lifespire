@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { structuralCheck } from './sync.service';
+import { SCHEMA_VERSION } from '@lifespire/core';
+import { createEmptyDocument } from '@lifespire/core';
+import { structuralCheck, validateGameRules } from './sync.service';
 
 describe('structuralCheck', () => {
   const base = { schemaVersion: 3, profile: null, goals: [], tasks: [], run: null, settings: {} };
@@ -21,5 +23,23 @@ describe('structuralCheck', () => {
       valid: true,
       future: true,
     });
+  });
+
+  it('tracks the core schema version without a hardcoded copy', () => {
+    expect(structuralCheck(base).schemaVersion).toBe(SCHEMA_VERSION);
+  });
+});
+
+describe('validateGameRules', () => {
+  it('accepts a rule-valid document from core', () => {
+    expect(validateGameRules(createEmptyDocument())).toEqual({ valid: true });
+  });
+
+  it('rejects a structurally-valid but rule-invalid document with a game-rule error', () => {
+    const structurallyValid = { schemaVersion: 3, profile: null, goals: [{ id: 'x' }], tasks: [], run: null, settings: {} };
+    expect(structuralCheck(structurallyValid).valid).toBe(true);
+    const result = validateGameRules(structurallyValid);
+    expect(result.valid).toBe(false);
+    expect(result.error).toMatch(/goals\[0\]/);
   });
 });

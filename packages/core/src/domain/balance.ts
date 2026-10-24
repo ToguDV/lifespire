@@ -1,4 +1,4 @@
-import type { Effort, NodeRewards, NodeType, Rarity, WheelOutcome } from './types'
+import type { Effort, NodeRewards, NodeType, Rarity, WheelOutcome } from './types.js'
 
 export const SCHEMA_VERSION = 3
 export const STORAGE_KEY = 'lifespire:mvp0'

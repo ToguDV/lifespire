@@ -1,6 +1,6 @@
 import { IsInt, IsObject, IsOptional, Min } from 'class-validator';
 
-/** PUT /v1/sync body. The document is validated structurally here; full game-rule validation lives in @lifespire/core on the client. */
+/** PUT /v1/sync body. Shape-checked here; game rules are enforced by the server via @lifespire/core. */
 export class PutSyncDto {
   @IsObject()
   document!: Record<string, unknown>;

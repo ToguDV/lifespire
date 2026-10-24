@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { SCHEMA_VERSION } from './balance'
-import { createEmptyDocument, parseDocument } from './schema'
+import { SCHEMA_VERSION } from './balance.js'
+import { createEmptyDocument, parseDocument } from './schema.js'
 
 describe('schema v3 run.timeZone', () => {
   it('stamps version 3 on new documents', () => {

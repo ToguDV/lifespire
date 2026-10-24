@@ -4,11 +4,11 @@ import {
   MIN_DECISION_LAYERS,
   RUN_DAYS,
   SCHEMA_VERSION,
-} from './balance'
-import { isDayKey, isValidTimeZone } from './dates'
-import { GOAL_ICON_IDS, isGoalIconId, legacyGoalIcon } from './goalIcons'
-import type { GoalIconId } from './goalIcons'
-import { validateMap } from './generator'
+} from './balance.js'
+import { isDayKey, isValidTimeZone } from './dates.js'
+import { GOAL_ICON_IDS, isGoalIconId, legacyGoalIcon } from './goalIcons.js'
+import type { GoalIconId } from './goalIcons.js'
+import { validateMap } from './generator.js'
 import type {
   Day,
   DaySummary,
@@ -31,7 +31,7 @@ import type {
   Task,
   TaskSnapshot,
   ThemePreference,
-} from './types'
+} from './types.js'
 
 export interface SchemaSuccess {
   ok: true

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { parseDocument, SCHEMA_VERSION } from '@lifespire/core';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/api-error';
 import { sha256Hex } from '../common/crypto';
@@ -8,9 +9,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { checksumDocument, IDEMPOTENCY_TTL_DAYS, SYNC_REVISIONS_KEPT } from './document-check';
 import { formatETag, nextVersion, parseIfMatch, shouldIncrementVersion } from './sync-version';
 
-/** Server-known schema versions. Must track @lifespire/core SCHEMA_VERSION. */
-const SERVER_SCHEMA_VERSION = 3;
-const MIN_SUPPORTED_SCHEMA = 3;
+/** Floor of accepted schema versions (server policy). Tracks SCHEMA_VERSION: only current saves sync. */
+const MIN_SUPPORTED_SCHEMA = SCHEMA_VERSION;
 
 function byteLength(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value) ?? '', 'utf8');
@@ -109,6 +109,10 @@ export class SyncService {
         title: 'App update required',
         detail: `schemaVersion ${schemaVersion} is no longer accepted`,
       });
+    }
+    const rules = validateGameRules(document);
+    if (!rules.valid) {
+      throw new ApiError({ status: 422, code: 'SYNC_RULE_VIOLATION', title: 'Document breaks game rules', detail: rules.error });
     }
 
     const checksum = checksumDocument(document);
@@ -299,7 +303,7 @@ export class SyncService {
   }
 }
 
-/** Lightweight structural gate. Full rule validation lives in @lifespire/core on the client. */
+/** Lightweight structural gate. Full game-rule validation is validateGameRules below (core parseDocument). */
 export function structuralCheck(document: unknown): { schemaVersion: number; valid: boolean; future: boolean } {
   if (typeof document !== 'object' || document === null || Array.isArray(document)) {
     return { schemaVersion: 0, valid: false, future: false };
@@ -315,6 +319,17 @@ export function structuralCheck(document: unknown): { schemaVersion: number; val
   if (!Array.isArray(doc.goals) || !Array.isArray(doc.tasks)) {
     return { schemaVersion, valid: false, future: false };
   }
-  if (schemaVersion > SERVER_SCHEMA_VERSION) return { schemaVersion, valid: true, future: true };
+  if (schemaVersion > SCHEMA_VERSION) return { schemaVersion, valid: true, future: true };
   return { schemaVersion, valid: true, future: false };
+}
+
+/**
+ * Full game-rule validation via @lifespire/core. Runs after the structural
+ * and version gates: the document has the right shape and a supported
+ * version, but may still be unplayable (bad references, broken map, …).
+ */
+export function validateGameRules(document: unknown): { valid: boolean; error?: string } {
+  const result = parseDocument(document);
+  if (result.ok) return { valid: true };
+  return { valid: false, error: result.error };
 }

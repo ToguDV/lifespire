@@ -8,11 +8,11 @@ import {
   MIN_LAYER_NODES,
   RUN_DAYS,
   STRICT_LAYER_RULES_VERSION,
-} from './balance'
-import { resolveDecisionLayerCount } from './mapDepth'
-import { createRng } from './rng'
-import type { Rng } from './rng'
-import { rewardsForNode } from './rewards'
+} from './balance.js'
+import { resolveDecisionLayerCount } from './mapDepth.js'
+import { createRng } from './rng.js'
+import type { Rng } from './rng.js'
+import { rewardsForNode } from './rewards.js'
 import type {
   Effort,
   GameMap,
@@ -23,7 +23,7 @@ import type {
   RunObjective,
   Task,
   TaskSnapshot,
-} from './types'
+} from './types.js'
 
 export interface GenerateMapInput {
   runId: string

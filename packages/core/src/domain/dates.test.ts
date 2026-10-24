@@ -6,7 +6,7 @@ import {
   daysBetween,
   isDayKey,
   parseDayKey,
-} from './dates'
+} from './dates.js'
 
 describe('dayKey', () => {
   it('uses local date components around midnight', () => {

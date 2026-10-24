@@ -1,22 +1,22 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup } from '../content/demo'
+import { createDemoSetup } from '../content/demo.js'
 import {
   WHEEL_GOLD,
   WHEEL_REST_XP,
   WHEEL_SECTORS,
   WHEEL_XP,
-} from './balance'
+} from './balance.js'
 import {
   computeDaySummary,
   computeRunTotals,
   createRun,
   resolveNode,
   rollWheelOutcome,
-} from './lifecycle'
-import { rewardsForNode } from './rewards'
-import { createEmptyDocument } from './schema'
-import { availableNodeIds, currentDay } from './selectors'
-import type { GameDocument, MapNode, WheelOutcome } from './types'
+} from './lifecycle.js'
+import { rewardsForNode } from './rewards.js'
+import { createEmptyDocument } from './schema.js'
+import { availableNodeIds, currentDay } from './selectors.js'
+import type { GameDocument, MapNode, WheelOutcome } from './types.js'
 
 const now = new Date(2026, 9, 20, 8, 30, 0)
 

@@ -1,9 +1,9 @@
-import { BOSS_CLOSING_BONUS, GENERATOR_VERSION, RUN_DAYS, WHEEL_GOLD, WHEEL_OUTCOME_WEIGHTS, WHEEL_PENDING_WEIGHT, WHEEL_REST_XP, WHEEL_SECTORS, WHEEL_XP } from './balance'
-import { addDays, dayKey, isValidTimeZone, parseDayKey } from './dates'
-import { buildTaskPool, generateMap } from './generator'
-import { createRng } from './rng'
-import { acquireLoot, applyXp, rewardsForNode, rollLootItem } from './rewards'
-import { availableNodeIds, currentDay, resolveNodeById } from './selectors'
+import { BOSS_CLOSING_BONUS, GENERATOR_VERSION, RUN_DAYS, WHEEL_GOLD, WHEEL_OUTCOME_WEIGHTS, WHEEL_PENDING_WEIGHT, WHEEL_REST_XP, WHEEL_SECTORS, WHEEL_XP } from './balance.js'
+import { addDays, dayKey, isValidTimeZone, parseDayKey } from './dates.js'
+import { buildTaskPool, generateMap } from './generator.js'
+import { createRng } from './rng.js'
+import { acquireLoot, applyXp, rewardsForNode, rollLootItem } from './rewards.js'
+import { availableNodeIds, currentDay, resolveNodeById } from './selectors.js'
 import type {
   Day,
   DaySummary,
@@ -22,7 +22,7 @@ import type {
   Task,
   TaskSnapshot,
   WheelOutcome,
-} from './types'
+} from './types.js'
 
 /** A rejected lifecycle transition with a message that can be shown to the player. */
 export class DomainError extends Error {

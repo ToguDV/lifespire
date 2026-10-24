@@ -3,9 +3,9 @@ import {
   AIM_WITHOUT_ROUTINE,
   createDemoSetup,
   validateSetup,
-} from './demo'
-import { MAX_GOALS } from '../domain/balance'
-import type { Goal, Task } from '../domain/types'
+} from './demo.js'
+import { MAX_GOALS } from '../domain/balance.js'
+import type { Goal, Task } from '../domain/types.js'
 
 const now = new Date(2026, 9, 20, 8, 0, 0)
 

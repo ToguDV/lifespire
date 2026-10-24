@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { createDemoSetup } from '../content/demo'
-import { MAX_GOALS } from './balance'
-import { createRun } from './lifecycle'
-import { createEmptyDocument } from './schema'
+import { createDemoSetup } from '../content/demo.js'
+import { MAX_GOALS } from './balance.js'
+import { createRun } from './lifecycle.js'
+import { createEmptyDocument } from './schema.js'
 import {
   CONTENT_MESSAGES,
   activeTasksUnderActiveGoals,
   validateContentConstraints,
   validateGoalInput,
   validateTaskInput,
-} from './content'
-import type { Effort, GameDocument, Goal, Task } from './types'
+} from './content.js'
+import type { Effort, GameDocument, Goal, Task } from './types.js'
 
 const now = new Date(2026, 9, 20, 9, 0, 0)
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createRng, hashString } from './rng'
+import { createRng, hashString } from './rng.js'
 
 function sequence(seed: string, length = 8): number[] {
   const rng = createRng(seed)

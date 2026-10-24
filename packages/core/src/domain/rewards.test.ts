@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { lootByRarity, findLootById, LOOT_CATALOG } from '../content/loot'
-import type { LootCatalogEntry } from '../content/loot'
+import { lootByRarity, findLootById, LOOT_CATALOG } from '../content/loot.js'
+import type { LootCatalogEntry } from '../content/loot.js'
 import {
   BOSS_CLOSING_BONUS,
   DUPLICATE_GOLD,
   EFFORT_MULTIPLIER,
   LOOT_RARITY_WEIGHTS,
   REWARDS,
-} from './balance'
+} from './balance.js'
 import {
   acquireLoot,
   applyXp,
@@ -18,8 +18,8 @@ import {
   rollLoot,
   rollLootItem,
   rollLootRarity,
-} from './rewards'
-import type { Effort, NodeRewards, NodeType, Profile, Rarity } from './types'
+} from './rewards.js'
+import type { Effort, NodeRewards, NodeType, Profile, Rarity } from './types.js'
 
 const EFFORTS: Effort[] = ['light', 'medium', 'high']
 

@@ -30,9 +30,10 @@ apps/api/
     cli/               admin:create, admin:reset-link
   prisma/schema.prisma user/role/status, tokens, devices, sessions,
                        document/revisions/mutations, audit
-packages/core/         pure domain shared conceptually with the web
-                       (server validates structurally with zod; full rule
-                       validation lives in the client until core ships a build)
+packages/core/         pure domain, source of truth (CJS build at dist/cjs
+                       for the server; TS sources for Vite/Vitest). The API
+                       enforces full game-rule validation via parseDocument;
+                       see ADR-0003.
 packages/api-client/   dependency-free typed fetch client + conflict error
 infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
                        dev compose, backup.sh
@@ -94,8 +95,9 @@ Rules:
 - Documents are limited to 512 KB (`413` document gate); request bodies are
   limited to 1 MB (Express JSON parser limit, `413` on overflow).
 - Schema gate: server accepts `schemaVersion 3`. Older is `426`
-  (update the app); newer is `422` (update the server). Deploy the API before
-  the web.
+  (update the app); newer is `422` (update the server). A structurally valid
+  document that breaks game rules is `422 SYNC_RULE_VIOLATION` with the core
+  error in `detail`. Deploy the API before the web.
 - Errors are `application/problem+json` with a stable `code`
   (`SYNC_VERSION_CONFLICT`, `AUTH_TOTP_REQUIRED`, …) and `traceId`.
 - `Cache-Control: no-store` on sync; the PWA must never cache `/v1`/`/api`.
@@ -161,7 +163,8 @@ API e2e against it.
   replay/key-reuse/revisions, device revoke, disable, last-admin guard;
   (b) password-reset link (single-use, revokes sessions); (c) TOTP
   required/wrong-code/recovery-code single-use; (d) sync validation gates
-  (headers, 512 KB document cap, schema 426/422, malformed 422);
+  (headers, 512 KB document cap, schema 426/422, malformed 422,
+  rule-violation 422 via core);
   (e) expired invite; (f) refresh reuse kills the family; (g) concurrent
   writers/refreshes (one wins); (h) admin self-delete (last blocked 400,
   second 204); (i) audit pagination 400 on bad page; (j) totp/enable
@@ -173,7 +176,6 @@ API e2e against it.
 
 - Web sync engine + conflict dialog + per-account local keys (`M5-client`,
   calling `/v1` same-origin per the §6 contract).
-- `@lifespire/core` build output so the server can import full rule validation.
 - Web move is done (`apps/web`); `src/domain` ↔ `packages/core` dedup
   (re-export shims) landed in #46 — web files are one-line shims, core is
   the source of truth.

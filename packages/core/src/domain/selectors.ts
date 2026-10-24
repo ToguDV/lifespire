@@ -1,5 +1,5 @@
-import { XP_PER_LEVEL } from './balance'
-import type { Day, GameMap, Goal, MapNode, NodeStatus, Run, RunObjective, Task } from './types'
+import { XP_PER_LEVEL } from './balance.js'
+import type { Day, GameMap, Goal, MapNode, NodeStatus, Run, RunObjective, Task } from './types.js'
 
 /** Normalizes any counter to a finite, non-negative integer. */
 export function safeCount(value: number): number {
