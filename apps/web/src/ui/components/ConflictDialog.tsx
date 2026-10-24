@@ -114,7 +114,7 @@ export function ConflictDialog() {
       open
       title="Sync conflict"
       eyebrow="Two versions"
-      description="This device and the cloud disagree. Nothing merges automatically, so pick which copy keeps going. Both are kept safe first."
+      description="This device and the cloud disagree in ways that can't be merged safely, so pick which copy keeps going. Small independent edits merge on their own; these didn't. Both copies are kept safe first."
       onClose={closeWithoutResolving}
       footer={
         <>
@@ -134,6 +134,13 @@ export function ConflictDialog() {
         <ConflictCopy title="This device" document={conflict.local} updatedAt={null} />
         <ConflictCopy title="Cloud" document={conflict.remote} updatedAt={conflict.remoteUpdatedAt} />
       </div>
+      {conflict.conflicts.length > 0 ? (
+        <ul className="panel-note conflict-reasons">
+          {conflict.conflicts.slice(0, 5).map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      ) : null}
       <p className="panel-note">
         Keep this device uploads it over the cloud version. Keep cloud replaces this device
         (a backup is saved first). Export both downloads each copy before you decide.

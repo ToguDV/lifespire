@@ -18,7 +18,8 @@
 - **Backend and sync:** [`docs/BACKEND.md`](./docs/BACKEND.md) defines the NestJS
   sync API (closed registration, admin invites, snapshot sync, runbook). Sync
   decisions are recorded in [`docs/adr/`](./docs/adr/) (protocol, auth/admin,
-  monorepo).
+  monorepo, conservative auto-merge in
+  [`0004-sync-auto-merge.md`](./docs/adr/0004-sync-auto-merge.md)).
 - **Visual design:** the shipped application is the **accepted** visual
   reference, together with the design-system specification. Specifically:
   - [`design/DESIGN.md`](./design/DESIGN.md): design system (color, typography,

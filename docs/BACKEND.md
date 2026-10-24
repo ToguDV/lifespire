@@ -85,9 +85,10 @@ Rules:
   recorded version; same key + different content is `422`.
 - Identical content does not bump the version (checksum compare).
 - Stale `If-Match` is `412 SYNC_VERSION_CONFLICT` with `currentVersion` /
-  `currentUpdatedAt` (no document body; the client `GET`s it). **No auto-merge
-  in v1** — the client shows an explicit keep-mine/keep-cloud dialog with
-  backups (frontend work, next PR).
+  `currentUpdatedAt` (no document body; the client `GET`s it). Conservative
+  auto-merge (ADR-0004): the client tries a 3-way merge of disjoint edits
+  against its last-synced base and pushes the result; anything ambiguous still
+  opens the explicit keep-mine/keep-cloud dialog with backups and merge reasons.
 - Concurrent writers are serialized with an atomic compare-and-swap
   (`updateMany where version = expected`); exactly one wins, the other gets
   `412`.
@@ -193,11 +194,12 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
 ## 8. Follow-ups (not in this PR)
 
 - Web sync engine + conflict dialog + per-account local keys (`M5-client`,
-  calling `/v1` same-origin per the §6 contract).
+  calling `/v1` same-origin per the §6 contract). Conservative auto-merge
+  landed in ADR-0004.
 - Web move is done (`apps/web`); `src/domain` ↔ `packages/core` dedup
   (re-export shims) landed in #46 — web files are one-line shims, core is
   the source of truth.
-- Journal/operation sync if conflicts hurt in real use (see ADR-0001).
+- Journal/operation sync if conflicts still hurt in real use (see ADR-0001).
 
 ## 9. Ops evidence (2026-10-24, closes #47)
 
