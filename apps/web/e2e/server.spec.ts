@@ -3,6 +3,13 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 const DEMO_BUTTON = /Begin with demo data/i
 
 async function routeMocks(context: BrowserContext) {
+  await context.route('**/health/live', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ status: 'ok' }),
+    })
+  })
   await context.route('**/v1/auth/refresh', async (route) => {
     await route.fulfill({
       status: 200,
@@ -66,7 +73,11 @@ test.describe('sync server picker', () => {
       await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({
         timeout: 15000,
       })
-      await expect(page.getByText('http://localhost:3000')).toBeVisible()
+      await expect(
+        page
+          .locator('p', { hasText: 'Current server:' })
+          .getByText('http://localhost:3000', { exact: true }),
+      ).toBeVisible()
     } finally {
       await ctx.close()
     }
@@ -80,9 +91,49 @@ test.describe('sync server picker', () => {
       await openSettings(page)
 
       await page.locator('#sync-server-url').fill('notaurl')
-      await page.getByRole('button', { name: 'Use this server' }).click()
-      await expect(page.getByText('valid http(s) server URL')).toBeVisible()
+      await page.locator('#sync-server-url').press('Tab')
+      await expect(page.getByRole('button', { name: 'Use this server' })).toBeDisabled()
+      await expect(page.getByText('valid domain')).toBeVisible()
       await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+    } finally {
+      await ctx.close()
+    }
+  })
+
+  test('a non-server URL fails the reachability check but can be saved anyway', async ({
+    browser,
+  }) => {
+    const ctx = await browser.newContext()
+    try {
+      await routeMocks(ctx)
+      await ctx.route('**/health/live', async (route) => {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/json',
+          body: JSON.stringify({ title: 'Not found' }),
+        })
+      })
+      const page = await ctx.newPage()
+      await openSettings(page)
+
+      await page.locator('#sync-server-url').fill('https://sync.example.com')
+      await page.getByRole('button', { name: 'Use this server' }).click()
+      await expect(page.getByRole('button', { name: 'Save anyway' })).toBeVisible({
+        timeout: 15000,
+      })
+      await Promise.all([
+        page.waitForNavigation(),
+        page.getByRole('button', { name: 'Save anyway' }).click(),
+      ])
+      await page.getByRole('button', { name: 'Settings', exact: true }).first().click()
+      await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({
+        timeout: 15000,
+      })
+      await expect(
+        page
+          .locator('p', { hasText: 'Current server:' })
+          .getByText('https://sync.example.com', { exact: true }),
+      ).toBeVisible()
     } finally {
       await ctx.close()
     }

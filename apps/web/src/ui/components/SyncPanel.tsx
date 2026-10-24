@@ -109,126 +109,149 @@ export function SyncPanel() {
         </div>
       ) : (
         <div className="sync-panel">
-          <form onSubmit={(event) => void submitLogin(event)}>
+          <form className="sync-form" onSubmit={(event) => void submitLogin(event)}>
             <p className="panel-note">
               Optional closed-beta sync between your devices. Guests keep playing locally.
             </p>
-            <label className="field__label" htmlFor="sync-email">
-              Email
-            </label>
-            <input
-              id="sync-email"
-              className="input"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-            />
-            <label className="field__label" htmlFor="sync-password">
-              Password
-            </label>
-            <input
-              id="sync-password"
-              className="input"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-            />
-            <label className="field__label" htmlFor="sync-totp">
-              Authenticator code <span className="micro">(if two-factor is on)</span>
-            </label>
-            <input
-              id="sync-totp"
-              className="input"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={totpCode}
-              onChange={(event) => setTotpCode(event.target.value)}
-            />
+            <div className="sync-field">
+              <label className="field__label" htmlFor="sync-email">
+                Email
+              </label>
+              <input
+                id="sync-email"
+                className="input"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+              />
+            </div>
+            <div className="sync-field">
+              <label className="field__label" htmlFor="sync-password">
+                Password
+              </label>
+              <input
+                id="sync-password"
+                className="input"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Your account password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+              />
+            </div>
+            <div className="sync-field">
+              <label className="field__label" htmlFor="sync-totp">
+                Authenticator code <span className="micro">(if two-factor is on)</span>
+              </label>
+              <input
+                id="sync-totp"
+                className="input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="123 456"
+                value={totpCode}
+                onChange={(event) => setTotpCode(event.target.value)}
+              />
+            </div>
             {authError ? (
-              <p className="panel-note" role="alert">
+              <p className="field-error" role="alert">
                 {authError}
               </p>
             ) : null}
             {notice ? <p className="panel-note">{notice}</p> : null}
             <div className="settings-actions">
-              <Button variant="secondary" type="submit" disabled={busy}>
+              <Button variant="primary" type="submit" disabled={busy}>
                 {busy ? 'Signing in…' : 'Sign in'}
               </Button>
             </div>
           </form>
-          <form onSubmit={(event) => void submitInvite(event)}>
+          <form className="sync-form" onSubmit={(event) => void submitInvite(event)}>
             <p className="panel-note">
               <strong>Have an invite?</strong> Paste the link or token your admin sent you, then
               choose a password (12+ characters).
             </p>
-            <label className="field__label" htmlFor="sync-invite-token">
-              Invite link or token
-            </label>
-            <input
-              id="sync-invite-token"
-              className="input"
-              type="text"
-              autoComplete="off"
-              value={inviteToken}
-              onChange={(event) => setInviteToken(event.target.value)}
-              required
-            />
-            <label className="field__label" htmlFor="sync-invite-password">
-              New password
-            </label>
-            <input
-              id="sync-invite-password"
-              className="input"
-              type="password"
-              autoComplete="new-password"
-              minLength={12}
-              value={invitePassword}
-              onChange={(event) => setInvitePassword(event.target.value)}
-              required
-            />
+            <div className="sync-field">
+              <label className="field__label" htmlFor="sync-invite-token">
+                Invite link or token
+              </label>
+              <input
+                id="sync-invite-token"
+                className="input"
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="https://app.example.com/#token=…"
+                value={inviteToken}
+                onChange={(event) => setInviteToken(event.target.value)}
+                required
+              />
+            </div>
+            <div className="sync-field">
+              <label className="field__label" htmlFor="sync-invite-password">
+                New password
+              </label>
+              <input
+                id="sync-invite-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                placeholder="12+ characters"
+                value={invitePassword}
+                onChange={(event) => setInvitePassword(event.target.value)}
+                required
+              />
+            </div>
             <div className="settings-actions">
-              <Button variant="secondary" type="submit" disabled={busy}>
+              <Button variant="primary" type="submit" disabled={busy}>
                 Accept invite
               </Button>
             </div>
           </form>
-          <form onSubmit={(event) => void submitReset(event)}>
+          <form className="sync-form" onSubmit={(event) => void submitReset(event)}>
             <p className="panel-note">
               <strong>Forgot your password?</strong> Paste the reset link your admin sent you,
               then choose a new password (12+ characters).
             </p>
-            <label className="field__label" htmlFor="sync-reset-token">
-              Reset link or token
-            </label>
-            <input
-              id="sync-reset-token"
-              className="input"
-              type="text"
-              autoComplete="off"
-              value={resetToken}
-              onChange={(event) => setResetToken(event.target.value)}
-              required
-            />
-            <label className="field__label" htmlFor="sync-reset-password">
-              New password
-            </label>
-            <input
-              id="sync-reset-password"
-              className="input"
-              type="password"
-              autoComplete="new-password"
-              minLength={12}
-              value={resetPasswordValue}
-              onChange={(event) => setResetPasswordValue(event.target.value)}
-              required
-            />
+            <div className="sync-field">
+              <label className="field__label" htmlFor="sync-reset-token">
+                Reset link or token
+              </label>
+              <input
+                id="sync-reset-token"
+                className="input"
+                type="text"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Paste the reset link or token"
+                value={resetToken}
+                onChange={(event) => setResetToken(event.target.value)}
+                required
+              />
+            </div>
+            <div className="sync-field">
+              <label className="field__label" htmlFor="sync-reset-password">
+                New password
+              </label>
+              <input
+                id="sync-reset-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                minLength={12}
+                placeholder="12+ characters"
+                value={resetPasswordValue}
+                onChange={(event) => setResetPasswordValue(event.target.value)}
+                required
+              />
+            </div>
             <div className="settings-actions">
-              <Button variant="secondary" type="submit" disabled={busy}>
+              <Button variant="primary" type="submit" disabled={busy}>
                 Set new password
               </Button>
             </div>

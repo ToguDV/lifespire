@@ -1,6 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { clearStoredBaseUrl, getStoredBaseUrl, getSyncBaseUrl, setStoredBaseUrl } from '../../sync/api'
+import {
+  checkServerHealth,
+  clearStoredBaseUrl,
+  getStoredBaseUrl,
+  getSyncBaseUrl,
+  setStoredBaseUrl,
+  validateServerUrl,
+} from '../../sync/api'
 import { useAuthStore } from '../../sync/authStore'
 import { Button, Panel, PanelHead } from '../components'
 
@@ -18,8 +25,10 @@ export function ServerPanel() {
     }
   })
   const [input, setInput] = useState(stored ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [touched, setTouched] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [unverified, setUnverified] = useState<string | null>(null)
 
   const effective = (() => {
     try {
@@ -28,47 +37,79 @@ export function ServerPanel() {
       return ''
     }
   })()
+
+  const trimmed = input.trim()
+  const validation = useMemo(
+    () => (trimmed ? validateServerUrl(trimmed) : null),
+    [trimmed],
+  )
+  const fieldError =
+    touched && trimmed && validation && !validation.ok ? validation.error : null
+  const normalized =
+    validation && validation.ok ? validation.normalized : null
+  const showNormalized =
+    normalized !== null && trimmed !== '' && normalized !== trimmed
   const showInsecureWarning = (() => {
+    if (!normalized) return false
     try {
-      const url = new URL(input.trim())
+      const url = new URL(normalized)
       return url.protocol === 'http:' && !isLocalhost(url.hostname)
     } catch {
       return false
     }
   })()
+  const canSubmit = trimmed !== '' && validation?.ok === true && !checking
 
-  const applyAndRestart = async (apply: () => void): Promise<void> => {
-    setBusy(true)
-    setError(null)
+  const saveAndRestart = async (origin: string): Promise<void> => {
+    setStoredBaseUrl(origin)
+    setStored(getStoredBaseUrl())
     try {
-      apply()
-      try {
-        await logout()
-      } catch {
-        // Logout is local-first; a failed server call still signs out here.
-      }
-      window.location.reload()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save the server URL.')
-      setBusy(false)
+      await logout()
+    } catch {
+      // Logout is local-first; a failed server call still signs out here.
     }
+    window.location.reload()
   }
 
   const submit = (event: FormEvent): void => {
     event.preventDefault()
-    const apply = (): void => {
-      setStoredBaseUrl(input)
-      setStored(getStoredBaseUrl())
+    setTouched(true)
+    setServerError(null)
+    if (!validation || !validation.ok) return
+    const origin = validation.normalized
+    if (unverified === origin) {
+      setChecking(true)
+      saveAndRestart(origin).catch((error: unknown) => {
+        setServerError(error instanceof Error ? error.message : 'Could not save the server URL.')
+        setChecking(false)
+      })
+      return
     }
-    void applyAndRestart(apply)
+    setChecking(true)
+    setUnverified(null)
+    checkServerHealth(origin)
+      .then(() => saveAndRestart(origin))
+      .catch((error: unknown) => {
+        setServerError(
+          error instanceof Error ? error.message : 'Could not reach that server.',
+        )
+        setUnverified(origin)
+        setChecking(false)
+      })
   }
 
   const reset = (): void => {
     setInput('')
-    void applyAndRestart(() => {
+    setTouched(false)
+    setServerError(null)
+    setUnverified(null)
+    setChecking(true)
+    try {
       clearStoredBaseUrl()
       setStored(null)
-    })
+    } finally {
+      window.location.reload()
+    }
   }
 
   return (
@@ -83,41 +124,68 @@ export function ServerPanel() {
         <p className="panel-note">
           Current server: <strong>{effective || 'this app (same origin)'}</strong>
         </p>
-        <form onSubmit={submit}>
+        <form className="sync-form" onSubmit={submit} noValidate>
           <p className="panel-note">
             Point the app at another LifeSpire server (for example your own VPS).
             Changing servers signs you out.
           </p>
-          <label className="field__label" htmlFor="sync-server-url">
-            Server URL
-          </label>
-          <input
-            id="sync-server-url"
-            className="input"
-            type="text"
-            inputMode="url"
-            autoComplete="off"
-            placeholder="https://sync.example.com"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-          />
-          {showInsecureWarning ? (
-            <p className="panel-note" role="alert">
-              Plain http on a non-local host sends your password and save unencrypted.
-              Prefer https.
+          <div className="sync-field">
+            <label className="field__label" htmlFor="sync-server-url">
+              Server URL
+            </label>
+            <input
+              id="sync-server-url"
+              className="input"
+              type="url"
+              inputMode="url"
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="https://sync.example.com"
+              value={input}
+              aria-invalid={fieldError ? true : undefined}
+              aria-describedby="sync-server-url-hint sync-server-url-error"
+              onChange={(event) => {
+                setInput(event.target.value)
+                setServerError(null)
+                setUnverified(null)
+              }}
+              onBlur={() => setTouched(true)}
+            />
+            <p className="field-hint" id="sync-server-url-hint">
+              Just the origin — no paths, queries or logins. Local servers look like{' '}
+              <code>http://localhost:3000</code>.
             </p>
-          ) : null}
-          {error ? (
-            <p className="panel-note" role="alert">
-              {error}
-            </p>
-          ) : null}
+            {showNormalized ? (
+              <p className="panel-note">Will be saved as {normalized}.</p>
+            ) : null}
+            {fieldError ? (
+              <p className="field-error" id="sync-server-url-error" role="alert">
+                {fieldError}
+              </p>
+            ) : null}
+            {showInsecureWarning ? (
+              <p className="panel-note" role="note">
+                Plain http on a non-local host sends your password and save unencrypted.
+                Prefer https.
+              </p>
+            ) : null}
+            {serverError ? (
+              <p className="field-error" role="alert">
+                {serverError}
+              </p>
+            ) : null}
+          </div>
           <div className="settings-actions">
-            <Button variant="secondary" type="submit" disabled={busy}>
-              {busy ? 'Saving…' : 'Use this server'}
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={!canSubmit && unverified === null}
+            >
+              {checking ? 'Checking…' : unverified ? 'Save anyway' : 'Use this server'}
             </Button>
             {stored ? (
-              <Button variant="secondary" onClick={reset} disabled={busy}>
+              <Button variant="secondary" onClick={reset} disabled={checking}>
                 Use default
               </Button>
             ) : null}
