@@ -3,7 +3,7 @@ import { parseDocument } from '../domain/schema'
 import { getDevOffsetDays, getNow } from '../state/clock'
 import { documentStorage } from '../state/persistence'
 import { useAppStore } from '../state/store'
-import { syncApi } from './api'
+import { engineApi } from './api'
 import { useAuthStore } from './authStore'
 import { createSyncEngine } from './syncEngine'
 import type { SyncEngineState } from './syncEngine'
@@ -62,7 +62,7 @@ function browserStorage(): { getItem(k: string): string | null; setItem(k: strin
 
 export const syncEngine = createSyncEngine({
   storage: browserStorage(),
-  api: syncApi,
+  api: engineApi,
   userId: null,
   getLocalDocument: () => useAppStore.getState().document,
   applyRemoteDocument: (document) => {

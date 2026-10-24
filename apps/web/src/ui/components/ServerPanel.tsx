@@ -5,6 +5,7 @@ import {
   clearStoredBaseUrl,
   getStoredBaseUrl,
   getSyncBaseUrl,
+  refreshSyncApi,
   setStoredBaseUrl,
   validateServerUrl,
 } from '../../sync/api'
@@ -14,6 +15,8 @@ import { Button, Panel, PanelHead } from '../components'
 function isLocalhost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
 }
+
+type Phase = 'idle' | 'checking' | 'saving'
 
 export function ServerPanel() {
   const logout = useAuthStore((state) => state.logout)
@@ -27,7 +30,8 @@ export function ServerPanel() {
   const [input, setInput] = useState(stored ?? '')
   const [touched, setTouched] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [phase, setPhase] = useState<Phase>('idle')
   const [unverified, setUnverified] = useState<string | null>(null)
 
   const effective = (() => {
@@ -45,10 +49,8 @@ export function ServerPanel() {
   )
   const fieldError =
     touched && trimmed && validation && !validation.ok ? validation.error : null
-  const normalized =
-    validation && validation.ok ? validation.normalized : null
-  const showNormalized =
-    normalized !== null && trimmed !== '' && normalized !== trimmed
+  const normalized = validation && validation.ok ? validation.normalized : null
+  const showNormalized = normalized !== null && trimmed !== '' && normalized !== trimmed
   const showInsecureWarning = (() => {
     if (!normalized) return false
     try {
@@ -58,58 +60,75 @@ export function ServerPanel() {
       return false
     }
   })()
-  const canSubmit = trimmed !== '' && validation?.ok === true && !checking
+  const busy = phase !== 'idle'
+  const canSubmit = trimmed !== '' && validation?.ok === true && !busy
 
-  const saveAndRestart = async (origin: string): Promise<void> => {
-    setStoredBaseUrl(origin)
-    setStored(getStoredBaseUrl())
+  /** Signs out, points the client at the new server and stays on screen. */
+  const swapTo = async (origin: string | null): Promise<void> => {
+    setPhase('saving')
+    setServerError(null)
+    setNotice(null)
     try {
+      // Sessions live on the old server; sign out there first.
       await logout()
-    } catch {
-      // Logout is local-first; a failed server call still signs out here.
+      if (origin === null) {
+        clearStoredBaseUrl()
+      } else {
+        setStoredBaseUrl(origin)
+      }
+      refreshSyncApi()
+      setStored(getStoredBaseUrl())
+      setUnverified(null)
+      setNotice(
+        origin === null
+          ? 'Using the default server. You were signed out — sign in again to sync.'
+          : `Now using ${origin}. You were signed out — sign in again to sync.`,
+      )
+    } catch (error) {
+      setServerError(error instanceof Error ? error.message : 'Could not save the server URL.')
+    } finally {
+      setPhase('idle')
     }
-    window.location.reload()
   }
 
   const submit = (event: FormEvent): void => {
     event.preventDefault()
     setTouched(true)
     setServerError(null)
+    setNotice(null)
     if (!validation || !validation.ok) return
     const origin = validation.normalized
-    if (unverified === origin) {
-      setChecking(true)
-      saveAndRestart(origin).catch((error: unknown) => {
-        setServerError(error instanceof Error ? error.message : 'Could not save the server URL.')
-        setChecking(false)
-      })
+    if (origin === effective) {
+      setNotice('Already using this server.')
       return
     }
-    setChecking(true)
+    if (unverified === origin) {
+      void swapTo(origin)
+      return
+    }
+    setPhase('checking')
     setUnverified(null)
-    checkServerHealth(origin)
-      .then(() => saveAndRestart(origin))
-      .catch((error: unknown) => {
+    checkServerHealth(origin).then(
+      () => {
+        void swapTo(origin)
+      },
+      (error: unknown) => {
         setServerError(
           error instanceof Error ? error.message : 'Could not reach that server.',
         )
         setUnverified(origin)
-        setChecking(false)
-      })
+        setPhase('idle')
+      },
+    )
   }
 
   const reset = (): void => {
     setInput('')
     setTouched(false)
     setServerError(null)
+    setNotice(null)
     setUnverified(null)
-    setChecking(true)
-    try {
-      clearStoredBaseUrl()
-      setStored(null)
-    } finally {
-      window.location.reload()
-    }
+    void swapTo(null)
   }
 
   return (
@@ -124,10 +143,15 @@ export function ServerPanel() {
         <p className="panel-note">
           Current server: <strong>{effective || 'this app (same origin)'}</strong>
         </p>
+        {notice ? (
+          <p className="panel-note" role="status">
+            {notice}
+          </p>
+        ) : null}
         <form className="sync-form" onSubmit={submit} noValidate>
           <p className="panel-note">
             Point the app at another LifeSpire server (for example your own VPS).
-            Changing servers signs you out.
+            Changing servers signs you out, but you stay here.
           </p>
           <div className="sync-field">
             <label className="field__label" htmlFor="sync-server-url">
@@ -148,6 +172,7 @@ export function ServerPanel() {
               onChange={(event) => {
                 setInput(event.target.value)
                 setServerError(null)
+                setNotice(null)
                 setUnverified(null)
               }}
               onBlur={() => setTouched(true)}
@@ -182,10 +207,16 @@ export function ServerPanel() {
               type="submit"
               disabled={!canSubmit && unverified === null}
             >
-              {checking ? 'Checking…' : unverified ? 'Save anyway' : 'Use this server'}
+              {phase === 'checking'
+                ? 'Checking…'
+                : phase === 'saving'
+                  ? 'Saving…'
+                  : unverified
+                    ? 'Save anyway'
+                    : 'Use this server'}
             </Button>
             {stored ? (
-              <Button variant="secondary" onClick={reset} disabled={checking}>
+              <Button variant="secondary" onClick={reset} disabled={busy}>
                 Use default
               </Button>
             ) : null}

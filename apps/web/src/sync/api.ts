@@ -208,22 +208,56 @@ export function clearStoredBaseUrl(): void {
   }
 }
 
-export const syncApi: ApiClient = createApiClient({
-  baseUrl: getSyncBaseUrl(),
-  getAccessToken: () => {
-    try {
-      return useAuthStore.getState().getAccessToken()
-    } catch {
-      return null
-    }
-  },
-  setAccessToken: (token) => {
-    try {
-      useAuthStore.getState().setAccessToken(token)
-    } catch {
-      // Store may not be ready in unit tests; the token stays in the caller.
-    }
-  },
-})
+function buildApiClient(): ApiClient {
+  return createApiClient({
+    baseUrl: getSyncBaseUrl(),
+    getAccessToken: () => {
+      try {
+        return useAuthStore.getState().getAccessToken()
+      } catch {
+        return null
+      }
+    },
+    setAccessToken: (token) => {
+      try {
+        useAuthStore.getState().setAccessToken(token)
+      } catch {
+        // Store may not be ready in unit tests; the token stays in the caller.
+      }
+    },
+  })
+}
+
+export let syncApi: ApiClient = buildApiClient()
+
+/**
+ * Stable engine endpoint: the sync engine keeps this reference for its whole
+ * lifetime while every server switch repoints the underlying client, so the
+ * app never needs a reload to talk to the new server.
+ */
+const engineApiTarget: { current: Pick<ApiClient, 'getSync' | 'putSync'> } = {
+  current: syncApi,
+}
+
+export const engineApi: Pick<ApiClient, 'getSync' | 'putSync'> = {
+  getSync: (ifMatch) => engineApiTarget.current.getSync(ifMatch),
+  putSync: (document, opts) => engineApiTarget.current.putSync(document, opts),
+}
+
+/**
+ * Rebuilds the client from the current stored/build base URL and repoints the
+ * engine and the auth store at it. Call after saving or clearing the server
+ * override; the caller stays on screen, no reload needed.
+ */
+export function refreshSyncApi(): ApiClient {
+  syncApi = buildApiClient()
+  engineApiTarget.current = syncApi
+  try {
+    useAuthStore.getState().configure(syncApi)
+  } catch {
+    // Store may not be ready in unit tests; the client is still returned.
+  }
+  return syncApi
+}
 
 useAuthStore.getState().configure(syncApi)

@@ -1,5 +1,13 @@
-import { describe, expect, it, vi } from 'vitest'
-import { checkServerHealth, normalizeBaseUrl, resolveSyncBaseUrl, validateServerUrl } from './api'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  checkServerHealth,
+  engineApi,
+  normalizeBaseUrl,
+  refreshSyncApi,
+  resolveSyncBaseUrl,
+  validateServerUrl,
+} from './api'
+import { SYNC_BASE_URL_KEY } from './storageKeys'
 
 describe('sync base URL', () => {
   it('normalizes user input to the origin', () => {
@@ -86,6 +94,47 @@ describe('validateServerUrl', () => {
     const out = validateServerUrl('notaurl')
     expect(out.ok).toBe(false)
     if (!out.ok) expect(out.error.length).toBeGreaterThan(10)
+  })
+})
+
+describe('refreshSyncApi', () => {
+  const realFetch = globalThis.fetch
+  const backing = new Map<string, string>()
+
+  beforeEach(() => {
+    backing.clear()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => backing.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        backing.set(key, String(value))
+      },
+      removeItem: (key: string) => {
+        backing.delete(key)
+      },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    globalThis.fetch = realFetch
+    refreshSyncApi()
+  })
+
+  it('repoints the client and the engine at the stored server', async () => {
+    const calls: string[] = []
+    globalThis.fetch = (async (input: unknown) => {
+      calls.push(String(input))
+      return Response.json({ title: 'No cloud save' }, { status: 404 })
+    }) as unknown as typeof fetch
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+
+    const client = refreshSyncApi()
+    await expect(client.getSync()).resolves.toBeNull()
+    await expect(engineApi.getSync()).resolves.toBeNull()
+    expect(calls).toEqual([
+      'https://custom.example.com/v1/sync',
+      'https://custom.example.com/v1/sync',
+    ])
   })
 })
 
