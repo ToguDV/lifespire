@@ -105,9 +105,9 @@ export function MapScreen() {
         </Panel>
       ) : (
         <>
-          <Panel pad={false} style={styles.mapPanel}>
+          <View style={styles.mapFrame}>
             <MapCanvas map={map} day={day} goals={document.goals} onSelect={choose} />
-          </Panel>
+          </View>
 
           <Panel>
             <PanelHead
@@ -195,7 +195,7 @@ export function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  mapPanel: { overflow: 'hidden', marginBottom: space.md },
+  mapFrame: { marginBottom: space.md },
   choices: { gap: space.sm },
   choice: { borderWidth: 1, borderRadius: radius.md, padding: space.sm, gap: space.sm },
   choiceHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
