@@ -141,6 +141,10 @@ behavior. The server never interprets dates — it stores the document.
 
 ## 6. Runbook (VPS)
 
+Local full stack with hot reload (single command, dev-only defaults):
+`docker compose -f infra/docker-compose.local.yml up --build`
+(web :5173, api :3000, db :5433).
+
 Same-origin contract: the web build calls `/v1` directly (same origin);
 Caddy proxies `/v1/*`, `/health/*` and `/docs*` to `api:3000`, and keeps a
 legacy `/api/*` strip-prefix rule pointing at the same backend.

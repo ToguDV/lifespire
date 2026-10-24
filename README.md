@@ -44,6 +44,18 @@ pnpm dev        # dev server
 Open the printed URL. On first launch you can load **demo data** and start a run
 in one click, or create your own goals and routines.
 
+### Full local stack (single command, hot reload)
+
+```bash
+docker compose -f infra/docker-compose.local.yml up --build
+```
+
+Web at http://localhost:5173, API at http://localhost:3000, Postgres at
+`localhost:5433`. The repo is bind-mounted: Nest restarts on API changes and
+Vite HMR applies web changes instantly. First boot runs `pnpm install`,
+`prisma generate` and `migrate deploy` automatically; create the first admin
+with `docker compose -f infra/docker-compose.local.yml exec -T api pnpm --filter @lifespire/api admin:create --email admin@example.com`.
+
 ### Requirements
 
 - Node 24 (see `.nvmrc`)
