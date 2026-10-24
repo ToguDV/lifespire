@@ -6,6 +6,8 @@ export const GUEST_BACKUP_KEY = STORAGE_BACKUP_KEY
 export const GUEST_META_KEY = `${STORAGE_KEY}:meta`
 /** Last authenticated user (id/email/role only, never the token). */
 export const SESSION_KEY = `${STORAGE_KEY}:session`
+/** Device-chosen sync server URL override (unset = build default / same origin). */
+export const SYNC_BASE_URL_KEY = 'lifespire:sync-base-url'
 /** Last guest raw kept aside when an account is adopted. */
 export const GUEST_COPY_KEY = `${STORAGE_KEY}:guest-copy`
 

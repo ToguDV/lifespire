@@ -16,6 +16,7 @@ import {
   SyncStatus,
 } from '../components'
 import { SyncPanel } from '../components/SyncPanel'
+import { ServerPanel } from '../components/ServerPanel'
 import { AdminPanel } from '../components/AdminPanel'
 import { useFeedbackPrefs } from '../lib/feedback'
 import { saveFileName } from '../lib/importSave'
@@ -75,6 +76,7 @@ export function SettingsScreen() {
       />
 
       <div className="settings-body">
+        <ServerPanel />
         <SyncPanel />
         <AdminPanel />
         <Panel pad>
