@@ -11,6 +11,7 @@ import { AnimatedNumber } from './components/AnimatedNumber'
 import { ConflictDialog } from './components/ConflictDialog'
 import { Icon } from './components/Icon'
 import { IconButton } from './components/IconButton'
+import { DayPips } from './components/Progress'
 import { RewardToast, Toast } from './components/Toast'
 import { Text } from './components/Text'
 import { DaySummaryScreen } from './screens/DaySummaryScreen'
@@ -228,6 +229,7 @@ export function AppShell() {
           <Text variant="headingSm">LifeSpire</Text>
         </View>
         <View style={styles.dayBlock}>
+          {run ? <DayPips days={run.days} currentIndex={labelDay?.index} /> : null}
           <Text variant="caption" tone="muted">{dayLabel}</Text>
         </View>
         <View style={styles.topbarRight}>
@@ -271,7 +273,7 @@ export function AppShell() {
           styles.tabbar,
           {
             borderColor: colors.hairline,
-            backgroundColor: colors.surface,
+            backgroundColor: colors.background,
             paddingBottom: Math.max(insets.bottom, space.xs),
           },
         ]}
@@ -288,8 +290,11 @@ export function AppShell() {
               android_ripple={{ color: colors.accentWash, borderless: true }}
               style={styles.tab}
             >
-              <Icon name={tab.icon} size={20} color={active ? colors.accentDeep : colors.inkMuted} />
-              <Text variant="caption" tone={active ? 'deep' : 'muted'}>{tab.label}</Text>
+              {active ? <View style={[styles.tabBar, { backgroundColor: colors.accent }]} /> : null}
+              <Icon name={tab.icon} size={21} color={active ? colors.inkStrong : colors.inkSoft} />
+              <Text variant="micro" style={active ? { color: colors.inkStrong } : { color: colors.inkSoft }}>
+                {tab.label.toUpperCase()}
+              </Text>
             </Pressable>
           )
         })}
@@ -327,5 +332,13 @@ const styles = StyleSheet.create({
     paddingTop: space.xs,
     minHeight: layout.tabbarHeight,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 44 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 44 },
+  tabBar: {
+    position: 'absolute',
+    top: 0,
+    width: 26,
+    height: 2,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+  },
 })

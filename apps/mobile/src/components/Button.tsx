@@ -7,7 +7,7 @@ import { Icon } from './Icon'
 import type { IconName } from './Icon'
 import { Text } from './Text'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'danger'
+export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'ghost' | 'danger'
 
 export interface ButtonProps {
   children: ReactNode
@@ -37,26 +37,26 @@ export function Button({
   const { colors } = useTheme()
   const background =
     variant === 'primary'
-      ? colors.ink
+      ? colors.accent
       : variant === 'danger'
         ? colors.danger
-        : variant === 'secondary'
-          ? colors.surface
-          : 'transparent'
+        : 'transparent'
   const border =
     variant === 'primary'
-      ? colors.ink
+      ? colors.accent
       : variant === 'danger'
         ? colors.danger
-        : variant === 'secondary'
-          ? colors.hairline
-          : 'transparent'
+        : variant === 'ghost'
+          ? 'transparent'
+          : variant === 'secondary'
+            ? colors.hairlineStrong
+            : colors.hairline
   const textTone =
     variant === 'primary' || variant === 'danger'
       ? 'inverse'
-      : variant === 'quiet'
-        ? 'muted'
-        : 'default'
+      : variant === 'secondary'
+        ? 'default'
+        : 'muted'
 
   return (
     <Pressable
@@ -70,6 +70,7 @@ export function Button({
         styles.base,
         small ? styles.small : null,
         full ? styles.full : null,
+        variant === 'ghost' ? styles.ghost : null,
         {
           backgroundColor: background,
           borderColor: border,
@@ -79,7 +80,7 @@ export function Button({
       ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={variant === 'primary' ? colors.onAccent : colors.ink} />
+        <ActivityIndicator size="small" color={(variant === 'primary' || variant === 'danger') ? colors.onAccent : colors.ink} />
       ) : (
         <View style={styles.content}>
           {icon ? (
@@ -87,7 +88,11 @@ export function Button({
               name={icon}
               size={small ? 15 : 17}
               color={
-                variant === 'primary' || variant === 'danger' ? colors.onAccent : colors.inkMuted
+                variant === 'primary' || variant === 'danger'
+                  ? colors.onAccent
+                  : variant === 'secondary'
+                    ? colors.ink
+                    : colors.inkMuted
               }
             />
           ) : null}
@@ -104,11 +109,12 @@ const styles = StyleSheet.create({
   base: {
     minHeight: layout.minTouch,
     paddingHorizontal: space.lg,
-    borderRadius: radius.full,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  ghost: { borderWidth: 0, paddingHorizontal: 10 },
   small: {
     minHeight: 38,
     paddingHorizontal: space.md,

@@ -5,7 +5,9 @@ import { StatusBar } from 'expo-status-bar'
 import * as SplashScreen from 'expo-splash-screen'
 import { useFonts } from 'expo-font'
 import { Alegreya_400Regular } from '@expo-google-fonts/alegreya/400Regular'
+import { Alegreya_400Regular_Italic } from '@expo-google-fonts/alegreya/400Regular_Italic'
 import { Alegreya_600SemiBold } from '@expo-google-fonts/alegreya/600SemiBold'
+import { Alegreya_600SemiBold_Italic } from '@expo-google-fonts/alegreya/600SemiBold_Italic'
 import { Alegreya_700Bold } from '@expo-google-fonts/alegreya/700Bold'
 import { AlegreyaSans_400Regular } from '@expo-google-fonts/alegreya-sans/400Regular'
 import { AlegreyaSans_500Medium } from '@expo-google-fonts/alegreya-sans/500Medium'
@@ -26,7 +28,9 @@ void SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
 export default function App() {
   const [fontsLoaded, fontError] = useFonts({
     Alegreya_400Regular,
+    Alegreya_400Regular_Italic,
     Alegreya_600SemiBold,
+    Alegreya_600SemiBold_Italic,
     Alegreya_700Bold,
     AlegreyaSans_400Regular,
     AlegreyaSans_500Medium,

@@ -121,7 +121,7 @@ the rest of the app remains fully usable.
 
 - Tokens, palettes and type scale mirror `design/DESIGN.md` and
   `apps/web/src/styles/tokens.css`; Alegreya/Alegreya Sans are self-loaded
-  through `@expo-google-fonts` (OFL), only the six used weights.
+  through `@expo-google-fonts` (OFL), the eight used weights including italics.
 - The map uses `react-native-svg` plus absolutely positioned `Pressable`
   nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. The wheel uses the
   same sector/payout math as web with an `Animated` rotation.

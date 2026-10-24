@@ -142,21 +142,21 @@ spacing:
 
 components:
   button-primary:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.canvas}"
+    backgroundColor: "{colors.accent}"
+    textColor: "{colors.on-accent}"
     typography: "{typography.button}"
-    rounded: "{rounded.full}"
-    padding: "0 20px"
-    height: 46px
-    border: "1px solid {colors.ink}"
+    rounded: "{rounded.md}"
+    padding: "0 18px"
+    height: 44px
+    border: "1px solid {colors.accent}"
   button-primary-night:
-    backgroundColor: "{colors.ink-night}"
-    textColor: "{colors.canvas-night}"
+    backgroundColor: "{colors.accent-night}"
+    textColor: "{colors.on-accent-night}"
     typography: "{typography.button}"
-    rounded: "{rounded.full}"
-    padding: "0 20px"
-    height: 46px
-    border: "1px solid {colors.ink-night}"
+    rounded: "{rounded.md}"
+    padding: "0 18px"
+    height: 44px
+    border: "1px solid {colors.accent-night}"
   button-quiet:
     backgroundColor: "transparent"
     textColor: "{colors.ink-muted}"
@@ -275,11 +275,12 @@ components:
     size: 50px
     border: "1px solid {colors.accent}"
   map-medallion-current:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.canvas}"
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.ink}"
     rounded: "{rounded.full}"
     size: 45px
-    border: "1px solid {colors.ink}"
+    border: "1px solid {colors.accent}"
+    ring: "3px {colors.surface-raised} gap + 4.5px {colors.accent}"
   map-medallion-locked:
     backgroundColor: "transparent"
     textColor: "{colors.ink-soft}"
@@ -338,11 +339,12 @@ components:
     padding: "3px"
     border: "1px solid {colors.hairline}"
   segmented-control-active:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.canvas}"
+    backgroundColor: "{colors.surface-raised}"
+    textColor: "{colors.ink}"
     typography: "{typography.button}"
-    rounded: "{rounded.full}"
+    rounded: "6px"
     padding: "6px 12px"
+    shadow: "0 1px 2px rgba(0, 0, 0, 0.08)"
   summary-card:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -550,8 +552,8 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 ### Buttons
 
 **`button-primary`** — The single dominant action on a screen.
-- Background `{colors.ink}`, text `{colors.canvas}`, typography `{typography.button}`, rounded `{rounded.full}`, padding `0 20px`, height 46px, border 1px `{colors.ink}`.
-- Night resolves to `{colors.ink-night}` on `{colors.canvas-night}` via `button-primary-night`.
+- Background `{colors.accent}`, text `{colors.on-accent}`, typography `{typography.button}`, rounded `{rounded.md}`, padding `0 18px`, height 44px, border 1px `{colors.accent}`.
+- Night resolves to `{colors.accent-night}` on `{colors.on-accent-night}` via `button-primary-night`.
 - Pressed: scale 0.98 and `{colors.accent-deep}` background; no shadow change.
 
 **`button-quiet`** — Secondary action that should not compete.
@@ -597,7 +599,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`map-node-button`** — 54×54px transparent button with a concentric medallion. The button, not the medallion, is the touch target.
 - Completed: done-fill medallion, done-ink icon, 15px moss seal with a check at bottom-right. A small 3px surface gap keeps seals legible.
-- Current: ink medallion with a 3px surface gap and 4.5px moss ring, plus a `HERE` micro label on desktop only. On mobile the ring is the sole marker.
+- Current: surface-raised medallion with a 3px surface gap and 4.5px moss ring, plus a `HERE` micro label on desktop only. On mobile the ring is the sole marker.
 - Available: 50px surface-raised medallion, moss border, 4px moss-soft halo, moss-deep icon; a second 1px moss ring at 1.2 scale. These are the only nodes with a filled surface and a pointer.
 - Locked: 45px transparent medallion with a dashed `{colors.hairline-strong}` rim, 52% opacity, and the future node icon. No lock glyph on the map; the dashed rim is the lock.
 - Task, elite, and boss medallions show the goal's crest instead of the type glyph. Elite adds a 15px star mark at top-right; the boss keeps its hexagon frame. `rest` and `treasure` keep campfire and chest icons because they have no goal.
@@ -643,7 +645,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`segmented-control`** — Effort selector (Light / Medium / Deep).
 - Surface-sunken track, hairline border, rounded `{rounded.full}`, 3px inner padding.
-- Active segment is filled ink with canvas text; inactive is transparent with muted text. The active state is also announced with `aria-pressed`/group semantics if implemented.
+- Active segment is filled surface-raised with ink text and a `0 1px 2px` shadow; inactive is transparent with muted text. The active state is also announced with `aria-pressed`/group semantics if implemented.
 
 **`icon-picker`** — Goal crest selector.
 - Native radio group inside a fieldset; every tile is at least 44×44px and keeps the visible label (or an `sr-only` label in compact mode).

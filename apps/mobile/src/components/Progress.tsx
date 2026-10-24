@@ -1,9 +1,7 @@
 import { StyleSheet, View } from 'react-native'
 import type { Day } from '@lifespire/core'
 import { useTheme } from '../theme/ThemeProvider'
-import { radius, space } from '../theme/tokens'
-import { Icon } from './Icon'
-import { Text } from './Text'
+import { radius } from '../theme/tokens'
 
 export function Progress({
   value,
@@ -46,18 +44,21 @@ export function Pips({
   const { colors } = useTheme()
   return (
     <View style={styles.pips} accessibilityElementsHidden>
-      {Array.from({ length: total }, (_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.pip,
-            {
-              backgroundColor: index < filled ? (tone === 'gold' ? colors.gold : colors.accent) : colors.surfaceSunken,
-              borderColor: index < filled ? (tone === 'gold' ? colors.gold : colors.accent) : colors.hairline,
-            },
-          ]}
-        />
-      ))}
+      {Array.from({ length: total }, (_, index) => {
+        const on = index < filled
+        return (
+          <View
+            key={index}
+            style={[
+              styles.pip,
+              {
+                backgroundColor: on ? (tone === 'gold' ? colors.gold : colors.accent) : 'transparent',
+                borderColor: on ? (tone === 'gold' ? colors.gold : colors.accent) : colors.hairlineStrong,
+              },
+            ]}
+          />
+        )
+      })}
     </View>
   )
 }
@@ -74,37 +75,23 @@ export function DayPips({
     <View style={styles.dayPips} accessibilityLabel="Seven-day run">
       {days.map((day) => {
         const done = day.status === 'completed'
-        const missed = day.status === 'missed'
         const current = day.index === currentIndex
         return (
           <View
             key={day.id}
-            style={[
-              styles.dayPip,
-              {
-                backgroundColor: done
-                  ? colors.ink
-                  : missed
-                    ? colors.surfaceSunken
-                    : current
-                      ? colors.accentSoft
-                      : colors.surface,
-                borderColor: current ? colors.accent : done ? colors.ink : colors.hairline,
-              },
-            ]}
-            accessibilityLabel={`Day ${day.index + 1}, ${done ? 'kept' : missed ? 'missed' : current ? 'today' : 'ahead'}`}
+            style={styles.dayPipSlot}
+            accessibilityLabel={`Day ${day.index + 1}, ${done ? 'kept' : current ? 'today' : 'ahead'}`}
           >
-            {done ? (
-              <Icon name="check" size={10} color={colors.onAccent} />
-            ) : missed ? (
-              <Text variant="micro" tone="soft">
-                –
-              </Text>
-            ) : (
-              <Text variant="micro" tone={current ? 'accent' : 'soft'}>
-                {day.index + 1}
-              </Text>
-            )}
+            {current ? <View style={[styles.dayPipRing, { borderColor: colors.accentSoft }]} /> : null}
+            <View
+              style={[
+                styles.dayPip,
+                {
+                  backgroundColor: done ? colors.ink : current ? colors.accent : 'transparent',
+                  borderColor: done ? colors.ink : current ? colors.accent : colors.hairlineStrong,
+                },
+              ]}
+            />
           </View>
         )
       })}
@@ -120,14 +107,16 @@ const styles = StyleSheet.create({
   },
   fill: { height: '100%', borderRadius: radius.full },
   pips: { flexDirection: 'row', gap: 4, alignItems: 'center' },
-  pip: { width: 7, height: 7, borderRadius: radius.full, borderWidth: 1 },
-  dayPips: { flexDirection: 'row', gap: space.xxs, flexWrap: 'wrap' },
-  dayPip: {
-    width: 24,
-    height: 24,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  pip: { width: 6, height: 13, borderRadius: 2, borderWidth: 1 },
+  dayPips: { flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' },
+  dayPipSlot: { width: 16, height: 16, alignItems: 'center', justifyContent: 'center' },
+  dayPip: { width: 7, height: 7, borderRadius: 1.5, borderWidth: 1, transform: [{ rotate: '45deg' }] },
+  dayPipRing: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderRadius: 2,
+    borderWidth: 3,
+    transform: [{ rotate: '45deg' }],
   },
 })
