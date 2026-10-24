@@ -12,8 +12,8 @@ import { SaveImportDialog } from '../components/SaveImportDialog'
 import { Screen } from '../components/Screen'
 import { Text } from '../components/Text'
 import { Dialog } from '../components/Dialog'
-import type { ImportResult } from '@lifespire/app-core/ui/importSave'
 import { exportDocument, pickAndValidateSave } from '../lib/exportImport'
+import type { PickedImportResult } from '../lib/exportImport'
 import { devError } from '../lib/devLogger'
 import { useAppStore } from '../state/store'
 import { setFeedbackPrefs, useFeedbackPrefs } from '../state/feedback'
@@ -63,7 +63,7 @@ export function SettingsScreen() {
   const feedback = useFeedbackPrefs()
   const prefs = useNotificationPrefs()
   const [permission, setPermission] = useState<NotificationPermission | 'loading'>('loading')
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [importResult, setImportResult] = useState<PickedImportResult | null>(null)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
   const [busy, setBusy] = useState(false)

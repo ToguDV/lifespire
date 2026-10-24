@@ -206,6 +206,13 @@ the rest of the app remains fully usable.
   import/export/reset actions and the reset note. The second “Start over”
   panel is retired; export still uses the Android share sheet as “Export
   original save”.
+- Data safety matches web. The import preview names the chosen JSON file and
+  warns that replacing overwrites the keys under `lifespire:mvp0`. A sync
+  conflict shows both copies (profile, progress, run and saved time), lists up
+  to five merge reasons and can share this device and the cloud copy as two
+  separate `lifespire-this-device-<date>.json` / `lifespire-cloud-<date>.json`
+  files. A local backup is written before keeping either side, and “Export
+  both” also keeps the conflict open until the player decides.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
   recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.

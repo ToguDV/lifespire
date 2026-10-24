@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import type { ImportResult } from '@lifespire/app-core/ui/importSave'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
 import { Button } from '../components/Button'
@@ -13,6 +12,7 @@ import { Screen } from '../components/Screen'
 import { Text } from '../components/Text'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { exportRaw, pickAndValidateSave } from '../lib/exportImport'
+import type { PickedImportResult } from '../lib/exportImport'
 import { devError } from '../lib/devLogger'
 import { useAppStore } from '../state/store'
 
@@ -39,7 +39,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
   const exportRawSave = useAppStore((state) => state.exportRawSave)
   const resetAll = useAppStore((state) => state.resetAll)
   const showToast = useAppStore((state) => state.showToast)
-  const [importResult, setImportResult] = useState<ImportResult | null>(null)
+  const [importResult, setImportResult] = useState<PickedImportResult | null>(null)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
   const [busy, setBusy] = useState(false)
