@@ -42,7 +42,12 @@ export function Field({
   )
 }
 
-export function Input({ style, onFocus, onBlur, ...rest }: TextInputProps) {
+type InputProps = TextInputProps & {
+  /** Mirrors the web form attribute; React Native forwards it and Android ignores it. */
+  minLength?: number
+}
+
+export function Input({ style, onFocus, onBlur, ...rest }: InputProps) {
   const { colors } = useTheme()
   const [focused, setFocused] = useState(false)
   return (

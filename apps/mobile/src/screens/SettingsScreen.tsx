@@ -48,8 +48,8 @@ function extractToken(raw: string): string {
 }
 
 const THEMES = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Day' },
+  { value: 'dark', label: 'Night' },
   { value: 'system', label: 'System' },
 ] as const
 
@@ -147,14 +147,16 @@ export function SettingsScreen() {
   return (
     <Screen>
       <ScreenHead
-        kicker="The quiet ascent"
+        kicker="Profile · Local data"
         title="Settings"
         subtitle={
           <Text variant="bodyMd" tone="muted">
-            Appearance, reminders, data and optional sync.
+            Appearance, the local save, device reminders and optional sync.
           </Text>
         }
       />
+
+      <SyncSection />
 
       <Panel>
         <PanelHead label="Appearance" />
@@ -198,6 +200,25 @@ export function SettingsScreen() {
           value={feedback.haptics}
           onChange={(value) => setFeedbackPrefs({ haptics: value })}
         />
+      </Panel>
+
+      <Panel>
+        <PanelHead label="Data" aside={<Text variant="caption" tone="soft">JSON</Text>} />
+        <Text variant="bodySm" tone="muted">
+          Export keeps the versioned save that web and Android share. Import validates the file and
+          previews it before replacing anything.
+        </Text>
+        <View style={styles.actions}>
+          <Button variant="secondary" icon="archive" onPress={() => void exportSave()} loading={busy} full>
+            Export save
+          </Button>
+          <Button variant="secondary" icon="scroll" onPress={() => void importSave()} disabled={busy} full>
+            Import save
+          </Button>
+        </View>
+        <Text variant="caption" tone="soft">
+          {STORAGE_KEY} · schema v{SCHEMA_VERSION}
+        </Text>
       </Panel>
 
       <Panel>
@@ -269,27 +290,6 @@ export function SettingsScreen() {
       </Panel>
 
       <Panel>
-        <PanelHead label="Data" aside={<Text variant="caption" tone="soft">JSON</Text>} />
-        <Text variant="bodySm" tone="muted">
-          Export keeps the versioned save that web and Android share. Import validates the file and
-          previews it before replacing anything.
-        </Text>
-        <View style={styles.actions}>
-          <Button variant="secondary" icon="archive" onPress={() => void exportSave()} loading={busy} full>
-            Export save
-          </Button>
-          <Button variant="secondary" icon="scroll" onPress={() => void importSave()} disabled={busy} full>
-            Import save
-          </Button>
-        </View>
-        <Text variant="caption" tone="soft">
-          {STORAGE_KEY} · schema v{SCHEMA_VERSION}
-        </Text>
-      </Panel>
-
-      <SyncSection />
-
-      <Panel>
         <PanelHead label="Local data" aside={<Text variant="caption" tone="danger">Careful</Text>} />
         <Text variant="bodySm" tone="muted">
           Resetting removes the local save after copying it to a backup. It cannot be undone from
@@ -323,7 +323,9 @@ export function SettingsScreen() {
 
       <Dialog
         visible={resetOpen}
+        eyebrow="Local data"
         title="Reset all data?"
+        description="This removes the local save from this device and returns LifeSpire to onboarding."
         onClose={() => setResetOpen(false)}
         actions={
           <>
@@ -335,10 +337,19 @@ export function SettingsScreen() {
         }
       >
         <Text variant="bodySm" tone="muted">
-          Type RESET exactly. The current save is copied to a backup before the key is removed.
+          The current save is copied to a backup before the key is removed.
         </Text>
-        <Field label="Confirmation">
-          <Input value={resetPhrase} onChangeText={setResetPhrase} autoCapitalize="characters" placeholder="RESET" />
+        <Field
+          label="Confirmation"
+          hint="The reset button stays disabled until the word is typed exactly."
+        >
+          <Input
+            value={resetPhrase}
+            onChangeText={setResetPhrase}
+            autoCapitalize="characters"
+            autoFocus
+            placeholder="RESET"
+          />
         </Field>
       </Dialog>
     </Screen>
@@ -515,15 +526,31 @@ function SyncSection() {
             Optional closed-beta sync. Guests keep playing locally.
           </Text>
           <Field label="Email">
-            <Input value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+            <Input
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+            />
           </Field>
-          <Field label="Password">
-            <Input value={password} onChangeText={setPassword} secureTextEntry />
+          <Field label="Password" hint="At least 12 characters.">
+            <Input
+              minLength={12}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="At least 12 characters"
+              autoComplete="current-password"
+              secureTextEntry
+            />
           </Field>
           <Field label="Authenticator code (admins only)">
             <Input value={totp} onChangeText={setTotp} keyboardType="number-pad" maxLength={8} />
           </Field>
-          <Button onPress={() => void submitLogin()} loading={busy}>Sign in</Button>
+          <Button onPress={() => void submitLogin()} loading={busy}>
+            {busy ? 'Signing in…' : 'Sign in'}
+          </Button>
           {authError ? <Text variant="caption" tone="danger">{authError}</Text> : null}
           <Button variant="quiet" small onPress={() => setShowExtras((value) => !value)}>
             {showExtras ? 'Hide invite and password reset' : 'Invite and password reset'}
@@ -564,15 +591,17 @@ function SyncSection() {
       )}
 
       <View style={[styles.server, { borderColor: colors.hairline }]}>
-        <Text variant="caption" tone="muted">Server</Text>
-        <Text variant="caption" tone="soft">{effective}</Text>
-        <Input
-          value={serverInput}
-          onChangeText={setServerInput}
-          placeholder="https://sync.example.com"
-          autoCapitalize="none"
-          keyboardType="url"
-        />
+        <Text variant="caption" tone="soft">Current server: {effective}</Text>
+        <Field label="Server URL" hint="Changing the server signs you out.">
+          <Input
+            value={serverInput}
+            onChangeText={setServerInput}
+            placeholder="https://sync.example.com"
+            autoCapitalize="none"
+            autoComplete="off"
+            keyboardType="url"
+          />
+        </Field>
         {serverError ? <Text variant="caption" tone="danger">{serverError}</Text> : null}
         {serverNotice ? <Text variant="caption" tone="accent">{serverNotice}</Text> : null}
         <View style={styles.serverActions}>
@@ -584,7 +613,7 @@ function SyncSection() {
           </Button>
         </View>
         <Text variant="caption" tone="soft">
-          Changing the server signs you out. Android blocks plain HTTP outside localhost.
+          Android blocks plain HTTP outside localhost.
         </Text>
       </View>
     </Panel>

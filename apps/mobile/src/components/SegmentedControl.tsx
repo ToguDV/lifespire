@@ -6,6 +6,7 @@ import { Text } from './Text'
 export interface SegmentedOption<T extends string> {
   value: T
   label: string
+  detail?: string
   accessibilityLabel?: string
 }
 
@@ -47,9 +48,16 @@ export function SegmentedControl<T extends string>({
                 : { opacity: pressed ? 0.7 : 1 },
             ]}
           >
-            <Text variant="caption" tone={selected ? 'default' : 'soft'} style={styles.optionLabel}>
-              {option.label}
-            </Text>
+            <View style={styles.optionBody}>
+              <Text variant="caption" tone={selected ? 'default' : 'soft'} style={styles.optionLabel}>
+                {option.label}
+              </Text>
+              {option.detail ? (
+                <Text tone={selected ? 'deep' : 'soft'} style={styles.optionDetail}>
+                  {option.detail}
+                </Text>
+              ) : null}
+            </View>
           </Pressable>
         )
       })}
@@ -80,11 +88,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  optionBody: { alignItems: 'center', gap: 1 },
   optionLabel: {
     fontFamily: fonts.uiBold,
     fontSize: 10.9,
     lineHeight: 14,
     letterSpacing: 0.44,
     textTransform: 'uppercase',
+  },
+  optionDetail: {
+    fontFamily: fonts.uiBold,
+    fontSize: 9.3,
+    lineHeight: 11,
+    letterSpacing: 0.45,
+    fontVariant: ['tabular-nums'],
   },
 })

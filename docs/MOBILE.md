@@ -176,6 +176,27 @@ the rest of the app remains fully usable.
   Relics grid is two columns; `Toast`/`RewardToast` invert the palette (ink
   background, canvas text) and the plain toast adds a 44 dp Dismiss;
   `IconPicker` tiles are 54 dp with a visible label and a check badge.
+- Profile is titled **The Reliquary** (`Profile · The Reliquary` kicker) and
+  never uses the player name as the title; the header chip shows owned relics
+  against `collection.length`. The profile strip is one panel with the 62 dp
+  level badge, name, `Wayfarer of the quiet path`, the experience bar and the
+  Gold / Relics / Days kept totals. The collection lives outside that panel
+  under `Found so far`: the shared `SegmentedControl` filters carry their
+  found counts, a polite live region announces `Showing X relics · Y found`
+  and the two-column `LootCard` grid uses the catalogue length for every
+  total. Duplicate history uses a quiet gold chip and separates the “no run”
+  and “no conversions yet” copies.
+- Settings orders Sync, Appearance, Feedback, Data, Notifications, Local data
+  and About so sync and the save are not buried; notifications stay after
+  Data because they are Android-only. Theme options are Day, Night and
+  System. Sync keeps the 12-character password guidance, field hints and
+  success/error tones, and reset is a single `Local data` dialog with the
+  typed confirmation.
+- Recovery starts with the brand row and theme switch, a `Local save`
+  `ScreenHead`, and one neutral panel holding the warning note,
+  import/export/reset actions and the reset note. The second “Start over”
+  panel is retired; export still uses the Android share sheet as “Export
+  original save”.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
   recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.
