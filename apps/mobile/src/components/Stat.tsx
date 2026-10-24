@@ -11,13 +11,17 @@ export function Stat({
   label,
   value,
   tone,
+  progress,
 }: {
   label: string
   value: ReactNode
   tone?: 'accent' | 'gold' | 'xp' | 'muted'
+  progress?: number
 }) {
   const { colors } = useTheme()
   const color = tone === 'muted' ? colors.inkSoft : colors.inkStrong
+  const ratio =
+    typeof progress === 'number' ? Math.max(0, Math.min(1, progress)) : null
   return (
     <View style={styles.stat}>
       {typeof value === 'string' || typeof value === 'number' ? (
@@ -30,6 +34,16 @@ export function Stat({
       <Text style={[styles.label, { color: colors.inkSoft }]} numberOfLines={2}>
         {label.toUpperCase()}
       </Text>
+      {ratio === null ? null : (
+        <View style={[styles.progressTrack, { backgroundColor: colors.surfaceSunken }]}>
+          <View
+            style={[
+              styles.progressFill,
+              { backgroundColor: colors.accent, width: `${ratio * 100}%` },
+            ]}
+          />
+        </View>
+      )}
     </View>
   )
 }
@@ -116,6 +130,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.75,
     textTransform: 'uppercase',
   },
+  progressTrack: {
+    width: '100%',
+    height: 3,
+    marginTop: 7,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+  },
+  progressFill: { height: '100%', borderRadius: radius.full },
   strip: { flexDirection: 'row', alignItems: 'flex-start' },
   cell: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
   resource: { flexDirection: 'row', alignItems: 'center', gap: 6 },

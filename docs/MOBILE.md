@@ -176,6 +176,15 @@ the rest of the app remains fully usable.
   Relics grid is two columns; `Toast`/`RewardToast` invert the palette (ink
   background, canvas text) and the plain toast adds a 44 dp Dismiss;
   `IconPicker` tiles are 54 dp with a visible label and a check badge.
+- Day and run summaries are one framed card with 24 dp sections and hairline
+  dividers, not a stack of panels: an 86 dp seal, the narrative header, one
+  path list with 35 dp medallions, the three XP / Gold / Relics totals and the
+  dashed level-up strip. The weekly close adds `StatStrip` bars (0..1
+  `progress`), the per-goal bonus block plus the all-goals block, two-column
+  `LootCard`s and the Reliquary link; the profile line reads `xpIntoLevel` /
+  `xpToNextLevel`, never total XP as “XP”. The open run reuses the same card
+  with its record strip and `Open the map`, and the new-run dialog keeps the
+  retirement warning and surfaces a local error when `startNewRun` fails.
 - Profile is titled **The Reliquary** (`Profile · The Reliquary` kicker) and
   never uses the player name as the title; the header chip shows owned relics
   against `collection.length`. The profile strip is one panel with the 62 dp
