@@ -8,8 +8,10 @@ LifeSpire turns a person's goals and routines into a daily node map inspired by
 with weekly objectives — the more you complete, the more gold, XP, and loot you
 earn.
 
-It's a local-first web app: a single profile, no accounts, no backend. Installable
-as a PWA and fully usable offline after the first load.
+It's a local-first web app: a single profile, playable as a guest with no
+server. Installable as a PWA and fully usable offline after the first load.
+An optional closed-beta sync API (NestJS + Postgres) links a user's devices;
+see `docs/BACKEND.md`.
 
 The node map is the heart of the app: each day you pick a path through 3–15 layers
 plus a boss, with visible trade-offs between progress, effort, and reward. The
@@ -92,9 +94,10 @@ immediately but give no progress, elites pay double in exchange for more effort.
 
 **Out of scope**
 
-Accounts, backend, sync, notifications, combat, cards, deckbuilding, shop,
+Public accounts, notifications, combat, cards, deckbuilding, shop,
 relics with gameplay effects, calendar/health integrations, automatic task
-verification, social features, native apps.
+verification, social features, native apps. (Sync exists as a closed-beta API
+with admin invites — see `docs/BACKEND.md`.)
 
 > Relics are a **collection** in the current scope (12 items, rarities, duplicates
 > convert to gold). Gameplay-effect relics are deliberately deferred — see
@@ -105,12 +108,16 @@ verification, social features, native apps.
 ## Project layout
 
 ```
-src/
+apps/web/src/
   domain/      pure, testable logic (map, rewards, lifecycle, run close, schema)
   content/     loot catalog + demo factory
   state/       Zustand store + persist + injectable clock
   ui/          components & screens (no router — view state)
   styles/      tokens + app styles
+apps/api/      NestJS sync API (closed-beta; see docs/BACKEND.md)
+packages/core/ pure domain shared with the API (extracting; see docs/adr/0003-monorepo.md)
+packages/api-client/ typed fetch client for the sync API
+infra/         prod compose (Caddy + API + Postgres), backup script
 ```
 
 Maps are rendered with custom SVG. No graph library, no UI kit.
@@ -121,6 +128,7 @@ Maps are rendered with custom SVG. No graph library, no UI kit.
 
 - Spec & rules: [`SPEC.md`](./SPEC.md)
 - Architecture & contracts: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
+- Sync backend: [`docs/BACKEND.md`](./docs/BACKEND.md) + [`docs/adr/`](./docs/adr/)
 - Design system: [`design/DESIGN.md`](./design/DESIGN.md) — the spec the app implements
 - UI notes: [`docs/UI.md`](./docs/UI.md)
 - PWA / offline: [`docs/PWA.md`](./docs/PWA.md)

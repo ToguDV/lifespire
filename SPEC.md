@@ -35,7 +35,10 @@ Concrete criteria:
 ### Inside scope
 
 - Responsive web app, installable as a PWA and functional offline after the first load.
-- A single local profile, with no accounts or backend.
+- A single local profile. Optional closed-beta sync: multi-user NestJS API
+  with closed registration (admin invites) and snapshot sync between a user's
+  devices; the app stays local-first and playable as a guest without a server.
+  See `docs/BACKEND.md`.
 - Onboarding with two options: demo data or create your own goals/routines.
 - 1–10 goals, each with its routines/tasks and a weekly objective.
 - A 7-day run with one map per day.
@@ -51,7 +54,8 @@ Concrete criteria:
 
 ### Outside scope
 
-- Accounts, synchronization, backend, push notifications.
+- Push notifications (accounts/sync exist as a closed-beta API; public
+  signup, password recovery by email, and native push are still out).
 - Combat, cards, deckbuilding, relics with effects, shop, or economy.
 - Calendar, health, or other app integrations.
 - Automatic task verification, timers, or app blocking.
@@ -253,4 +257,8 @@ Open decisions with a default proposal:
 
 ## 13. Future beyond the MVP
 
-Accounts and synchronization, notifications, shop and gold sinks, relics/cards with effects, social features and rankings, calendar or health integrations, missed-day recovery mode, adaptive content, and native wrappers with Tauri/Capacitor. None of this is part of the current scope.
+Notifications, shop and gold sinks, relics/cards with effects, social features
+and rankings, calendar or health integrations, missed-day recovery mode,
+adaptive content, and native wrappers with Tauri/Capacitor. Sync between a
+user's devices exists as a closed-beta API (`docs/BACKEND.md`); public signup,
+email delivery and realtime are not part of the current scope.

@@ -9,12 +9,12 @@ system.
 | Concern | Where it lives |
 | --- | --- |
 | Design system (colours, type, spacing, radii, components) | `design/DESIGN.md` |
-| Canonical tokens | `src/styles/tokens.css` (font URLs point to `/fonts/`) |
-| Shell and component styles | `src/styles/app.css` |
-| Dialogs, toast, empty states, dev panel, recovery, settings | `src/styles/ui.css` |
-| Onboarding and goal/routine editors | `src/styles/m3.css` |
+| Canonical tokens | `apps/web/src/styles/tokens.css` (font URLs point to `/fonts/`) |
+| Shell and component styles | `apps/web/src/styles/app.css` |
+| Dialogs, toast, empty states, dev panel, recovery, settings | `apps/web/src/styles/ui.css` |
+| Onboarding and goal/routine editors | `apps/web/src/styles/m3.css` |
 | Alegreya + Alegreya Sans WOFF2 | `public/fonts/*.woff2` |
-| Icon adapter (`IconName` → Lucide) | `src/ui/components/Icon.tsx`, `iconMap.ts` |
+| Icon adapter (`IconName` → Lucide) | `apps/web/src/ui/components/Icon.tsx`, `iconMap.ts` |
 
 The static HTML proposal that used to live in `design/` has been retired; the
 app and `design/DESIGN.md` are the only references now. No UI kit or router is
@@ -22,9 +22,9 @@ used; interface icons come from `lucide-react` through the semantic adapter.
 
 ## Shell and navigation
 
-`src/ui/App.tsx` renders the desktop sidebar, mobile topbar and tabbar, skip
+`apps/web/src/ui/App.tsx` renders the desktop sidebar, mobile topbar and tabbar, skip
 link, `<main id="main-content">`, theme controls and the current screen. The
-view is a discriminated union in `src/domain/types.ts`; `view` and `history`
+view is a discriminated union in `apps/web/src/domain/types.ts`; `view` and `history`
 are transient store state and are never persisted.
 
 Navigation targets: Map, Camp (home), Goals, Reliquary and Settings. Node detail,
@@ -70,7 +70,7 @@ rules in `tokens.css` apply. Screen changes move focus to `<main>`.
 
 ## Components
 
-`src/ui/components/`:
+`apps/web/src/ui/components/`:
 
 - `Button` — primary / secondary / quiet / danger, optional small and full.
   `quiet` maps to the prototype's `btn--ghost`.

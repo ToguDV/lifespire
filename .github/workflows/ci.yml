@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       critical: ${{ steps.filter.outputs.critical }}
+      api: ${{ steps.filter.outputs.api }}
     steps:
       - uses: actions/checkout@v7
 
@@ -25,20 +26,30 @@ jobs:
         with:
           filters: |
             critical:
-              - 'src/domain/**'
-              - 'src/state/**'
-              - 'src/content/**'
-              - 'src/App.tsx'
-              - 'src/main.tsx'
-              - 'src/ui/**'
-              - 'src/styles/**'
-              - 'e2e/**'
-              - 'playwright.config.ts'
+              - 'apps/web/src/domain/**'
+              - 'apps/web/src/state/**'
+              - 'apps/web/src/content/**'
+              - 'apps/web/src/App.tsx'
+              - 'apps/web/src/main.tsx'
+              - 'apps/web/src/ui/**'
+              - 'apps/web/src/styles/**'
+              - 'apps/web/e2e/**'
+              - 'apps/web/playwright.config.ts'
+              - 'apps/web/package.json'
+              - 'apps/api/**'
+              - 'packages/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
               - 'tsconfig*.json'
-              - 'vite.config.ts'
-              - 'index.html'
+              - 'apps/web/vite.config.ts'
+              - 'apps/web/index.html'
+              - '.github/workflows/ci.yml'
+            api:
+              - 'apps/api/**'
+              - 'packages/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
               - '.github/workflows/ci.yml'
 
   quality:
@@ -55,6 +66,9 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      - name: Approve native builds
+        run: pnpm approve-builds --all
 
       - name: Lint
         run: pnpm lint
@@ -77,6 +91,64 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.critical == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: .
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+  api-e2e:
+    needs: changes
+    # Manual runs always execute; otherwise only when the API or shared packages changed.
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: lifespire
+          POSTGRES_PASSWORD: lifespire
+          POSTGRES_DB: lifespire_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://lifespire:lifespire@localhost:5433/lifespire_test
+      JWT_SECRET: ci-secret-0123456789abcdef-ci-secret
+      TOTP_ENCRYPTION_KEY: ci-totp-key-0123456789abcdef-ci
+      PUBLIC_WEB_URL: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173
     steps:
       - uses: actions/checkout@v7
 
@@ -90,16 +162,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Approve native builds
+        run: pnpm approve-builds --all
 
-      - name: Run E2E tests
-        run: pnpm test:e2e
+      - name: Migrate test database
+        run: pnpm --filter @lifespire/api prisma:deploy
 
-      - name: Upload report
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
+      - name: Run API flow tests
+        run: pnpm --filter @lifespire/api test:e2e
