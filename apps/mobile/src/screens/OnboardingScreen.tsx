@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
+import Svg, { Circle, G, Path } from 'react-native-svg'
 import {
   MAX_GOALS,
   MIN_ACTIVE_TASKS,
@@ -12,7 +13,7 @@ import { createEmptyDraft, withSuggestedObjectives } from '@lifespire/core'
 import { EFFORT_LABEL, GOAL_ICON_LABEL } from '@lifespire/app-core/ui/format'
 import { getNow } from '@lifespire/app-core/state/clock'
 import { useTheme } from '../theme/ThemeProvider'
-import { radius, space } from '../theme/tokens'
+import { fonts, radius, space } from '../theme/tokens'
 import { Button } from '../components/Button'
 import { EffortDots } from '../components/EffortDots'
 import { Field, Input } from '../components/Field'
@@ -23,6 +24,7 @@ import { Panel } from '../components/Panel'
 import { Screen } from '../components/Screen'
 import { TaskFormDialog } from '../components/TaskFormDialog'
 import { Text } from '../components/Text'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useAppStore } from '../state/store'
 
 const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
@@ -32,7 +34,6 @@ export function OnboardingScreen() {
   const document = useAppStore((state) => state.document)
   const updateDraft = useAppStore((state) => state.updateOnboardingDraft)
   const beginJourney = useAppStore((state) => state.beginJourney)
-  const setTheme = useAppStore((state) => state.setTheme)
   const draft: OnboardingDraft = document.onboardingDraft ?? createEmptyDraft()
   const step = draft.mode === 'custom' ? draft.step : 0
   const [goalDialog, setGoalDialog] = useState<Goal | null | undefined>(undefined)
@@ -167,6 +168,10 @@ export function OnboardingScreen() {
     if (!result) setFormError('This path cannot begin yet.')
   }
 
+  const applySuggestions = () => {
+    patch({ goals: withSuggestedObjectives(draft.goals, draft.tasks) })
+  }
+
   if (step === 0) {
     return (
       <Screen bottomInset={false}>
@@ -175,24 +180,35 @@ export function OnboardingScreen() {
             <Icon name="spire" size={26} color={colors.ink} />
             <Text variant="headingMd">LifeSpire</Text>
           </View>
-          <ThemeToggleMini onToggle={() => setTheme(document.settings.theme === 'dark' ? 'light' : 'dark')} />
+          <ThemeToggle />
         </View>
 
         <View style={styles.hero}>
-          <Text variant="micro" tone="accent">
-            A SEVEN-DAY RUN
+          <View style={styles.kicker}>
+            <View style={[styles.kickerMark, { backgroundColor: colors.accent }]} />
+            <Text variant="micro" tone="muted">
+              A SEVEN-DAY RUN
+            </Text>
+          </View>
+          <Text variant="displayLg">
+            A day is a{' '}
+            <Text style={[styles.pathWord, { color: colors.accentDeep }]}>path</Text>.
           </Text>
-          <Text variant="displayLg">A day is a path.</Text>
           <Text variant="bodyLg" tone="muted">
             Turn the routines that matter into a seven-day climb. Choose a route, keep a small
             promise, gather what you find.
           </Text>
         </View>
 
+        <WelcomeArt />
+
         <View style={styles.points}>
           <WelcomePoint icon="map" text="Each day draws its own path of layers and a boss." />
           <WelcomePoint icon="star" text="Completed routines grant XP, gold and weekly progress." />
-          <WelcomePoint icon="crown" text="Seven days make a run; the weekly bonus lands at its close." />
+          <WelcomePoint
+            icon="crown"
+            text="Seven days make a run; the weekly bonus lands at its close."
+          />
         </View>
 
         <Panel>
@@ -208,9 +224,7 @@ export function OnboardingScreen() {
             <Button onPress={startDemo} full>
               Begin with demo data
             </Button>
-            <Button variant="secondary" onPress={startCustom} full>
-              Create my own path
-            </Button>
+            <CreatePathButton onPress={startCustom} />
           </View>
           <Text variant="caption" tone="soft" style={styles.note}>
             The demo creates two goals and five routines. Your own path asks for one to ten goals
@@ -218,9 +232,12 @@ export function OnboardingScreen() {
           </Text>
         </Panel>
 
-        <Text variant="caption" tone="soft" style={[styles.note, { marginTop: 0 }]}>
-          Your data stays on this device. Sync is optional.
-        </Text>
+        <View style={styles.privacyRow}>
+          <Icon name="lock" size={14} color={colors.inkSoft} />
+          <Text variant="caption" tone="soft" style={styles.privacyText}>
+            Your data stays on this device. Sync is optional.
+          </Text>
+        </View>
       </Screen>
     )
   }
@@ -246,14 +263,24 @@ export function OnboardingScreen() {
               body: 'Review the week. Weekly targets can still be adjusted here; the run starts today.',
             }
 
+  const activeRoutineCount = draft.tasks.filter((task) => task.active).length
+  const totalTarget = draft.goals.reduce((total, goal) => total + goal.weeklyObjective, 0)
+
   return (
     <Screen bottomInset={false}>
       <View style={styles.wizardHead}>
-        <IconButton icon="arrow-left" label="Back" onPress={goBack} size={38} />
-        <Text variant="micro" tone="accent">
+        <View style={styles.brand}>
+          <Icon name="spire" size={24} color={colors.ink} />
+          <Text variant="headingMd">LifeSpire</Text>
+        </View>
+        <ThemeToggle />
+      </View>
+
+      <View style={styles.kicker}>
+        <View style={[styles.kickerMark, { backgroundColor: colors.accent }]} />
+        <Text variant="micro" tone="muted">
           CREATE YOUR PATH · STEP {step} OF 4
         </Text>
-        <ThemeToggleMini onToggle={() => setTheme(document.settings.theme === 'dark' ? 'light' : 'dark')} />
       </View>
       <Text variant="displayMd">{copy.title}</Text>
       <Text variant="bodyMd" tone="muted" style={styles.wizardCopy}>
@@ -270,12 +297,12 @@ export function OnboardingScreen() {
               style={[
                 styles.step,
                 {
-                  backgroundColor: current ? colors.accentSoft : colors.surface,
-                  borderColor: current ? colors.accent : colors.hairline,
+                  backgroundColor: current ? colors.accentSoft : 'transparent',
+                  borderColor: current ? colors.accentDeep : colors.hairline,
                 },
               ]}
             >
-              <Text variant="micro" tone={current ? 'deep' : 'soft'}>
+              <Text variant="micro" tone={current ? 'deep' : 'muted'}>
                 {number}
               </Text>
               <Text variant="caption" tone={current ? 'deep' : 'muted'}>
@@ -305,7 +332,12 @@ export function OnboardingScreen() {
           {draft.goals.map((goal, index) => (
             <Panel key={goal.id}>
               <View style={styles.goalRow}>
-                <View style={[styles.crest, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}>
+                <View
+                  style={[
+                    styles.crest,
+                    { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline },
+                  ]}
+                >
                   <Icon name={goal.icon} size={18} color={colors.accentDeep} />
                 </View>
                 <View style={styles.goalBody}>
@@ -314,12 +346,15 @@ export function OnboardingScreen() {
                     {goal.category} · target {goal.weeklyObjective} · {GOAL_ICON_LABEL[goal.icon]}
                   </Text>
                 </View>
-                <IconButton icon="edit" label={`Edit ${goal.title}`} onPress={() => setGoalDialog(goal)} size={36} />
+                <IconButton
+                  icon="edit"
+                  label={`Edit ${goal.title}`}
+                  onPress={() => setGoalDialog(goal)}
+                />
                 <IconButton
                   icon="archive"
                   label={`Remove ${goal.title}`}
                   onPress={() => removeGoal(goal)}
-                  size={36}
                 />
               </View>
               <Text variant="caption" tone="soft">
@@ -358,12 +393,15 @@ export function OnboardingScreen() {
                     </Text>
                   </View>
                   <EffortDots effort={task.effort} showLabel={false} />
-                  <IconButton icon="edit" label={`Edit ${task.title}`} onPress={() => setTaskDialog(task)} size={36} />
+                  <IconButton
+                    icon="edit"
+                    label={`Edit ${task.title}`}
+                    onPress={() => setTaskDialog(task)}
+                  />
                   <IconButton
                     icon="archive"
                     label={`Remove ${task.title}`}
                     onPress={() => removeTask(task)}
-                    size={36}
                   />
                 </View>
               </Panel>
@@ -379,7 +417,7 @@ export function OnboardingScreen() {
             Add routine
           </Button>
           <Text variant="caption" tone="muted">
-            Active routines: {draft.tasks.filter((task) => task.active).length} · minimum {MIN_ACTIVE_TASKS}
+            Active routines: {activeRoutineCount} · minimum {MIN_ACTIVE_TASKS}
           </Text>
           {formError ? (
             <Text variant="caption" tone="danger" accessibilityRole="alert">
@@ -391,12 +429,30 @@ export function OnboardingScreen() {
 
       {step === 4 ? (
         <View style={styles.list}>
+          <Panel>
+            <Text variant="headingLg">{draft.name.trim() || 'Wayfarer'}</Text>
+            <Text variant="caption" tone="muted" style={styles.reviewCounts}>
+              {draft.goals.length} {draft.goals.length === 1 ? 'goal' : 'goals'} ·{' '}
+              {activeRoutineCount} active {activeRoutineCount === 1 ? 'routine' : 'routines'} ·{' '}
+              {totalTarget} weekly {totalTarget === 1 ? 'target' : 'targets'}
+            </Text>
+            <Text variant="bodySm" tone="muted" style={styles.reviewNote}>
+              The run starts today. Each day draws its own map; edits later only shape maps that
+              have not been drawn yet.
+            </Text>
+          </Panel>
+
           {draft.goals.map((goal) => {
             const routines = draft.tasks.filter((task) => task.goalId === goal.id && task.active)
             return (
               <Panel key={goal.id}>
                 <View style={styles.goalRow}>
-                  <View style={[styles.crest, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}>
+                  <View
+                    style={[
+                      styles.crest,
+                      { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline },
+                    ]}
+                  >
                     <Icon name={goal.icon} size={18} color={colors.accentDeep} />
                   </View>
                   <View style={styles.goalBody}>
@@ -414,7 +470,10 @@ export function OnboardingScreen() {
                         patch({
                           goals: draft.goals.map((candidate) =>
                             candidate.id === goal.id
-                              ? { ...candidate, weeklyObjective: Math.max(1, candidate.weeklyObjective - 1) }
+                              ? {
+                                  ...candidate,
+                                  weeklyObjective: Math.max(1, candidate.weeklyObjective - 1),
+                                }
                               : candidate,
                           ),
                         })
@@ -431,7 +490,10 @@ export function OnboardingScreen() {
                         patch({
                           goals: draft.goals.map((candidate) =>
                             candidate.id === goal.id
-                              ? { ...candidate, weeklyObjective: Math.min(7, candidate.weeklyObjective + 1) }
+                              ? {
+                                  ...candidate,
+                                  weeklyObjective: Math.min(7, candidate.weeklyObjective + 1),
+                                }
                               : candidate,
                           ),
                         })
@@ -451,6 +513,15 @@ export function OnboardingScreen() {
               </Panel>
             )
           })}
+
+          <Button variant="secondary" onPress={applySuggestions} full>
+            Use routine-based suggestions
+          </Button>
+          <Text variant="caption" tone="soft">
+            Targets are suggested from the active routines under each goal. You can still adjust
+            them here.
+          </Text>
+
           {!validation.ok ? (
             <Panel>
               <Text variant="headingSm" tone="danger">
@@ -472,7 +543,7 @@ export function OnboardingScreen() {
       ) : null}
 
       <View style={styles.footer}>
-        <Button variant="quiet" onPress={goBack}>
+        <Button variant="quiet" icon="arrow-left" onPress={goBack}>
           Back
         </Button>
         {step === 4 ? (
@@ -506,7 +577,12 @@ function WelcomePoint({ icon, text }: { icon: 'map' | 'star' | 'crown'; text: st
   const { colors } = useTheme()
   return (
     <View style={styles.point}>
-      <View style={[styles.pointIcon, { borderColor: colors.hairline, backgroundColor: colors.surface }]}>
+      <View
+        style={[
+          styles.pointIcon,
+          { borderColor: colors.hairline, backgroundColor: colors.surface },
+        ]}
+      >
         <Icon name={icon} size={16} color={colors.accent} />
       </View>
       <Text variant="bodySm" tone="muted" style={styles.pointText}>
@@ -516,30 +592,208 @@ function WelcomePoint({ icon, text }: { icon: 'map' | 'star' | 'crown'; text: st
   )
 }
 
-function ThemeToggleMini({ onToggle }: { onToggle: () => void }) {
-  return <IconButton icon="moon" label="Toggle theme" onPress={onToggle} size={38} />
+function CreatePathButton({ onPress }: { onPress: () => void }) {
+  const { colors } = useTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      android_ripple={{ color: colors.accentWash }}
+      style={({ pressed }) => [
+        styles.createPath,
+        { borderColor: colors.hairlineStrong, opacity: pressed ? 0.75 : 1 },
+      ]}
+    >
+      <Text variant="button" style={{ color: colors.ink }}>
+        Create my own path
+      </Text>
+      <Icon name="chevron-right" size={17} color={colors.inkMuted} />
+    </Pressable>
+  )
+}
+
+function WelcomeArt() {
+  const { colors } = useTheme()
+  return (
+    <View style={[styles.art, { backgroundColor: colors.surface, borderColor: colors.hairline }]}>
+      <View
+        pointerEvents="none"
+        style={[styles.artInset, { borderColor: colors.hairline }]}
+      />
+      <Svg
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        width="100%"
+        height="100%"
+        viewBox="0 0 560 640"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <G fill="none" stroke={colors.hairline} strokeWidth={1}>
+          <Path d="M-40 580c110-38 170 26 280-2s180-58 360-20" />
+          <Path d="M-40 500c110-34 170 24 280-4s180-54 360-18" />
+          <Path d="M-40 420c110-30 170 20 280-6s180-50 360-16" />
+          <Path d="M-40 340c110-26 170 18 280-8s180-46 360-14" />
+          <Path d="M-40 260c110-22 170 14 280-10s180-42 360-12" />
+          <Path d="M-40 180c110-18 170 10 280-12s180-38 360-10" />
+          <Path d="M462 138c10-4 18-4 28 0" />
+          <Path d="M96 280c8-3 15-3 23 0" />
+          <Path d="M476 552c8-3 15-3 23 0" />
+        </G>
+
+        <Path
+          d="M138 606C172 568 202 530 240 494C272 466 306 446 330 412C344 392 348 370 356 348"
+          fill="none"
+          stroke={colors.hairlineStrong}
+          strokeWidth={1.4}
+          strokeDasharray="3 7"
+          strokeLinecap="round"
+        />
+        <Path
+          d="M356 348C366 326 374 316 382 306"
+          fill="none"
+          stroke={colors.accentDeep}
+          strokeWidth={1.6}
+          strokeLinecap="round"
+        />
+
+        <Circle cx={382} cy={215} r={112} fill={colors.accentWash} stroke={colors.hairline} />
+        <Circle cx={382} cy={215} r={84} fill="none" stroke={colors.hairline} />
+
+        <G
+          fill="none"
+          stroke={colors.accentDeep}
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <Path d="M352 306V216h60v90" />
+          <Path d="m338 216 44-102 44 102z" />
+          <Path d="M370 306v-26a12 12 0 0 1 24 0v26" />
+          <Path d="M378 268v-28a4 4 0 0 1 8 0v28" />
+          <Path d="m382 88 6 12-6 12-6-12z" />
+          <Path d="M344 306h76M350 312h64" />
+        </G>
+
+        <G fill="none" stroke={colors.hairline} strokeWidth={1.2} strokeLinecap="round">
+          <Path d="M64 482l11-22 11 22zM75 482v9" />
+          <Path d="M94 506l7-14 7 14zM101 506v6" />
+          <Path d="M488 460l12-24 12 24zM500 460v10" />
+          <Path d="M458 492l8-16 8 16zM466 492v7" />
+        </G>
+
+        <Path
+          d="M96 84a16 16 0 1 0 12 26 18 18 0 1 1-12-26"
+          fill="none"
+          stroke={colors.accentDeep}
+          strokeWidth={1.3}
+          strokeLinecap="round"
+        />
+
+        <G fill="none" stroke={colors.accentDeep} strokeWidth={1.3}>
+          <Circle cx={138} cy={606} r={15} />
+          <Circle cx={240} cy={494} r={16} />
+          <Circle cx={330} cy={412} r={17} />
+          <Circle cx={356} cy={348} r={19} strokeWidth={1.6} />
+        </G>
+        <G
+          fill="none"
+          stroke={colors.accentDeep}
+          strokeWidth={1.2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <Path d="M133 610l5-8 5 8zM138 610v3" />
+          <Path d="m235 489 3 5 6-6" />
+          <Path d="M325 407h10M325 411h10M325 415h7" />
+          <Path d="M351 343h10M351 347h10M351 351h7" />
+        </G>
+      </Svg>
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
   brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   hero: { gap: space.sm },
+  kicker: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  kickerMark: { width: 5, height: 5, borderRadius: 1, transform: [{ rotate: '45deg' }] },
+  pathWord: { fontFamily: fonts.displayItalic },
+  art: {
+    height: 300,
+    borderWidth: 1,
+    borderRadius: radius.xxl,
+    overflow: 'hidden',
+  },
+  artInset: {
+    position: 'absolute',
+    top: 7,
+    right: 7,
+    bottom: 7,
+    left: 7,
+    zIndex: 1,
+    borderWidth: 1,
+    borderRadius: radius.xxl - 7,
+    opacity: 0.45,
+  },
   points: { gap: space.sm },
   point: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  pointIcon: { width: 32, height: 32, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pointIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pointText: { flex: 1 },
   welcomeActions: { gap: space.sm, marginTop: space.md },
+  createPath: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.xs,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+  },
   note: { marginTop: space.sm },
+  privacyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 0 },
+  privacyText: { flex: 1 },
   wizardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   wizardCopy: { marginTop: space.xs },
   steps: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
-  step: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: space.sm, paddingVertical: 3 },
+  step: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: radius.full,
+    paddingHorizontal: space.sm,
+    paddingVertical: 3,
+  },
   list: { gap: space.sm },
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  crest: { width: 38, height: 38, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  crest: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   goalBody: { flex: 1, gap: 2 },
   taskBody: { flex: 1, gap: 2 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   routineList: { gap: 2, marginTop: space.xs },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.md },
+  reviewCounts: { marginTop: 4 },
+  reviewNote: { marginTop: space.xs },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: space.md,
+  },
 })

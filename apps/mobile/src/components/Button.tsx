@@ -19,6 +19,7 @@ export interface ButtonProps {
   small?: boolean
   full?: boolean
   accessibilityLabel?: string
+  accessibilityHint?: string
   style?: StyleProp<ViewStyle>
 }
 
@@ -32,6 +33,7 @@ export function Button({
   small = false,
   full = false,
   accessibilityLabel,
+  accessibilityHint,
   style,
 }: ButtonProps) {
   const { colors } = useTheme()
@@ -63,6 +65,7 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: disabled || loading }}
       disabled={disabled || loading}
       onPress={onPress}

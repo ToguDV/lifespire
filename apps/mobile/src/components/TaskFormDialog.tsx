@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Pressable, StyleSheet, Switch, View } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native'
 import type { Effort, Goal, Task, TaskInput } from '@lifespire/core'
 import { EFFORT_LABEL } from '@lifespire/app-core/ui/format'
 import { useTheme } from '../theme/ThemeProvider'
@@ -18,6 +18,7 @@ export function TaskFormDialog({
   defaultGoalId,
   onClose,
   onSubmit,
+  submitError,
 }: {
   visible: boolean
   task?: Task | null
@@ -25,24 +26,30 @@ export function TaskFormDialog({
   defaultGoalId?: string
   onClose: () => void
   onSubmit: (input: TaskInput) => void
+  submitError?: string | null
 }) {
   const { colors } = useTheme()
-  const activeGoals = goals.filter((goal) => goal.active)
+  const activeGoals = useMemo(() => goals.filter((goal) => goal.active), [goals])
   const firstGoalId = activeGoals[0]?.id ?? ''
   const [title, setTitle] = useState('')
   const [goalId, setGoalId] = useState('')
   const [effort, setEffort] = useState<Effort>('medium')
   const [active, setActive] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const noActiveGoals = activeGoals.length === 0
 
   useEffect(() => {
     if (!visible) return
+    const preferredGoalId = task?.goalId ?? defaultGoalId
+    const selectedGoalId = activeGoals.some((goal) => goal.id === preferredGoalId)
+      ? (preferredGoalId ?? '')
+      : firstGoalId
     setTitle(task?.title ?? '')
-    setGoalId(task?.goalId ?? defaultGoalId ?? firstGoalId)
+    setGoalId(selectedGoalId)
     setEffort(task?.effort ?? 'medium')
     setActive(task?.active ?? true)
     setError(null)
-  }, [visible, task, defaultGoalId, firstGoalId])
+  }, [visible, task, defaultGoalId, firstGoalId, activeGoals])
 
   const submit = () => {
     if (!title.trim()) {
@@ -66,31 +73,61 @@ export function TaskFormDialog({
   return (
     <Dialog
       visible={visible}
-      title={task ? 'Edit routine' : 'New routine'}
+      eyebrow="Routines"
+      title={task ? 'Edit routine' : 'Add a routine'}
+      description="Edits only shape maps drawn after this change."
       onClose={onClose}
       actions={
         <>
           <Button variant="quiet" onPress={onClose}>
             Cancel
           </Button>
-          <Button onPress={submit}>{task ? 'Save routine' : 'Add routine'}</Button>
+          <Button onPress={submit} disabled={noActiveGoals}>
+            {task ? 'Save routine' : 'Add routine'}
+          </Button>
         </>
       }
     >
       <View style={styles.form}>
-        <Field label="Routine" error={error}>
+        {submitError ? (
+          <View
+            accessibilityRole="alert"
+            style={[
+              styles.alert,
+              { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
+            ]}
+          >
+            <Text variant="caption" style={{ color: colors.inkStrong }}>
+              This routine was not saved
+            </Text>
+            <Text variant="bodySm" style={{ color: colors.inkStrong }}>
+              {submitError}
+            </Text>
+          </View>
+        ) : null}
+        {noActiveGoals ? (
+          <Text variant="bodySm" tone="muted">
+            Add an active goal first. Every routine needs an active goal.
+          </Text>
+        ) : null}
+        <Field label="Routine title" error={error}>
           <Input
             value={title}
             onChangeText={(value) => {
               setTitle(value)
               if (error) setError(null)
             }}
-            placeholder="Walk for 30 minutes"
+            placeholder="e.g. Walk the north trail"
             autoFocus
           />
         </Field>
-        <Field label="Goal">
-          <View style={styles.goals}>
+        <Field label="Belongs to">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.goals}
+          >
             {activeGoals.map((goal) => {
               const selected = goal.id === goalId
               return (
@@ -98,7 +135,10 @@ export function TaskFormDialog({
                   key={goal.id}
                   accessibilityRole="radio"
                   accessibilityState={{ selected }}
-                  onPress={() => setGoalId(goal.id)}
+                  onPress={() => {
+                    setGoalId(goal.id)
+                    if (error) setError(null)
+                  }}
                   style={[
                     styles.goal,
                     {
@@ -107,14 +147,18 @@ export function TaskFormDialog({
                     },
                   ]}
                 >
-                  <Icon name={goal.icon} size={15} color={selected ? colors.accentDeep : colors.inkMuted} />
+                  <Icon
+                    name={goal.icon}
+                    size={15}
+                    color={selected ? colors.accentDeep : colors.inkMuted}
+                  />
                   <Text variant="bodySm" numberOfLines={1}>
                     {goal.title}
                   </Text>
                 </Pressable>
               )
             })}
-          </View>
+          </ScrollView>
         </Field>
         <Field label="Effort" hint="Effort changes the reward, never the weekly progress.">
           <View style={styles.efforts}>
@@ -169,7 +213,13 @@ export function TaskFormDialog({
 
 const styles = StyleSheet.create({
   form: { gap: space.md },
-  goals: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  alert: {
+    gap: space.xxs,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: space.sm,
+  },
+  goals: { flexDirection: 'row', gap: space.xs, paddingRight: space.xs },
   goal: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,7 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
     paddingVertical: space.xs,
-    maxWidth: '100%',
+    maxWidth: 220,
   },
   efforts: { flexDirection: 'row', gap: space.xs },
   effort: {

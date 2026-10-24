@@ -128,6 +128,14 @@ the rest of the app remains fully usable.
   `accentDeep`, destructive actions and warnings use stone (`surfaceSunken`,
   `hairlineStrong`, `inkStrong`). `gold` remains a wheel-sector label, not a
   palette token; `danger` is not a token.
+- Onboarding keeps the web welcome copy and art: the copy comes first, followed
+  by the stroke-only `welcome-art` plate (spire, halo, dotted path, four nodes,
+  pines and crescent) and the lock privacy line. The wizard keeps the four
+  steps, the review summary and the routine-based target suggestions. Editing a
+  goal or routine inside the wizard opens a touch dialog instead of the web
+  inline fieldsets; the domain draft and validation stay shared. The screen
+  keeps a single Back in the footer, and the step chips are the compact
+  adaptation of the web step list.
 - The map mirrors the web state machine: the screen resolves the active day,
   prefers today's completed or missed day, and derives sealed/locked/hasMap/
   canOpen so the head chip, empty copy and Next step panel all speak the same

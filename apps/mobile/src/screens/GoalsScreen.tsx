@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import type { Goal, GoalInput, Task, TaskInput } from '@lifespire/core'
-import { MAX_GOALS, MIN_ACTIVE_TASKS } from '@lifespire/core'
+import { MAX_GOALS } from '@lifespire/core'
 import { EFFORT_LABEL } from '@lifespire/app-core/ui/format'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
+import { AimRow } from '../components/AimRow'
 import { Button } from '../components/Button'
 import { Dialog } from '../components/Dialog'
 import { EffortDots } from '../components/EffortDots'
@@ -13,11 +14,23 @@ import { GoalFormDialog } from '../components/GoalFormDialog'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Panel, PanelHead, ScreenHead } from '../components/Panel'
-import { Progress } from '../components/Progress'
 import { Screen } from '../components/Screen'
 import { TaskFormDialog } from '../components/TaskFormDialog'
 import { Text } from '../components/Text'
 import { useAppStore } from '../state/store'
+
+interface ArchiveState {
+  type: 'goal' | 'task'
+  id: string
+  title: string
+}
+
+interface WeekRow {
+  goalId: string
+  title: string
+  progress: number
+  target: number
+}
 
 export function GoalsScreen() {
   const { colors } = useTheme()
@@ -28,228 +41,509 @@ export function GoalsScreen() {
   const archiveTask = useAppStore((state) => state.archiveTask)
   const run = document.run
   const [goalDialog, setGoalDialog] = useState<Goal | null | undefined>(undefined)
+  const [goalError, setGoalError] = useState<string | null>(null)
   const [taskDialog, setTaskDialog] = useState<Task | null | undefined>(undefined)
   const [taskGoalId, setTaskGoalId] = useState<string | undefined>(undefined)
-  const [archiveTarget, setArchiveTarget] = useState<{ type: 'goal' | 'task'; id: string; title: string } | null>(null)
+  const [taskError, setTaskError] = useState<string | null>(null)
+  const [archiveTarget, setArchiveTarget] = useState<ArchiveState | null>(null)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   const activeGoals = document.goals.filter((goal) => goal.active)
+  const activeGoalIds = new Set(activeGoals.map((goal) => goal.id))
+  const activeTasks = document.tasks.filter(
+    (task) => task.active && activeGoalIds.has(task.goalId),
+  )
   const archivedGoals = document.goals.filter((goal) => !goal.active)
-  const activeTasks = document.tasks.filter((task) => task.active)
   const archivedTasks = document.tasks.filter((task) => !task.active)
+  const archivedCount = archivedGoals.length + archivedTasks.length
+
+  const weekRows: WeekRow[] = run
+    ? run.objectives.map((objective) => ({
+        goalId: objective.goalId,
+        title: objective.goalTitle,
+        progress: objective.progress,
+        target: objective.target,
+      }))
+    : activeGoals.map((goal) => ({
+        goalId: goal.id,
+        title: goal.title,
+        progress: 0,
+        target: goal.weeklyObjective,
+      }))
+
+  const totalTarget = weekRows.reduce((total, row) => total + row.target, 0)
+  const totalProgress = weekRows.reduce(
+    (total, row) => total + Math.min(row.progress, row.target),
+    0,
+  )
+
+  const goalsLabel = `${activeGoals.length} active ${activeGoals.length === 1 ? 'goal' : 'goals'}`
+  const subtitle =
+    activeGoals.length === 0
+      ? 'No active goals yet. Add one to shape the next run.'
+      : run?.status === 'active'
+        ? `${goalsLabel} shape maps from now on. This week's targets stay fixed.`
+        : `${goalsLabel} · ${activeTasks.length} active routines.`
+
+  const openGoalDialog = (goal: Goal | null) => {
+    setGoalError(null)
+    setGoalDialog(goal)
+  }
+
+  const closeGoalDialog = () => {
+    setGoalDialog(undefined)
+    setGoalError(null)
+  }
+
+  const openTaskDialog = (task: Task | null, goalId?: string) => {
+    setTaskError(null)
+    setTaskGoalId(goalId)
+    setTaskDialog(task)
+  }
+
+  const closeTaskDialog = () => {
+    setTaskDialog(undefined)
+    setTaskGoalId(undefined)
+    setTaskError(null)
+  }
 
   const submitGoal = (input: GoalInput) => {
-    if (saveGoal(input).ok) setGoalDialog(undefined)
+    const result = saveGoal(input)
+    if (result.ok) {
+      closeGoalDialog()
+      return
+    }
+    setGoalError(result.errors.join(' '))
   }
+
   const submitTask = (input: TaskInput) => {
-    if (saveTask(input).ok) setTaskDialog(undefined)
+    const result = saveTask(input)
+    if (result.ok) {
+      closeTaskDialog()
+      return
+    }
+    setTaskError(result.errors.join(' '))
   }
+
+  const requestArchive = (type: 'goal' | 'task', id: string, title: string) => {
+    setArchiveError(null)
+    setArchiveTarget({ type, id, title })
+  }
+
   const confirmArchive = () => {
     if (!archiveTarget) return
-    if (archiveTarget.type === 'goal') archiveGoal(archiveTarget.id)
-    else archiveTask(archiveTarget.id)
-    setArchiveTarget(null)
+    const result =
+      archiveTarget.type === 'goal'
+        ? archiveGoal(archiveTarget.id)
+        : archiveTask(archiveTarget.id)
+    if (result.ok) {
+      setArchiveTarget(null)
+      setArchiveError(null)
+      return
+    }
+    setArchiveError(result.errors.join(' '))
+  }
+
+  const restoreGoal = (goal: Goal) => {
+    saveGoal({ ...goal, active: true })
+  }
+
+  const restoreTask = (task: Task) => {
+    saveTask({ ...task, active: true })
   }
 
   return (
     <Screen>
-      <ScreenHead
-        kicker="The week's shape"
-        title="Goals and routines"
-        subtitle={
-          <Text variant="bodyMd" tone="muted">
-            {activeGoals.length} active {activeGoals.length === 1 ? 'goal' : 'goals'} ·{' '}
-            {activeTasks.length} routines. Changes only affect future maps.
-          </Text>
-        }
-        aside={
-          <Button small onPress={() => setGoalDialog(null)} disabled={activeGoals.length >= MAX_GOALS}>
-            New goal
-          </Button>
-        }
-      />
+      <ScreenHead kicker="The week's shape" title="Goals" subtitle={subtitle} />
+      <View style={styles.headerActions}>
+        <Button
+          small
+          variant="secondary"
+          icon="plus"
+          onPress={() => openTaskDialog(null, activeGoals[0]?.id)}
+          disabled={activeGoals.length === 0}
+          accessibilityHint={activeGoals.length === 0 ? 'Add an active goal first.' : undefined}
+        >
+          Add routine
+        </Button>
+        <Button small variant="secondary" icon="plus" onPress={() => openGoalDialog(null)}>
+          Add goal
+        </Button>
+      </View>
 
-      {run?.status === 'active' ? (
-        <Panel>
-          <PanelHead label="This run" aside={<Text variant="caption" tone="soft">Snapshot</Text>} />
-          <View style={styles.aims}>
-            {run.objectives.map((objective) => (
-              <View key={objective.goalId} style={styles.aim}>
-                <View style={styles.aimHead}>
-                  <Text variant="bodySm" numberOfLines={1} style={styles.aimTitle}>{objective.goalTitle}</Text>
-                  <Text variant="caption" tone="muted">{objective.progress}/{objective.target}</Text>
-                </View>
-                <Progress value={objective.progress} max={objective.target} />
-              </View>
-            ))}
-          </View>
-        </Panel>
-      ) : null}
-
-      <View style={styles.section}>
-        <Text variant="micro" tone="muted">ACTIVE GOALS</Text>
-        {activeGoals.length === 0 ? (
-          <Panel>
-            <EmptyState icon="banner" title="No active goals">
-              Add at least one goal before beginning a run.
-            </EmptyState>
-          </Panel>
-        ) : (
-          activeGoals.map((goal) => {
-            const routines = document.tasks.filter((task) => task.goalId === goal.id && task.active)
+      {activeGoals.length === 0 ? (
+        <EmptyState
+          icon="banner"
+          kicker="The goals"
+          title="No active goals yet."
+          action={
+            <Button icon="plus" onPress={() => openGoalDialog(null)}>
+              Add your first goal
+            </Button>
+          }
+        >
+          Add a goal and at least four routines before the next run. Maps already drawn keep
+          their original steps.
+        </EmptyState>
+      ) : (
+        <View style={styles.goalList}>
+          {activeGoals.map((goal) => {
+            const routines = activeTasks.filter((task) => task.goalId === goal.id)
             return (
               <Panel key={goal.id}>
                 <View style={styles.goalHead}>
-                  <View style={[styles.crest, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}>
+                  <View
+                    style={[
+                      styles.crest,
+                      { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline },
+                    ]}
+                  >
                     <Icon name={goal.icon} size={18} color={colors.accentDeep} />
                   </View>
                   <View style={styles.goalBody}>
                     <Text variant="headingMd">{goal.title}</Text>
                     <Text variant="caption" tone="muted">
-                      {goal.category} · weekly target {goal.weeklyObjective} · {routines.length}{' '}
-                      {routines.length === 1 ? 'routine' : 'routines'}
+                      {goal.category.trim() || 'General'} · weekly target {goal.weeklyObjective} ·{' '}
+                      {routines.length} {routines.length === 1 ? 'routine' : 'routines'}
                     </Text>
                   </View>
-                  <IconButton icon="edit" label={`Edit ${goal.title}`} onPress={() => setGoalDialog(goal)} size={36} />
+                  <IconButton
+                    icon="edit"
+                    label={`Edit goal ${goal.title}`}
+                    onPress={() => openGoalDialog(goal)}
+                  />
                   <IconButton
                     icon="archive"
-                    label={`Archive ${goal.title}`}
-                    onPress={() => setArchiveTarget({ type: 'goal', id: goal.id, title: goal.title })}
-                    size={36}
+                    label={`Archive goal ${goal.title}`}
+                    onPress={() => requestArchive('goal', goal.id, goal.title)}
                   />
                 </View>
                 <View style={styles.routines}>
-                  {routines.map((task) => (
-                    <Pressable
-                      key={task.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Edit ${task.title}`}
-                      onPress={() => setTaskDialog(task)}
-                      style={({ pressed }) => [
-                        styles.routine,
-                        { borderColor: colors.hairline, opacity: pressed ? 0.75 : 1 },
-                      ]}
-                    >
-                      <View style={styles.routineBody}>
-                        <Text variant="bodySm" numberOfLines={2}>{task.title}</Text>
-                        <Text variant="caption" tone="muted">{EFFORT_LABEL[task.effort]}</Text>
+                  {routines.length === 0 ? (
+                    <Text variant="caption" tone="soft">
+                      No active routines under this goal yet.
+                    </Text>
+                  ) : (
+                    routines.map((task) => (
+                      <View
+                        key={task.id}
+                        style={[styles.routine, { borderColor: colors.hairline }]}
+                      >
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Edit routine ${task.title}`}
+                          onPress={() => openTaskDialog(task, goal.id)}
+                          android_ripple={{ color: colors.accentWash }}
+                          style={({ pressed }) => [
+                            styles.routineMain,
+                            pressed ? { opacity: 0.75 } : null,
+                          ]}
+                        >
+                          <View style={styles.routineBody}>
+                            <Text variant="bodySm" numberOfLines={2}>
+                              {task.title}
+                            </Text>
+                            <Text variant="caption" tone="muted">
+                              {EFFORT_LABEL[task.effort]} effort
+                            </Text>
+                          </View>
+                          <EffortDots effort={task.effort} showLabel={false} />
+                        </Pressable>
+                        <IconButton
+                          icon="archive"
+                          label={`Archive routine ${task.title}`}
+                          onPress={() => requestArchive('task', task.id, task.title)}
+                        />
                       </View>
-                      <EffortDots effort={task.effort} showLabel={false} />
-                      <Icon name="chevron-right" size={15} color={colors.inkSoft} />
-                    </Pressable>
-                  ))}
+                    ))
+                  )}
                   <Button
                     variant="quiet"
                     small
                     icon="plus"
-                    onPress={() => {
-                      setTaskGoalId(goal.id)
-                      setTaskDialog(null)
-                    }}
+                    onPress={() => openTaskDialog(null, goal.id)}
                   >
-                    Add routine
-                  </Button>
-                </View>
-              </Panel>
-            )
-          })
-        )}
-        <Text variant="caption" tone="soft">
-          A run needs at least {MIN_ACTIVE_TASKS} active routines across its active goals.
-        </Text>
-      </View>
-
-      {archivedGoals.length > 0 || archivedTasks.length > 0 ? (
-        <View style={styles.section}>
-          <Text variant="micro" tone="muted">ARCHIVED</Text>
-          {archivedGoals.map((goal) => (
-            <Panel key={goal.id}>
-              <View style={styles.goalHead}>
-                <View style={[styles.crest, { backgroundColor: colors.surfaceSunken, borderColor: colors.hairline }]}>
-                  <Icon name={goal.icon} size={18} color={colors.inkSoft} />
-                </View>
-                <View style={styles.goalBody}>
-                  <Text variant="headingSm" tone="muted">{goal.title}</Text>
-                  <Text variant="caption" tone="soft">Archived goal · {goal.category}</Text>
-                </View>
-                <Button small variant="secondary" onPress={() => submitGoal({ ...goal, active: true })}>
-                  Restore
-                </Button>
-              </View>
-            </Panel>
-          ))}
-          {archivedTasks.map((task) => {
-            const goal = document.goals.find((candidate) => candidate.id === task.goalId)
-            return (
-              <Panel key={task.id}>
-                <View style={styles.goalHead}>
-                  <View style={styles.routineBody}>
-                    <Text variant="bodySm" tone="muted">{task.title}</Text>
-                    <Text variant="caption" tone="soft">{goal?.title ?? 'No goal'} · archived routine</Text>
-                  </View>
-                  <Button small variant="secondary" onPress={() => submitTask({ ...task, active: true })}>
-                    Restore
+                    Add routine to this goal
                   </Button>
                 </View>
               </Panel>
             )
           })}
         </View>
+      )}
+
+      <Panel>
+        <PanelHead
+          label="Week at a glance"
+          aside={
+            <Text variant="micro" tone="deep">
+              {totalProgress} / {totalTarget}
+            </Text>
+          }
+        />
+        {weekRows.length === 0 ? (
+          <Text variant="bodySm" tone="muted">
+            No goals to show.
+          </Text>
+        ) : (
+          <View style={styles.weekList}>
+            {weekRows.map((row) => {
+              const goal = document.goals.find((candidate) => candidate.id === row.goalId)
+              return (
+                <AimRow
+                  key={row.goalId}
+                  icon={goal?.icon ?? 'banner'}
+                  title={row.title}
+                  progress={row.progress}
+                  target={row.target}
+                />
+              )
+            })}
+          </View>
+        )}
+        {run ? (
+          <Text variant="caption" tone="soft" style={styles.weekNote}>
+            These targets were fixed when the run began. Editing goals shapes the next run.
+          </Text>
+        ) : null}
+      </Panel>
+
+      {archivedCount > 0 ? (
+        <Panel>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Archived · ${archivedCount}`}
+            accessibilityState={{ expanded: showArchived }}
+            accessibilityHint={
+              showArchived
+                ? 'Hide archived goals and routines.'
+                : 'Show archived goals and routines.'
+            }
+            onPress={() => setShowArchived((value) => !value)}
+          >
+            <PanelHead
+              label={`Archived · ${archivedCount}`}
+              aside={
+                <View style={styles.archivedToggle}>
+                  <Text variant="caption" tone="muted">
+                    {showArchived ? 'Hide' : 'Show'}
+                  </Text>
+                  <View style={showArchived ? styles.chevronOpen : undefined}>
+                    <Icon name="chevron-right" size={15} color={colors.inkMuted} />
+                  </View>
+                </View>
+              }
+            />
+          </Pressable>
+          {showArchived ? (
+            <View style={styles.archivedBody}>
+              <Text variant="bodySm" tone="muted">
+                Archived content never changes a map that was already drawn. Restoring it only
+                affects future maps.
+              </Text>
+
+              {archivedGoals.length > 0 ? (
+                <View style={styles.archivedGroup}>
+                  <Text variant="micro" tone="muted">
+                    GOALS
+                  </Text>
+                  {archivedGoals.map((goal) => {
+                    const blocked = activeGoals.length >= MAX_GOALS
+                    return (
+                      <View key={goal.id} style={styles.archivedRow}>
+                        <View style={styles.goalBody}>
+                          <Text variant="bodySm">{goal.title || 'Untitled goal'}</Text>
+                          <Text variant="caption" tone="soft">
+                            {goal.category.trim() || 'General'} · {goal.weeklyObjective} each week
+                          </Text>
+                        </View>
+                        <Button
+                          small
+                          variant="secondary"
+                          onPress={() => restoreGoal(goal)}
+                          disabled={blocked}
+                          accessibilityHint={
+                            blocked
+                              ? 'Archive an active goal before restoring another.'
+                              : undefined
+                          }
+                        >
+                          Restore goal
+                        </Button>
+                      </View>
+                    )
+                  })}
+                </View>
+              ) : null}
+
+              {archivedTasks.length > 0 ? (
+                <View style={styles.archivedGroup}>
+                  <Text variant="micro" tone="muted">
+                    ROUTINES
+                  </Text>
+                  {archivedTasks.map((task) => {
+                    const goal = document.goals.find(
+                      (candidate) => candidate.id === task.goalId,
+                    )
+                    const goalActive = Boolean(goal?.active)
+                    return (
+                      <View key={task.id} style={styles.archivedRow}>
+                        <View style={styles.goalBody}>
+                          <Text variant="bodySm">{task.title || 'Untitled routine'}</Text>
+                          <Text variant="caption" tone="soft">
+                            {EFFORT_LABEL[task.effort]} effort ·{' '}
+                            {goal?.title ?? 'Goal no longer present'}
+                          </Text>
+                        </View>
+                        <Button
+                          small
+                          variant="secondary"
+                          onPress={() => restoreTask(task)}
+                          disabled={!goalActive}
+                          accessibilityHint={
+                            goalActive
+                              ? undefined
+                              : 'Restore its goal before restoring this routine.'
+                          }
+                        >
+                          Restore routine
+                        </Button>
+                      </View>
+                    )
+                  })}
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </Panel>
       ) : null}
+
+      <View style={styles.quietNote}>
+        <Icon name="quill" size={15} color={colors.inkSoft} />
+        <Text variant="caption" tone="soft" style={styles.quietNoteText}>
+          Goals and routines can be edited at any time. A map already drawn keeps its original
+          steps and rewards.
+        </Text>
+      </View>
 
       <GoalFormDialog
         visible={goalDialog !== undefined}
         goal={goalDialog ?? null}
         goals={document.goals}
-        onClose={() => setGoalDialog(undefined)}
+        onClose={closeGoalDialog}
         onSubmit={submitGoal}
+        onArchive={(goal) => requestArchive('goal', goal.id, goal.title)}
+        submitError={goalError}
       />
       <TaskFormDialog
         visible={taskDialog !== undefined}
         task={taskDialog ?? null}
         goals={document.goals}
         defaultGoalId={taskGoalId}
-        onClose={() => {
-          setTaskDialog(undefined)
-          setTaskGoalId(undefined)
-        }}
+        onClose={closeTaskDialog}
         onSubmit={submitTask}
+        submitError={taskError}
       />
 
       <Dialog
         visible={archiveTarget !== null}
-        title={`Archive ${archiveTarget?.type === 'goal' ? 'goal' : 'routine'}?`}
-        onClose={() => setArchiveTarget(null)}
+        eyebrow={archiveTarget?.type === 'goal' ? 'Goals' : 'Routines'}
+        title={`Archive “${archiveTarget?.title ?? ''}”?`}
+        description={
+          archiveTarget?.type === 'goal'
+            ? 'This goal and its routines leave future maps. Maps already drawn keep their original steps, and this week’s targets do not change.'
+            : 'This routine leaves future maps. Maps already drawn keep their original step, and this week’s targets do not change.'
+        }
+        onClose={() => {
+          setArchiveTarget(null)
+          setArchiveError(null)
+        }}
         actions={
           <>
-            <Button variant="quiet" onPress={() => setArchiveTarget(null)}>Cancel</Button>
-            <Button variant="danger" onPress={confirmArchive}>Archive</Button>
+            <Button
+              variant="quiet"
+              onPress={() => {
+                setArchiveTarget(null)
+                setArchiveError(null)
+              }}
+            >
+              Keep {archiveTarget?.type === 'goal' ? 'goal' : 'routine'}
+            </Button>
+            <Button variant="danger" icon="archive" onPress={confirmArchive}>
+              Archive
+            </Button>
           </>
         }
       >
-        <Text variant="bodySm" tone="muted">
-          {archiveTarget?.type === 'goal'
-            ? `“${archiveTarget.title}” and its routines will stop appearing on new maps. The current map keeps its steps.`
-            : `“${archiveTarget?.title}” will stop appearing on new maps. The current map keeps its steps.`}
-        </Text>
-        <Text variant="caption" tone="soft" style={styles.archiveNote}>
-          The domain still guards the last active goal and the minimum number of routines.
-        </Text>
+        {archiveError ? (
+          <View
+            accessibilityRole="alert"
+            style={[
+              styles.alert,
+              { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
+            ]}
+          >
+            <Text variant="caption" style={{ color: colors.inkStrong }}>
+              This cannot be archived yet
+            </Text>
+            <Text variant="bodySm" style={{ color: colors.inkStrong }}>
+              {archiveError}
+            </Text>
+          </View>
+        ) : (
+          <Text variant="bodySm" tone="muted">
+            Archived content stays in your saved file and can be restored from the goals screen.
+          </Text>
+        )}
       </Dialog>
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
-  section: { gap: space.sm },
-  aims: { gap: space.sm },
-  aim: { gap: 4 },
-  aimHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.sm },
-  aimTitle: { flex: 1 },
+  headerActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.xs },
+  goalList: { gap: space.md },
   goalHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  crest: { width: 38, height: 38, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  goalBody: { flex: 1, gap: 2 },
+  crest: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  goalBody: { flex: 1, minWidth: 0, gap: 2 },
   routines: { gap: space.xs, marginTop: space.sm },
-  routine: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderWidth: 1, borderRadius: radius.md, padding: space.sm },
-  routineBody: { flex: 1, gap: 2 },
-  archiveNote: { marginTop: space.sm },
+  routine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingLeft: space.sm,
+  },
+  routineMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    paddingVertical: space.sm,
+  },
+  routineBody: { flex: 1, minWidth: 0, gap: 2 },
+  weekList: { gap: 2 },
+  weekNote: { marginTop: space.sm },
+  archivedToggle: { flexDirection: 'row', alignItems: 'center', gap: space.xxs },
+  chevronOpen: { transform: [{ rotate: '90deg' }] },
+  archivedBody: { gap: space.md },
+  archivedGroup: { gap: space.sm },
+  archivedRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  quietNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  quietNoteText: { flex: 1 },
+  alert: {
+    gap: space.xxs,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: space.sm,
+  },
 })
