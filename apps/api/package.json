@@ -20,8 +20,10 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "admin:create": "ts-node -T src/cli/admin-create.ts",
-    "admin:reset-link": "ts-node -T src/cli/admin-reset-link.ts",
+    "preadmin:create": "pnpm build",
+    "admin:create": "node dist/cli/admin-create.js",
+    "preadmin:reset-link": "pnpm build",
+    "admin:reset-link": "node dist/cli/admin-reset-link.js",
     "pretypecheck": "pnpm --filter @lifespire/core build",
     "prebuild": "pnpm --filter @lifespire/core build"
   },
