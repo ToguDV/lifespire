@@ -10,7 +10,7 @@ import { documentStorage, kv } from '../platform/storage'
 import { useAppStore } from '../state/store'
 import { engineApi } from './api'
 import { useAuthStore } from './auth'
-import { loadRefreshToken } from './tokenStore'
+import { loadRefreshToken, setRefreshToken } from './tokenStore'
 
 interface SyncUiState extends SyncEngineState {
   initialized: boolean
@@ -94,7 +94,9 @@ export async function initSync(): Promise<() => void> {
   } catch {
     // Guest mode when the backend is unreachable.
   }
-  const userId = useAuthStore.getState().user?.id ?? null
+  const restoredUser = useAuthStore.getState().user
+  if (!restoredUser) setRefreshToken(null)
+  const userId = restoredUser?.id ?? null
   await syncManager.switchToAccount(userId)
   syncEngineToUi()
   syncEngine.startPolling()
