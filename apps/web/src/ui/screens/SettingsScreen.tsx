@@ -13,7 +13,9 @@ import {
   PanelHead,
   SaveImport,
   ScreenHead,
+  SyncStatus,
 } from '../components'
+import { SyncPanel } from '../components/SyncPanel'
 import { useFeedbackPrefs } from '../lib/feedback'
 import { saveFileName } from '../lib/importSave'
 import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
@@ -67,11 +69,12 @@ export function SettingsScreen() {
         kicker="Profile · Local data"
         title="Settings"
         titleId="settings-title"
-        sub="Appearance and the one save file this browser keeps. No account, no cloud."
-        meta={<span className="chip chip--quiet">Local only</span>}
+        sub="Appearance, the local save and optional device sync."
+        meta={<SyncStatus />}
       />
 
       <div className="settings-body">
+        <SyncPanel />
         <Panel pad>
           <PanelHead label="Appearance" />
           <div className="field">

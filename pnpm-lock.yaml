@@ -132,6 +132,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@lifespire/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@lifespire/core':
         specifier: workspace:*
         version: link:../../packages/core

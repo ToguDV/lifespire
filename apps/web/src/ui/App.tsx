@@ -4,14 +4,17 @@ import { currentDay, xpIntoLevel, xpToNextLevel } from '../domain/selectors'
 import type { View } from '../domain/types'
 import { msUntilNextLocalMidnight } from '../state/clock'
 import { useAppStore } from '../state/store'
+import { initSync } from '../sync/setup'
 import {
   AnimatedNumber,
+  ConflictDialog,
   DayPips,
   Icon,
   IconButton,
   LevelResource,
   Resource,
   RewardToast,
+  SyncStatus,
   ThemeToggle,
   Toast,
 } from './components'
@@ -207,6 +210,19 @@ export default function App() {
       window.document.removeEventListener('visibilitychange', reconcileWhenVisible)
       window.removeEventListener('focus', reconcileWhenVisible)
       if (midnightTimer !== null) window.clearTimeout(midnightTimer)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined
+    let cancelled = false
+    void initSync().then((stop) => {
+      if (cancelled) stop()
+      else cleanup = stop
+    })
+    return () => {
+      cancelled = true
+      cleanup?.()
     }
   }, [])
 
@@ -458,6 +474,10 @@ export default function App() {
       {rewardToast ? (
         <RewardToast event={rewardToast} onDismiss={dismissRewardToast} />
       ) : null}
+      <ConflictDialog />
+      <span className="sync-status__anchor" aria-hidden="true">
+        <SyncStatus compact />
+      </span>
 
       {import.meta.env.DEV ? (
         <button
