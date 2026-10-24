@@ -12,9 +12,10 @@ packages/api-client/ dependency-free typed fetch client
 ```
 
 - The web move is atomic: relative imports are untouched.
-- `packages/core` starts as a copy of `src/domain` + `src/content`; the web
-  still owns its copy. Dedup via re-export shims is a follow-up (tracked in
-  `docs/BACKEND.md` §8).
+- `packages/core` started as a copy of `src/domain` + `src/content`. Dedup
+  via re-export shims landed in #46: the web keeps one-line shims, core is
+  the source of truth, and `scripts/check-core-parity.sh` asserts the shim
+  list (it no longer diffs contents).
 - The API validates documents structurally (zod-style gate) instead of
   importing core TS sources, until core ships a build output that Nest/Vitest
   can consume without workspace source-resolution hacks.

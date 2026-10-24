@@ -175,5 +175,6 @@ API e2e against it.
   calling `/v1` same-origin per the §6 contract).
 - `@lifespire/core` build output so the server can import full rule validation.
 - Web move is done (`apps/web`); `src/domain` ↔ `packages/core` dedup
-  (re-export shims) is still open.
+  (re-export shims) landed in #46 — web files are one-line shims, core is
+  the source of truth.
 - Journal/operation sync if conflicts hurt in real use (see ADR-0001).

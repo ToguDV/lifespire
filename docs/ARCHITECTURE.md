@@ -17,7 +17,9 @@ extracción), `packages/api-client` (cliente tipado). Detalle del backend en
 ```text
 apps/web/src/
   App.tsx          wrapper del shell (`export { default } from './ui/App'`)
-  domain/          lógica pura, sin React, sin store, sin Date.now/Math.random
+  domain/          shims de una línea sobre @lifespire/core (la lógica pura —
+                   sin React, store, Date.now/Math.random — vive en
+                   packages/core; ver adr/0003-monorepo.md)
     types.ts       tipos y enums del dominio (GameDocument schemaVersion 3)
     balance.ts     constantes de recompensas, niveles, pesos, límites y claves de storage
     content.ts     validación de metas/rutinas y constraints de contenido
@@ -33,7 +35,8 @@ apps/web/src/
     selectors.ts   valores derivados (nivel, día actual, estado de nodo)
     fixtures/
       golden-map.json  fixture determinista para los tests del generador
-  content/
+  content/         shims de una línea sobre @lifespire/core (catálogos y
+                   factories; la implementación vive en packages/core)
     loot.ts        catálogo de 12 objetos
     demo.ts        factory determinista de demo (2 goals, 5 routines)
     onboarding.ts  pasos del asistente y sugerencia de weekly targets
@@ -59,7 +62,8 @@ apps/web/src/
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
 apps/api/src/      auth, users, admin, devices, sync, health, audit, prisma, cli
-packages/core/src/ dominio puro (copia en extracción; ver adr/0003-monorepo.md)
+packages/core/src/ dominio puro, fuente única (los tests de dominio/contenido
+  viven aquí; apps/web solo conserva shims; ver adr/0003-monorepo.md)
 packages/api-client/src/ cliente fetch tipado
 ```
 
