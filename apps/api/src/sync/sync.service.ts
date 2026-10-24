@@ -2,11 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { parseDocument, SCHEMA_VERSION } from '@lifespire/core';
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
 import { AuditService } from '../audit/audit.service';
 import { ApiError } from '../common/api-error';
 import { sha256Hex } from '../common/crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { checksumDocument, IDEMPOTENCY_TTL_DAYS, SYNC_REVISIONS_KEPT } from './document-check';
+import type { SyncPushOutcome } from './sync-metrics';
+import { SyncMetrics } from './sync-metrics';
 import { formatETag, nextVersion, parseIfMatch, shouldIncrementVersion } from './sync-version';
 
 /** Floor of accepted schema versions (server policy). Tracks SCHEMA_VERSION: only current saves sync. */
@@ -50,6 +53,8 @@ export class SyncService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly metrics: SyncMetrics,
+    @InjectPinoLogger(SyncService.name) private readonly logger: PinoLogger,
   ) {}
 
   private maxBytes(): number {
@@ -84,6 +89,7 @@ export class SyncService {
     ip?: string;
   }): Promise<{ version: string; updatedAt: Date; created: boolean }> {
     const { userId, document } = input;
+    const startedAt = Date.now();
     if (!input.idempotencyKey || !isUuid(input.idempotencyKey)) {
       throw new ApiError({
         status: 400,
@@ -131,6 +137,7 @@ export class SyncService {
         });
       }
       const doc = await this.prisma.syncDocument.findUniqueOrThrow({ where: { userId } });
+      this.track('replayed', size, startedAt, doc.version.toString());
       return { version: doc.version.toString(), updatedAt: doc.updatedAt, created: false };
     }
 
@@ -147,7 +154,7 @@ export class SyncService {
     const current = await this.prisma.syncDocument.findUnique({ where: { userId } });
 
     if (createOnly) {
-      if (current) return this.conflict(current);
+      if (current) return this.conflict(current, size, startedAt);
       try {
         const created = await this.prisma.$transaction(async (tx) => {
           const doc = await tx.syncDocument.create({
@@ -170,12 +177,16 @@ export class SyncService {
           return doc;
         });
         await this.audit.log({ actorId: userId, action: 'sync.push', metadata: { version: '1' }, ip: input.ip });
+        this.track('created', size, startedAt, '1');
         return { version: '1', updatedAt: created.updatedAt, created: true };
       } catch (e) {
         const replayed = await this.replayMutation(userId, input.idempotencyKey as string, requestHash, 'recorded');
-        if (replayed) return replayed;
+        if (replayed) {
+          this.track('replayed', size, startedAt, replayed.version);
+          return replayed;
+        }
         const fresh = await this.prisma.syncDocument.findUnique({ where: { userId } });
-        if (fresh) return this.conflict(fresh);
+        if (fresh) return this.conflict(fresh, size, startedAt);
         throw e;
       }
     }
@@ -183,9 +194,10 @@ export class SyncService {
     if (!current) {
       throw new ApiError({ status: 404, code: 'SYNC_INVALID_DOCUMENT', title: 'No cloud save — use If-None-Match: *' });
     }
-    if (expected !== current.version) return this.conflict(current);
+    if (expected !== current.version) return this.conflict(current, size, startedAt);
     if (!shouldIncrementVersion(current.checksum, checksum)) {
       await this.recordMutation(userId, input.idempotencyKey as string, requestHash, current.version);
+      this.track('noop', size, startedAt, current.version.toString());
       return { version: current.version.toString(), updatedAt: current.updatedAt, created: false };
     }
 
@@ -226,15 +238,19 @@ export class SyncService {
       // A concurrent retry may have recorded the same idempotency key first.
       if (!isSyncMutationConflict(e)) throw e;
       const replayed = await this.replayMutation(userId, input.idempotencyKey as string, requestHash, 'current');
-      if (replayed) return replayed;
+      if (replayed) {
+        this.track('replayed', size, startedAt, replayed.version);
+        return replayed;
+      }
       throw e;
     }
     if (!res) {
       const fresh = await this.prisma.syncDocument.findUnique({ where: { userId } });
-      if (fresh) return this.conflict(fresh);
+      if (fresh) return this.conflict(fresh, size, startedAt);
       throw new ApiError({ status: 500, code: 'VALIDATION_FAILED', title: 'Sync failed' });
     }
     await this.audit.log({ actorId: userId, action: 'sync.push', metadata: { version: target.toString() }, ip: input.ip });
+    this.track('updated', size, startedAt, target.toString());
     return { version: res.version.toString(), updatedAt: res.updatedAt, created: false };
   }
 
@@ -257,7 +273,8 @@ export class SyncService {
     return rows.map((r) => ({ ...r, version: r.version.toString() }));
   }
 
-  private conflict(current: { version: bigint; updatedAt: Date }): never {
+  private conflict(current: { version: bigint; updatedAt: Date }, bytes: number, startedAt: number): never {
+    this.track('conflict', bytes, startedAt, current.version.toString());
     throw new ApiError({
       status: 412,
       code: 'SYNC_VERSION_CONFLICT',
@@ -265,6 +282,13 @@ export class SyncService {
       currentVersion: current.version.toString(),
       currentUpdatedAt: current.updatedAt.toISOString(),
     });
+  }
+
+  /** Records a write-path outcome in the metrics counters and the pino log (no user content). */
+  private track(outcome: SyncPushOutcome, bytes: number, startedAt: number, version: string): void {
+    const latencyMs = Date.now() - startedAt;
+    this.metrics.record(outcome, bytes, latencyMs);
+    this.logger.info({ outcome, bytes, latencyMs, version }, 'sync.push');
   }
 
   private async recordMutation(userId: string, key: string, requestHash: string, version: bigint): Promise<void> {

@@ -6,6 +6,7 @@ import { TotpAdminGuard } from '../common/totp-admin.guard';
 import { CurrentUser } from '../common/current-user.decorator';
 import { AdminService } from './admin.service';
 import { CreateUserDto, AuditQuery, ListUsersQuery, UpdateUserDto } from './dto';
+import { SyncMetrics } from '../sync/sync-metrics';
 
 function ipOf(req: Request): string | undefined {
   return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip;
@@ -16,7 +17,15 @@ function ipOf(req: Request): string | undefined {
 @Roles('ADMIN')
 @UseGuards(TotpAdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly syncMetrics: SyncMetrics,
+  ) {}
+
+  @Get('sync-metrics')
+  metrics() {
+    return { metrics: this.syncMetrics.snapshot() };
+  }
 
   @Get('users')
   list(@Query() q: ListUsersQuery) {

@@ -100,6 +100,12 @@ Rules:
   error in `detail`. Deploy the API before the web.
 - Errors are `application/problem+json` with a stable `code`
   (`SYNC_VERSION_CONFLICT`, `AUTH_TOTP_REQUIRED`, …) and `traceId`.
+- Observability: every write-path outcome (`created`, `updated`, `noop`,
+  `replayed`, `conflict`) is counted in `SyncMetrics`, logged as a structured
+  `sync.push` pino line (`outcome`, `bytes`, `latencyMs`, `version` — no user
+  content), and readable at `GET /v1/admin/sync-metrics` (admin only).
+  Validation rejections (400/413/422-shape/422-rule) are client errors, not
+  pushes, and stay out of the counters.
 - `Cache-Control: no-store` on sync; the PWA must never cache `/v1`/`/api`.
 
 ## 4. Time zones
@@ -150,15 +156,16 @@ docker compose -f infra/docker-compose.prod.yml exec api pnpm admin:reset-link -
 ```
 
 Health: `GET /health/live` (process), `GET /health/ready` (process + DB).
-Metrics/logs: pino JSON in prod; sync pushes/conflicts are audit-logged.
-Restore drill: monthly — restore a `backup.sh` dump to staging and run the
-API e2e against it.
+Metrics/logs: pino JSON in prod; sync pushes/conflicts are audit-logged and
+counted (`GET /v1/admin/sync-metrics`).
+Restore drill: monthly — `infra/restore.sh <dump.sql.gz>` into an empty
+staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
 
 ## 7. Testing
 
-- `pnpm --filter @lifespire/api test` — 28 unit tests (versions, crypto,
-  invites, TOTP adapter, env, structural gate). No DB needed.
-- `pnpm --filter @lifespire/api test:e2e` — 10 flows against Postgres:
+- `pnpm --filter @lifespire/api test` — 33 unit tests (versions, crypto,
+  invites, TOTP adapter, env, structural + rule gates, metrics counters). No DB needed.
+- `pnpm --filter @lifespire/api test:e2e` — 11 flows against Postgres:
   (a) admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/
   replay/key-reuse/revisions, device revoke, disable, last-admin guard;
   (b) password-reset link (single-use, revokes sessions); (c) TOTP
@@ -168,7 +175,7 @@ API e2e against it.
   (e) expired invite; (f) refresh reuse kills the family; (g) concurrent
   writers/refreshes (one wins); (h) admin self-delete (last blocked 400,
   second 204); (i) audit pagination 400 on bad page; (j) totp/enable
-  throttle 429.
+  throttle 429; (k) sync metrics count pushes and conflicts.
 - Dev DB: `docker compose -f infra/docker-compose.dev.yml up -d`, then
   `DATABASE_URL=… pnpm --filter @lifespire/api prisma:migrate`.
 
@@ -180,3 +187,43 @@ API e2e against it.
   (re-export shims) landed in #46 — web files are one-line shims, core is
   the source of truth.
 - Journal/operation sync if conflicts hurt in real use (see ADR-0001).
+
+## 9. Ops evidence (2026-10-24, closes #47)
+
+Local runs on a laptop (prod `node dist/main`, Docker Postgres 17). Not a
+staging baseline — rerun on VPS hardware before trusting the numbers.
+
+### Restore drill: pass
+
+1. Dumped the live dev DB in `backup.sh` format (9 users, 4 docs, 6
+   revisions, 42 audit rows).
+2. Created an empty `lifespire_restored` DB and ran
+   `TARGET_DB=lifespire_restored infra/restore.sh <dump>` — data matched
+   (9/4/6), no migrate involved.
+3. Ran `pnpm --filter @lifespire/api test:e2e` with
+   `DATABASE_URL=…/lifespire_restored`: 11/11 pass.
+4. `restore.sh` refuses a non-empty target unless `RESTORE_OVERWRITE=1`
+   (verified), and refuses prod compose files without
+   `ALLOW_PROD_RESTORE=1`.
+
+### Load test: RED on the p95 gate (follow-ups filed)
+
+k6 (`infra/load/sync-push.js`, 100 VUs, ~306 KB rule-valid docs, one push
+each; `infra/load/seed.mjs` pre-seeds users + mints tokens):
+
+| Phase | Result | Client p95 | Server-side avg |
+|---|---|---|---|
+| create burst (`If-None-Match: *`) | 100/100 × 201 | 1.29 s | ~290 ms |
+| update burst (`If-Match: "1"`, write path) | 100/100 × 200 | 1.54 s | ~776 ms |
+
+Gate was p95 push < 300 ms. Writes cost more (3-row transaction + revision
+pruning + audit row); under 100-way concurrency a single Node process plus
+JSON parse/validation per 300 KB doc dominates. Staging re-run + push-path
+profiling are follow-ups.
+
+### Throttle finding (follow-up filed)
+
+The global 120 req/min bucket is per source IP with no trust-proxy: behind
+Caddy every client shares one bucket, and even local k6 bursts must be
+paced ~60 s apart to stay under it. Per-user/per-route throttle keying needs
+a decision before any real load arrives.

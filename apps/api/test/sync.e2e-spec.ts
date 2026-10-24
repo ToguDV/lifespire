@@ -604,4 +604,47 @@ describe('sync API e2e (postgres)', () => {
     expect(statuses.slice(0, 10).every((s) => s === 400)).toBe(true);
     expect(statuses[10]).toBe(429);
   }, 60_000);
+
+  it('(k) sync metrics count pushes and conflicts', async () => {
+    const ip = nextIp();
+    const email = `user-k-${suffix}@example.com`;
+    const password = 'metrics-pw-1234';
+    const srv = app.getHttpServer();
+    const created = await adminCreateUser(email, 'USER');
+    const accepted = await request(srv)
+      .post('/v1/auth/accept-invite')
+      .set('X-Forwarded-For', ip)
+      .send({ token: inviteTokenOf(created.inviteLink), password, deviceName: 'phone-k' })
+      .expect(201);
+    const token: string = accepted.body.accessToken;
+    const auth = (r: request.Test) => r.set('Authorization', `Bearer ${token}`);
+
+    const before = await request(srv)
+      .get('/v1/admin/sync-metrics')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(before.body.metrics.pushes).toBeGreaterThanOrEqual(0);
+
+    await auth(request(srv).put('/v1/sync'))
+      .set('If-None-Match', '*')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: doc() })
+      .expect(201);
+
+    await auth(request(srv).put('/v1/sync'))
+      .set('If-Match', '"0"')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: doc() })
+      .expect(412);
+
+    const after = await request(srv)
+      .get('/v1/admin/sync-metrics')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(after.body.metrics.pushes - before.body.metrics.pushes).toBe(1);
+    expect(after.body.metrics.created - before.body.metrics.created).toBe(1);
+    expect(after.body.metrics.conflicts - before.body.metrics.conflicts).toBe(1);
+    expect(after.body.metrics.bytesIn).toBeGreaterThan(before.body.metrics.bytesIn);
+    expect(after.body.metrics.avgPushLatencyMs).toBeGreaterThanOrEqual(0);
+  }, 60_000);
 });
