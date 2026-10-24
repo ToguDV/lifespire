@@ -173,7 +173,21 @@ Manual Android checklist before a release:
    near-future time and confirm tap-to-map. Disable and confirm cancellation.
 6. Light/dark/system themes, 360 dp width, TalkBack and large font scale.
 
-## 9. Known follow-ups
+## 9. Internal builds (EAS)
+
+```bash
+cd apps/mobile
+npx eas-cli build --platform android --profile preview   # installable APK
+npx eas-cli build --platform android --profile production # AAB
+```
+
+The EAS project id and signing credentials are account-owned, so they are not
+committed. `eas.json` keeps the internal APK and production AAB profiles. The
+first build must be linked with `eas init` under the team account. Local
+verification can use `pnpm --filter @lifespire/mobile android:native` with an
+Android SDK and a connected device/emulator.
+
+## 10. Known follow-ups
 
 - Physical-device verification and screenshots (this repository's CI has no
   Android emulator).
@@ -184,7 +198,7 @@ Manual Android checklist before a release:
 - API e2e flow for the native refresh grant (unit + client coverage exists
   today; the flow needs Postgres).
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 - **Cleartext HTTP blocked**: Android rejects plain HTTP outside localhost.
   Use HTTPS or a debug build with cleartext enabled for a LAN API.

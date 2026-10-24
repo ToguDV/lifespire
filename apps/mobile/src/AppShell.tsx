@@ -195,6 +195,7 @@ export function AppShell() {
   }
 
   const activeTab = tabForView(guardedView)
+  const immersive = guardedView.name === 'reward'
   const dayLabel = labelDay
     ? `Day ${labelDay.index + 1} of 7`
     : !run
@@ -205,6 +206,7 @@ export function AppShell() {
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
+      {!immersive ? (
       <View style={[styles.topbar, { borderColor: colors.hairline, backgroundColor: colors.background }]}>
         <View style={styles.brandRow}>
           <Icon name="spire" size={20} color={colors.ink} />
@@ -232,6 +234,7 @@ export function AppShell() {
           />
         </View>
       </View>
+      ) : null}
 
       {storageWarning === 'write-failed' && !storageIssue ? (
         <View style={[styles.warning, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
@@ -247,6 +250,7 @@ export function AppShell() {
 
       <View style={styles.content}>{renderScreen()}</View>
 
+      {!immersive ? (
       <View
         style={[
           styles.tabbar,
@@ -275,6 +279,7 @@ export function AppShell() {
           )
         })}
       </View>
+      ) : null}
 
       <Toast message={toast} onDismiss={dismissToast} />
       {rewardToast ? <RewardToast event={rewardToast} onDismiss={dismissRewardToast} /> : null}
