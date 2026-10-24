@@ -122,4 +122,15 @@ describe('authStore', () => {
     expect(store.getState().status).toBe('guest')
     expect(store.getState().accessToken).toBeNull()
   })
+
+  it('resets the password through the api and surfaces errors', async () => {
+    const storage = memoryStorage()
+    const api = {
+      resetPassword: vi.fn(async () => undefined),
+    }
+    const store = createAuthStore({ storage, api: api as never })
+    await store.getState().resetPassword('tok', 'new-password-123')
+    expect(api.resetPassword).toHaveBeenCalledWith('tok', 'new-password-123')
+    expect(store.getState().error).toBeNull()
+  })
 })

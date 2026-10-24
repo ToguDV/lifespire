@@ -25,6 +25,7 @@ export interface AuthState {
   configure: (api: AuthStoreDeps['api']) => void
   login: (email: string, password: string, totpCode?: string) => Promise<void>
   acceptInvite: (token: string, password: string) => Promise<void>
+  resetPassword: (token: string, password: string) => Promise<void>
   restore: () => Promise<void>
   logout: () => Promise<void>
   fetchMe: () => Promise<void>
@@ -41,7 +42,14 @@ export interface AuthStoreDeps {
   }
   api?: Pick<
     ApiClient,
-    'login' | 'acceptInvite' | 'refresh' | 'logout' | 'me' | 'totpSetup' | 'totpEnable'
+    | 'login'
+    | 'acceptInvite'
+    | 'resetPassword'
+    | 'refresh'
+    | 'logout'
+    | 'me'
+    | 'totpSetup'
+    | 'totpEnable'
   >
   deviceName?: string
 }
@@ -150,6 +158,22 @@ export function createAuthStore(deps: AuthStoreDeps = {}) {
           applyUser(me, out.accessToken, false)
         } catch (error) {
           set({ error: error instanceof Error ? error.message : 'Invite failed.' })
+          throw error
+        }
+      },
+
+      resetPassword: async (token, password) => {
+        if (!api) {
+          set({ error: 'Sync is not configured in this build.' })
+          return
+        }
+        try {
+          await api.resetPassword(token.trim(), password)
+          set({ error: null })
+        } catch (error) {
+          set({
+            error: error instanceof Error ? error.message : 'Password reset failed.',
+          })
           throw error
         }
       },

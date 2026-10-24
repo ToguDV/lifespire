@@ -24,6 +24,30 @@ export interface TotpSetupResult {
   recoveryCodes: string[];
 }
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: 'ADMIN' | 'USER';
+  status: 'PENDING' | 'ACTIVE' | 'DISABLED';
+  deviceCount: number;
+  lastLoginAt: string | null;
+  lastSyncAt: string | null;
+  createdAt: string;
+}
+
+export interface AdminUsersResponse {
+  total: number;
+  page: number;
+  pageSize: number;
+  users: AdminUser[];
+}
+
+export interface CreateUserResponse {
+  id: string;
+  email: string;
+  inviteLink: string;
+}
+
 export interface SyncSnapshot {
   version: string;
   schemaVersion: number;
@@ -261,6 +285,20 @@ export function createApiClient(options: ApiClientOptions) {
       const { data } = await request<{ revisions: SyncRevision[] }>(
         `/v1/sync/revisions?limit=${Math.min(Math.max(limit, 1), 50)}`,
       );
+      return data;
+    },
+
+    async listUsers(): Promise<AdminUsersResponse> {
+      const { data } = await request<AdminUsersResponse>('/v1/admin/users?pageSize=100');
+      return data;
+    },
+
+    async createUser(email: string, role: 'ADMIN' | 'USER'): Promise<CreateUserResponse> {
+      const { data } = await request<CreateUserResponse>('/v1/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role }),
+      });
       return data;
     },
 
