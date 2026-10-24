@@ -356,7 +356,7 @@ components:
     textColor: "{colors.accent-deep}"
     typography: "{typography.heading-md}"
     rounded: "{rounded.full}"
-    size: 86px
+    size: 70px
     border: "1px solid {colors.accent}"
   welcome-art:
     backgroundColor: "{colors.surface}"
@@ -716,7 +716,7 @@ primary action stays near the first viewport on a 390×844 screen.
 - Totals row: three equal cells with icon, display number, and micro label. A dashed `level-up` strip below, then the goals and actions.
 
 **`seal`** — Day seal.
-- 86px circle, `{colors.accent-wash}` fill, moss border, double ring inset, day numeral in display 600, `DAY` micro beneath.
+- 70px circle (82px at wide breakpoints), `{colors.accent-wash}` fill, moss border, double ring inset, day numeral in display 600, `DAY` micro beneath.
 - On mobile it shrinks with the card but never drops below 64px.
 
 **`map-frame`**, **`map-rail`**, **`node-choice-row`**, **`aim-row`** — as specified above.

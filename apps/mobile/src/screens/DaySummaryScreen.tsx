@@ -74,7 +74,7 @@ function Seal({
       style={[styles.seal, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}
     >
       <View style={[styles.sealInner, { borderColor: colors.accent }]}>
-        <Icon name="spire" size={18} color={colors.accentDeep} />
+        <Icon name="spire" size={15} color={colors.accentDeep} />
         <Text maxFontSizeMultiplier={1.2} style={[styles.sealNumber, { color: colors.accentDeep }]}>
           {numeral}
         </Text>
@@ -474,8 +474,8 @@ const styles = StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   headCopy: { flex: 1, minWidth: 0, gap: 4 },
   seal: {
-    width: 86,
-    height: 86,
+    width: 70,
+    height: 70,
     borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -483,8 +483,8 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-6deg' }],
   },
   sealInner: {
-    width: 74,
-    height: 74,
+    width: 60,
+    height: 60,
     borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
@@ -493,9 +493,9 @@ const styles = StyleSheet.create({
   },
   sealNumber: {
     fontFamily: fonts.display,
-    fontSize: 24,
-    lineHeight: 25,
-    letterSpacing: 1.2,
+    fontSize: 20,
+    lineHeight: 21,
+    letterSpacing: 1,
   },
   sealLabel: {
     fontFamily: fonts.uiBold,
