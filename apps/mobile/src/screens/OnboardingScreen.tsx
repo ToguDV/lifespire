@@ -169,7 +169,7 @@ export function OnboardingScreen() {
 
   if (step === 0) {
     return (
-      <Screen>
+      <Screen bottomInset={false}>
         <View style={styles.brandRow}>
           <View style={styles.brand}>
             <Icon name="spire" size={26} color={colors.ink} />
@@ -247,7 +247,7 @@ export function OnboardingScreen() {
             }
 
   return (
-    <Screen>
+    <Screen bottomInset={false}>
       <View style={styles.wizardHead}>
         <IconButton icon="arrow-left" label="Back" onPress={goBack} size={38} />
         <Text variant="micro" tone="accent">

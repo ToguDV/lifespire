@@ -130,7 +130,7 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
     redirectTo
   ) {
     return (
-      <Screen>
+      <Screen bottomInset={false}>
         <Panel>
           <EmptyState icon="wheel" title="No reward is waiting">
             Return to the map to choose an available node.
@@ -148,7 +148,7 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
   const goalTitle = outcome.task?.goalTitle ?? null
 
   return (
-    <Screen>
+    <Screen bottomInset={false}>
       <Panel pad={false} style={styles.spread}>
         <View style={[styles.art, { backgroundColor: colors.surfaceSunken, borderColor: colors.hairline }]}>
           <View style={styles.medallionStage}>

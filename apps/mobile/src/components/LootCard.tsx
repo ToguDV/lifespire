@@ -31,7 +31,7 @@ export function LootCard({
         styles.card,
         {
           backgroundColor: locked ? colors.surfaceSunken : colors.surface,
-          borderColor: locked ? colors.hairline : tone === 'gold' ? colors.gold : colors.hairlineStrong,
+          borderColor: locked ? colors.hairline : tone === 'gold' ? colors.accentDeep : colors.hairlineStrong,
         },
       ]}
       accessibilityLabel={locked ? 'Undiscovered relic' : `${entry.name}, ${RARITY_LABEL[entry.rarity]}`}
@@ -45,7 +45,7 @@ export function LootCard({
         <Icon
           name={locked ? 'lock' : lootIcon(entry.id)}
           size={24}
-          color={locked ? colors.inkSoft : tone === 'gold' ? colors.gold : colors.accentDeep}
+          color={locked ? colors.inkSoft : colors.accentDeep}
         />
       </View>
       <View style={styles.body}>
@@ -68,7 +68,7 @@ export function LootCard({
                       {
                         backgroundColor:
                           entry.rarity === 'epic'
-                            ? colors.gold
+                            ? colors.accentDeep
                             : entry.rarity === 'rare'
                               ? colors.accent
                               : colors.inkMuted,

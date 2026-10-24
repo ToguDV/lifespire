@@ -237,7 +237,7 @@ export function AppShell() {
         <View style={styles.topbarRight}>
           {profile ? (
             <View style={styles.resource} accessibilityLabel={`${profile.gold} gold, level ${profile.level}`}>
-              <Icon name="coin" size={13} color={colors.gold} />
+              <Icon name="coin" size={13} color={colors.accentDeep} />
               <AnimatedNumber value={profile.gold} />
               <View style={[styles.level, { borderColor: colors.accent }]}>
                 <Text variant="micro" tone="deep">{profile.level}</Text>
@@ -256,8 +256,8 @@ export function AppShell() {
       ) : null}
 
       {storageWarning === 'write-failed' && !storageIssue ? (
-        <View style={[styles.warning, { backgroundColor: colors.dangerSoft, borderColor: colors.danger }]}>
-          <Icon name="lock" size={14} color={colors.danger} />
+        <View style={[styles.warning, { backgroundColor: colors.surfaceSunken, borderColor: colors.hairlineStrong }]}>
+          <Icon name="lock" size={14} color={colors.inkStrong} />
           <Text variant="caption" tone="danger" style={styles.warningText}>
             Changes are not being saved on this device. Export a copy from Settings.
           </Text>

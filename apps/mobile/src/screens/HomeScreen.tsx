@@ -207,7 +207,7 @@ export function HomeScreen() {
               <Progress value={xpIntoLevel(profile.xp)} max={100} label="Experience to next level" />
             </View>
             <View style={styles.gold}>
-              <Icon name="coin" size={16} color={colors.gold} />
+              <Icon name="coin" size={16} color={colors.accentDeep} />
               <AnimatedNumber value={profile.gold} />
             </View>
           </View>

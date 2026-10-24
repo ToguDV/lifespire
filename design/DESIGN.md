@@ -457,6 +457,14 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 - **Completed nodes are stone, not moss.** The past is solid; the possible is green. Day fills the medallion with deep ink; Night uses Done Fill so a finished node never glares.
 - **Locked states are transparent with a dashed rim.** They never use a red or a warning icon.
 - **No second semantic colour.** Boss, rest, task, and elite are distinguished by shape, icon, and label — not hue.
+- **Gold and danger are not system roles.** The palette is ink, moss, and stone only. Currency and gems use moss-deep; destructive actions and warnings use stone surfaces with `hairline-strong` borders and ink text. "Gold" survives only as a wheel-sector label, never as a colour token.
+
+### Mobile Type Ramp
+
+The Android app derives its ramp from the same web clamps at 320–480px:
+`display-xl` 44/48, `display-lg` 36/39, `display-md` 27/29, `heading-lg`
+22.5/25, with a 16px horizontal gutter. Numerals use Alegreya at 18/21 with
+tabular figures so counters do not jitter while animating.
 
 ## Typography
 

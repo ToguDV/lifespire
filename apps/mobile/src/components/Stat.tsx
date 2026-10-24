@@ -44,7 +44,7 @@ export function Resource({ icon, value, label }: { icon: IconName; value: string
   const { colors } = useTheme()
   return (
     <View style={styles.resource} accessibilityLabel={label}>
-      <Icon name={icon} size={15} color={colors.gold} />
+      <Icon name={icon} size={15} color={colors.accentDeep} />
       <Text variant="bodySm">{value}</Text>
     </View>
   )

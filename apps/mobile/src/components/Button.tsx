@@ -39,24 +39,25 @@ export function Button({
     variant === 'primary'
       ? colors.accent
       : variant === 'danger'
-        ? colors.danger
+        ? colors.surfaceSunken
         : 'transparent'
   const border =
     variant === 'primary'
       ? colors.accent
       : variant === 'danger'
-        ? colors.danger
-        : variant === 'ghost'
+        ? colors.hairlineStrong
+        : variant === 'quiet' || variant === 'ghost'
           ? 'transparent'
-          : variant === 'secondary'
-            ? colors.hairlineStrong
-            : colors.hairline
-  const textTone =
-    variant === 'primary' || variant === 'danger'
-      ? 'inverse'
-      : variant === 'secondary'
-        ? 'default'
-        : 'muted'
+          : colors.hairlineStrong
+  const textColor =
+    variant === 'primary'
+      ? colors.onAccent
+      : variant === 'danger'
+        ? colors.inkStrong
+        : variant === 'secondary'
+          ? colors.ink
+          : colors.inkMuted
+  const pressedBackground = variant === 'primary' ? colors.accentDeep : colors.surfaceSunken
 
   return (
     <Pressable
@@ -70,17 +71,18 @@ export function Button({
         styles.base,
         small ? styles.small : null,
         full ? styles.full : null,
-        variant === 'ghost' ? styles.ghost : null,
+        variant === 'quiet' || variant === 'ghost' ? styles.ghost : null,
         {
-          backgroundColor: background,
+          backgroundColor: pressed ? pressedBackground : background,
           borderColor: border,
-          opacity: disabled ? 0.45 : pressed ? 0.82 : 1,
+          opacity: disabled ? 0.45 : 1,
+          transform: pressed && (variant === 'primary' || variant === 'danger') ? [{ scale: 0.98 }] : undefined,
         },
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator size="small" color={(variant === 'primary' || variant === 'danger') ? colors.onAccent : colors.ink} />
+        <ActivityIndicator size="small" color={variant === 'primary' ? colors.onAccent : colors.ink} />
       ) : (
         <View style={styles.content}>
           {icon ? (
@@ -88,15 +90,17 @@ export function Button({
               name={icon}
               size={small ? 15 : 17}
               color={
-                variant === 'primary' || variant === 'danger'
+                variant === 'primary'
                   ? colors.onAccent
-                  : variant === 'secondary'
-                    ? colors.ink
-                    : colors.inkMuted
+                  : variant === 'danger'
+                    ? colors.inkStrong
+                    : variant === 'secondary'
+                      ? colors.ink
+                      : colors.inkMuted
               }
             />
           ) : null}
-          <Text variant="button" tone={textTone} numberOfLines={1}>
+          <Text variant="button" style={{ color: textColor }} numberOfLines={1}>
             {children}
           </Text>
         </View>
@@ -116,7 +120,7 @@ const styles = StyleSheet.create({
   },
   ghost: { borderWidth: 0, paddingHorizontal: 10 },
   small: {
-    minHeight: 38,
+    minHeight: layout.minTouch,
     paddingHorizontal: space.md,
   },
   full: { alignSelf: 'stretch' },

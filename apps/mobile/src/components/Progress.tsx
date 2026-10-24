@@ -7,19 +7,18 @@ export function Progress({
   value,
   max,
   tone = 'accent',
-  height = 6,
+  height = 4,
   label,
 }: {
   value: number
   max: number
-  tone?: 'accent' | 'gold' | 'xp' | 'ink'
+  tone?: 'accent' | 'ink'
   height?: number
   label?: string
 }) {
   const { colors } = useTheme()
   const ratio = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0
-  const fill =
-    tone === 'gold' ? colors.gold : tone === 'xp' ? colors.xp : tone === 'ink' ? colors.ink : colors.accent
+  const fill = tone === 'ink' ? colors.ink : colors.accent
   return (
     <View
       accessibilityRole="progressbar"
@@ -35,11 +34,9 @@ export function Progress({
 export function Pips({
   total,
   filled,
-  tone = 'accent',
 }: {
   total: number
   filled: number
-  tone?: 'accent' | 'gold'
 }) {
   const { colors } = useTheme()
   return (
@@ -52,8 +49,8 @@ export function Pips({
             style={[
               styles.pip,
               {
-                backgroundColor: on ? (tone === 'gold' ? colors.gold : colors.accent) : 'transparent',
-                borderColor: on ? (tone === 'gold' ? colors.gold : colors.accent) : colors.hairlineStrong,
+                backgroundColor: on ? colors.accent : 'transparent',
+                borderColor: on ? colors.accent : colors.hairlineStrong,
               },
             ]}
           />

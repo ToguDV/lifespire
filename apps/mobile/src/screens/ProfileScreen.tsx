@@ -132,7 +132,7 @@ export function ProfileScreen() {
           <View style={styles.duplicates}>
             {duplicates.map((conversion) => (
               <View key={conversion.eventId} style={[styles.duplicate, { borderColor: colors.hairline }]}>
-                <Icon name="gem" size={15} color={colors.gold} />
+                <Icon name="gem" size={15} color={colors.accentDeep} />
                 <View style={styles.duplicateBody}>
                   <Text variant="bodySm" numberOfLines={1}>{conversion.name}</Text>
                   <Text variant="caption" tone="muted">

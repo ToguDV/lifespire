@@ -85,8 +85,8 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
         title={copy.title}
         subtitle={<Text variant="bodyMd" tone="muted">{copy.body}</Text>}
         aside={
-          <View style={[styles.mark, { borderColor: colors.danger, backgroundColor: colors.dangerSoft }]}>
-            <Icon name="lock" size={22} color={colors.danger} />
+          <View style={[styles.mark, { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken }]}>
+            <Icon name="lock" size={22} color={colors.inkStrong} />
           </View>
         }
       />

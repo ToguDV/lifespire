@@ -119,9 +119,15 @@ the rest of the app remains fully usable.
 
 ## 6. UI notes
 
-- Tokens, palettes and type scale mirror `design/DESIGN.md` and
-  `apps/web/src/styles/tokens.css`; Alegreya/Alegreya Sans are self-loaded
+- Tokens, palettes and type scale derive from the same web clamps in
+  `design/DESIGN.md` and `apps/web/src/styles/tokens.css`, sampled at the
+  320–480 px phone range: display 44/36/27, heading-lg 22.5, a 16 px horizontal
+  gutter and 18/21 tabular numerals. Alegreya/Alegreya Sans are self-loaded
   through `@expo-google-fonts` (OFL), the eight used weights including italics.
+- There are no extra semantic colours on mobile: currency and gems use
+  `accentDeep`, destructive actions and warnings use stone (`surfaceSunken`,
+  `hairlineStrong`, `inkStrong`). `gold` remains a wheel-sector label, not a
+  palette token; `danger` is not a token.
 - The map uses `react-native-svg` plus absolutely positioned `Pressable`
   nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. The wheel shares the
   web spin physics (`packages/app-core/src/ui/wheel.ts`) and mirrors the
