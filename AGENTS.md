@@ -11,6 +11,10 @@
 - **Workflow:** [`WORKFLOW.md`](./WORKFLOW.md) sets the commit format, PR
   content, the TDD requirement, and the mandatory cleanup at the end of a
   session. It is binding for agents and humans.
+- **Architecture diagnosis:** [`docs/ARCHITECTURE-REVIEW.md`](./docs/ARCHITECTURE-REVIEW.md)
+  records the 2026-10-23 review, prioritized findings, and remediation roadmap.
+  It is a snapshot, not a contract; `docs/ARCHITECTURE.md` remains the module
+  reference.
 - **Visual design:** the shipped application is the **accepted** visual
   reference, together with the design-system specification. Specifically:
   - [`design/DESIGN.md`](./design/DESIGN.md): design system (color, typography,
