@@ -107,6 +107,8 @@ export const fonts = {
   display: 'Alegreya_600SemiBold',
   displayRegular: 'Alegreya_400Regular',
   displayBold: 'Alegreya_700Bold',
+  displayItalic: 'Alegreya_400Regular_Italic',
+  displaySemiBoldItalic: 'Alegreya_600SemiBold_Italic',
   ui: 'AlegreyaSans_400Regular',
   uiMedium: 'AlegreyaSans_500Medium',
   uiBold: 'AlegreyaSans_700Bold',
@@ -121,7 +123,8 @@ export const space = {
   xl: 24,
   xxl: 32,
   xxxl: 40,
-  section: 48,
+  xxxxl: 56,
+  section: 72,
 } as const
 
 export const radius = {
@@ -131,7 +134,7 @@ export const radius = {
   lg: 14,
   xl: 18,
   xxl: 24,
-  full: 999,
+  full: 9999,
 } as const
 
 export type TextVariant =
