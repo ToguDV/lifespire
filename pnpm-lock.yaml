@@ -7,6 +7,9 @@ settings:
 overrides:
   multer: ^2.5.0
 
+patchedDependencies:
+  expo-notifications@58.1.6: 50bf4394340a728fa6fc672b93276a00bb880c8ead2bba3c2afc992337983799
+
 importers:
 
   .:
@@ -179,7 +182,7 @@ importers:
         version: 58.0.7(expo@58.0.19)
       expo-notifications:
         specifier: ~58.1.6
-        version: 58.1.6(expo@58.0.19)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3)
+        version: 58.1.6(patch_hash=50bf4394340a728fa6fc672b93276a00bb880c8ead2bba3c2afc992337983799)(expo@58.0.19)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3)
       expo-secure-store:
         specifier: ~58.0.2
         version: 58.0.2(expo@58.0.19)
@@ -10854,7 +10857,7 @@ snapshots:
       '@expo/modules-macros-win32-arm64': 0.22.0
       '@expo/modules-macros-win32-x64': 0.22.0
 
-  expo-notifications@58.1.6(expo@58.0.19)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3):
+  expo-notifications@58.1.6(patch_hash=50bf4394340a728fa6fc672b93276a00bb880c8ead2bba3c2afc992337983799)(expo@58.0.19)(react-native@0.88.0(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1))(react@19.3.0)(supports-color@8.1.1)(typescript@6.0.3):
     dependencies:
       '@expo/image-utils': 0.12.5(supports-color@8.1.1)(typescript@6.0.3)
       abort-controller: 3.0.0

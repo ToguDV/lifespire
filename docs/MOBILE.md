@@ -228,6 +228,19 @@ Android SDK and a connected device/emulator.
 - iOS build and APNs grant verification (the code path exists but is untested).
 - Push notifications, if a server-side reason appears; local reminders cover
   the product need today.
+- **Remove the `expo-notifications` patch when upstream fixes it.** Expo Go 58
+  does not register `ExpoTopicSubscriptionModule`, while
+  `expo-notifications@58.1.6` imported it with `requireNativeModule` at module
+  scope, so any import crashed the bundle with `Cannot find native module
+  'ExpoTopicSubscriptionModule'` before the app rendered. The pnpm patch
+  (`patches/expo-notifications@58.1.6.patch`, declared in
+  `pnpm-workspace.yaml`) switches the source and build files to
+  `requireOptionalNativeModule` and makes the topic helpers null-safe, keeping
+  Expo Go bootable while development builds retain the native module. Track
+  [expo/expo#52175](https://github.com/expo/expo/issues/52175) (fix
+  [expo/expo#52182](https://github.com/expo/expo/pull/52182)); drop the patch and
+  its `patchedDependencies` entry once a released `expo-notifications` uses
+  `requireOptionalNativeModule`.
 - Optional sound pack for feedback parity with web.
 - API e2e flow for the native refresh grant (unit + client coverage exists
   today; the flow needs Postgres).

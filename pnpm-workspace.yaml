@@ -30,3 +30,6 @@ minimumReleaseAgeExclude:
 overrides:
   # GHSA-q7qp-rjg7-q26m (DoS, high): force the patched multer across Nest.
   multer: ^2.5.0
+
+patchedDependencies:
+  expo-notifications@58.1.6: patches/expo-notifications@58.1.6.patch
