@@ -22,6 +22,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: true,
+    softwareKeyboardLayoutMode: 'resize',
+    versionCode: 1,
   },
   plugins: [
     'expo-sqlite',

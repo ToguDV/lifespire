@@ -34,8 +34,16 @@ export class AcceptInviteDto {
 }
 
 export class RefreshDto {
-  // Refresh token travels in an HttpOnly cookie; body stays empty so the
-  // token never lands in logs. DTO kept for OpenAPI shape.
+  /**
+   * Native clients cannot rely on an HttpOnly cookie, so they present the
+   * rotated refresh token in the body. Web keeps sending an empty body and
+   * uses the cookie instead; the controller only reads this field when the
+   * native-client gate passes.
+   */
+  @IsOptional()
+  @IsString()
+  @Length(32, 256)
+  refreshToken?: string;
 }
 
 export class ResetPasswordDto {

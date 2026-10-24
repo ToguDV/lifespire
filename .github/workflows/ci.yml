@@ -36,6 +36,7 @@ jobs:
               - 'apps/web/e2e/**'
               - 'apps/web/playwright.config.ts'
               - 'apps/web/package.json'
+              - 'apps/mobile/**'
               - 'apps/api/**'
               - 'packages/**'
               - 'package.json'

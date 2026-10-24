@@ -16,6 +16,8 @@ export interface LoginResult {
   accessToken: string;
   user: ApiUser;
   totpSetupRequired: boolean;
+  /** Present only for native clients, which store it in the OS keychain. */
+  refreshToken?: string;
 }
 
 export interface TotpSetupResult {
@@ -94,6 +96,15 @@ export interface ApiClientOptions {
   baseUrl: string;
   getAccessToken?: () => string | null;
   setAccessToken?: (token: string | null) => void;
+  /**
+   * Cookie mode keeps the HttpOnly refresh cookie used by the web. Native mode
+   * receives the refresh token in the login/accept/refresh body, sends it via
+   * the native-client header gate and stores it in the OS keychain.
+   */
+  mode?: 'cookie' | 'native';
+  platform?: 'android' | 'ios';
+  getRefreshToken?: () => string | null;
+  setRefreshToken?: (token: string | null) => void;
 }
 
 /** Wraps a version in ETag quotes unless already quoted (`"n"` / `W/"n"`). */
@@ -127,6 +138,17 @@ function isAuthPath(path: string): boolean {
 
 export function createApiClient(options: ApiClientOptions) {
   const base = options.baseUrl.replace(/\/$/, '');
+  const native = options.mode === 'native';
+
+  function nativeHeaders(): Record<string, string> {
+    if (!native) return {};
+    return { 'X-Client-Platform': options.platform ?? 'android' };
+  }
+
+  function rememberAuth(out: { accessToken: string; refreshToken?: string }): void {
+    options.setAccessToken?.(out.accessToken);
+    if (out.refreshToken) options.setRefreshToken?.(out.refreshToken);
+  }
 
   async function rawRequest<T>(
     path: string,
@@ -150,6 +172,26 @@ export function createApiClient(options: ApiClientOptions) {
     return { res, data: (await res.json()) as T };
   }
 
+  async function refreshTokens(): Promise<{ accessToken: string; refreshToken?: string }> {
+    const refreshToken = options.getRefreshToken?.() ?? null;
+    if (native && !refreshToken) {
+      throw new ApiRequestError(401, 'Missing refresh token', 'AUTH_TOKEN_EXPIRED');
+    }
+    const { data } = await rawRequest<{ accessToken: string; refreshToken?: string }>(
+      '/v1/auth/refresh',
+      {
+        method: 'POST',
+        headers: {
+          ...nativeHeaders(),
+          ...(native ? { 'Content-Type': 'application/json' } : {}),
+        },
+        body: native ? JSON.stringify({ refreshToken }) : undefined,
+      },
+    );
+    rememberAuth(data);
+    return data;
+  }
+
   async function request<T>(path: string, init: RequestInit = {}): Promise<{ res: Response; data: T }> {
     try {
       return await rawRequest<T>(path, init);
@@ -161,10 +203,7 @@ export function createApiClient(options: ApiClientOptions) {
         options.setAccessToken
       ) {
         try {
-          const refreshed = await rawRequest<{ accessToken: string }>('/v1/auth/refresh', {
-            method: 'POST',
-          });
-          options.setAccessToken(refreshed.data.accessToken);
+          await refreshTokens();
           return await rawRequest<T>(path, init);
         } catch {
           throw error;
@@ -186,29 +225,28 @@ export function createApiClient(options: ApiClientOptions) {
     async login(email: string, password: string, deviceName: string, totpCode?: string) {
       const { data } = await request<LoginResult>('/v1/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...nativeHeaders() },
         body: JSON.stringify({ email, password, deviceName, totpCode }),
       });
-      options.setAccessToken?.(data.accessToken);
+      rememberAuth(data);
       return data;
     },
 
     async acceptInvite(token: string, password: string, deviceName: string) {
-      const { data } = await request<{ accessToken: string }>('/v1/auth/accept-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password, deviceName }),
-      });
-      options.setAccessToken?.(data.accessToken);
+      const { data } = await request<{ accessToken: string; refreshToken?: string }>(
+        '/v1/auth/accept-invite',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...nativeHeaders() },
+          body: JSON.stringify({ token, password, deviceName }),
+        },
+      );
+      rememberAuth(data);
       return data;
     },
 
     async refresh() {
-      const { data } = await rawRequest<{ accessToken: string }>('/v1/auth/refresh', {
-        method: 'POST',
-      });
-      options.setAccessToken?.(data.accessToken);
-      return data;
+      return refreshTokens();
     },
 
     async logout() {
@@ -216,6 +254,7 @@ export function createApiClient(options: ApiClientOptions) {
         await request<unknown>('/v1/auth/logout', { method: 'POST' });
       } finally {
         options.setAccessToken?.(null);
+        options.setRefreshToken?.(null);
       }
     },
 
@@ -224,6 +263,7 @@ export function createApiClient(options: ApiClientOptions) {
         await request<unknown>('/v1/auth/logout-all', { method: 'POST' });
       } finally {
         options.setAccessToken?.(null);
+        options.setRefreshToken?.(null);
       }
     },
 

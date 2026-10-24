@@ -263,6 +263,3 @@ export function createAuthStore(deps: AuthStoreDeps = {}) {
     }
   })
 }
-
-/** Singleton wired to same-origin `/v1` once the app boots. */
-export const useAuthStore = createAuthStore()

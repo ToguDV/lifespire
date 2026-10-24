@@ -6,7 +6,16 @@
     "noUnusedParameters": true,
     "verbatimModuleSyntax": true,
     "jsx": "react-jsx",
-    "types": ["react", "react-native"]
+    "types": [
+      "react",
+      "react-native",
+      "jest"
+    ]
   },
-  "include": ["App.tsx", "index.ts", "src", "app.config.ts"]
+  "include": [
+    "App.tsx",
+    "index.ts",
+    "src",
+    "app.config.ts"
+  ]
 }
