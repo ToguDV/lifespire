@@ -1,8 +1,10 @@
 import { SyncConflictError } from '@lifespire/api-client'
 import type { ApiClient } from '@lifespire/api-client'
 import type { GameDocument } from '../domain/types'
+import { tryAutoMerge } from '../domain/merge'
+import { parseDocument } from '../domain/schema'
 import { checksumDocument } from './checksum'
-import { accountMetaKey } from './storageKeys'
+import { accountBaseKey, accountMetaKey } from './storageKeys'
 
 export type SyncStatus =
   | 'disabled'
@@ -20,6 +22,8 @@ export interface SyncConflict {
   remote: GameDocument
   remoteVersion: string
   remoteUpdatedAt: string
+  /** Why auto-merge refused, shown in the dialog so nothing fails silently. */
+  conflicts: string[]
 }
 
 export interface SyncEngineState {
@@ -30,6 +34,8 @@ export interface SyncEngineState {
   conflict: SyncConflict | null
   lastError: string | null
   lastPushedAt: string | null
+  /** Last time disjoint edits were merged automatically (null = never). */
+  lastAutoMergeAt: string | null
 }
 
 export interface SyncEngineDeps {
@@ -48,6 +54,12 @@ export interface SyncEngineDeps {
   pushDelayMs?: number
   pollIntervalMs?: number
   useLocks?: boolean
+  /**
+   * Best-effort hook before an auto-merged document overwrites the cloud
+   * copy. The app wires it to a local backup so the pre-merge device copy
+   * is never lost.
+   */
+  onBeforeAutoMergePush?: (local: GameDocument) => void
 }
 
 const PUSH_DELAY_MS = 1500
@@ -98,6 +110,33 @@ function writeMeta(
   }
 }
 
+/** Last-synced cloud copy, the merge base. Best-effort like the meta. */
+function readBaseDocument(
+  storage: SyncEngineDeps['storage'],
+  userId: string,
+): GameDocument | null {
+  try {
+    const raw = storage.getItem(accountBaseKey(userId))
+    if (!raw) return null
+    const parsed = parseDocument(JSON.parse(raw))
+    return parsed.ok ? parsed.value : null
+  } catch {
+    return null
+  }
+}
+
+function writeBaseDocument(
+  storage: SyncEngineDeps['storage'],
+  userId: string,
+  document: unknown,
+): void {
+  try {
+    storage.setItem(accountBaseKey(userId), JSON.stringify(document))
+  } catch {
+    // Base is best-effort; without it conflicts stay manual.
+  }
+}
+
 export function createSyncEngine(deps: SyncEngineDeps) {
   const getDevOffset = deps.getDevOffset ?? (() => 0)
   const isOnline =
@@ -114,12 +153,15 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     conflict: null,
     lastError: null,
     lastPushedAt: null,
+    lastAutoMergeAt: null,
   }
+  let baseDocument: GameDocument | null = null
   if (deps.userId) {
     const meta = readMeta(deps.storage, deps.userId)
     if (meta) {
       state = { ...state, serverVersion: meta.version, updatedAt: meta.updatedAt }
     }
+    baseDocument = readBaseDocument(deps.storage, deps.userId)
   }
 
   const listeners = new Set<() => void>()
@@ -148,10 +190,19 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     }
   }
 
-  const persistVersion = (version: string, updatedAt: string, checksum: string): void => {
+  const persistVersion = (version: string, updatedAt: string, checksum: string, document: unknown): void => {
     baseChecksum = checksum
     const userId = state.userId
-    if (userId) writeMeta(deps.storage, userId, version, updatedAt, checksum)
+    if (userId) {
+      writeMeta(deps.storage, userId, version, updatedAt, checksum)
+      writeBaseDocument(deps.storage, userId, document)
+      try {
+        const parsed = parseDocument(document)
+        baseDocument = parsed.ok ? parsed.value : null
+      } catch {
+        baseDocument = null
+      }
+    }
     setState({ serverVersion: version, updatedAt })
   }
 
@@ -197,7 +248,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
       )
       pushKey = null
       backoffMs = 2000
-      persistVersion(result.version, result.updatedAt, checksumDocument(document))
+      persistVersion(result.version, result.updatedAt, checksumDocument(document), document)
       setState({ status: 'synced', lastError: null, lastPushedAt: now().toISOString() })
     } catch (error) {
       if (error instanceof SyncConflictError) {
@@ -231,13 +282,26 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         return
       }
       const local = deps.getLocalDocument()
+      const remote = snapshot.document as GameDocument
+      let conflicts: string[]
+      try {
+        const merged = tryAutoMerge(baseDocument, local, remote)
+        if (merged.ok) {
+          await pushMerged(remote, snapshot.version, snapshot.updatedAt, merged.document, local)
+          return
+        }
+        conflicts = merged.conflicts
+      } catch {
+        conflicts = ['automatic merge failed unexpectedly']
+      }
       setState({
         status: 'conflict',
         conflict: {
           local,
-          remote: snapshot.document as GameDocument,
+          remote,
           remoteVersion: snapshot.version,
           remoteUpdatedAt: snapshot.updatedAt,
+          conflicts,
         },
         lastError: null,
       })
@@ -247,6 +311,63 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         lastError: error instanceof Error ? error.message : 'Could not read the cloud save.',
       })
       scheduleRetry()
+    }
+  }
+
+  /**
+   * Applies an auto-merged document and pushes it over the remote version it
+   * was merged against. A merge that already equals the cloud copy is adopted
+   * without a push. Anything unexpected falls back to the manual dialog.
+   */
+  const pushMerged = async (
+    remote: GameDocument,
+    remoteVersion: string,
+    remoteUpdatedAt: string,
+    merged: GameDocument,
+    preMergeLocal: GameDocument,
+  ): Promise<void> => {
+    clearPushTimer()
+    if (checksumDocument(merged) === checksumDocument(remote)) {
+      deps.applyRemoteDocument(merged)
+      persistVersion(remoteVersion, remoteUpdatedAt, checksumDocument(merged), merged)
+      setState({ status: 'synced', lastError: null })
+      return
+    }
+    try {
+      deps.onBeforeAutoMergePush?.(preMergeLocal)
+    } catch {
+      // The backup is best-effort; the merge itself is already validated.
+    }
+    deps.applyRemoteDocument(merged)
+    setState({ status: 'pushing' })
+    try {
+      const document = deps.getLocalDocument()
+      const result = await runWithLock(() =>
+        deps.api.putSync(document, {
+          ifMatch: remoteVersion,
+          idempotencyKey: newIdempotencyKey(),
+        }),
+      )
+      pushKey = null
+      backoffMs = 2000
+      persistVersion(result.version, result.updatedAt, checksumDocument(document), document)
+      setState({
+        status: 'synced',
+        conflict: null,
+        lastError: null,
+        lastPushedAt: now().toISOString(),
+        lastAutoMergeAt: now().toISOString(),
+      })
+    } catch (error) {
+      if (error instanceof SyncConflictError) {
+        await openConflict()
+      } else {
+        setState({
+          status: 'error',
+          lastError: error instanceof Error ? error.message : 'Push failed.',
+        })
+        scheduleRetry()
+      }
     }
   }
 
@@ -269,6 +390,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
       backoffMs = 2000
       if (!userId) {
         baseChecksum = null
+        baseDocument = null
         state = {
           status: 'disabled',
           userId: null,
@@ -277,12 +399,14 @@ export function createSyncEngine(deps: SyncEngineDeps) {
           conflict: null,
           lastError: null,
           lastPushedAt: null,
+          lastAutoMergeAt: null,
         }
         emit()
         return
       }
       const meta = readMeta(deps.storage, userId)
       baseChecksum = meta?.checksum ?? null
+      baseDocument = readBaseDocument(deps.storage, userId)
       state = {
         status: 'synced',
         userId,
@@ -291,6 +415,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         conflict: null,
         lastError: null,
         lastPushedAt: null,
+        lastAutoMergeAt: null,
       }
       emit()
     },
@@ -373,7 +498,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
           return
         }
         deps.applyRemoteDocument(snapshot.document as GameDocument)
-        persistVersion(snapshot.version, snapshot.updatedAt, checksumDocument(snapshot.document))
+        persistVersion(snapshot.version, snapshot.updatedAt, checksumDocument(snapshot.document), snapshot.document)
         if (state.status === 'pulling') {
           setState({ status: 'synced', lastError: null })
         }
@@ -401,7 +526,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         )
         pushKey = null
         backoffMs = 2000
-        persistVersion(result.version, result.updatedAt, checksumDocument(document))
+        persistVersion(result.version, result.updatedAt, checksumDocument(document), document)
         setState({ status: 'synced', conflict: null, lastPushedAt: now().toISOString() })
       } catch (error) {
         if (error instanceof SyncConflictError) {
@@ -419,7 +544,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
       const conflict = state.conflict
       if (!conflict || !state.userId) return
       deps.applyRemoteDocument(conflict.remote)
-      persistVersion(conflict.remoteVersion, conflict.remoteUpdatedAt, checksumDocument(conflict.remote))
+      persistVersion(conflict.remoteVersion, conflict.remoteUpdatedAt, checksumDocument(conflict.remote), conflict.remote)
       pushKey = null
       setState({ status: 'synced', conflict: null, lastError: null })
     },

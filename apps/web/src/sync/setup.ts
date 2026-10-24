@@ -21,6 +21,7 @@ export const useSyncStore = create<SyncUiState>(() => ({
   conflict: null,
   lastError: null,
   lastPushedAt: null,
+  lastAutoMergeAt: null,
   initialized: false,
 }))
 
@@ -85,6 +86,13 @@ export const syncEngine = createSyncEngine({
     }
   },
   isOnline,
+  onBeforeAutoMergePush: () => {
+    try {
+      documentStorage.backup()
+    } catch {
+      // Backup is best-effort; the merge itself is already validated.
+    }
+  },
 })
 
 export const syncManager = createSyncManager({

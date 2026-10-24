@@ -31,6 +31,16 @@ export function accountMetaKey(userId: string): string {
   return `${accountStorageKey(userId)}:meta`
 }
 
+/**
+ * Last-synced cloud copy for conservative 3-way auto-merge. Written on every
+ * successful push/pull alongside the meta; read as the merge base. Absent on
+ * legacy installs until the next successful sync (then conflicts stay manual).
+ */
+export function accountBaseKey(userId: string): string {
+  assertSafeUserId(userId)
+  return `${accountStorageKey(userId)}:base`
+}
+
 /** Backup key derived from any save key (`<save>:backup`). */
 export function backupKeyFor(saveKey: string): string {
   if (saveKey === GUEST_KEY) return GUEST_BACKUP_KEY
@@ -40,7 +50,7 @@ export function backupKeyFor(saveKey: string): string {
 /** Meta key derived from any save key (`<save>:meta`). */
 export function metaKeyFor(saveKey: string): string {
   if (saveKey === GUEST_KEY) return GUEST_META_KEY
-  if (saveKey.endsWith(':backup') || saveKey.endsWith(':meta')) {
+  if (saveKey.endsWith(':backup') || saveKey.endsWith(':meta') || saveKey.endsWith(':base')) {
     throw new Error('Not a save key')
   }
   return `${saveKey}:meta`
@@ -64,5 +74,5 @@ export function isSaveKey(key: string | null): boolean {
   if (!key) return false
   if (key === GUEST_KEY) return true
   if (!key.startsWith(`${STORAGE_KEY}:u:`)) return false
-  return !key.endsWith(':backup') && !key.endsWith(':meta')
+  return !key.endsWith(':backup') && !key.endsWith(':meta') && !key.endsWith(':base')
 }

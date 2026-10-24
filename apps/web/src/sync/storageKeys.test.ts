@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   accountBackupKey,
+  accountBaseKey,
   accountMetaKey,
   accountStorageKey,
   backupKeyFor,
@@ -21,6 +22,7 @@ describe('sync storage keys', () => {
     expect(accountStorageKey('u_123')).toBe('lifespire:mvp0:u:u_123')
     expect(accountBackupKey('u_123')).toBe('lifespire:mvp0:u:u_123:backup')
     expect(accountMetaKey('u_123')).toBe('lifespire:mvp0:u:u_123:meta')
+    expect(accountBaseKey('u_123')).toBe('lifespire:mvp0:u:u_123:base')
   })
 
   it('derives backup and meta keys from any save key', () => {

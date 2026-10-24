@@ -31,7 +31,10 @@ apps/web/src/
     mapDepth.ts    profundidad del mapa según metas activas y weekly targets
     lifecycle.ts   abrir día, seleccionar, resolver, reconciliar días/run (en zona de la run)
     runClose.ts    cierre de run y bonus semanal
+    merge.ts       auto-merge conservador 3-way (base = última copia
+                   sincronizada; ver adr/0004-sync-auto-merge.md)
     schema.ts      validación, serialize/deserialize, migración (v1→v2→v3 run.timeZone)
+    merge.ts       (shim) re-exporta tryAutoMerge del core
     selectors.ts   valores derivados (nivel, día actual, estado de nodo)
     fixtures/
       golden-map.json  fixture determinista para los tests del generador
@@ -44,7 +47,8 @@ apps/web/src/
     store.ts       Zustand + persist, acciones de aplicación
     persistence.ts adaptador de storage, backup, multi-pestaña y avisos
     clock.ts       reloj inyectable + offset de desarrollo (no persistido) + zona del dispositivo
-  sync/            (pendiente M5-cliente: motor de sync y estado; ver BACKEND.md §8)
+  sync/            motor de sync + estado + base por cuenta para auto-merge
+                   (ver BACKEND.md §3 y adr/0004-sync-auto-merge.md)
   ui/
     App.tsx        shell, navegación y guardas de flujo
     components/    Button, Panel, Progress, Stat, Dialog, Icon, etc.

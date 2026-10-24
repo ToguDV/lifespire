@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createEmptyDocument } from '../domain/schema'
 import type { GameDocument } from '../domain/types'
+import { accountBaseKey } from './storageKeys'
 import { createSyncEngine } from './syncEngine'
 
 function docWithGold(gold: number): GameDocument {
@@ -180,6 +181,8 @@ describe('syncEngine pull and conflict', () => {
     expect(engine.getState().status).toBe('conflict')
     expect(engine.getState().conflict?.local.profile?.gold).toBe(10)
     expect(engine.getState().conflict?.remote.profile?.gold).toBe(77)
+    // Without a stored base the merge cannot run: the dialog explains why.
+    expect(engine.getState().conflict?.conflicts.length).toBeGreaterThan(0)
   })
 
   it('keep-mine pushes over the remote version and keep-cloud adopts it', async () => {
@@ -284,6 +287,127 @@ describe('syncEngine pull and conflict', () => {
     engine.adoptLocal()
     await vi.advanceTimersByTimeAsync(1500)
     expect(api.putSync).toHaveBeenCalled()
+    engine.dispose()
+  })
+})
+
+describe('syncEngine auto-merge', () => {
+  it('merges disjoint edits on 412 and pushes without a dialog', async () => {
+    const { SyncConflictError } = await import('@lifespire/api-client')
+    const storage = memoryStorage()
+    storage.setItem(accountBaseKey('u1'), JSON.stringify(docWithGold(10)))
+    let local = docWithGold(20)
+    const remote = docWithGold(30)
+    const onBackup = vi.fn()
+    const putSync = vi.fn()
+    putSync.mockRejectedValueOnce(new SyncConflictError('9', '2026-10-24T00:03:00.000Z'))
+    putSync.mockImplementationOnce(async (_doc: unknown, opts: { ifMatch?: string }) => {
+      expect(opts.ifMatch).toBe('9')
+      return { version: '10', updatedAt: '2026-10-24T00:04:00.000Z' }
+    })
+    const api = {
+      getSync: vi.fn(async () => ({
+        version: '9',
+        schemaVersion: 3,
+        document: remote,
+        updatedAt: '2026-10-24T00:03:00.000Z',
+      })),
+      putSync,
+    }
+    const engine = createSyncEngine({
+      storage,
+      api: api as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: (doc) => {
+        local = doc
+      },
+      getDevOffset: () => 0,
+      isOnline: () => true,
+      onBeforeAutoMergePush: onBackup,
+    })
+    engine.setServerVersion('8')
+    engine.markDirty()
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(api.putSync).toHaveBeenCalledTimes(2)
+    expect(engine.getState().status).toBe('synced')
+    expect(engine.getState().conflict).toBeNull()
+    expect(engine.getState().lastAutoMergeAt).not.toBeNull()
+    // 10 + (20 - 10) + (30 - 10): both deltas preserved, none lost.
+    expect(local.profile?.gold).toBe(40)
+    expect(onBackup).toHaveBeenCalledTimes(1)
+    const stored = JSON.parse(storage.getItem(accountBaseKey('u1')) as string) as GameDocument
+    expect(stored.profile?.gold).toBe(40)
+    engine.dispose()
+  })
+
+  it('falls back to the dialog with reasons when the same field diverges', async () => {
+    const { SyncConflictError } = await import('@lifespire/api-client')
+    const storage = memoryStorage()
+    storage.setItem(accountBaseKey('u1'), JSON.stringify(docWithGold(10)))
+    const local = { ...docWithGold(10), profile: { ...docWithGold(10).profile!, name: 'Local name' } }
+    const remote = { ...docWithGold(10), profile: { ...docWithGold(10).profile!, name: 'Remote name' } }
+    const api = {
+      getSync: vi.fn(async () => ({
+        version: '9',
+        schemaVersion: 3,
+        document: remote,
+        updatedAt: '2026-10-24T00:03:00.000Z',
+      })),
+      putSync: vi.fn(async () => {
+        throw new SyncConflictError('9', '2026-10-24T00:03:00.000Z')
+      }),
+    }
+    const engine = createSyncEngine({
+      storage,
+      api: api as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: () => undefined,
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('8')
+    engine.markDirty()
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(engine.getState().status).toBe('conflict')
+    expect(engine.getState().conflict?.conflicts.length).toBeGreaterThan(0)
+    expect(engine.getState().lastAutoMergeAt).toBeNull()
+    engine.dispose()
+  })
+
+  it('auto-merges on pull when dirty and the cloud moved', async () => {
+    const storage = memoryStorage()
+    storage.setItem(accountBaseKey('u1'), JSON.stringify(docWithGold(10)))
+    let local = docWithGold(20)
+    const remote = docWithGold(30)
+    const api = {
+      getSync: vi.fn(async () => ({
+        version: '9',
+        schemaVersion: 3,
+        document: remote,
+        updatedAt: '2026-10-24T00:03:00.000Z',
+      })),
+      putSync: vi.fn(async () => ({ version: '10', updatedAt: '2026-10-24T00:04:00.000Z' })),
+    }
+    const engine = createSyncEngine({
+      storage,
+      api: api as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: (doc) => {
+        local = doc
+      },
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('8')
+    engine.markDirty()
+    await engine.pullNow()
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(engine.getState().status).toBe('synced')
+    expect(engine.getState().conflict).toBeNull()
+    expect(local.profile?.gold).toBe(40)
     engine.dispose()
   })
 })

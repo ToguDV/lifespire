@@ -152,6 +152,13 @@ async function completeFirstNode(page: Page): Promise<string | null> {
   return null
 }
 
+async function skipFirstNode(page: Page): Promise<void> {
+  await page.locator(ACTIONABLE_NODE).first().click()
+  const skip = page.getByRole('button', { name: /Skip this step/i }).first()
+  await expect(skip).toBeVisible()
+  await skip.click()
+}
+
 test.describe('sync engine', () => {
   test('A pushes a completion and B pulls it', async ({ browser }) => {
     const server = createMockServer()
@@ -211,7 +218,9 @@ test.describe('sync engine', () => {
       await expect.poll(async () => server.cloud.version, { timeout: 15000 }).toBe(2)
 
       // B edits against the stale v1 base: force a push without pulling first.
-      await completeFirstNode(pageB)
+      // Skipping the node A completed is a genuine divergence (same node,
+      // different action), so the dialog must appear with zero loss.
+      await skipFirstNode(pageB)
       await expect(pageB.getByRole('dialog', { name: /Sync conflict/i })).toBeVisible({ timeout: 20000 })
       await expect(pageB.getByRole('heading', { name: /This device/i })).toBeVisible()
       await expect(pageB.getByRole('heading', { name: /^Cloud$/i })).toBeVisible()
@@ -219,6 +228,64 @@ test.describe('sync engine', () => {
       await pageB.getByRole('button', { name: /Keep this device/i }).click()
       await expect.poll(async () => server.cloud.version, { timeout: 15000 }).toBe(3)
       await expect(pageB.getByRole('dialog', { name: /Sync conflict/i })).toBeHidden({ timeout: 10000 })
+    } finally {
+      await ctxA.close()
+      await ctxB.close()
+    }
+  })
+
+  test('disjoint edits auto-merge with no dialog', async ({ browser }) => {
+    const server = createMockServer()
+    const ctxA = await browser.newContext()
+    const ctxB = await browser.newContext()
+    try {
+      await server.route(ctxA)
+      await server.route(ctxB)
+      const pageA = await ctxA.newPage()
+      const pageB = await ctxB.newPage()
+
+      await signIn(pageA)
+      await startDemo(pageA)
+      await expect.poll(async () => server.cloud.version, { timeout: 15000 }).toBe(1)
+      await signIn(pageB)
+      await expect(pageB.getByRole('button', { name: DEMO_BUTTON })).toBeHidden({ timeout: 20000 })
+
+      // B goes offline so its edit stays on the stale v1 base.
+      await ctxB.setOffline(true)
+      await openMap(pageA)
+      await completeFirstNode(pageA)
+      await expect.poll(async () => server.cloud.version, { timeout: 15000 }).toBe(2)
+
+      // B renames a goal while offline: disjoint from A's node resolution.
+      await pageB.evaluate(() => {
+        interface Hook {
+          stores: {
+            app: {
+              getState(): {
+                document: { goals: Array<{ id: string; active: boolean; title: string }> }
+                saveGoal(input: Record<string, unknown>): unknown
+              }
+            }
+          }
+        }
+        const hook = (window as unknown as { __lifespireSync?: Hook }).__lifespireSync
+        const app = hook?.stores.app
+        if (!app) throw new Error('sync hook missing')
+        const goal = app.getState().document.goals.find((candidate) => candidate.active)
+        if (!goal) throw new Error('no active goal')
+        app.getState().saveGoal({ ...goal, title: `${goal.title} (B)` })
+      })
+
+      await ctxB.setOffline(false)
+      await expect.poll(async () => server.cloud.version, { timeout: 15000 }).toBe(3)
+      await expect(pageB.getByRole('dialog', { name: /Sync conflict/i })).toBeHidden()
+
+      const cloud = server.cloud.document as {
+        goals: Array<{ title: string }>
+        run: { days: Array<{ path: unknown[] }> }
+      }
+      expect(cloud.goals.some((goal) => goal.title.endsWith('(B)'))).toBe(true)
+      expect(cloud.run.days[0]?.path.length).toBe(1)
     } finally {
       await ctxA.close()
       await ctxB.close()

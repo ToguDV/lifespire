@@ -16,6 +16,7 @@ function extractToken(raw: string): string {
 export function SyncPanel() {
   const status = useSyncStore((state) => state.status)
   const serverVersion = useSyncStore((state) => state.serverVersion)
+  const lastAutoMergeAt = useSyncStore((state) => state.lastAutoMergeAt)
   const lastError = useSyncStore((state) => state.lastError)
   const lastPushedAt = useSyncStore((state) => state.lastPushedAt)
   const authStatus = useAuthStore((state) => state.status)
@@ -91,6 +92,7 @@ export function SyncPanel() {
             Signed in as <strong>{user.email}</strong>
             {serverVersion ? ` · cloud v${serverVersion}` : ' · no cloud save yet'}
             {lastPushedAt ? ` · last push ${new Date(lastPushedAt).toLocaleTimeString()}` : null}
+            {lastAutoMergeAt ? ' · edits merged automatically' : null}
           </p>
           {lastError ? (
             <p className="panel-note" role="alert">
@@ -104,7 +106,7 @@ export function SyncPanel() {
           </div>
           <p className="panel-note settings-note">
             Sign-out keeps a per-account copy on this device. Offline edits queue and sync on
-            reconnect; conflicts never auto-merge.
+            reconnect; small independent edits merge on their own, real conflicts ask you.
           </p>
         </div>
       ) : (
