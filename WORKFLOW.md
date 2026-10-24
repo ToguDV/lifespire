@@ -108,6 +108,12 @@ pnpm build
 application `tsc -b` build does not include. If any gate fails, fix it on the
 branch before opening the PR. Never open a PR with red checks.
 
+> Troubleshooting: if `pnpm build` fails in `@lifespire/api` with `EACCES`
+> on `apps/api/dist`, that directory is root-owned from a previous privileged
+> build. It is gitignored build output — fix ownership or delete it, then
+> rebuild (`sudo chown -R "$(id -u):$(id -g)" apps/api/dist` or
+> `sudo rm -rf apps/api/dist`). Never run builds as root.
+
 ## 7. Agent cleanup (mandatory before finishing)
 
 When an agent finishes a session, it **must leave the environment clean**:
