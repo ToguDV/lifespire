@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { dayKey } from '../../domain/dates'
+import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
 import {
   Button,
@@ -28,10 +30,37 @@ const REASON_COPY: Record<string, { title: string; copy: string }> = {
 
 export function RecoveryScreen({ reason }: { reason: string }) {
   const resetAll = useAppStore((state) => state.resetAll)
+  const exportRawSave = useAppStore((state) => state.exportRawSave)
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
+  const [exportError, setExportError] = useState<string | null>(null)
   const copy = REASON_COPY[reason] ?? REASON_COPY.corrupt
   const resetReady = isResetConfirmation(resetPhrase)
+
+  const downloadOriginalSave = () => {
+    const raw = exportRawSave()
+    if (raw === null) {
+      setExportError(
+        'No original save is stored in this browser, so there is nothing to download.',
+      )
+      return
+    }
+
+    try {
+      const blob = new Blob([raw], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const anchor = window.document.createElement('a')
+      anchor.href = url
+      anchor.download = `lifespire-recovery-${dayKey(getNow())}.json`
+      window.document.body.append(anchor)
+      anchor.click()
+      anchor.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+      setExportError(null)
+    } catch {
+      setExportError('The original save could not be downloaded from this browser.')
+    }
+  }
 
   const closeReset = () => {
     setConfirmReset(false)
@@ -77,13 +106,22 @@ export function RecoveryScreen({ reason }: { reason: string }) {
           </p>
           <div className="settings-actions">
             <SaveImport label="Import save" inputLabel="Import a LifeSpire save file to recover" />
+            <Button variant="secondary" onClick={downloadOriginalSave}>
+              Download original save
+            </Button>
             <Button variant="danger" onClick={() => setConfirmReset(true)}>
               Reset local data
             </Button>
           </div>
+          {exportError ? (
+            <p className="settings-error" role="alert">
+              <Icon name="lock" />
+              <span>{exportError}</span>
+            </p>
+          ) : null}
           <p className="panel-note settings-note">
-            Resetting removes the blocked save and returns to onboarding. Export or copy the
-            original local document first if you may need it later.
+            Resetting removes the blocked save and returns to onboarding. Download the original
+            save first if you may need it later.
           </p>
         </Panel>
       </div>

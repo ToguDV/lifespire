@@ -2,7 +2,12 @@ import { useId, useState } from 'react'
 import { STORAGE_KEY } from '../../domain/balance'
 import type { GameDocument } from '../../domain/types'
 import { useAppStore } from '../../state/store'
-import { readSaveFile, runPreviewLabel } from '../lib/importSave'
+import {
+  MAX_SAVE_BYTES,
+  isSaveFileTooLarge,
+  readSaveFile,
+  runPreviewLabel,
+} from '../lib/importSave'
 import type { ImportSummary } from '../lib/importSave'
 import { Button } from './Button'
 import { Dialog } from './Dialog'
@@ -35,6 +40,17 @@ export function SaveImport({
 
   const readImportFile = async (file: File) => {
     setImportError(null)
+
+    if (isSaveFileTooLarge(file.size)) {
+      setPendingImport(null)
+      setImportError(
+        `That save is too large. LifeSpire accepts files up to ${
+          MAX_SAVE_BYTES / (1024 * 1024)
+        } MB.`,
+      )
+      return
+    }
+
     let text: string
     try {
       text = await file.text()

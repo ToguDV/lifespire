@@ -5,6 +5,8 @@ import { createRun, openDay } from '../../domain/lifecycle'
 import { createEmptyDocument, serializeDocument } from '../../domain/schema'
 import type { GameDocument, GameMap, Goal, Task } from '../../domain/types'
 import {
+  MAX_SAVE_BYTES,
+  isSaveFileTooLarge,
   readSaveFile,
   runPreviewLabel,
   saveFileName,
@@ -322,5 +324,15 @@ describe('import preview', () => {
 
   it('builds a dated local filename', () => {
     expect(saveFileName('2026-10-21')).toBe('lifespire-2026-10-21.json')
+  })
+})
+
+describe('save file size limit', () => {
+  it('accepts files up to 2 MB and rejects anything larger', () => {
+    expect(MAX_SAVE_BYTES).toBe(2 * 1024 * 1024)
+    expect(isSaveFileTooLarge(0)).toBe(false)
+    expect(isSaveFileTooLarge(MAX_SAVE_BYTES)).toBe(false)
+    expect(isSaveFileTooLarge(MAX_SAVE_BYTES + 1)).toBe(true)
+    expect(isSaveFileTooLarge(Number.POSITIVE_INFINITY)).toBe(true)
   })
 })
