@@ -31,6 +31,7 @@ import { Text } from '../components/Text'
 import { Wheel } from '../components/Wheel'
 import type { WheelPhase } from '../components/Wheel'
 import { playForRewardEvent } from '../lib/resolveFeedback'
+import { playFeedback } from '../state/feedback'
 import { useAppStore } from '../state/store'
 
 type WheelRoll = NonNullable<ReturnType<typeof rollWheelOutcome>>
@@ -162,6 +163,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
   const record = (action: 'complete' | 'skip') => {
     if (resolving.current) return
     resolving.current = true
+    const bossBefore = day.map ? nodeStatus(day.map, day, day.map.boss.id) : null
     resolveNode(node.id, action)
     const state = useAppStore.getState()
     const resolvedDay = state.document.run?.days.find((candidate) => candidate.id === day.id)
@@ -171,6 +173,16 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
       return
     }
     playForRewardEvent(event)
+    if (
+      resolvedDay?.map &&
+      bossBefore !== 'available' &&
+      bossBefore !== 'current'
+    ) {
+      const bossAfter = nodeStatus(resolvedDay.map, resolvedDay, resolvedDay.map.boss.id)
+      if (bossAfter === 'available' || bossAfter === 'current') {
+        setTimeout(() => playFeedback('bossUnlock'), 180)
+      }
+    }
     if (node.type === 'boss') {
       navigate({ name: 'day-summary', dayId: day.id })
       return

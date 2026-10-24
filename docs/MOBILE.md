@@ -128,9 +128,31 @@ the rest of the app remains fully usable.
   `accentDeep`, destructive actions and warnings use stone (`surfaceSunken`,
   `hairlineStrong`, `inkStrong`). `gold` remains a wheel-sector label, not a
   palette token; `danger` is not a token.
+- The map mirrors the web state machine: the screen resolves the active day,
+  prefers today's completed or missed day, and derives sealed/locked/hasMap/
+  canOpen so the head chip, empty copy and Next step panel all speak the same
+  state. Sealed, locked and unopened days render the empty map frame (frame
+  meta, decorative contours, `EmptyState`, compass), never a generic panel.
 - The map uses `react-native-svg` plus absolutely positioned `Pressable`
-  nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. The wheel shares the
-  web spin physics (`packages/app-core/src/ui/wheel.ts`) and mirrors the
+  nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. Every normal node is a
+  54×54 dp target centred on its coordinate, whatever the visible medallion
+  (45/50; 40/44 on five-node layers). Labels cap at 78 dp (64 dp on layers of
+  three or more nodes)
+  and the boss label keeps 124 dp. Labels stay hidden at rest, including the
+  current node: the first tap reveals the title, the second opens the node.
+  Only available/current nodes reveal and open; the rest are `disabled`. The
+  accessible name comes from `nodeAriaLabel` and the frame announces the group
+  as “Camp at the bottom, N layers above, and the boss at the top.” The current
+  node uses its ring as the only marker: the desktop-only HERE micro label is
+  not rendered on Android. Selecting a node plays the select haptic; the boss
+  opening plays `bossUnlock`.
+- The rail is stacked, not docked: three panels (Next step, Weekly targets,
+  Legend) follow the frame in the single screen scroll at every Android width.
+  The old floating dock is retired. Next step holds the choice rows or the
+  sealed/locked/veiled copy and the foot note; the empty map frame carries the
+  contextual action (read the day/week, return to camp, open the path). Weekly
+  targets uses `AimRow` with the goal crest and pips; the richer legend stays.
+- The wheel shares the web spin physics (`packages/app-core/src/ui/wheel.ts`) and mirrors the
   canonical geometry in `components/wheelGeometry.ts`: 200×200 disc, ten 36°
   sectors, 16px icons at radius 62, a fixed 52px hub, a 6px hairline-strong
   ring, a 9.1s four-turn easeOutQuart `Animated` rotation, a throttled haptic

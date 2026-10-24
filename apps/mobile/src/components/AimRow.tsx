@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import type { ReactNode } from 'react'
-import type { GoalIconId } from '@lifespire/core'
 import { useTheme } from '../theme/ThemeProvider'
 import { fonts, radius } from '../theme/tokens'
 import { Icon } from './Icon'
+import type { IconName } from './Icon'
 import { Pips } from './Progress'
 import { Text } from './Text'
 
@@ -17,7 +17,7 @@ export function AimRow({
   onPress,
   accessibilityLabel,
 }: {
-  icon: GoalIconId
+  icon: IconName
   title: string
   subtitle?: ReactNode
   progress?: number
