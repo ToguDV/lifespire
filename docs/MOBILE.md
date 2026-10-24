@@ -123,14 +123,21 @@ the rest of the app remains fully usable.
   `apps/web/src/styles/tokens.css`; Alegreya/Alegreya Sans are self-loaded
   through `@expo-google-fonts` (OFL), the eight used weights including italics.
 - The map uses `react-native-svg` plus absolutely positioned `Pressable`
-  nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. The wheel uses the
-  same sector/payout math as web with an `Animated` rotation.
+  nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. The wheel shares the
+  web spin physics (`packages/app-core/src/ui/wheel.ts`) and mirrors the
+  canonical geometry in `components/wheelGeometry.ts`: 200×200 disc, ten 36°
+  sectors, 16px icons at radius 62, a fixed 52px hub, a 6px hairline-strong
+  ring, a 9.1s four-turn easeOutQuart `Animated` rotation, a throttled haptic
+  tick every two sector crossings and a 1.8s reveal before the recap. The wheel
+  sits after the node tags and before the facts so the primary action stays near
+  the first viewport on a 390×844 screen; the recap mirrors the web
+  `node-spread`. No sound is bundled: wheel feedback is haptic only, and the
+  haptics toggle already gates it.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
   recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.
-- Haptics follow the web feedback vocabulary through `expo-haptics`. Sound is
-  not bundled in this release; the haptics toggle is the device feedback
-  preference.
+- Haptics follow the web feedback vocabulary through `expo-haptics`; the
+  haptics toggle is the device feedback preference.
 - Every screen uses safe areas, 48 dp touch targets, TalkBack labels/state and
   reduced-motion handling for the wheel, counters and seals.
 

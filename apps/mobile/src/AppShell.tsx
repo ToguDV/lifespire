@@ -192,7 +192,9 @@ export function AppShell() {
       case 'map':
         return <MapScreen />
       case 'node':
-        return <NodeScreen nodeId={guardedView.nodeId} />
+        // Remount per node so a resolved wheel can never leak its phase or
+        // resolution guard into the next step.
+        return <NodeScreen key={guardedView.nodeId} nodeId={guardedView.nodeId} />
       case 'reward':
         return <RewardScreen nodeId={guardedView.nodeId} />
       case 'day-summary':

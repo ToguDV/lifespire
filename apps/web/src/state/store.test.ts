@@ -840,6 +840,26 @@ describe('view navigation', () => {
     expect(store.getState().view).toEqual({ name: 'recovery', reason: 'corrupt' })
   })
 
+  it('leaves the wheel recap without re-adding reward to history', () => {
+    const { store } = makeHarness()
+    store.setState({ view: { name: 'map' }, history: [{ name: 'home' }] })
+
+    store.getState().navigate({ name: 'node', nodeId: 'node_1' })
+    store.getState().navigate({ name: 'reward', nodeId: 'node_1' })
+    expect(store.getState().history.map((item) => item.name)).toEqual([
+      'home',
+      'map',
+      'node',
+    ])
+
+    store.getState().finishReward({ name: 'map' })
+    expect(store.getState().view).toEqual({ name: 'map' })
+    expect(store.getState().history.map((item) => item.name)).toEqual(['home'])
+
+    store.getState().back()
+    expect(store.getState().view).toEqual({ name: 'home' })
+  })
+
   it('pushes and pops transient history without persisting it', () => {
     const { store, memory, base } = makeHarness()
     store.getState().completeOnboarding(createDemoSetup(base), base)

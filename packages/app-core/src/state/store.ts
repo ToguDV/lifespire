@@ -63,6 +63,8 @@ export interface AppState {
   rewardToast: RewardEvent | null
 
   navigate(view: View): void
+  /** Leaves the transient wheel recap without re-adding it to the back stack. */
+  finishReward(view: View): void
   back(): void
   updateOnboardingDraft(patch: Partial<OnboardingDraft>): void
   completeOnboarding(setup: OnboardingSetup, now?: Date): void
@@ -222,6 +224,21 @@ export function createAppStore(
           const { view, history } = get()
           if (sameView(view, nextView)) return
           set({ view: nextView, history: [...history, view] })
+        },
+
+        finishReward: (nextView) => {
+          const { history } = get()
+          // The recap is a transient step: the node that opened it is already
+          // resolved, so neither it nor a stale reward belongs on the back stack.
+          let next = history.filter((entry) => entry.name !== 'reward')
+          if (next.length > 0 && next[next.length - 1].name === 'node') {
+            next = next.slice(0, -1)
+          }
+          // Avoid a no-op back press when the destination is already on top.
+          if (next.length > 0 && sameView(next[next.length - 1], nextView)) {
+            next = next.slice(0, -1)
+          }
+          set({ view: nextView, history: next })
         },
 
         back: () => {

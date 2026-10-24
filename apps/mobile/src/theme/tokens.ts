@@ -60,6 +60,7 @@ const light: Palette = {
   danger: '#8a3d34',
   dangerSoft: '#f0ded9',
   success: '#4d6b5a',
+  // The wheel is theme-invariant: Day and Night share the same wheel palette.
   wheelTask: '#20241e',
   wheelGold: '#385342',
   wheelXp: '#4d6b5a',
@@ -93,12 +94,13 @@ const dark: Palette = {
   danger: '#d9a19a',
   dangerSoft: '#33211f',
   success: '#9dbba8',
-  wheelTask: '#e8e5d9',
-  wheelGold: '#c5dacb',
-  wheelXp: '#9dbba8',
-  wheelRest: '#c7a980',
+  // Same wheel palette as Day: the wheel never changes with the theme.
+  wheelTask: '#20241e',
+  wheelGold: '#385342',
+  wheelXp: '#4d6b5a',
+  wheelRest: '#6b5a3e',
   wheelStroke: '#40453a',
-  wheelIcon: '#131511',
+  wheelIcon: '#f1f0ea',
 }
 
 export const palettes: Record<ColorScheme, Palette> = { light, dark }

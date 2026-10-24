@@ -41,6 +41,12 @@ colors:
   accent-wash-night: "rgba(157, 187, 168, 0.08)"
   on-accent-night: "#131511"
   scrim-night: "rgba(5, 7, 4, 0.62)"
+  wheel-task: "#20241E"
+  wheel-gold: "#385342"
+  wheel-xp: "#4D6B5A"
+  wheel-rest: "#6B5A3E"
+  wheel-stroke: "#40453A"
+  wheel-icon: "#F1F0EA"
 
 typography:
   display-xl:
@@ -621,6 +627,45 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - Open: 1.5px moss dashed 3/7.
 - Veiled: 1.5px `{colors.hairline-strong}` dashed 1/8.
 - Boss halo: dashed hairline ellipse with `{colors.accent-wash}` fill.
+
+### Wheel
+
+**`wheel`** — The wheel node's one-shot outcome picker. Web and Android share
+the spin physics (`packages/app-core/src/ui/wheel.ts`); the canonical visual
+geometry below is mirrored by `apps/mobile/src/components/wheelGeometry.ts`.
+On Android the wheel sits right after the node tags and before the facts so the
+primary action stays near the first viewport on a 390×844 screen.
+
+- Disc 200×200 with ten 36° sectors: 5 task, 2 gold, 2 xp, 1 rest. Every wedge
+  spans `wheelSectorCenter(i) ± 18°`; separators are 1px `{colors.wheel-stroke}`.
+- Outer ring: 6px `{colors.hairline-strong}` plus the soft `0 12px 30px
+  rgba(0,0,0,.35)` shadow (elevation on Android).
+- Fixed 52px hub outside the rotating layer: `{colors.wheel-task}` fill, 2px
+  `{colors.wheel-stroke}` border and `?` in display 24px `{colors.wheel-icon}`.
+  On reveal it takes the winning sector fill and a 22px Lucide sector icon.
+- Sector icons are Lucide `scroll`, `coin`, `star` and `campfire`, 16px at a
+  62px radius, centered on each sector angle. They are decorative; the wrapper
+  carries the accessible label "Wheel of outcomes".
+- Pointer: 20×18px triangle in `{colors.wheel-icon}` above the disc; it flicks
+  −18° on every sector crossing during the spin.
+- Spin: only from the primary "Spin the wheel"; idle → spinning → revealed.
+  9.1s, four full turns, easeOutQuart, native-driven rotation. The button is
+  hidden during the spin and replaced by "Spinning…"; Android emits a throttled
+  haptic tick every two sector crossings and one impact on reveal. Android
+  bundles no wheel sound. The web's looping hub pulse and glow are intentionally
+  omitted on Android to respect the no-loop motion rule; the static hub, ticks
+  and pointer flicks carry the spinning state.
+- Reveal: a 1.8s hold. Losing sectors drop to 45% opacity; the winner keeps a
+  2px `{colors.wheel-icon}` stroke plus a single non-looping highlight. The
+  in-place result card uses surface-raised, a `{colors.hairline-strong}` border,
+  12px radius, 12px padding and 8px gap: outcome line in display 20px
+  `{colors.ink-strong}`, rewards in UI `{colors.ink}`, with a 400ms one-shot
+  scale/fade entry.
+- Reduced motion skips the spin and opens the recap immediately. "Skip this
+  step" and its note show before the spin, disable while spinning and disappear
+  once the outcome is revealed.
+- The wheel is theme-invariant: Day and Night use the same wheel-task,
+  wheel-gold, wheel-xp, wheel-rest, wheel-stroke and wheel-icon values.
 
 ### Chips, Pips, and Signals
 
