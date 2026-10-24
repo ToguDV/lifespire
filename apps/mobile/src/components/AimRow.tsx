@@ -1,11 +1,10 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import type { ReactNode } from 'react'
 import type { GoalIconId } from '@lifespire/core'
-import { GOAL_ICON_LABEL } from '@lifespire/app-core/ui/format'
 import { useTheme } from '../theme/ThemeProvider'
-import { radius, space } from '../theme/tokens'
+import { fonts, radius } from '../theme/tokens'
 import { Icon } from './Icon'
-import { Progress } from './Progress'
+import { Pips } from './Progress'
 import { Text } from './Text'
 
 export function AimRow({
@@ -28,25 +27,28 @@ export function AimRow({
   accessibilityLabel?: string
 }) {
   const { colors } = useTheme()
+  const filled = typeof progress === 'number' && typeof target === 'number'
+    ? Math.min(progress, target)
+    : 0
   const content = (
     <View style={styles.row}>
-      <View style={[styles.crest, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}>
-        <Icon name={icon} size={17} color={colors.accentDeep} />
+      <View style={[styles.crest, { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline }]}>
+        <Icon name={icon} size={15} color={colors.accentDeep} />
       </View>
       <View style={styles.body}>
-        <Text variant="headingSm" numberOfLines={2}>
+        <Text numberOfLines={2} style={[styles.title, { color: colors.ink }]}>
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="caption" tone="muted" numberOfLines={2}>
+          <Text variant="bodySm" tone="muted" numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}
         {typeof progress === 'number' && typeof target === 'number' ? (
           <View style={styles.progressRow}>
-            <Progress value={progress} max={target} label={`${GOAL_ICON_LABEL[icon]} progress`} />
-            <Text variant="caption" tone="muted">
-              {progress}/{target}
+            <Pips total={target} filled={filled} />
+            <Text variant="caption" tone="muted" style={styles.count}>
+              {filled} / {target}
             </Text>
           </View>
         ) : null}
@@ -70,16 +72,23 @@ export function AimRow({
 }
 
 const styles = StyleSheet.create({
-  pressable: { borderRadius: radius.md, paddingVertical: space.xs },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  pressable: { borderRadius: radius.md },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+  },
   crest: {
-    width: 38,
-    height: 38,
+    width: 30,
+    height: 30,
     borderRadius: radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  body: { flex: 1, gap: 2 },
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: 3 },
+  body: { flex: 1, minWidth: 0, gap: 5 },
+  title: { fontFamily: fonts.uiBold, fontSize: 12.8, lineHeight: 16 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  count: { marginLeft: 'auto', fontVariant: ['tabular-nums'] },
 })

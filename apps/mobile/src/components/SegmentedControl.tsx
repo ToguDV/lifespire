@@ -40,7 +40,10 @@ export function SegmentedControl<T extends string>({
             style={({ pressed }) => [
               styles.option,
               selected
-                ? { backgroundColor: colors.surfaceRaised, ...styles.optionShadow }
+                ? {
+                    backgroundColor: colors.surfaceRaised,
+                    ...styles.optionShadow,
+                  }
                 : { opacity: pressed ? 0.7 : 1 },
             ]}
           >
@@ -79,7 +82,9 @@ const styles = StyleSheet.create({
   },
   optionLabel: {
     fontFamily: fonts.uiBold,
-    letterSpacing: 0.48,
+    fontSize: 10.9,
+    lineHeight: 14,
+    letterSpacing: 0.44,
     textTransform: 'uppercase',
   },
 })

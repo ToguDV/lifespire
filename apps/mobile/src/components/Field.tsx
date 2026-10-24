@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { StyleSheet, TextInput, View } from 'react-native'
 import type { TextInputProps } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
-import { fonts, radius, space } from '../theme/tokens'
+import { fonts, radius } from '../theme/tokens'
 import { Text } from './Text'
 
 export function Field({
@@ -46,30 +46,37 @@ export function Input({ style, onFocus, onBlur, ...rest }: TextInputProps) {
   const { colors } = useTheme()
   const [focused, setFocused] = useState(false)
   return (
-    <TextInput
-      {...rest}
-      allowFontScaling
-      maxFontSizeMultiplier={2}
-      placeholderTextColor={colors.inkSoft}
-      onFocus={(event) => {
-        setFocused(true)
-        onFocus?.(event)
-      }}
-      onBlur={(event) => {
-        setFocused(false)
-        onBlur?.(event)
-      }}
-      style={[
-        styles.input,
-        {
-          backgroundColor: colors.surfaceRaised,
-          borderColor: focused ? colors.accent : colors.hairlineStrong,
-          color: colors.ink,
-        },
-        focused ? styles.inputFocused : null,
-        style,
-      ]}
-    />
+    <View style={styles.inputWrap}>
+      <TextInput
+        {...rest}
+        allowFontScaling
+        maxFontSizeMultiplier={2}
+        placeholderTextColor={colors.inkSoft}
+        onFocus={(event) => {
+          setFocused(true)
+          onFocus?.(event)
+        }}
+        onBlur={(event) => {
+          setFocused(false)
+          onBlur?.(event)
+        }}
+        style={[
+          styles.input,
+          {
+            backgroundColor: colors.surfaceRaised,
+            borderColor: focused ? colors.accent : colors.hairlineStrong,
+            color: colors.ink,
+          },
+          style,
+        ]}
+      />
+      {focused ? (
+        <View
+          pointerEvents="none"
+          style={[styles.focusRing, { borderColor: colors.accentSoft }]}
+        />
+      ) : null}
+    </View>
   )
 }
 
@@ -77,7 +84,9 @@ const styles = StyleSheet.create({
   field: { gap: 6 },
   label: {
     fontFamily: fonts.uiBold,
-    letterSpacing: 0.72,
+    fontSize: 10.9,
+    lineHeight: 14,
+    letterSpacing: 0.65,
     textTransform: 'uppercase',
   },
   errorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
@@ -92,19 +101,25 @@ const styles = StyleSheet.create({
   },
   errorMark: { fontSize: 8, lineHeight: 9, fontFamily: fonts.uiBold },
   errorText: { flex: 1, fontFamily: fonts.uiBold, lineHeight: 18 },
+  inputWrap: { width: '100%' },
   input: {
+    width: '100%',
     minHeight: 44,
     borderWidth: 1,
     borderRadius: radius.sm,
-    paddingHorizontal: space.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 0,
     fontFamily: fonts.ui,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 13.6,
+    lineHeight: 20,
   },
-  inputFocused: {
-    shadowColor: '#4d6b5a',
-    shadowOpacity: 0.35,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 0 },
+  focusRing: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    bottom: -3,
+    left: -3,
+    borderWidth: 3,
+    borderRadius: radius.sm + 3,
   },
 })

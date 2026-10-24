@@ -139,6 +139,13 @@ the rest of the app remains fully usable.
   the first viewport on a 390×844 screen; the recap mirrors the web
   `node-spread`. No sound is bundled: wheel feedback is haptic only, and the
   haptics toggle already gates it.
+- Shared primitives mirror the published web CSS: `EmptyState` puts a 64 px
+  accent medallion inside a 76 px wash ring and accepts an optional kicker;
+  `StatStrip` is three equal cells split by hairlines (value first, label
+  below); `LootCard` is a vertical 164 px card with a 52×62 niche and the
+  Relics grid is two columns; `Toast`/`RewardToast` invert the palette (ink
+  background, canvas text) and the plain toast adds a 44 dp Dismiss;
+  `IconPicker` tiles are 54 dp with a visible label and a check badge.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
   recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.

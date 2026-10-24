@@ -114,7 +114,9 @@ export function ProfileScreen() {
         </View>
         <View style={styles.collection}>
           {visible.map((entry) => (
-            <LootCard key={entry.catalog.id} entry={entry.catalog} owned={entry.owned ?? undefined} detailed />
+            <View key={entry.catalog.id} style={styles.lootCell}>
+              <LootCard entry={entry.catalog} owned={entry.owned ?? undefined} detailed />
+            </View>
           ))}
         </View>
       </Panel>
@@ -155,7 +157,8 @@ const styles = StyleSheet.create({
   xpNote: { marginVertical: space.xs },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginBottom: space.sm },
   filter: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: space.sm, paddingVertical: 3 },
-  collection: { gap: space.sm },
+  collection: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  lootCell: { flexBasis: '46%', flexGrow: 1, maxWidth: '48%' },
   duplicates: { gap: space.sm },
   duplicate: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: space.sm },
   duplicateBody: { flex: 1, gap: 2 },
