@@ -40,7 +40,7 @@ function goal(id: string) {
 
 function refreshCookieOf(res: request.Response): string | undefined {
   const raw = (res.headers['set-cookie'] as unknown as string[] | undefined) ?? [];
-  return raw.find((c) => c.startsWith('__Secure-ls_rt='))?.split(';')[0];
+  return raw.find((c) => c.startsWith('__Secure-ls_rt=') || c.startsWith('ls_rt_dev='))?.split(';')[0];
 }
 
 function inviteTokenOf(link: string): string {
@@ -251,6 +251,20 @@ describe('sync API e2e (postgres)', () => {
     const target = (users.body.users as Array<{ id: string; email: string }>).find((u) => u.email === userEmail);
     await admin.patch(`/v1/admin/users/${target?.id}`).set('Authorization', `Bearer ${adminTok}`).send({ status: 'DISABLED' }).expect(200);
     await user.post('/v1/auth/login').send({ email: userEmail, password: userPassword, deviceName: 'phone' }).expect(403);
+
+    // 19b. The disabled account loses API access even with a live token.
+    const disabledSync = await user.get('/v1/sync').set('Authorization', `Bearer ${userToken}`).expect(403);
+    expect(disabledSync.body.code).toBe('USER_DISABLED');
+    const disabledPut = await user
+      .put('/v1/sync')
+      .set('Authorization', `Bearer ${userToken}`)
+      .set('If-Match', '"2"')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: doc() })
+      .expect(403);
+    expect(disabledPut.body.code).toBe('USER_DISABLED');
+    await user.get('/v1/devices').set('Authorization', `Bearer ${userToken}`).expect(403);
+    await user.get('/v1/me/export').set('Authorization', `Bearer ${userToken}`).expect(403);
 
     // 20. The last admin cannot disable itself.
     const me = (users.body.users as Array<{ id: string; email: string }>).find((u) => u.email === adminEmail);

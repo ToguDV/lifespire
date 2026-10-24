@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { CurrentUser } from '../common/current-user.decorator';
 import { ApiError } from '../common/api-error';
+import { requireActiveUser } from '../common/require-active';
 
 @ApiTags('me')
 @Controller('v1/me')
@@ -11,10 +12,9 @@ export class UsersController {
 
   @Get()
   async me(@CurrentUser() user: { sub: string }) {
+    await requireActiveUser(this.prisma, user.sub);
     const row = await this.prisma.user.findUnique({ where: { id: user.sub } });
-    if (!row || row.status === 'DISABLED') {
-      throw new ApiError({ status: 403, code: 'USER_DISABLED', title: 'Account is disabled' });
-    }
+    if (!row) throw new ApiError({ status: 404, code: 'USER_NOT_FOUND', title: 'Not found' });
     return {
       id: row.id,
       email: row.email,
@@ -27,6 +27,7 @@ export class UsersController {
 
   @Get('export')
   async export(@CurrentUser() user: { sub: string }) {
+    await requireActiveUser(this.prisma, user.sub);
     const row = await this.prisma.user.findUnique({
       where: { id: user.sub },
       include: { document: true, devices: true },
@@ -43,6 +44,7 @@ export class UsersController {
   @Delete()
   @HttpCode(204)
   async remove(@CurrentUser() user: { sub: string }): Promise<void> {
+    await requireActiveUser(this.prisma, user.sub);
     // Hard delete with cascade; backups expire separately.
     const me = await this.prisma.user.findUnique({ where: { id: user.sub } });
     if (me && me.role === 'ADMIN' && me.status === 'ACTIVE') {

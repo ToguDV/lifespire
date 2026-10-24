@@ -32,8 +32,9 @@ describe('SyncMetrics', () => {
     expect(snap.noop).toBe(1);
     expect(snap.replayed).toBe(1);
     expect(snap.conflicts).toBe(1);
-    expect(snap.bytesIn).toBe(750);
-    expect(snap.avgPushLatencyMs).toBeCloseTo(13.4, 1);
+    // Conflicts are counted but excluded from push bytes/latency.
+    expect(snap.bytesIn).toBe(600);
+    expect(snap.avgPushLatencyMs).toBeCloseTo(11.75, 2);
     expect(snap.maxPushLatencyMs).toBe(30);
   });
 });

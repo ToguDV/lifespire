@@ -104,7 +104,8 @@ export default function push(data) {
   check(res, {
     'push accepted': (r) => (PHASE === 'create' ? r.status === 201 : r.status === 200),
   });
-  // Stagger just enough to stay inside the 120 req/min global throttle bucket
-  // across the 100-VU burst while keeping the pushes concurrent.
+  // Small stagger between the single iterations of a burst. The 60 s spacing
+  // between phases (manual, to stay inside the 120 req/min throttle bucket)
+  // is what keeps bursts apart — not this sleep.
   sleep(0.6);
 }

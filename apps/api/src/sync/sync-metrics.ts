@@ -17,10 +17,12 @@ export interface SyncMetricsSnapshot {
 }
 
 /**
- * In-memory sync counters (closed beta: no metrics backend yet). Validation
+ * In-memory sync counters (closed beta: no metrics backend yet). Only actual
+ * pushes (created/updated/noop/replayed) feed bytes and latency; validation
  * rejections (400/413/422-shape/422-rule) are client errors, not pushes, and
- * stay out; conflicts are counted because they are version races on the write
- * path. Logged per push as structured pino fields by SyncService.
+ * conflicts are version races counted separately — so avgPushLatencyMs always
+ * describes real push cost. Logged per push as structured pino fields by
+ * SyncService.
  */
 @Injectable()
 export class SyncMetrics {
@@ -42,6 +44,7 @@ export class SyncMetrics {
 
   record(outcome: SyncPushOutcome, bytes: number, latencyMs: number): void {
     this.counts[outcome] += 1;
+    if (outcome === 'conflict') return;
     this.bytesIn += bytes;
     this.latencyCount += 1;
     this.latencyTotalMs += latencyMs;

@@ -128,6 +128,12 @@ behavior. The server never interprets dates — it stores the document.
   (anyone holding valid credentials for a disabled account can distinguish it
   from a bad-password `401`); accepted so operators and users get a clear
   disabled signal instead of a misleading generic error.
+- Stateless access tokens live up to 15 min after logout, password change or
+  disable: only refresh sessions are revoked server-side. Every authenticated
+  handler re-checks `status === 'ACTIVE'` (`requireActiveUser`), so a disabled
+  account loses sync/devices/export/me immediately; in-flight access tokens
+  stop working at expiry. No per-request session lookup by design (push-path
+  cost, see §9).
 - Security headers via helmet + CSP/`frame-ancestors` at Caddy; same-origin
   contract: the web calls `/v1` directly and Caddy proxies `/v1`, `/health`
   and `/docs` to the API (plus a legacy `/api` strip-prefix rule), so cookies
@@ -145,12 +151,13 @@ cp apps/api/.env.example /opt/lifespire/.env   # fill secrets (openssl rand -bas
 docker compose -f infra/docker-compose.prod.yml up -d --build
 docker compose -f infra/docker-compose.prod.yml exec api npx prisma migrate deploy
 
-# first admin (on the server)
-docker compose -f infra/docker-compose.prod.yml exec api pnpm admin:create --email admin@example.com
+# first admin (on the server; the prod image has no pnpm/ts-node, the CLIs
+# run from the compiled dist — build first with pnpm --filter @lifespire/api build)
+docker compose -f infra/docker-compose.prod.yml exec api node dist/cli/admin-create.js --email admin@example.com
 # log in, complete TOTP setup, then create users from the admin panel/CLI
 
 # manual reset link for a user
-docker compose -f infra/docker-compose.prod.yml exec api pnpm admin:reset-link --email user@example.com
+docker compose -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email user@example.com
 
 # backups (cron daily): infra/backup.sh, 30-day retention + optional restic
 ```
