@@ -171,4 +171,80 @@ describe('api-client', () => {
       globalThis.fetch = origFetch;
     }
   });
+
+  it('lists admin users and creates invite links', async () => {
+    const seen: Array<{ method: string; path: string; body?: unknown }> = [];
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+      const target = String(url);
+      const path = target.slice(target.indexOf('/v1'));
+      seen.push({
+        method: init?.method ?? 'GET',
+        path,
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      if (path.startsWith('/v1/admin/users') && (init?.method ?? 'GET') === 'GET') {
+        return new Response(
+          JSON.stringify({
+            total: 1,
+            page: 1,
+            pageSize: 100,
+            users: [
+              {
+                id: 'u1',
+                email: 'a@b.c',
+                role: 'USER',
+                status: 'ACTIVE',
+                deviceCount: 2,
+                lastLoginAt: '2026-10-24T00:00:00.000Z',
+                lastSyncAt: null,
+                createdAt: '2026-10-24T00:00:00.000Z',
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (path === '/v1/admin/users') {
+        return new Response(
+          JSON.stringify({
+            id: 'u2',
+            email: 'n@b.c',
+            inviteLink: 'http://localhost:5173/accept-invite#token=abc',
+          }),
+          { status: 201 },
+        );
+      }
+      return new Response(JSON.stringify({ title: 'Not found' }), { status: 404 });
+    }) as typeof fetch;
+    try {
+      const api = createApiClient({ baseUrl: 'https://api.example.com' });
+      const listed = await api.listUsers();
+      expect(listed.total).toBe(1);
+      expect(listed.users[0]?.deviceCount).toBe(2);
+      const created = await api.createUser('n@b.c', 'USER');
+      expect(created.inviteLink).toContain('#token=');
+      expect(seen).toContainEqual({
+        method: 'POST',
+        path: '/v1/admin/users',
+        body: { email: 'n@b.c', role: 'USER' },
+      });
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('surfaces admin 403s as ApiRequestError', async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify({ title: 'Forbidden', code: 'FORBIDDEN' }), {
+        status: 403,
+      })) as typeof fetch;
+    try {
+      const api = createApiClient({ baseUrl: 'https://api.example.com' });
+      await expect(api.listUsers()).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });
