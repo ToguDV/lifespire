@@ -319,5 +319,5 @@ const styles = StyleSheet.create({
   avatar: { width: 48, height: 48, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   profileBody: { flex: 1, gap: 2 },
   gold: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  links: { gap: space.sm, marginTop: space.sm },
+  links: { gap: space.sm },
 })

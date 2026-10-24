@@ -388,7 +388,6 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     paddingRight: 12,
-    marginBottom: 8,
   },
   spread: { overflow: 'hidden' },
   art: {
@@ -484,7 +483,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   bonusValue: { fontFamily: fonts.display, fontSize: 15, lineHeight: 19 },
-  actions: { gap: space.sm, marginTop: space.sm },
+  actions: { gap: space.sm },
   wheelNote: { textAlign: 'center', marginVertical: space.sm },
-  skipNote: { marginVertical: space.md, textAlign: 'center' },
+  skipNote: { marginBottom: space.md, textAlign: 'center' },
 })

@@ -209,5 +209,5 @@ const styles = StyleSheet.create({
   loot: { gap: space.sm },
   lootRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   lootName: { flex: 1 },
-  actions: { gap: space.sm, marginTop: space.sm },
+  actions: { gap: space.sm },
 })

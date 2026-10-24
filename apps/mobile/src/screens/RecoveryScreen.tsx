@@ -124,7 +124,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
         </Button>
       </Panel>
 
-      <Text variant="caption" tone="soft" style={styles.note}>
+      <Text variant="caption" tone="soft" style={[styles.note, { marginTop: 0 }]}>
         If you exported a save on web, import that JSON here. Saves use the same versioned
         document on both apps.
       </Text>
