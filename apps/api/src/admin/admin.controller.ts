@@ -9,7 +9,9 @@ import { CreateUserDto, AuditQuery, ListUsersQuery, UpdateUserDto } from './dto'
 import { SyncMetrics } from '../sync/sync-metrics';
 
 function ipOf(req: Request): string | undefined {
-  return (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip;
+  // Socket IP only: X-Forwarded-For is client-controlled without trust proxy.
+  // Proxy-aware IPs (Caddy) are a follow-up with throttle keying (#56).
+  return req.ip;
 }
 
 @ApiTags('admin')

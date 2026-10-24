@@ -15,7 +15,8 @@ function deviceOf(req: Request, name: string) {
   return {
     name,
     userAgent: req.headers['user-agent']?.slice(0, 500),
-    ip: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip,
+    // Socket IP only: X-Forwarded-For is client-controlled without trust proxy (#56).
+    ip: req.ip,
   };
 }
 

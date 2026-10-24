@@ -128,6 +128,12 @@ behavior. The server never interprets dates — it stores the document.
   (anyone holding valid credentials for a disabled account can distinguish it
   from a bad-password `401`); accepted so operators and users get a clear
   disabled signal instead of a misleading generic error.
+- Stateless access tokens live up to 15 min after logout, password change or
+  disable: only refresh sessions are revoked server-side. Every authenticated
+  handler re-checks `status === 'ACTIVE'` (`requireActiveUser`), so a disabled
+  account loses sync/devices/export/me immediately; in-flight access tokens
+  stop working at expiry. No per-request session lookup by design (push-path
+  cost, see §9).
 - Security headers via helmet + CSP/`frame-ancestors` at Caddy; same-origin
   contract: the web calls `/v1` directly and Caddy proxies `/v1`, `/health`
   and `/docs` to the API (plus a legacy `/api` strip-prefix rule), so cookies

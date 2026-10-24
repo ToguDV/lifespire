@@ -8,3 +8,7 @@ allowBuilds:
   argon2: true
   prisma: true
   unrs-resolver: true
+
+overrides:
+  # GHSA-q7qp-rjg7-q26m (DoS, high): force the patched multer across Nest.
+  multer: ^2.5.0

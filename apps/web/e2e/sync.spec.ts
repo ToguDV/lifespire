@@ -189,6 +189,7 @@ test.describe('sync engine', () => {
   })
 
   test('concurrent edits open the conflict dialog with zero loss', async ({ browser }) => {
+    test.slow(true, 'two wheel spins with real-timer animations under suite load');
     const server = createMockServer()
     const ctxA = await browser.newContext()
     const ctxB = await browser.newContext()

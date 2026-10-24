@@ -3,8 +3,8 @@
 # Since #46 the single source of truth lives in packages/core/src; the web copies
 # were replaced by one-line `export * from '@lifespire/core/...'` shims so all
 # existing `../domain/*` and `../content/*` imports keep working.
-# This script asserts the shim list (no duplicated implementations) and keeps the
-# SCHEMA_VERSION cross-check until #49 wires the API to the core build output.
+# This script asserts the shim list (no duplicated implementations) and checks
+# the API consumes the core build output (#49: no SERVER_SCHEMA_VERSION hardcode).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

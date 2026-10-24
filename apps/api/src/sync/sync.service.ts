@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { checksumDocument, IDEMPOTENCY_TTL_DAYS, SYNC_REVISIONS_KEPT } from './document-check';
 import type { SyncPushOutcome } from './sync-metrics';
 import { SyncMetrics } from './sync-metrics';
+import { requireActiveUser } from '../common/require-active';
 import { formatETag, nextVersion, parseIfMatch, shouldIncrementVersion } from './sync-version';
 
 /** Floor of accepted schema versions (server policy). Tracks SCHEMA_VERSION: only current saves sync. */
@@ -62,6 +63,7 @@ export class SyncService {
   }
 
   async get(userId: string, ifNoneMatch?: string) {
+    await requireActiveUser(this.prisma, userId);
     const row = await this.prisma.syncDocument.findUnique({ where: { userId } });
     if (!row) {
       throw new ApiError({ status: 404, code: 'SYNC_INVALID_DOCUMENT', title: 'No cloud save' });
@@ -90,6 +92,7 @@ export class SyncService {
   }): Promise<{ version: string; updatedAt: Date; created: boolean }> {
     const { userId, document } = input;
     const startedAt = Date.now();
+    await requireActiveUser(this.prisma, userId);
     if (!input.idempotencyKey || !isUuid(input.idempotencyKey)) {
       throw new ApiError({
         status: 400,
@@ -255,6 +258,7 @@ export class SyncService {
   }
 
   async remove(userId: string): Promise<void> {
+    await requireActiveUser(this.prisma, userId);
     await this.prisma.$transaction([
       this.prisma.syncRevision.deleteMany({ where: { userId } }),
       this.prisma.syncMutation.deleteMany({ where: { userId } }),
@@ -264,6 +268,7 @@ export class SyncService {
   }
 
   async revisions(userId: string, limit = 20) {
+    await requireActiveUser(this.prisma, userId);
     const rows = await this.prisma.syncRevision.findMany({
       where: { userId },
       orderBy: { version: 'desc' },

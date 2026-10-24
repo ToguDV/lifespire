@@ -8,12 +8,18 @@ import { ApiError } from '../common/api-error';
 import { sha256Hex } from '../common/crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateInviteToken, INVITE_TOKEN_TTL_MS, RESET_TOKEN_TTL_MS } from './invite-token';
-import { isAllowedPasswordLength } from './password-policy';
+import { isAllowedPassword } from './password-policy';
 import { hashPassword, verifyPassword } from './password';
 import { decryptSecret, encryptSecret, generateRecoveryCodes } from './totp-crypto';
 import { checkTotp, createTotpSecret, totpUri } from './totp';
 
-export const REFRESH_COOKIE = '__Secure-ls_rt';
+/**
+ * `__Secure-` cookies require the Secure attribute, which browsers reject
+ * over http — including http://localhost. Production serves HTTPS behind
+ * Caddy, so only it uses the prefixed name; dev/test use a plain name.
+ */
+export const REFRESH_COOKIE =
+  process.env.NODE_ENV === 'production' ? '__Secure-ls_rt' : 'ls_rt_dev';
 
 interface DeviceInfo {
   name: string;
@@ -155,7 +161,7 @@ export class AuthService {
     password: string;
     device: DeviceInfo;
   }): Promise<{ accessToken: string; refreshToken: string; userId: string }> {
-    if (!isAllowedPasswordLength(input.password)) {
+    if (!isAllowedPassword(input.password)) {
       throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
     }
     const tokenHash = sha256Hex(input.token);
@@ -314,7 +320,7 @@ export class AuthService {
   }
 
   async resetPassword(input: { token: string; password: string }): Promise<void> {
-    if (!isAllowedPasswordLength(input.password)) {
+    if (!isAllowedPassword(input.password)) {
       throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
     }
     const tokenHash = sha256Hex(input.token);
@@ -350,7 +356,7 @@ export class AuthService {
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    if (!isAllowedPasswordLength(newPassword)) {
+    if (!isAllowedPassword(newPassword)) {
       throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
     }
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
