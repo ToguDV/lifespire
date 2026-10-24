@@ -76,7 +76,25 @@ For any feature, fix, or behavior change, follow TDD:
   change is purely mechanical (rename, formatting, docs).
 - Pure domain logic (`src/domain/`) must always be covered by tests.
 
-## 5. Quality gates (must be green before opening a PR)
+## 5. Sync awareness (mandatory for every feature)
+
+Every feature must keep sync working. The app is local-first with per-account
+cloud sync (see `docs/BACKEND.md` and ADR-0001/ADR-0004):
+
+- Any change to the `GameDocument` shape, domain rules, or the store must
+  consider the sync path: schema versioning/migrations, server rule validation
+  (the API enforces `parseDocument`), and the conservative 3-way auto-merge
+  (`tryAutoMerge` in `packages/core` merges only disjoint edits).
+- New resolvable state (counters, collections, run progress) must define how
+  concurrent edits merge: disjoint-wins, additive counters, or explicit
+  conflict. Never rely on silent last-write-wins.
+- If the change touches a sync-critical path (domain/state/content/shell,
+  API, shared packages, E2E config), update `apps/web/e2e/sync.spec.ts` and
+  verify `pnpm test:e2e`.
+- Never persist an unvalidated document as the merge base; the `:base` key
+  refreshes automatically on successful push/pull.
+
+## 6. Quality gates (must be green before opening a PR)
 
 ```bash
 pnpm lint
@@ -90,7 +108,7 @@ pnpm build
 application `tsc -b` build does not include. If any gate fails, fix it on the
 branch before opening the PR. Never open a PR with red checks.
 
-## 6. Agent cleanup (mandatory before finishing)
+## 7. Agent cleanup (mandatory before finishing)
 
 When an agent finishes a session, it **must leave the environment clean**:
 
@@ -104,7 +122,7 @@ When an agent finishes a session, it **must leave the environment clean**:
 - **No untracked noise.** `git status` should show only intentional changes.
 - Report the branch name and PR URL to the user, then stop.
 
-## 7. Session checklist (agent)
+## 8. Session checklist (agent)
 
 1. Create session branch.
 2. Make changes; commit with conventional format.
