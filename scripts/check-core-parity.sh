@@ -19,6 +19,7 @@ declare -A SHIMS=(
   ["apps/web/src/domain/goalIcons.ts"]="@lifespire/core/domain/goalIcons"
   ["apps/web/src/domain/lifecycle.ts"]="@lifespire/core/domain/lifecycle"
   ["apps/web/src/domain/mapDepth.ts"]="@lifespire/core/domain/mapDepth"
+  ["apps/web/src/domain/merge.ts"]="@lifespire/core/domain/merge"
   ["apps/web/src/domain/rewards.ts"]="@lifespire/core/domain/rewards"
   ["apps/web/src/domain/rng.ts"]="@lifespire/core/domain/rng"
   ["apps/web/src/domain/runClose.ts"]="@lifespire/core/domain/runClose"
