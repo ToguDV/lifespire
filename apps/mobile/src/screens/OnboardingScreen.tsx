@@ -218,7 +218,7 @@ export function OnboardingScreen() {
           </Text>
         </Panel>
 
-        <Text variant="caption" tone="soft" style={styles.note}>
+        <Text variant="caption" tone="soft" style={[styles.note, { marginTop: 0 }]}>
           Your data stays on this device. Sync is optional.
         </Text>
       </Screen>
@@ -521,18 +521,18 @@ function ThemeToggleMini({ onToggle }: { onToggle: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.xl },
+  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  hero: { gap: space.sm, marginBottom: space.lg },
-  points: { gap: space.sm, marginBottom: space.lg },
+  hero: { gap: space.sm },
+  points: { gap: space.sm },
   point: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   pointIcon: { width: 32, height: 32, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pointText: { flex: 1 },
   welcomeActions: { gap: space.sm, marginTop: space.md },
   note: { marginTop: space.sm },
-  wizardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.md },
-  wizardCopy: { marginBottom: space.md },
-  steps: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginBottom: space.md },
+  wizardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  wizardCopy: { marginTop: space.xs },
+  steps: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   step: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: space.sm, paddingVertical: 3 },
   list: { gap: space.sm },
   goalRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
@@ -541,5 +541,5 @@ const styles = StyleSheet.create({
   taskBody: { flex: 1, gap: 2 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   routineList: { gap: 2, marginTop: space.xs },
-  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.md, marginTop: space.xl },
+  footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.md },
 })

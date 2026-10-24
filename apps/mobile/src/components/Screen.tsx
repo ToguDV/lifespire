@@ -51,5 +51,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: layout.maxContentWidth,
     alignSelf: 'center',
+    gap: space.lg,
   },
 })

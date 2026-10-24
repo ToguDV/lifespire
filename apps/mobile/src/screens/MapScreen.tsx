@@ -182,9 +182,7 @@ export function MapScreen() {
         </Panel>
       ) : (
         <>
-          <View style={styles.mapFrame}>
-            <MapCanvas map={map} day={day} goals={document.goals} onSelect={choose} />
-          </View>
+          <MapCanvas map={map} day={day} goals={document.goals} onSelect={choose} />
 
           <Panel>
             <PanelHead
@@ -294,7 +292,6 @@ export function MapScreen() {
 }
 
 const styles = StyleSheet.create({
-  mapFrame: { marginBottom: space.md },
   lede: { marginBottom: space.sm },
   choices: { gap: 9 },
   choice: {

@@ -240,7 +240,7 @@ export function GoalsScreen() {
 }
 
 const styles = StyleSheet.create({
-  section: { gap: space.sm, marginBottom: space.md },
+  section: { gap: space.sm },
   aims: { gap: space.sm },
   aim: { gap: 4 },
   aimHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.sm },

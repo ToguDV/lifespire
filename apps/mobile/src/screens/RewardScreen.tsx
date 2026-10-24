@@ -151,5 +151,5 @@ const styles = StyleSheet.create({
   task: { gap: 2, marginBottom: space.md },
   rewards: { gap: space.xs },
   feedback: { marginTop: space.md },
-  note: { textAlign: 'center', marginTop: space.sm },
+  note: { textAlign: 'center' },
 })

@@ -98,7 +98,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: space.md,
-    marginBottom: space.lg,
   },
   screenHeadText: { flex: 1, gap: space.xs },
   aside: { alignItems: 'flex-end' },
