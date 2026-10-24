@@ -95,3 +95,49 @@ describe('validateNewRunSetup', () => {
     expect(result.errors).toEqual(expected.errors)
   })
 })
+
+describe('prototype-safe weekly targets', () => {
+  it('handles a goal id that collides with Object.prototype', () => {
+    const goal = {
+      ...setup.goals[0]!,
+      id: '__proto__',
+      title: 'Proto goal',
+    }
+    const tasks = setup.tasks.map((task) => ({ ...task, goalId: goal.id }))
+    const targets = initialWeeklyTargets([goal])
+
+    expect(Object.getPrototypeOf(targets)).toBeNull()
+    expect(Object.hasOwn(targets, '__proto__')).toBe(true)
+    expect(targets['__proto__']).toBe(String(goal.weeklyObjective))
+
+    expect(() => validateNewRunSetup([goal], tasks, targets)).not.toThrow()
+    const result = validateNewRunSetup([goal], tasks, targets)
+    expect(Object.getPrototypeOf(result.fieldErrors)).toBeNull()
+  })
+
+  it('rejects an empty plain targets object without throwing', () => {
+    const result = validateNewRunSetup(setup.goals, setup.tasks, {})
+    expect(result.ok).toBe(false)
+    expect(result.fieldErrors['demo-goal-wayfarer']).toBeTruthy()
+
+    const goal = { ...setup.goals[0]!, id: '__proto__', title: 'Proto goal' }
+    const tasks = setup.tasks.map((task) => ({ ...task, goalId: goal.id }))
+    expect(() => validateNewRunSetup([goal], tasks, {})).not.toThrow()
+    const protoResult = validateNewRunSetup([goal], tasks, {})
+    expect(protoResult.ok).toBe(false)
+    expect(protoResult.fieldErrors['__proto__']).toBeTruthy()
+  })
+
+  it('stays safe after the dialog spreads a target update', () => {
+    const goal = { ...setup.goals[0]!, id: '__proto__', title: 'Proto goal' }
+    const tasks = setup.tasks.map((task) => ({ ...task, goalId: goal.id }))
+    const targets = { ...initialWeeklyTargets([goal]), [goal.id]: '5' }
+
+    // The spread loses the null prototype, so the validator must ignore
+    // inherited keys instead of trusting bracket access alone.
+    expect(Object.getPrototypeOf(targets)).toBe(Object.prototype)
+    expect(() => validateNewRunSetup([goal], tasks, targets)).not.toThrow()
+    const result = validateNewRunSetup([goal], tasks, targets)
+    expect(result.fieldErrors['__proto__']).toBeUndefined()
+  })
+})

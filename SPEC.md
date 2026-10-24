@@ -2,11 +2,11 @@
 
 > High-level specification for the proof of concept.
 > Status: approved for build.
-> Last updated: 2026-10-22.
+> Last updated: 2026-10-23.
 
 ## 1. Summary
 
-LifeSpire turns a person's goals and routines into a daily node map inspired by *Slay the Spire*. Each day the user chooses a path; each node represents a real-world action: a task, a rest, a treasure, or the daily boss. A **run** lasts 7 days and has weekly objectives; the more the user completes, the more gold, XP, and loot they earn.
+LifeSpire turns a person's goals and routines into a daily node map inspired by *Slay the Spire*. Each day the user chooses a path; each node represents a real-world action: a task, a rest, a treasure, a wheel, or the daily boss. A **run** lasts 7 days and has weekly objectives; the more the user completes, the more gold, XP, and loot they earn.
 
 This document defines the current scope: a local-first vertical slice to validate the core loop. It does not cover the full product vision.
 
@@ -157,11 +157,11 @@ Minimum screens:
 3. **Map:** main screen; traveled path, available nodes, locked nodes, and weekly objectives panel.
 4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons. The wheel spins on the node, then the reward recap opens on its own.
 5. **Reward recap (wheel):** outcome summary with a "Done" button that records it; no way back, so no task is skipped by accident.
-5. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
-6. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
-7. **Goals and routines:** minimal CRUD for goals, tasks, effort, weekly frequency, and the goal icon that marks its map nodes.
-8. **Profile / collection:** level, XP, gold, and loot obtained.
-9. **Settings:** export/import JSON, reset, and dev panel.
+6. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
+7. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
+8. **Goals and routines:** minimal CRUD for goals, tasks, effort, weekly frequency, and the goal icon that marks its map nodes.
+9. **Profile / collection:** level, XP, gold, and loot obtained.
+10. **Settings:** export/import JSON, reset, and dev panel.
 
 Daily flow:
 
@@ -198,7 +198,8 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 - Map rendered with custom SVG; no graph library.
 - CSS with custom tokens, mobile-first, no heavy UI kit.
 - No router in the POC: navigation via view state.
-- Vitest tests for core logic; guided manual tests for the full flow.
+- Vitest tests for core logic, Playwright E2E tests for critical flows, and
+  guided manual tests for the full flow.
 - Dev panel only in the development environment: advance day, restart run, and reset data.
 - Basic accessibility: nodes as buttons, visible focus, sufficient contrast, 44px touch targets, and reduced-motion support.
 - Original visual direction inspired by dark fantasy, parchment, and gold; no reused art or names from *Slay the Spire*.

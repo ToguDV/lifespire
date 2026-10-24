@@ -17,17 +17,26 @@ export interface NewRunValidation {
   activeRoutines: number
 }
 
+/**
+ * Target maps are keyed by user-controlled goal ids, including `__proto__`.
+ * A null prototype keeps those keys as plain own properties instead of
+ * resolving inherited members of `Object.prototype`.
+ */
+function createTargetMap(): WeeklyTargets {
+  return Object.create(null) as WeeklyTargets
+}
+
 /** Editable draft used by the new-run dialog: current targets as strings. */
 export function initialWeeklyTargets(goals: readonly Goal[]): WeeklyTargets {
-  const targets: WeeklyTargets = {}
+  const targets = createTargetMap()
   for (const goal of goals) {
     if (goal.active) targets[goal.id] = String(goal.weeklyObjective)
   }
   return targets
 }
 
-function parseTarget(raw: string | undefined): number {
-  if (raw === undefined) return Number.NaN
+function parseTarget(raw: unknown): number {
+  if (typeof raw !== 'string') return Number.NaN
   const trimmed = raw.trim()
   if (!trimmed) return Number.NaN
   return Number(trimmed)
@@ -54,10 +63,11 @@ export function validateNewRunSetup(
     (task) => task.active && activeGoalIds.has(task.goalId),
   ).length
 
-  const fieldErrors: Record<string, string> = {}
+  const fieldErrors = createTargetMap()
   const adjusted = goals.map((goal) => {
     if (!goal.active) return goal
-    const value = parseTarget(targets[goal.id])
+    const raw = Object.hasOwn(targets, goal.id) ? targets[goal.id] : undefined
+    const value = parseTarget(raw)
     if (
       !Number.isInteger(value) ||
       value < MIN_WEEKLY_OBJECTIVE ||

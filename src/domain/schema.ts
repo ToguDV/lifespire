@@ -92,6 +92,12 @@ const RUN_STATUSES = ['active', 'closed'] as const
 const ACTIONS = ['complete', 'skip'] as const
 const THEMES = ['light', 'dark', 'system'] as const
 const DRAFT_MODES = ['demo', 'custom'] as const
+/**
+ * Mirrors `ONBOARDING_STEPS` in `content/onboarding.ts`: the draft starts at
+ * step 0 and the custom flow uses steps 1–4. Keeping the bound here avoids a
+ * domain → content import while still rejecting saves the UI cannot render.
+ */
+const MAX_ONBOARDING_DRAFT_STEP = 4
 
 export function createEmptyDocument(): GameDocument {
   return {
@@ -118,8 +124,22 @@ export function parseDocument(input: unknown): SchemaResult {
 /**
  * Applies migrations one version at a time, then validates the current shape.
  * Version 1 saves are upgraded by `MIGRATIONS[1]`; future bumps add an entry.
+ *
+ * Any exception is reported as `invalid` instead of escaping: persistence
+ * treats a thrown parser as a corrupt save and must keep the raw bytes intact.
  */
 export function migrateDocument(input: unknown): SchemaResult {
+  try {
+    return applyMigrations(input)
+  } catch (error) {
+    return failure(
+      'invalid',
+      error instanceof Error ? error.message : 'The save file is not valid.',
+    )
+  }
+}
+
+function applyMigrations(input: unknown): SchemaResult {
   const raw = readObject(input)
   if (!raw.ok) return raw
 
@@ -143,11 +163,7 @@ export function migrateDocument(input: unknown): SchemaResult {
     current = migration(current)
   }
 
-  try {
-    return { ok: true, value: validateDocument(current) }
-  } catch (error) {
-    return failure('invalid', error instanceof Error ? error.message : 'The save file is not valid.')
-  }
+  return { ok: true, value: validateDocument(current) }
 }
 
 function failure(reason: SchemaFailure['reason'], error: string): SchemaFailure {
@@ -566,6 +582,9 @@ function validateRun(value: unknown, path: string): Run {
     summary: raw.summary === null ? null : validateRunSummary(raw.summary, `${path}.summary`),
   }
 
+  // `totals` and `summary` are checked field-by-field but deliberately not
+  // recomputed here: they are derived history owned by reconcile/finalizeRun.
+  // Rebuilding them during import would mutate the save being restored.
   validateRunIntegrity(run, path)
   return run
 }
@@ -583,6 +602,30 @@ function validateRunIntegrity(run: Run, path: string): void {
     if (day.id !== expectedId) {
       fail(`${dayPath}.id`, `must belong to this run ("${expectedId}")`)
     }
+
+    // Duplicate resolutions are invalid even for a day whose map is missing.
+    const pathNodeIds = new Set<string>()
+    day.path.forEach((entry, entryIndex) => {
+      if (pathNodeIds.has(entry.nodeId)) {
+        fail(
+          `${dayPath}.path[${entryIndex}].nodeId`,
+          `duplicates "${entry.nodeId}" in this day's path`,
+        )
+      }
+      pathNodeIds.add(entry.nodeId)
+    })
+
+    const rewardedNodeIds = new Set<string>()
+    day.rewards.forEach((event, eventIndex) => {
+      if (rewardedNodeIds.has(event.nodeId)) {
+        fail(
+          `${dayPath}.rewards[${eventIndex}].nodeId`,
+          `duplicates "${event.nodeId}" in this day's rewards`,
+        )
+      }
+      rewardedNodeIds.add(event.nodeId)
+    })
+
     if (!day.map) return
 
     if (day.map.dayIndex !== day.index) {
@@ -606,6 +649,12 @@ function validateRunIntegrity(run: Run, path: string): void {
         )
       }
     })
+    if (day.map.currentNodeId !== null && pathNodeIds.has(day.map.currentNodeId)) {
+      fail(
+        `${dayPath}.map.currentNodeId`,
+        `references "${day.map.currentNodeId}", which has already been resolved in this day's path`,
+      )
+    }
     day.rewards.forEach((event, eventIndex) => {
       if (!nodeIds.has(event.nodeId)) {
         fail(
@@ -650,8 +699,12 @@ function validateDraftTask(value: unknown, path: string): Task {
 
 function validateOnboardingDraft(value: unknown, path: string): OnboardingDraft {
   const raw = expectRecord(value, path)
+  const step = expectInteger(raw.step, `${path}.step`)
+  if (step > MAX_ONBOARDING_DRAFT_STEP) {
+    fail(`${path}.step`, `must be at most ${MAX_ONBOARDING_DRAFT_STEP}`)
+  }
   return {
-    step: expectInteger(raw.step, `${path}.step`),
+    step,
     mode:
       raw.mode === null ? null : expectEnum(raw.mode, `${path}.mode`, DRAFT_MODES),
     name: expectString(raw.name, `${path}.name`),

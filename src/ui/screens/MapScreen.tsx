@@ -1,5 +1,10 @@
 import type { ReactNode } from 'react'
-import { availableNodeIds, currentDay, resolveNodeById } from '../../domain/selectors'
+import {
+  availableNodeIds,
+  currentDay,
+  nodeProgress,
+  resolveNodeById,
+} from '../../domain/selectors'
 import type { Day, GameMap, Goal, MapNode, NodeType, Run } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
@@ -47,6 +52,11 @@ const LEGEND: Array<{ type: NodeType; icon?: IconName; copy: string }> = [
   { type: 'rest', copy: '+5 XP · no weekly progress' },
   { type: 'treasure', copy: '+15 gold and a loot roll · no progress' },
   {
+    type: 'wheel',
+    icon: 'wheel',
+    copy: 'Mystery · task, gold, XP or rest · a task grants weekly progress',
+  },
+  {
     type: 'boss',
     icon: 'crown',
     copy: 'Your goal crest in the gate · closing bonus when completed',
@@ -57,16 +67,18 @@ function ChoiceButton({
   node,
   icon,
   open,
+  progress,
   onChoose,
 }: {
   node: MapNode
   icon: IconName
   open: boolean
+  progress: 0 | 1
   onChoose: (nodeId: string) => void
 }) {
   const meta = [NODE_TYPE_LABEL[node.type]]
   if (node.task) meta.push(`${EFFORT_LABEL[node.task.effort]} effort`)
-  meta.push(nodeRewardLine(node))
+  meta.push(nodeRewardLine(node, progress))
 
   return (
     <button
@@ -141,6 +153,7 @@ function MapRail({
                   goalIconFor(goals, node.task?.goalId) ?? NODE_TYPE_ICON[node.type]
                 }
                 open={index === 0}
+                progress={nodeProgress(run, node)}
                 onChoose={onChoose}
               />
             ))}
@@ -462,7 +475,13 @@ export function MapScreen() {
               </span>
               <span className="map-frame__day">Day {romanDay(day.index)}</span>
             </div>
-            <MapGraph map={map} day={day} goals={goals} onSelect={chooseNode} />
+            <MapGraph
+              map={map}
+              day={day}
+              goals={goals}
+              run={run}
+              onSelect={chooseNode}
+            />
           </div>
         ) : (
           <EmptyMapFrame

@@ -3,6 +3,14 @@ import { parseDocument } from '../../domain/schema'
 import { levelForXp } from '../../domain/selectors'
 import type { GameDocument, Run } from '../../domain/types'
 
+/** Imports are local text files; anything larger is almost certainly wrong. */
+export const MAX_SAVE_BYTES = 2 * 1024 * 1024
+
+/** Pure size gate so the file picker can reject oversized saves unread. */
+export function isSaveFileTooLarge(size: number): boolean {
+  return size > MAX_SAVE_BYTES
+}
+
 export interface ImportSummary {
   schemaVersion: number
   profileName: string | null

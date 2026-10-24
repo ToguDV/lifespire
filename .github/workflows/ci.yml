@@ -30,11 +30,13 @@ jobs:
               - 'src/content/**'
               - 'src/App.tsx'
               - 'src/main.tsx'
-              - 'src/ui/screens/**'
+              - 'src/ui/**'
+              - 'src/styles/**'
               - 'e2e/**'
               - 'playwright.config.ts'
               - 'package.json'
               - 'pnpm-lock.yaml'
+              - 'tsconfig*.json'
               - 'vite.config.ts'
               - 'index.html'
               - '.github/workflows/ci.yml'
@@ -59,6 +61,9 @@ jobs:
 
       - name: Typecheck
         run: pnpm typecheck
+
+      - name: Typecheck E2E
+        run: pnpm typecheck:e2e
 
       - name: Test
         run: pnpm test

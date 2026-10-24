@@ -57,7 +57,13 @@ export function rewardFeedback(
 
   if (event.nodeType === 'wheel') {
     if (event.wheelOutcome === 'task') {
-      return `Wheel: ${event.taskTitle ?? 'a task'} · +${event.xp} XP · +${event.gold} gold · +1 toward weekly target`
+      const parts = [
+        `Wheel: ${event.taskTitle ?? 'a task'}`,
+        `+${event.xp} XP`,
+        `+${event.gold} gold`,
+      ]
+      if (event.progress > 0) parts.push('+1 toward weekly target')
+      return parts.join(' · ')
     }
     if (event.wheelOutcome === 'gold') return `Wheel: +${event.gold} gold`
     if (event.wheelOutcome === 'xp') return `Wheel: +${event.xp} XP`

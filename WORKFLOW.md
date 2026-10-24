@@ -47,6 +47,7 @@ Conventional-Commits style, matching the squashed commit intent.
 - **Testing** — explicit list of what was tested:
   - `pnpm lint` — pass/fail
   - `pnpm typecheck` — pass/fail
+  - `pnpm typecheck:e2e` — pass/fail
   - `pnpm test` — pass/fail (note any new/updated tests)
   - `pnpm build` — pass/fail
   - Manual checks performed (screen sizes, theme, offline, etc.)
@@ -80,12 +81,14 @@ For any feature, fix, or behavior change, follow TDD:
 ```bash
 pnpm lint
 pnpm typecheck
+pnpm typecheck:e2e
 pnpm test
 pnpm build
 ```
 
-If any gate fails, fix it on the branch before opening the PR. Never open a PR
-with red checks.
+`pnpm typecheck:e2e` compiles `e2e/` and `playwright.config.ts`, which the
+application `tsc -b` build does not include. If any gate fails, fix it on the
+branch before opening the PR. Never open a PR with red checks.
 
 ## 6. Agent cleanup (mandatory before finishing)
 
@@ -105,7 +108,8 @@ When an agent finishes a session, it **must leave the environment clean**:
 
 1. Create session branch.
 2. Make changes; commit with conventional format.
-3. Run all quality gates (E2E too when critical paths changed).
+3. Run all quality gates, including `pnpm typecheck:e2e` (E2E too when critical
+   paths changed).
 4. **Register any new/moved/deleted `.md` file in `AGENTS.md`** (Fuentes de
    verdad) in the same change. A doc without a reference there is incomplete.
 5. Push branch and open PR (no approval required to open).

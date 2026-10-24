@@ -117,7 +117,11 @@ export function RewardScreen() {
 
   const rewardLines =
     outcome.outcome === 'task'
-      ? [`+${outcome.xp} XP`, `+${outcome.gold} gold`, '+1 toward weekly target']
+      ? [
+          `+${outcome.xp} XP`,
+          `+${outcome.gold} gold`,
+          ...(outcome.progress > 0 ? ['+1 toward weekly target'] : []),
+        ]
       : outcome.outcome === 'gold'
         ? [`+${outcome.gold} gold`]
         : [`+${outcome.xp} XP`]
@@ -156,7 +160,9 @@ export function RewardScreen() {
                 <span className="micro">Weekly progress</span>
                 <strong>{outcome.progress > 0 ? '+1' : '—'}</strong>
                 <small>
-                  {outcome.task ? `${outcome.task.goalTitle} this week` : 'No weekly progress'}
+                  {outcome.progress > 0 && outcome.task
+                    ? `${outcome.task.goalTitle} this week`
+                    : 'No weekly progress'}
                 </small>
               </div>
             </div>

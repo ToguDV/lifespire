@@ -30,6 +30,18 @@ export function objectiveProgress(run: Run | null, goalId: string): RunObjective
   return run.objectives.find((objective) => objective.goalId === goalId) ?? null
 }
 
+/**
+ * Weekly progress a completed node actually grants. Mirrors the lifecycle
+ * rule: the node must reward progress, carry a task, and the task goal must
+ * belong to the objective snapshot taken when the run started. Goals added
+ * mid-run produce tasks but never weekly progress.
+ */
+export function nodeProgress(run: Run | null, node: MapNode): 0 | 1 {
+  if (!run || node.rewards.progress !== 1 || !node.task) return 0
+  const goalId = node.task.goalId
+  return run.objectives.some((objective) => objective.goalId === goalId) ? 1 : 0
+}
+
 export function countActiveGoals(goals: readonly Goal[]): number {
   let total = 0
   for (const goal of goals) {

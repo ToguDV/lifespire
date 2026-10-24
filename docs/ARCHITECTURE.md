@@ -11,10 +11,13 @@ Fuentes: [`SPEC.md`](../SPEC.md) y [`design/DESIGN.md`](../design/DESIGN.md)
 
 ```text
 src/
+  App.tsx          wrapper del shell (`export { default } from './ui/App'`)
   domain/          lógica pura, sin React, sin store, sin Date.now/Math.random
     types.ts       tipos y enums del dominio
-    balance.ts     constantes de recompensas, niveles, pesos y límites
+    balance.ts     constantes de recompensas, niveles, pesos, límites y claves de storage
+    content.ts     validación de metas/rutinas y constraints de contenido
     dates.ts       fechas locales YYYY-MM-DD, sin drift UTC
+    goalIcons.ts   catálogo cerrado de iconos de meta y ciclo legado
     rng.ts         RNG determinista por string seed
     rewards.ts     tabla de recompensas, loot, duplicados, nivel
     generator.ts   generación y validación del mapa
@@ -23,21 +26,31 @@ src/
     runClose.ts    cierre de run y bonus semanal
     schema.ts      validación, serialize/deserialize, migración
     selectors.ts   valores derivados (nivel, día actual, estado de nodo)
+    fixtures/
+      golden-map.json  fixture determinista para los tests del generador
   content/
     loot.ts        catálogo de 12 objetos
     demo.ts        factory determinista de demo (2 goals, 5 routines)
+    onboarding.ts  pasos del asistente y sugerencia de weekly targets
   state/
     store.ts       Zustand + persist, acciones de aplicación
+    persistence.ts adaptador de storage, backup, multi-pestaña y avisos
     clock.ts       reloj inyectable + offset de desarrollo (no persistido)
   ui/
-    components/    Button, Panel, Progress, Stat, Dialog, Icon, etc.
-    screens/       una pantalla por vista
     App.tsx        shell, navegación y guardas de flujo
+    components/    Button, Panel, Progress, Stat, Dialog, Icon, etc.
+    dev/
+      DevPanel.tsx panel de desarrollo; solo se importa con `import.meta.env.DEV`
+    lib/           lógica de UI: mapLayout, wheel, importSave, feedback,
+                   collection, newRun, daySummary, etc.
+    screens/       una pantalla por vista
   styles/
     tokens.css     tokens canónicos (color, tipografía, espacio, radio)
     app.css        shell y componentes
-    ui.css         estados añadidos (diálogos, vacíos, toast, panel de desarrollo)
+    ui.css         estados añadidos (diálogos, vacíos, toast)
     m3.css         onboarding guiado y edición de metas/rutinas
+    juice.css      microinteracciones y feedback visual
+    dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
 ```
 
@@ -73,13 +86,34 @@ desde el documento persistido, nunca se guarda `view` en `localStorage`.
 
 ## 3. Documento persistido
 
-Una sola clave de `localStorage`: `lifespire:mvp0`. Zustand `persist` guarda el
-documento versionado. Se persiste únicamente `{ document }`; `view`, diálogos,
-mensajes y el offset del reloj de desarrollo quedan fuera.
+### Claves y formato
+
+- `lifespire:mvp0` (`STORAGE_KEY`): el `GameDocument` versionado. El slice que
+  gestiona Zustand es `{ document }`, pero el adaptador escribe el documento
+  directo, sin el envoltorio de `persist`.
+- `lifespire:mvp0:backup` (`STORAGE_BACKUP_KEY`): copia raw del save anterior,
+  best-effort, antes de un import o de un reset destructivo. No se actualiza en
+  cada escritura.
+- `lifespire:feedback-prefs`: preferencias de sonido y háptica (`sound`,
+  `haptics`; ambas activas por defecto). Son UI pura: viven fuera del documento
+  y no pasan por migraciones.
+- `sessionStorage` `lifespire:sealed:<dayId>` y
+  `lifespire:sealed:week:<runId>`: recuerdan que los efectos de sello de ese
+  día/semana ya se reprodujeron en esta pestaña, para no repetirlos al revisitar
+  el resumen.
+
+En la clave del save se persiste únicamente el slice `{ document }`; `view`,
+diálogos, mensajes, `rewardToast` y el offset del reloj de desarrollo quedan
+fuera. El documento se
+guarda **compacto** en `localStorage` (`JSON.stringify`, sin espacios), mientras
+que `serializeDocument` produce el JSON legible de dos espacios que se descarga
+desde Settings. El export de Recovery usa el raw literal (`exportRawSave`),
+incluso si el save está bloqueado o es ilegible.
 
 ```ts
 export const SCHEMA_VERSION = 2
 export const STORAGE_KEY = 'lifespire:mvp0'
+export const STORAGE_BACKUP_KEY = 'lifespire:mvp0:backup'
 
 export interface GameDocument {
   schemaVersion: 2
@@ -297,7 +331,8 @@ export interface OnboardingDraft {
 
 `onboardingDraft` es un borrador persistido: el esquema valida su forma, pero
 acepta objetivos semanales intermedios fuera de 1..7 para que un reload no
-convierta el borrador en «corrupto». La validación de negocio se aplica al
+convierta el borrador en «corrupto». Exige que `step` sea un entero entre 0 y 4,
+el rango que la UI sabe renderizar. La validación de negocio se aplica al
 confirmar (`beginJourney`). Los objetivos del borrador también guardan `icon`.
 
 `GoalIconId` es un catálogo cerrado de ids (`banner`, `flame`, `quill`, `gem`,
@@ -547,7 +582,7 @@ generateMap(input: {
   transición es atómica: un reload solo puede ver la run vieja completa o la
   nueva completa.
 
-### Persistencia y recuperación (`schema.ts` + `state/store.ts`)
+### Persistencia y recuperación (`schema.ts` + `state/persistence.ts` + `state/store.ts`)
 
 - `serializeDocument(doc): string` y `parseDocument(unknown): Result<GameDocument>`.
   Validación estructural explícita, sin dependencias nuevas.
@@ -556,8 +591,9 @@ generateMap(input: {
 - Un mapa persistido no basta con tener la forma correcta: `parseDocument` pasa
   cada `day.map` por `validateMap` (generador), exige `day.index ===
   map.dayIndex`, que `day.id` sea `${run.id}:day:${day.index}`, que
-  `map.currentNodeId` exista (o sea `null`) y que `day.path`/`day.rewards`
-  referencien nodos de ese mapa. `validateMap` acepta 3–15 capas y exige que el
+  `map.currentNodeId` exista (o sea `null`) y no apunte a un nodo ya resuelto en
+  `day.path`, y que `day.path`/`day.rewards` referencien nodos de ese mapa sin
+  repetir `nodeId`. `validateMap` acepta 3–15 capas y exige que el
   boss sea `n{layers.length}_0` con `layer === layers.length`. Para mapas
   `generatorVersion >= 4` exige 3–5 nodos por capa y que ningún carril tenga
   aristas rectas en todas las fronteras; para mapas anteriores acepta 2–5 nodos
@@ -573,12 +609,47 @@ generateMap(input: {
   acceso a Settings/export. La siguiente escritura correcta limpia el aviso. Si
   no existe `localStorage` y el adapter cae a memoria, también se avisa porque un
   reload perdería los cambios.
-- `exportDocument` produce el mismo `GameDocument` versionado, legible (2 espacios)
-  y sin claves de desarrollo.
-- `importDocument` valida, muestra un preview/resumen y exige confirmación antes de
-  reemplazar el estado. Después reconcilia y deriva la vista, igual que al
-  hidratar, para que una run vencida abra su resumen semanal.
-- `resetAll` exige confirmación explícita (frase) y vuelve a onboarding.
+- `serializeDocument(doc)` produce el mismo `GameDocument` versionado, legible
+  (2 espacios) y sin claves transitorias; es lo que descarga Settings.
+- `importDocument(nextDocument): boolean` revalida con `parseDocument` y
+  **rechaza sin tocar el documento ni el storage** si:
+  - el documento o la estructura es inválida, faltan campos, hay enums
+    desconocidos o `schemaVersion` es futura;
+  - hay una run sin perfil;
+  - una run activa incumple `validateContentConstraints` (≥1 meta activa,
+    ≥4 rutinas activas, cada rutina activa bajo una meta activa y ≤10 metas
+    activas);
+  - `map.currentNodeId` no existe en su mapa o ya está resuelto en `day.path`;
+  - `day.path` o `day.rewards` repiten `nodeId` o referencian nodos de otro
+    mapa/día;
+  - `onboardingDraft.step` queda fuera de 0..4.
+- El preview y la confirmación viven en `SaveImport`, que valida el texto con
+  `readSaveFile`; el archivo se limita a 2 MB y el store solo recibe el
+  `GameDocument` ya parseado. Un import válido copia el save actual a
+  `STORAGE_BACKUP_KEY` (`storage.backup()`), desbloquea escrituras, reemplaza el
+  documento, reconcilia y deriva la vista, igual que al hidratar, para que una
+  run vencida abra su resumen semanal.
+- `resetAll` (solo tras confirmar la frase `RESET` en Settings o Recovery) copia
+  el raw actual al backup, borra `lifespire:mvp0` y vuelve a onboarding.
+- `exportRawSave()` (usado por Recovery) devuelve el raw literal de
+  `lifespire:mvp0`; Recovery lo descarga como
+  `lifespire-recovery-<fecha-local>.json`. Funciona aunque el save esté bloqueado
+  o no se pueda parsear; si no hay save, avisa de que no hay nada que descargar.
+
+### Multi-pestaña
+
+- El adaptador recuerda el último raw que leyó o escribió (`lastWrittenRaw`).
+  Antes de escribir compara el valor actual de `lifespire:mvp0`: si otra pestaña
+  lo cambió y el contenido no coincide con el que se va a escribir, rechaza la
+  escritura y avisa al store (`conflictListener`).
+- `window.addEventListener('storage')` avisa cuando otra pestaña escribe la clave
+  del save. El store agrupa los eventos en un microtask y llama a
+  `syncFromStorage()`.
+- `syncFromStorage()` relee el documento remoto, lo reconcilia y deriva la vista.
+  Si el remoto fue un reset (clave ausente), vuelve a onboarding.
+- Política: **gana el remoto**. El cambio local en vuelo se descarta y se avisa
+  con un toast; no hay merge ni resolución de conflictos por campo. Si el remoto
+  no se puede leer, se conserva el documento actual y también se avisa.
 
 ## 5. Store (Zustand)
 
@@ -593,14 +664,16 @@ interface AppState {
   view: View
   history: View[]
   toast: string | null
+  rewardToast: RewardEvent | null
   // acciones de navegación
   navigate(view: View): void
   back(): void
-  // acciones de dominio (todas llaman a reconcile y persisten)
-  completeOnboarding(setup: OnboardingSetup): void
+  // acciones de dominio (llaman a reconcile y persisten)
+  reconcile(now?: Date): void
+  completeOnboarding(setup: OnboardingSetup, now?: Date): void
   beginJourney(setup: OnboardingSetup, now?: Date): boolean
   updateOnboardingDraft(patch: Partial<OnboardingDraft>): void
-  startRun(setup: RunSetup, now?: Date): void
+  startRun(setup?: RunSetup, now?: Date): void
   openDay(dayId?: string, now?: Date): void
   selectNode(nodeId: string): void
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
@@ -610,12 +683,17 @@ interface AppState {
   archiveGoal(goalId: string, now?: Date): ContentActionResult
   saveTask(input: TaskInput, now?: Date): ContentActionResult
   archiveTask(taskId: string, now?: Date): ContentActionResult
-  importDocument(doc: GameDocument): void
-  resetAll(): void
   setTheme(theme: ThemePreference): void
-  setDevOffset(days: number): void
+  importDocument(doc: GameDocument): boolean
+  syncFromStorage(): void
+  exportRawSave(): string | null
+  resetAll(): void
 }
 ```
+
+Las acciones de desarrollo (`devStartDemoRun`, `devRestartRun`,
+`devAdvanceDay`, `devResetAll`) viven en el mismo store y solo las usa
+`ui/dev/DevPanel.tsx`.
 
 Reglas de las acciones: leer `document`, aplicar funciones puras, recalcular
 nivel/totales, escribir una sola vez. Los ids se generan con
@@ -801,20 +879,30 @@ prototipo retirado:
   (perfil conservado, run/días/objetivos reseteados, id/semilla nuevos,
   round-trip) y cierre automático vía reconcile.
 - `schema`: round-trip, JSON inválido, campos ausentes, versión futura, migración
-  v1→v2 de goals y borradores, mapas válidos pero injugables y referencias
-  día/mapa/path/rewards incoherentes.
+  v1→v2 de goals y borradores, mapas válidos pero injugables, `currentNodeId` ya
+  resuelto, paths/rewards duplicados, `onboardingDraft.step` fuera de rango y
+  referencias día/mapa/path/rewards incoherentes.
 - `goalIcons`: catálogo cerrado, ciclo legado y sugerencia del siguiente icono.
 - `demo`/`content`: setup con objetivo activo sin rutina, demo válido y bloqueo de
   la última rutina activa de una meta activa durante la run.
-- `persistence`/`store`: escritura fallida expuesta como `storageWarning`, estado
-  en memoria usable, limpieza tras un reintento correcto y vista derivada después
-  del reconcile de hidratación.
+- `persistence`/`store`: escritura compacta, escritura fallida expuesta como
+  `storageWarning`, estado en memoria usable, limpieza tras un reintento
+  correcto, backup antes de import/reset, export raw de Recovery,
+  sincronización/conflicto entre pestañas y vista derivada después del reconcile
+  de hidratación.
 - `collection`: catálogo completo de 12, filtros/contadores por rareza, historial
   de duplicados desde `RewardEvent` y vacío honesto sin run.
 - `importSave`: resumen de preview (perfil, nivel, oro, run/día, reliquias,
   schema), round-trip y rechazo de JSON inválido, campos ausentes y versión
   futura sin cambiar el estado. `reset`: frase exacta.
 - `dates`: claves locales sin drift UTC.
+
+La calidad de tipos se verifica en dos pasos: `tsconfig.app.json`,
+`tsconfig.node.json` y `tsconfig.e2e.json` compilan con `strict`, y
+`pnpm typecheck:e2e` (`tsc -p tsconfig.e2e.json`) cubre `e2e/` y
+`playwright.config.ts`, que no entran en el `tsc -b` de la app. CI ejecuta
+`pnpm lint`, `pnpm typecheck`, `pnpm typecheck:e2e`, `pnpm test` y `pnpm build`;
+Playwright solo se ejecuta si cambian rutas críticas.
 
 ## 8. Decisiones de alcance (fuera del bucle base)
 

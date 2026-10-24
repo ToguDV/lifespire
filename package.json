@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "typecheck": "tsc -b",
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

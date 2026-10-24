@@ -1,9 +1,23 @@
-import { describe, expect, it } from 'vitest'
-import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
-import { createEmptyDocument, serializeDocument } from '../domain/schema'
+import { describe, expect, it, vi } from 'vitest'
+import { SCHEMA_VERSION, STORAGE_BACKUP_KEY, STORAGE_KEY } from '../domain/balance'
+import { createEmptyDocument } from '../domain/schema'
 import type { GameDocument } from '../domain/types'
 import { createDocumentStorage } from './persistence'
 import type { PersistedSlice, StorageLike } from './persistence'
+
+// Lets the fail-open test simulate a migration or parser that throws without
+// replacing the real validators for the rest of the suite.
+const schemaControl = vi.hoisted(() => ({ throwOnParse: false }))
+vi.mock('../domain/schema', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../domain/schema')>()
+  return {
+    ...actual,
+    parseDocument: (input: unknown) => {
+      if (schemaControl.throwOnParse) throw new Error('The migration threw')
+      return actual.parseDocument(input)
+    },
+  }
+})
 
 function createMemoryStorage(initial?: Record<string, string>): StorageLike & {
   values: Map<string, string>
@@ -49,7 +63,9 @@ describe('createDocumentStorage', () => {
       ...document,
       settings: { theme: 'dark' },
     })
-    expect(raw).toBe(serializeDocument({ ...document, settings: { theme: 'dark' } }))
+    // Storage is compact; the readable export format lives in serializeDocument.
+    expect(raw).toBe(JSON.stringify({ ...document, settings: { theme: 'dark' } }))
+    expect(raw).not.toContain('\n')
 
     const restored = controller.storage.getItem(STORAGE_KEY)
     if (!restored || restored instanceof Promise) {
@@ -184,5 +200,132 @@ describe('createDocumentStorage', () => {
     const controller = createDocumentStorage(memory)
     controller.clear()
     expect(memory.getItem(STORAGE_KEY)).toBeNull()
+  })
+
+  it('does not write when the document has not changed', () => {
+    const memory = createMemoryStorage()
+    let writes = 0
+    const controller = createDocumentStorage({
+      ...memory,
+      setItem: (key, value) => {
+        writes += 1
+        memory.setItem(key, value)
+      },
+    })
+    const document = createEmptyDocument()
+
+    controller.storage.setItem(STORAGE_KEY, {
+      state: valueFor(document),
+      version: SCHEMA_VERSION,
+    })
+    expect(writes).toBe(1)
+
+    controller.storage.setItem(STORAGE_KEY, {
+      state: valueFor({ ...document }),
+      version: SCHEMA_VERSION,
+    })
+    expect(writes).toBe(1)
+  })
+
+  it('blocks a conflicting write from another controller and notifies', () => {
+    const memory = createMemoryStorage()
+    const first = createDocumentStorage(memory)
+    const second = createDocumentStorage(memory)
+    const base = createEmptyDocument()
+
+    first.storage.setItem(STORAGE_KEY, { state: valueFor(base), version: SCHEMA_VERSION })
+    second.storage.getItem(STORAGE_KEY)
+
+    const fromFirst = { ...base, settings: { theme: 'light' as const } }
+    first.storage.setItem(STORAGE_KEY, {
+      state: valueFor(fromFirst),
+      version: SCHEMA_VERSION,
+    })
+
+    let conflicts = 0
+    second.setConflictListener(() => {
+      conflicts += 1
+    })
+    second.storage.setItem(STORAGE_KEY, {
+      state: valueFor({ ...base, settings: { theme: 'dark' } }),
+      version: SCHEMA_VERSION,
+    })
+
+    expect(conflicts).toBe(1)
+    expect(memory.getItem(STORAGE_KEY)).toBe(JSON.stringify(fromFirst))
+  })
+
+  it('notifies external changes only for the save key', () => {
+    const listeners = new Set<(event: StorageEvent) => void>()
+    vi.stubGlobal('window', {
+      addEventListener: (type: string, listener: (event: StorageEvent) => void) => {
+        if (type === 'storage') listeners.add(listener)
+      },
+      removeEventListener: (type: string, listener: (event: StorageEvent) => void) => {
+        if (type === 'storage') listeners.delete(listener)
+      },
+    })
+
+    try {
+      const controller = createDocumentStorage(createMemoryStorage())
+      let changes = 0
+      controller.setExternalChangeListener(() => {
+        changes += 1
+      })
+
+      const notify = (key: string | null) => {
+        listeners.forEach((listener) =>
+          listener({ key, newValue: '{"schemaVersion":2}' } as StorageEvent),
+        )
+      }
+
+      notify('another:key')
+      expect(changes).toBe(0)
+      notify(STORAGE_KEY)
+      expect(changes).toBe(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('blocks as corrupt when parsing throws and never overwrites the save', () => {
+    const raw = JSON.stringify(createEmptyDocument())
+    const memory = createMemoryStorage({ [STORAGE_KEY]: raw })
+    const controller = createDocumentStorage(memory)
+
+    schemaControl.throwOnParse = true
+    try {
+      expect(controller.storage.getItem(STORAGE_KEY)).toBeNull()
+      expect(controller.consumeIssue()).toEqual({ reason: 'corrupt' })
+      expect(controller.isBlocked()).toBe(true)
+
+      controller.storage.setItem(STORAGE_KEY, { state: valueFor(createEmptyDocument()) })
+      expect(memory.getItem(STORAGE_KEY)).toBe(raw)
+    } finally {
+      schemaControl.throwOnParse = false
+    }
+  })
+
+  it('backs up the current raw without clearing a previous backup when empty', () => {
+    const memory = createMemoryStorage({ [STORAGE_BACKUP_KEY]: 'previous-backup' })
+    const controller = createDocumentStorage(memory)
+
+    controller.backup()
+    expect(memory.getItem(STORAGE_BACKUP_KEY)).toBe('previous-backup')
+
+    const document = createEmptyDocument()
+    controller.storage.setItem(STORAGE_KEY, {
+      state: valueFor(document),
+      version: SCHEMA_VERSION,
+    })
+    const raw = memory.getItem(STORAGE_KEY)
+
+    controller.backup()
+    expect(memory.getItem(STORAGE_BACKUP_KEY)).toBe(raw)
+
+    // A later empty save must not erase the last real backup.
+    controller.clear()
+    controller.backup()
+    expect(memory.getItem(STORAGE_BACKUP_KEY)).toBe(raw)
   })
 })

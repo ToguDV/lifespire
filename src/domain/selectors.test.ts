@@ -5,12 +5,13 @@ import {
   countActiveTasks,
   currentDay,
   levelForXp,
+  nodeProgress,
   objectiveProgress,
   safeCount,
   xpIntoLevel,
   xpToNextLevel,
 } from './selectors'
-import type { Goal, Run, Task } from './types'
+import type { Goal, MapNode, Run, Task } from './types'
 
 const now = new Date(2026, 9, 20, 9, 0, 0)
 
@@ -118,5 +119,55 @@ describe('run selectors', () => {
     expect(countActiveTasks(tasks)).toBe(1)
     expect(countActiveTasks(tasks, [goal])).toBe(1)
     expect(countActiveTasks(tasks, [{ ...goal, active: false }])).toBe(0)
+  })
+})
+
+describe('node progress selector', () => {
+  const run = makeRun()
+
+  function node(patch: Partial<MapNode> = {}): MapNode {
+    return {
+      id: 'node_1',
+      layer: 0,
+      type: 'task',
+      task: {
+        taskId: 'task_1',
+        title: 'Walk',
+        goalId: 'goal_1',
+        goalTitle: 'Wayfarer',
+        effort: 'light',
+      },
+      rewards: { xp: 10, gold: 10, lootRolls: 0, progress: 1 },
+      connections: [],
+      ...patch,
+    }
+  }
+
+  it('grants progress when the goal belongs to the run objectives', () => {
+    expect(nodeProgress(run, node())).toBe(1)
+  })
+
+  it('grants nothing when the goal was added after the run started', () => {
+    const addedGoal = node({
+      task: {
+        taskId: 'task_3',
+        title: 'Stretch',
+        goalId: 'goal_added',
+        goalTitle: 'Later',
+        effort: 'light',
+      },
+    })
+    expect(nodeProgress(run, addedGoal)).toBe(0)
+  })
+
+  it('grants nothing without a task or without a progress reward', () => {
+    expect(nodeProgress(run, node({ type: 'rest', task: null }))).toBe(0)
+    expect(
+      nodeProgress(run, node({ rewards: { xp: 5, gold: 0, lootRolls: 0, progress: 0 } })),
+    ).toBe(0)
+  })
+
+  it('grants nothing without an active run', () => {
+    expect(nodeProgress(null, node())).toBe(0)
   })
 })

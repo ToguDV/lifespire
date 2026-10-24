@@ -291,16 +291,6 @@ button.text-link:hover {
 
 /* Week strip extras ----------------------------------------- */
 
-.week-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.week-head-actions .text-link {
-  font-size: 0.72rem;
-}
-
 .week-day.is-missed {
   background: var(--surface-sunken);
   opacity: 0.72;
@@ -318,19 +308,11 @@ button.text-link:hover {
   color: var(--ink-soft);
 }
 
-.routine--readonly {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
 .week-row__icon {
   color: var(--accent-deep);
 }
 
 /* Map placeholders ------------------------------------------ */
-
-.screen--map-empty {
-  padding-bottom: 24px;
-}
 
 .map-empty {
   position: relative;
@@ -381,37 +363,8 @@ button.text-link:hover {
   margin-top: 10px;
 }
 
-.map-empty__links {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px 18px;
-  margin-top: 8px;
-  font-size: 0.7rem;
-}
-
 .map-lines--empty {
   opacity: 0.62;
-}
-
-.map-rail__preview {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--hairline);
-}
-
-.map-rail__preview .text-link {
-  font-size: 0.72rem;
-}
-
-@media (min-width: 1200px) {
-  .map-empty__links {
-    display: none;
-  }
 }
 
 /* Map renderer ----------------------------------------------- */
@@ -730,28 +683,6 @@ button.text-link:hover {
   display: inline-block;
   margin-top: 12px;
   font-size: 0.72rem;
-}
-
-.node-loop-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin-top: 16px;
-  padding: 11px 12px;
-  border: 1px dashed var(--hairline-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-sunken);
-  color: var(--ink-soft);
-  font-size: 0.7rem;
-  line-height: 1.5;
-}
-
-.node-loop-note .icon {
-  flex: none;
-  width: 14px;
-  height: 14px;
-  margin-top: 1px;
-  color: var(--accent-deep);
 }
 
 /* Settings --------------------------------------------------- */
@@ -1192,23 +1123,6 @@ body[data-screen="recovery"] .viewport {
   color: var(--ink-soft);
 }
 
-.hero-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.hero-panel__actions .btn {
-  margin-top: 16px;
-}
-
-@media (min-width: 960px) {
-  .week-summary-mobile {
-    display: none;
-  }
-}
-
 @media (min-width: 960px) {
   .settings-body {
     padding: 0 32px 28px;
@@ -1296,12 +1210,6 @@ button.text-link {
 
 .traveller-level .progress {
   width: 100%;
-}
-
-@media (max-width: 1199px) {
-  .camp-rail {
-    display: flex;
-  }
 }
 
 @media (max-width: 959px) {
@@ -1938,7 +1846,7 @@ button.text-link {
 }
 
 .wheel__status {
-  font-family: var(--font-body, sans-serif);
+  font-family: var(--font-ui);
   color: var(--ink-muted);
 }
 
@@ -1965,7 +1873,7 @@ button.text-link {
 }
 
 .wheel__result-reward {
-  font-family: var(--font-body, sans-serif);
+  font-family: var(--font-ui);
   color: var(--ink);
 }
 

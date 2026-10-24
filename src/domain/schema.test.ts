@@ -449,6 +449,74 @@ describe('serializeDocument and parseDocument', () => {
     if (!rewardResult.ok) expect(rewardResult.error).toContain('rewards[0]')
   })
 
+  it('rejects an onboarding draft step outside the supported range', () => {
+    const document = createEmptyDocument()
+    document.onboardingDraft = {
+      step: 4,
+      mode: 'custom',
+      name: 'Ari',
+      goals: [],
+      tasks: [],
+    }
+    expect(parseDocument(document).ok).toBe(true)
+
+    document.onboardingDraft.step = 5
+    const parsed = parseDocument(document)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContain('onboardingDraft.step')
+  })
+
+  it('rejects a current node that was already resolved in the same day', () => {
+    const document = fullDocument()
+    const day = document.run!.days[0]!
+    day.path.push({
+      nodeId: day.map!.currentNodeId!,
+      action: 'skip',
+      at: now.toISOString(),
+    })
+
+    const parsed = parseDocument(document)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) expect(parsed.error).toContain('currentNodeId')
+  })
+
+  it('rejects duplicate nodes in the day path', () => {
+    const document = fullDocument()
+    const day = document.run!.days[0]!
+    day.path.push({ ...day.path[0]! })
+
+    const parsed = parseDocument(document)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) {
+      expect(parsed.error).toContain('path[1].nodeId')
+      expect(parsed.error).toContain('duplicates')
+    }
+  })
+
+  it('rejects duplicate reward events for the same node', () => {
+    const document = fullDocument()
+    const day = document.run!.days[0]!
+    day.rewards.push({ ...day.rewards[0]!, id: 'reward_2' })
+
+    const parsed = parseDocument(document)
+    expect(parsed.ok).toBe(false)
+    if (!parsed.ok) {
+      expect(parsed.error).toContain('rewards[1].nodeId')
+      expect(parsed.error).toContain('duplicates')
+    }
+  })
+
+  it('returns a failure instead of throwing when reading a hostile document throws', () => {
+    const hostile = {
+      get schemaVersion(): number {
+        throw new Error('The save object exploded')
+      },
+    }
+
+    expect(() => parseDocument(hostile)).not.toThrow()
+    expect(parseDocument(hostile)).toMatchObject({ ok: false, reason: 'invalid' })
+  })
+
   it('rejects unknown themes and missing settings', () => {
     const document = fullDocument()
     document.settings = { theme: 'sepia' as never }

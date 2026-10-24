@@ -16,7 +16,7 @@ async function forceWheelCurrent(page: import('@playwright/test').Page): Promise
     const raw = window.localStorage.getItem('lifespire:mvp0')
     if (!raw) throw new Error('missing save')
     const document = JSON.parse(raw) as {
-      run?: { days?: Array<{ map?: { layers?: Array<Array<{ id: string; type: string }>>; boss?: { id: string; type: string } }; currentNodeId?: string | null }> }
+      run?: { days?: Array<{ map?: { layers?: Array<Array<{ id: string; type: string }>>; boss?: { id: string; type: string }; currentNodeId?: string | null }; currentNodeId?: string | null }> }
     }
     const day = document.run?.days?.find((entry) => entry.map)
     const map = day?.map
