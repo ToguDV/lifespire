@@ -3,6 +3,7 @@ import {
   advanceDevDay,
   devNow,
   getDevOffsetDays,
+  msUntilNextLocalMidnight,
   resetDevClock,
   setDevOffsetDays,
 } from './clock'
@@ -34,6 +35,28 @@ describe('devNow', () => {
     expect(devNow(new Date(2026, 0, 1, 10), -1).getDate()).toBe(31)
     expect(devNow(new Date(2026, 0, 1, 10), 0).getTime()).toBe(
       new Date(2026, 0, 1, 10).getTime(),
+    )
+  })
+})
+
+describe('msUntilNextLocalMidnight', () => {
+  it('returns the margin when called exactly at local midnight', () => {
+    expect(msUntilNextLocalMidnight(new Date(2026, 9, 23, 0, 0, 0))).toBe(1_000)
+  })
+
+  it('returns half a day plus the margin at noon', () => {
+    expect(msUntilNextLocalMidnight(new Date(2026, 9, 23, 12, 0, 0))).toBe(
+      12 * 60 * 60 * 1_000 + 1_000,
+    )
+  })
+
+  it('returns one second plus the margin just before midnight', () => {
+    expect(msUntilNextLocalMidnight(new Date(2026, 9, 23, 23, 59, 59))).toBe(2_000)
+  })
+
+  it('uses the local calendar date rather than UTC', () => {
+    expect(msUntilNextLocalMidnight(new Date(2026, 5, 15, 18, 30, 0))).toBe(
+      5 * 60 * 60 * 1_000 + 30 * 60 * 1_000 + 1_000,
     )
   })
 })

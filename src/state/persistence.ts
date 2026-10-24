@@ -1,6 +1,6 @@
 import type { PersistStorage } from 'zustand/middleware'
-import { SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
-import { parseDocument, serializeDocument } from '../domain/schema'
+import { SCHEMA_VERSION, STORAGE_BACKUP_KEY, STORAGE_KEY } from '../domain/balance'
+import { parseDocument } from '../domain/schema'
 import type { GameDocument, StorageIssue } from '../domain/types'
 
 export interface StorageLike {
@@ -14,16 +14,24 @@ export interface PersistedSlice {
 }
 
 export type StorageWriteWarning = 'write-failed' | null
+export type ExternalChangeListener = () => void
+export type ConflictListener = () => void
 
 export interface DocumentStorageController {
   storage: PersistStorage<PersistedSlice>
   consumeIssue(): StorageIssue | null
   /** Called when the first write fails and when a later write succeeds again. */
   setWriteStatusListener(listener: ((warning: StorageWriteWarning) => void) | null): void
+  /** Called when another tab writes the save key. */
+  setExternalChangeListener(listener: ExternalChangeListener | null): void
+  /** Called when a write is refused because another tab changed the save first. */
+  setConflictListener(listener: ConflictListener | null): void
   blockWrites(issue: StorageIssue): void
   unblockWrites(): void
   isBlocked(): boolean
   read(): string | null
+  /** Copies the current raw save to the backup key, if a save exists. */
+  backup(): void
   clear(): void
 }
 
@@ -85,6 +93,10 @@ export function createDocumentStorage(
   let pendingIssue: StorageIssue | null = null
   let writeFailed = false
   let writeStatusListener: ((warning: StorageWriteWarning) => void) | null = null
+  let externalChangeListener: ExternalChangeListener | null = null
+  let conflictListener: ConflictListener | null = null
+  /** Last raw text this controller read from or wrote to storage. */
+  let lastWrittenRaw: string | null = null
 
   const block = (issue: StorageIssue): void => {
     blocked = true
@@ -102,26 +114,50 @@ export function createDocumentStorage(
       let raw: string | null
       try {
         raw = storage.getItem(name)
+        lastWrittenRaw = raw
+        if (raw === null) return null
+
+        // Parsing and migrations are untrusted: any exception must leave the
+        // original raw save untouched instead of falling back to an empty one.
+        const result = parseDocument(raw)
+        if (!result.ok) {
+          block({
+            reason: result.reason === 'future-version' ? 'future-version' : 'corrupt',
+          })
+          return null
+        }
+
+        return { state: { document: result.value }, version: SCHEMA_VERSION }
       } catch {
         block({ reason: 'corrupt' })
         return null
       }
-      if (raw === null) return null
-
-      const result = parseDocument(raw)
-      if (!result.ok) {
-        block({
-          reason: result.reason === 'future-version' ? 'future-version' : 'corrupt',
-        })
-        return null
-      }
-
-      return { state: { document: result.value }, version: SCHEMA_VERSION }
     },
     setItem: (name, value) => {
       if (blocked) return
+
+      // Persist the compact document; serializeDocument keeps the readable
+      // two-space format for user-facing exports only.
+      const next = JSON.stringify(value.state.document)
+      if (next === lastWrittenRaw) return
+
+      let current: string | null
       try {
-        storage.setItem(name, serializeDocument(value.state.document))
+        current = storage.getItem(name)
+      } catch {
+        current = lastWrittenRaw
+      }
+
+      // Another tab wrote after this controller last read or wrote. Refusing the
+      // write avoids a silent last-write-wins overwrite of its progress.
+      if (current !== lastWrittenRaw && current !== next) {
+        conflictListener?.()
+        return
+      }
+
+      try {
+        storage.setItem(name, next)
+        lastWrittenRaw = next
         reportWrite(!persistent)
       } catch {
         // The app keeps working from memory; the shell warns that a reload
@@ -133,10 +169,31 @@ export function createDocumentStorage(
       if (blocked) return
       try {
         storage.removeItem(name)
+        if (name === STORAGE_KEY) lastWrittenRaw = null
       } catch {
         // Ignore unavailable storage.
       }
     },
+  }
+
+  // Storage events never fire in the tab that wrote them, so this notification
+  // is safe against same-tab write loops.
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('storage', (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY) return
+      if (event.newValue === lastWrittenRaw) return
+      externalChangeListener?.()
+    })
+  }
+
+  const backup = (): void => {
+    try {
+      const raw = storage.getItem(STORAGE_KEY)
+      if (raw === null) return
+      storage.setItem(STORAGE_BACKUP_KEY, raw)
+    } catch {
+      // A backup is best-effort: destructive actions still proceed.
+    }
   }
 
   return {
@@ -148,6 +205,12 @@ export function createDocumentStorage(
     },
     setWriteStatusListener: (listener) => {
       writeStatusListener = listener
+    },
+    setExternalChangeListener: (listener) => {
+      externalChangeListener = listener
+    },
+    setConflictListener: (listener) => {
+      conflictListener = listener
     },
     blockWrites: block,
     unblockWrites: () => {
@@ -162,9 +225,11 @@ export function createDocumentStorage(
         return null
       }
     },
+    backup,
     clear: () => {
       try {
         storage.removeItem(STORAGE_KEY)
+        lastWrittenRaw = null
       } catch {
         // Ignore unavailable storage.
       }

@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useSta
 import type { ReactNode } from 'react'
 import { currentDay, xpIntoLevel, xpToNextLevel } from '../domain/selectors'
 import type { View } from '../domain/types'
+import { msUntilNextLocalMidnight } from '../state/clock'
 import { useAppStore } from '../state/store'
 import {
   AnimatedNumber,
@@ -179,6 +180,35 @@ export default function App() {
     }
     return undefined
   }, [gameDocument.settings.theme])
+
+  useEffect(() => {
+    let midnightTimer: number | null = null
+
+    const scheduleMidnightReconcile = () => {
+      if (midnightTimer !== null) window.clearTimeout(midnightTimer)
+      midnightTimer = window.setTimeout(() => {
+        useAppStore.getState().reconcile()
+        scheduleMidnightReconcile()
+      }, msUntilNextLocalMidnight())
+    }
+
+    const reconcileWhenVisible = () => {
+      if (window.document.visibilityState !== 'visible') return
+      useAppStore.getState().reconcile()
+      // A sleeping device may leave the previous timer overdue or throttled.
+      scheduleMidnightReconcile()
+    }
+
+    window.document.addEventListener('visibilitychange', reconcileWhenVisible)
+    window.addEventListener('focus', reconcileWhenVisible)
+    scheduleMidnightReconcile()
+
+    return () => {
+      window.document.removeEventListener('visibilitychange', reconcileWhenVisible)
+      window.removeEventListener('focus', reconcileWhenVisible)
+      if (midnightTimer !== null) window.clearTimeout(midnightTimer)
+    }
+  }, [])
 
   const screenName = screenNameFor(guardedView)
 

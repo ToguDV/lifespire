@@ -1,6 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDemoSetup } from '../content/demo'
-import { MAX_GOALS, SCHEMA_VERSION, STORAGE_KEY } from '../domain/balance'
+import {
+  MAX_GOALS,
+  SCHEMA_VERSION,
+  STORAGE_BACKUP_KEY,
+  STORAGE_KEY,
+} from '../domain/balance'
 import { addDays, dayKey } from '../domain/dates'
 import { validateMap } from '../domain/generator'
 import { createRun } from '../domain/lifecycle'
@@ -99,6 +104,138 @@ describe('store hydration', () => {
     expect(second.getState().hydrated).toBe(true)
     expect(second.getState().toast).toBeNull()
     expect(second.getState().document).toEqual(first.store.getState().document)
+  })
+
+  it('skips storage writes for navigation and toast updates', () => {
+    let writes = 0
+    const memory = createMemoryStorage()
+    const counted: StorageLike = {
+      ...memory,
+      setItem: (key, value) => {
+        writes += 1
+        memory.setItem(key, value)
+      },
+    }
+    const store = createAppStore({
+      storage: createDocumentStorage(counted),
+      now: () => baseNow,
+    })
+    const afterHydration = writes
+
+    store.getState().navigate({ name: 'settings' })
+    store.getState().showToast('Temporary message')
+    store.getState().back()
+
+    expect(writes).toBe(afterHydration)
+  })
+
+  it('syncs a save written by another tab without overwriting it', () => {
+    const local = makeHarness()
+    const remote = createAppStore({
+      storage: createDocumentStorage(local.memory),
+      now: () => local.base,
+    })
+    remote.getState().completeOnboarding(createDemoSetup(local.base), local.base)
+    const remoteDocument = remote.getState().document
+    const remoteRaw = local.memory.getItem(STORAGE_KEY)
+
+    local.store.getState().syncFromStorage()
+
+    expect(local.store.getState().document).toEqual(remoteDocument)
+    expect(local.memory.getItem(STORAGE_KEY)).toBe(remoteRaw)
+    expect(local.store.getState().toast).toBe(
+      'This save changed in another tab. The latest version is now open.',
+    )
+  })
+
+  it('keeps the current document when the remote save cannot be read', () => {
+    const { store, memory } = makeHarness()
+    store.getState().setTheme('dark')
+    const before = store.getState().document
+
+    memory.setItem(STORAGE_KEY, '{broken')
+    store.getState().syncFromStorage()
+
+    expect(store.getState().document).toBe(before)
+    expect(memory.getItem(STORAGE_KEY)).toBe('{broken')
+    expect(store.getState().toast).toContain('could not be read')
+  })
+
+  it('returns to onboarding when another tab resets the save', () => {
+    const local = makeHarness()
+    onboardAndStart(local.store, local.base)
+    const remote = createAppStore({
+      storage: createDocumentStorage(local.memory),
+      now: () => local.base,
+    })
+
+    remote.getState().resetAll()
+    expect(local.memory.getItem(STORAGE_KEY)).toBeNull()
+
+    local.store.getState().syncFromStorage()
+
+    expect(local.store.getState().document).toEqual(createEmptyDocument())
+    expect(local.store.getState().storageIssue).toBeNull()
+    expect(local.store.getState().view).toEqual({ name: 'onboarding' })
+    expect(local.store.getState().history).toEqual([])
+    expect(local.store.getState().toast).toBe(
+      'Local data was reset in another tab. LifeSpire returned to onboarding.',
+    )
+    expect(local.memory.getItem(STORAGE_KEY)).toBeNull()
+  })
+
+  it('reloads the winning save after a cross-tab conflict', async () => {
+    const first = makeHarness()
+    const second = createAppStore({
+      storage: createDocumentStorage(first.memory),
+      now: () => first.base,
+    })
+
+    first.store.getState().setTheme('dark')
+    const winning = first.store.getState().document
+    second.getState().setTheme('light')
+
+    // The local change is optimistic in memory, then the conflict sync wins.
+    expect(second.getState().document.settings.theme).toBe('light')
+    await Promise.resolve()
+
+    expect(second.getState().document).toEqual(winning)
+    expect(storedDocument(first.memory).settings.theme).toBe('dark')
+    expect(second.getState().toast).toBe(
+      'This save changed in another tab. The latest version is now open.',
+    )
+  })
+
+  it('schedules a sync when the browser reports an external storage change', async () => {
+    const listeners = new Set<(event: StorageEvent) => void>()
+    vi.stubGlobal('window', {
+      addEventListener: (type: string, listener: (event: StorageEvent) => void) => {
+        if (type === 'storage') listeners.add(listener)
+      },
+      removeEventListener: () => {},
+    })
+
+    try {
+      const local = makeHarness()
+      const remote = createAppStore({
+        storage: createDocumentStorage(local.memory),
+        now: () => local.base,
+      })
+      remote.getState().completeOnboarding(createDemoSetup(local.base), local.base)
+      const remoteRaw = local.memory.getItem(STORAGE_KEY)
+
+      listeners.forEach((listener) =>
+        listener({ key: STORAGE_KEY, newValue: remoteRaw } as StorageEvent),
+      )
+      await Promise.resolve()
+
+      expect(local.store.getState().document).toEqual(remote.getState().document)
+      expect(local.store.getState().toast).toBe(
+        'This save changed in another tab. The latest version is now open.',
+      )
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
 
@@ -434,6 +571,80 @@ describe('import, recovery and reset', () => {
     expect(storedDocument(memory).profile?.level).toBe(3)
   })
 
+  it('rejects an imported run without a profile', () => {
+    const { store, memory, base } = makeHarness()
+    const before = store.getState().document
+    const setup = createDemoSetup(base)
+    const run = createRun({
+      setup: { goals: setup.goals, tasks: setup.tasks },
+      now: base,
+      runId: 'run_without_profile',
+    })
+    const document: GameDocument = {
+      ...createEmptyDocument(),
+      goals: setup.goals,
+      tasks: setup.tasks,
+      run,
+    }
+    const rawBefore = memory.getItem(STORAGE_KEY)
+
+    expect(store.getState().importDocument(document)).toBe(false)
+    expect(store.getState().document).toBe(before)
+    expect(store.getState().toast).toBe('That save has a run but no profile.')
+    expect(memory.getItem(STORAGE_KEY)).toBe(rawBefore)
+  })
+
+  it('rejects an active run with fewer than four routines', () => {
+    const { store, memory, base } = makeHarness()
+    const setup = createDemoSetup(base)
+    const before = store.getState().document
+    const rawBefore = memory.getItem(STORAGE_KEY)
+
+    for (const count of [0, 1, 2, 3]) {
+      const run = createRun({
+        setup: { goals: setup.goals, tasks: setup.tasks },
+        now: base,
+        runId: `run_few_tasks_${count}`,
+      })
+      const document: GameDocument = {
+        ...createEmptyDocument(),
+        profile: {
+          id: 'profile_few_tasks',
+          name: 'Wren',
+          xp: 0,
+          level: 1,
+          gold: 0,
+          loot: [],
+          createdAt: base.toISOString(),
+        },
+        goals: setup.goals,
+        tasks: setup.tasks.slice(0, count),
+        run,
+      }
+
+      expect(store.getState().importDocument(document)).toBe(false)
+      expect(store.getState().toast).toBe(
+        'Keep at least 4 active routines while the run is underway.',
+      )
+      expect(store.getState().document).toBe(before)
+      expect(memory.getItem(STORAGE_KEY)).toBe(rawBefore)
+    }
+  })
+
+  it('exports the raw blocked save for recovery', () => {
+    const raw = '{broken'
+    const { store } = makeHarness({ raw })
+    expect(store.getState().exportRawSave()).toBe(raw)
+  })
+
+  it('backs up the blocked save before importing over it', () => {
+    const raw = '{broken'
+    const { store, memory } = makeHarness({ raw })
+
+    expect(store.getState().importDocument(createEmptyDocument())).toBe(true)
+    expect(memory.getItem(STORAGE_BACKUP_KEY)).toBe(raw)
+  })
+
   it('rejects an invalid or future import without changing the document', () => {
     const { store } = makeHarness()
     const before = store.getState().document
@@ -483,14 +694,16 @@ describe('import, recovery and reset', () => {
   })
 
   it('resetAll clears corrupt storage, unlocks writes and returns to onboarding', () => {
-    const { store, memory } = makeHarness({ raw: 'nonsense' })
+    const raw = 'nonsense'
+    const { store, memory } = makeHarness({ raw })
     expect(store.getState().storageIssue).toEqual({ reason: 'corrupt' })
 
     store.getState().resetAll()
 
+    expect(memory.getItem(STORAGE_BACKUP_KEY)).toBe(raw)
     expect(store.getState().storageIssue).toBeNull()
     expect(store.getState().document).toEqual(createEmptyDocument())
-    expect(storedDocument(memory)).toEqual(createEmptyDocument())
+    expect(memory.getItem(STORAGE_KEY)).toBeNull()
 
     store.getState().setTheme('light')
     expect(storedDocument(memory).settings.theme).toBe('light')

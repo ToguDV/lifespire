@@ -84,6 +84,10 @@ export interface AppState {
   archiveTask(taskId: string, now?: Date): ContentActionResult
   setTheme(theme: ThemePreference): void
   importDocument(nextDocument: GameDocument): boolean
+  /** Rehydrates the newest save written by another tab without overwriting it. */
+  syncFromStorage(): void
+  /** Raw storage text, including a blocked save, for recovery exports. */
+  exportRawSave(): string | null
   resetAll(): void
   newId(prefix: string): string
   showToast(message: string | null): void
@@ -171,12 +175,33 @@ function sameView(a: View, b: View): boolean {
   return true
 }
 
+const EXTERNAL_CHANGE_TOAST =
+  'This save changed in another tab. The latest version is now open.'
+const EXTERNAL_CHANGE_UNREADABLE_TOAST =
+  'This save changed in another tab, but it could not be read. Your current progress is still here.'
+const EXTERNAL_RESET_TOAST =
+  'Local data was reset in another tab. LifeSpire returned to onboarding.'
+
 export function createAppStore(
   deps: StoreDeps = {},
 ): UseBoundStore<StoreApi<AppState>> {
   const storage = deps.storage ?? documentStorage
   const nowProvider = deps.now ?? getNow
   const idFactory = deps.idFactory ?? newId
+
+  /**
+   * Applies an in-memory transition while the save key is intentionally absent,
+   * so persist cannot recreate it with an empty document. The temporary block
+   * is never surfaced: any issue it creates is cleared when writes are unlocked.
+   */
+  const applyWithEmptyStorage = (apply: () => void): void => {
+    storage.blockWrites({ reason: 'corrupt' })
+    try {
+      apply()
+    } finally {
+      storage.unblockWrites()
+    }
+  }
 
   const store = create<AppState>()(
     persist<AppState, [], [], PersistedSlice>(
@@ -617,8 +642,28 @@ export function createAppStore(
             return false
           }
 
-          storage.unblockWrites()
           const imported = withSyncedLevel(parsed.value)
+          if (imported.run && !imported.profile) {
+            set({ toast: 'That save has a run but no profile.' })
+            return false
+          }
+
+          // A structurally valid active run can still be unplayable. Reject the
+          // import before touching storage so the current document survives.
+          if (imported.run?.status === 'active') {
+            const constraint = validateContentConstraints(
+              imported,
+              imported.goals,
+              imported.tasks,
+            )
+            if (!constraint.ok) {
+              set({ toast: constraint.errors[0] ?? 'That save cannot continue this run.' })
+              return false
+            }
+          }
+
+          storage.backup()
+          storage.unblockWrites()
           set({
             document: imported,
             storageIssue: null,
@@ -634,15 +679,62 @@ export function createAppStore(
           return true
         },
 
+        syncFromStorage: () => {
+          if (storage.read() === null) {
+            // Another tab reset the save. Rebuild the in-memory empty document
+            // without writing it back: the storage is already empty and the
+            // no-op check cannot cover this transition on its own.
+            storage.unblockWrites()
+            storage.clear()
+            applyWithEmptyStorage(() => {
+              set({
+                document: withSyncedLevel(createEmptyDocument()),
+                storageIssue: null,
+                view: { name: 'onboarding' },
+                history: [],
+                toast: EXTERNAL_RESET_TOAST,
+              })
+            })
+            return
+          }
+          // Rehydrating reads the remote raw synchronously and updates the
+          // adapter's last-written marker, so the following sets are no-ops
+          // unless reconciliation genuinely changes the document.
+          store.persist.rehydrate()
+          const issue = storage.consumeIssue()
+          if (issue) {
+            set({ toast: EXTERNAL_CHANGE_UNREADABLE_TOAST })
+            return
+          }
+
+          storage.unblockWrites()
+          const synced = withSyncedLevel(get().document)
+          const documentChanged = synced !== get().document
+          if (documentChanged) set({ document: synced })
+          set({ storageIssue: null, toast: EXTERNAL_CHANGE_TOAST })
+          get().reconcile()
+          set({
+            view: deriveInitialView(get().document, get().storageIssue),
+            history: [],
+          })
+        },
+
+        exportRawSave: () => storage.read(),
+
         resetAll: () => {
+          storage.backup()
           storage.unblockWrites()
           storage.clear()
-          set({
-            document: createEmptyDocument(),
-            storageIssue: null,
-            view: { name: 'onboarding' },
-            history: [],
-            toast: null,
+          // Keep the key removed so other tabs observe a real reset (null)
+          // instead of an empty document written back by persist.
+          applyWithEmptyStorage(() => {
+            set({
+              document: createEmptyDocument(),
+              storageIssue: null,
+              view: { name: 'onboarding' },
+              history: [],
+              toast: null,
+            })
           })
         },
 
@@ -755,10 +847,24 @@ export function createAppStore(
     store.setState({ storageWarning: warning })
   })
 
+  // Coalesce multiple storage events and let the current synchronous action
+  // settle before reading the remote document.
+  let syncQueued = false
+  const requestStorageSync = (): void => {
+    if (syncQueued) return
+    syncQueued = true
+    queueMicrotask(() => {
+      syncQueued = false
+      store.getState().syncFromStorage()
+    })
+  }
+  storage.setExternalChangeListener(requestStorageSync)
+  storage.setConflictListener(requestStorageSync)
+
   const issue = storage.consumeIssue()
   const hydratedDocument = withSyncedLevel(store.getState().document)
   store.setState({
-    hydrated: true,
+    hydrated: store.persist.hasHydrated(),
     storageIssue: issue,
     document: hydratedDocument,
     view: deriveInitialView(hydratedDocument, issue),

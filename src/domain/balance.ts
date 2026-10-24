@@ -2,6 +2,8 @@ import type { Effort, NodeRewards, NodeType, Rarity, WheelOutcome } from './type
 
 export const SCHEMA_VERSION = 2
 export const STORAGE_KEY = 'lifespire:mvp0'
+/** Last raw save copied before a destructive import or reset. */
+export const STORAGE_BACKUP_KEY = 'lifespire:mvp0:backup'
 
 export const RUN_DAYS = 7
 export const MIN_GOALS = 1
