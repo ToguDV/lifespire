@@ -11,7 +11,7 @@ if (!/^\d+\.\d+\.\d+$/.test(version)) {
   process.exit(1)
 }
 
-const manifests = ['package.json', 'apps/desktop/package.json']
+const manifests = ['package.json', 'apps/desktop/package.json', 'apps/mobile/package.json']
 let failed = false
 
 for (const file of manifests) {

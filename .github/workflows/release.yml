@@ -127,7 +127,7 @@ jobs:
   android:
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
 
@@ -158,7 +158,6 @@ jobs:
         working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          LIFESPIRE_APP_VERSION: ${{ github.ref_name }}
         run: |
           npx --yes eas-cli@^16 build \
             --platform android \
@@ -193,12 +192,19 @@ jobs:
 
   publish:
     needs: [quality, desktop, android]
+    # Desktop installers must not be held hostage by a missing Expo token or an
+    # EAS outage; the android job still turns the run red so the gap is visible.
+    if: ${{ !cancelled() && needs.quality.result == 'success' && needs.desktop.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v5
         with:
           path: artifacts
           merge-multiple: true
+
+      - name: Note a missing APK
+        if: ${{ needs.android.result != 'success' }}
+        run: echo "::warning::No Android APK for this tag (android=${{ needs.android.result }}). Check EXPO_TOKEN, eas init and the EAS credentials."
 
       - name: Checksums
         working-directory: artifacts
@@ -212,25 +218,23 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          cat > release-notes.md <<'NOTES'
-          LifeSpire <version> desktop and Android builds for this tag.
-
-          | Platform | File | Notes |
-          |---|---|---|
-          | Android | `LifeSpire-<version>.apk` | Sideload build from EAS (`preview` profile). |
-          | Linux | `.deb` | Debian/Ubuntu installer (`sudo apt install ./LifeSpire-*.deb`). |
-          | Linux | `.AppImage` | Portable; mark it executable and run. |
-          | Linux | `.tar.gz` | Unpacked binary tree. |
-          | Windows | `LifeSpire-<version>-setup.exe` | NSIS installer. |
-          | Windows | `.zip` | Portable build. |
-
-          The desktop save lives on this device only (local-first, same
-          `GameDocument` as web/Android); export/import stays available from
-          Settings. Windows installers are **unsigned**, so SmartScreen may warn:
-          choose "More info" and "Run anyway". Checksums are attached as
-          `SHA256SUMS.txt`.
-          NOTES
-          sed -i "s/<version>/${version}/g" release-notes.md
+          {
+            echo "LifeSpire ${version} — desktop and Android builds for this tag."
+            echo
+            echo "### Downloads"
+            echo
+            for file in artifacts/*; do
+              echo "- \`$(basename "$file")\` ($(du -h "$file" | cut -f1))"
+            done
+            echo
+            echo "### Notes"
+            echo
+            echo "- Linux: install the \`.deb\` with \`sudo apt install ./LifeSpire-*.deb\`, or \`chmod +x\` the AppImage and run it."
+            echo "- Windows: run the installer or unpack the portable zip. Installers are **unsigned**, so SmartScreen may warn (More info → Run anyway)."
+            echo "- Android: sideload the APK when it is attached."
+            echo "- The desktop save stays on this device (local-first, same \`GameDocument\` as web/Android); export and import live in Settings."
+            echo "- Verify downloads against \`SHA256SUMS.txt\`."
+          } > release-notes.md
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" artifacts/* --clobber
           else
