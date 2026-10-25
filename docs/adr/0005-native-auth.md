@@ -20,7 +20,7 @@ become long-lived (worse security).
 Add an explicit **native client grant** to the existing auth endpoints:
 
 1. A request is a native client only when it carries
-   `X-Client-Platform: android|ios` **and** has no `Origin` and no
+   `X-Client-Platform: android|ios|desktop` **and** has no `Origin` and no
    `Sec-Fetch-Site` header. Browsers send those headers on credentialed POSTs
    and JavaScript cannot remove them (forbidden headers), so page JavaScript
    cannot opt into this grant by forging the custom header.
@@ -32,7 +32,14 @@ Add an explicit **native client grant** to the existing auth endpoints:
 4. The Android app stores the token in `expo-secure-store` (Android Keystore
    backed) and keeps the access token in memory. The session marker in SQLite
    contains only id/email/role.
-5. Logout clears both the access token and the secure-store refresh token; the
+5. The Electron desktop app calls the API from its **main process** with
+   `net.fetch` and `X-Client-Platform: desktop`. Main captures the login/refresh
+   token, strips it from the IPC response before the renderer builds a
+   `Response`, injects it into refresh bodies and rotates it. It is encrypted
+   with Electron `safeStorage` in `userData`, keyed by server origin; without
+   encryption (or with the Linux `basic_text` backend) the session stays in
+   main-process memory and the UI reports that it will not survive a restart.
+6. Logout clears both the access token and the secure-store refresh token; the
    existing server logout revokes the session.
 
 The API client gains `mode: 'cookie' | 'native'` and refresh-token callbacks.
@@ -75,6 +82,8 @@ unchanged.
   field; the web contract is unchanged.
 - `packages/api-client` needs native tests (login capture, refresh rotation,
   missing-token refusal), and `isNativeClient` is unit-tested.
-- A full Postgres e2e flow for the native grant remains a follow-up.
+- Desktop adds a main-process proxy test suite (policy, stripping, rotation,
+  vault fallback) plus a manual smoke checklist; CI does not open Electron
+  windows. A full Postgres e2e flow for the native grant remains a follow-up.
 - The refresh token is device-bound in practice; syncing it across devices is
   explicitly not supported.

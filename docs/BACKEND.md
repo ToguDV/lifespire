@@ -32,6 +32,7 @@ apps/api/
   prisma/schema.prisma user/role/status, tokens, devices, sessions,
                        document/revisions/mutations, audit
 apps/mobile/           Expo Android app; shares app-core and native auth
+apps/desktop/          Electron shell; main-process API proxy and safeStorage
 packages/core/         pure domain, source of truth (CJS build at dist/cjs
                        for the server; TS sources for Vite/Vitest/Metro). The
                        API enforces full game-rule validation via parseDocument;
@@ -54,17 +55,21 @@ infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
   enumeration; disabled accounts get an explicit 403.
 - Access: JWT 15 min (`sub`, `email`, `role`, `sid`, `did`, `totpVerified`).
 - **Native grant (ADR-0005):** a request is native only with
-  `X-Client-Platform: android|ios` and no `Origin`/`Sec-Fetch-Site` headers.
-  Those browser-forbidden headers cannot be removed by page JavaScript, so web
-  keeps the HttpOnly cookie and cannot opt into the body token. Native
-  login/accept-invite return `refreshToken`; native refresh accepts
-  `{ refreshToken }`. Rotation, hashing, family reuse detection and revocation
-  are identical.
+  `X-Client-Platform: android|ios|desktop` and no `Origin`/`Sec-Fetch-Site`
+  headers. Those browser-forbidden headers cannot be removed by page
+  JavaScript, so web keeps the HttpOnly cookie and cannot opt into the body
+  token. Native login/accept-invite return `refreshToken`; native refresh
+  accepts `{ refreshToken }`. Rotation, hashing, family reuse detection and
+  revocation are identical. `desktop` is the Electron main process: it calls
+  with `net.fetch` (no browser headers), keeps the token out of the renderer
+  and stores it with Electron `safeStorage`; see `DESKTOP.md` §5.
 - Refresh: opaque 32-byte token, sha256 in DB, HttpOnly cookie
   `__Secure-ls_rt` (`Secure` in prod, `SameSite=Lax`, `Path=/v1/auth`),
   rotated per use, 30-day expiry, family-based reuse detection (reuse revokes
   the whole family). Native clients store the same token in the OS keychain and
-  send it in the refresh body; they do not receive a cookie.
+  send it in the refresh body; they do not receive a cookie. Desktop is
+  memory-only when `safeStorage` cannot encrypt (no keyring or Linux
+  `basic_text`), never a plaintext cookie or localStorage fallback.
 - **TOTP mandatory for admins.** Login without setup returns
   `totpSetupRequired: true`; `POST /v1/auth/totp/setup` returns an otpauth URL
   plus 10 hashed one-time recovery codes; admin routes require a verified
@@ -139,7 +144,9 @@ behavior. The server never interprets dates — it stores the document.
 - Native token gate: the header is spoofable in principle, but the absence of
   `Origin`/`Sec-Fetch-Site` is what keeps the token out of browser JavaScript.
   This is a closed-beta tradeoff; a PKCE/Custom Tab flow is the long-term path
-  if third-party clients appear. The refresh token is never logged.
+  if third-party clients appear. The refresh token is never logged. On desktop
+  the IPC boundary is the second layer: only the main process can call the API
+  with `desktop`, and the renderer proxy response has the token stripped.
 - Accepted tradeoff: disabled accounts are enumerable via the login `403`
   (anyone holding valid credentials for a disabled account can distinguish it
   from a bad-password `401`); accepted so operators and users get a clear
@@ -194,9 +201,14 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
   invites, TOTP adapter, env, structural + rule gates, metrics counters, native
   client gate). No DB needed.
 - `pnpm --filter @lifespire/api-client test` covers cookie mode, native token
-  capture/rotation and refusal without a stored token.
+  capture/rotation, refusal without a stored token and the injectable transport.
+- `pnpm --filter @lifespire/desktop test` covers the main-process proxy
+  (path/header/body/origin allowlists and sender gate), refresh-token
+  stripping/rotation and the safeStorage vault, including the memory-only
+  fallback.
 - `pnpm --filter @lifespire/mobile test` covers the local notification planner.
-  A Postgres e2e flow for the native grant is a follow-up.
+  The Postgres flow also exercises the `desktop` login/refresh pair and the
+  browser-shaped rejection.
 - `pnpm --filter @lifespire/api test:e2e` — 11 flows against Postgres:
   (a) admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/
   replay/key-reuse/revisions, device revoke, disable, last-admin guard;

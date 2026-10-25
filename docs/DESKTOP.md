@@ -10,8 +10,12 @@
 
 ```text
 apps/desktop/
-  src/main.ts             app lifecycle, window, custom protocol, downloads, guards
-  src/preload.ts          read-only contextBridge (`window.lifespireDesktop`)
+  src/main.ts             app lifecycle, window, custom protocol, downloads, guards,
+                          IPC registration and safeStorage wiring
+  src/preload.ts          narrow contextBridge (`window.lifespireDesktop`)
+  src/apiProxy.ts         Electron-free API proxy: path/origin/header policy,
+                          refresh-token capture/rotation and the token vault
+  src/apiProxy.test.ts    Vitest coverage for the proxy, vault and IPC sender gate
   src/menu.ts             desktop menu (clipboard roles; devtools only in dev)
   src/protocol.ts         pure URL ↔ file mapping and navigation policy
   src/protocol.test.ts    Vitest coverage for the resolve/navigation rules
@@ -44,7 +48,18 @@ they reach the browser.
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`; the
   renderer never sees Node or Electron APIs.
-- The preload exposes only `{ isDesktop: true, platform }`.
+- The preload exposes `{ isDesktop: true, platform }` plus the minimum sync
+  surface: `api.request`, `sync.setServer`, `auth.sessionState` and
+  `auth.signOut`. There is no token getter; the refresh token never crosses the
+  bridge.
+- Every IPC handler validates `event.senderFrame.url` against the packaged
+  `lifespire-app://app` origin, or `LIFESPIRE_DEV_URL` while unpackaged, and
+  throws for any other frame.
+- The API proxy is the only path to the network: `/v1/...` and `/health/live`
+  only (no absolute URLs, protocol-relative paths, dot segments or encoded
+  separators), allowlisted methods and headers, a 2 MB body cap, a 10 s
+  timeout and `redirect: 'error'`. Authorization, content type, conditional
+  request headers and `Idempotency-Key` are the only headers forwarded.
 - `window.open` is denied, external `http(s)` links open in the system browser,
   and both `will-navigate` and `will-redirect` only allow in-app navigations.
 - Every Chromium permission request and permission check is denied; the app
@@ -65,13 +80,48 @@ they reach the browser.
 - Import still uses the web file input, the 2 MB gate and `readSaveFile`.
 - The multi-tab policy collapses to the single-instance lock. Native
   notifications are out of scope, so there is no permission prompt.
-- **Sync is not wired for desktop yet.** The renderer origin is
-  `lifespire-app://app`, which the API's CORS list and cookie handling do not
-  cover; the desktop app is guest/local in this release. Settings replaces the
-  sync/server panels with a note and points at export/import, which is how a
-  save moves between desktop and the other clients.
 
-## 5. Commands
+## 5. Sync
+
+The renderer origin stays `lifespire-app://app`; no CORS entry or cookie
+change is needed. The Electron **main process** is the API client:
+
+- The renderer calls `window.lifespireDesktop.api.request({ path, method,
+  headers, body })`. Main joins it with the configured server origin and calls
+  `net.fetch` with the 10 s timeout, no redirects and no browser headers.
+- `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/refresh` are sent
+  with `X-Client-Platform: desktop`. With no `Origin`/`Sec-Fetch-Site`, the API
+  accepts the native grant (ADR-0005) and returns the refresh token to main.
+  Main stores the rotated token and **strips it from the response** before the
+  renderer builds its `Response`.
+- On refresh, main injects the stored token into the JSON body; the renderer
+  never needs to know it. The access token stays in renderer memory exactly as
+  on web.
+- `GET /health/live` is the only request that may name another origin: the
+  Settings panel probes a candidate server *before* saving it, authenticated
+  paths always require the configured origin.
+- The configured origin is pushed by the renderer on boot and after every
+  server switch (`sync.setServer`). An empty base URL means "sync not
+  configured" with a clear error; the desktop never falls back to same-origin.
+
+Persistence:
+
+- The token is written to `userData/sync-session.json` as
+  `{ version, origin, token }`, with `token` encrypted by Electron
+  `safeStorage` (OS keychain) and base64-encoded. It is keyed to the server
+  origin, so a different server never reuses it.
+- Every rotation writes the new token. Successful `logout`/`logout-all`,
+  local sign-out, a rejected refresh and a server change delete it. The vault
+  is cleared before the renderer can issue another request.
+- If `safeStorage.isEncryptionAvailable()` is false, or Linux selects the
+  `basic_text` backend (no keyring), the token stays **in main-process memory
+  only**. Sync works for the running session, Settings shows a "Not saved"
+  notice, and restarting the app requires a new sign-in.
+- The save itself is unchanged: the same `GameDocument` in `localStorage`, no
+  token in renderer storage, no migration. Export/import remains the offline
+  way to move a save.
+
+## 6. Commands
 
 ```bash
 pnpm dev            # terminal 1: Vite dev server
@@ -86,7 +136,7 @@ pnpm --filter @lifespire/desktop package:win
 `electron-builder` writes to `apps/desktop/release/` (gitignored). The web build
 is a prerequisite: the packaging scripts run `@lifespire/web build` first and the
 packaged app fails to load if `apps/web/dist` is missing.
-## 6. CI release
+## 7. CI release
 
 [`release.yml`](../.github/workflows/release.yml) runs only on `v*` tags:
 
@@ -116,22 +166,49 @@ SmartScreen "unknown publisher" prompt. Adding code signing later only needs the
 `electron-builder` `win.signtoolOptions` block. There is no auto-update: users
 download the next release manually.
 
-## 7. Verification
+## 8. Verification
 
-- `pnpm --filter @lifespire/desktop test` covers URL resolution, path-traversal
-  rejection, the navigation allow-list and the external-link policy.
-- Packaging smoke check (Linux, run locally because CI has no display):
-  `pnpm --filter @lifespire/desktop exec electron-builder --dir`, launch
-  `release/linux-unpacked/lifespire`, confirm the welcome screen, self-hosted
-  fonts, `localStorage` writes and the preload bridge
-  (`window.lifespireDesktop`), with no console errors.
+`pnpm --filter @lifespire/desktop test` covers URL resolution, path-traversal
+rejection, the navigation allow-list, the external-link policy, the API proxy
+(path/header/body/origin allowlists, sender validation, token stripping,
+rotation, logout/server-switch cleanup and the memory-only fallback).
 
-## 8. Known follow-ups
+CI has no display and does not open the Electron window, so sync still needs a
+manual pass on a desktop session:
 
+1. `pnpm build`, then
+   `pnpm --filter @lifespire/desktop exec electron-builder --dir`; launch
+   `apps/desktop/release/linux-unpacked/lifespire` (or `pnpm dev` +
+   `pnpm dev:desktop`). Confirm the welcome screen, self-hosted fonts,
+   `localStorage` writes and `window.lifespireDesktop`, with no console errors.
+2. Settings → Sync server: enter the API origin (`http://localhost:3000` for
+   the local stack), confirm the health check passes and save it.
+3. Sign in (with TOTP if enabled), confirm the sync panel shows the user and
+   cloud version, and make an edit that pushes.
+4. In DevTools, check that `window.lifespireDesktop` has no token getter and
+   that neither `localStorage` nor `sessionStorage` contains a refresh token.
+   `await window.lifespireDesktop.auth.sessionState()` reports
+   `persistence: "encrypted"` and `signedIn: true`.
+5. Restart the app: the session restores without a new login. Sign out and
+   confirm `userData/sync-session.json` is gone and the next launch starts as a
+   guest.
+6. Change the server: the old credential is cleared, the panel stays on screen
+   and signing in uses the new origin.
+7. Keychain fallback: on Linux, start with an unavailable keyring (for example
+   `--password-store=basic` or a headless session). Settings shows the
+   "Not saved" notice, sync works for that run and a restart requires signing
+   in again.
+8. Negative checks: with no server saved, signing in fails with the
+   "choose a sync server" message; DevTools cannot fetch `/v1` or any other
+   URL through `api.request` (paths outside `/v1`/`/health/live`, absolute URLs
+   and bodies over 2 MB are rejected).
+
+## 9. Known follow-ups
+
+- A CSP for the custom origin (the shell relies on the existing web build and
+  renderer hardening in this PR).
 - Code signing for Windows and a signed apt repository for Linux.
 - `electron-updater` once releases need silent updates.
-- Desktop sync: add the custom origin to the API CORS policy and decide how the
-  refresh cookie behaves outside `http(s)`.
 - Desktop notifications and deep links (`lifespire://`) mirroring Android.
 - macOS (`dmg`/`zip`) builds and an Apple Developer ID, once there is a Mac
   runner budget.

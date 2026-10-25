@@ -70,9 +70,10 @@ apps/web/src/
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
 apps/api/src/      auth, users, admin, devices, sync, health, audit, prisma, cli
-apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas),
-  preload.ts (puente de solo lectura), menu.ts y protocol.ts (resolución de
-  assets y política de navegación); electron-builder.yml empaqueta el build web
+apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas,
+  IPC y safeStorage), preload.ts (puente acotado), apiProxy.ts (proxy de sync
+  y vault del refresh token), menu.ts y protocol.ts (resolución de assets y
+  política de navegación); electron-builder.yml empaqueta el build web
 apps/mobile/src/        shell nativo, tokens, componentes, pantallas, mapa SVG,
   notificaciones locales y adaptadores de plataforma (ver MOBILE.md)
 packages/core/src/      dominio puro, fuente única (tests de dominio/contenido)
@@ -956,18 +957,34 @@ prototipo retirado:
   Las rutas que escapan del directorio empaquetado se rechazan.
 - **PWA:** `registerSW.js` y `sw.js` responden con un script vacío; el shell ya
   sirve los assets desde disco y no debe montar un segundo caché.
-- **Seguridad:** `contextIsolation`, `sandbox`, sin `nodeIntegration`; el
-  preload solo expone `{ isDesktop, platform }`. `window.open` se deniega, los
-  enlaces `http(s)` externos abren en el navegador, `will-navigate` y
-  `will-redirect` solo permiten el origen propio, los permisos de Chromium se
-  deniegan y `<webview>` queda bloqueado.
+- **Seguridad:** `contextIsolation`, `sandbox`, sin `nodeIntegration`. El
+  preload expone `{ isDesktop, platform }` y el mínimo de sync
+  (`api.request`, `sync.setServer`, `auth.sessionState`, `auth.signOut`), nunca
+  tokens. Cada handler IPC valida `event.senderFrame.url` contra
+  `lifespire-app://app` (empaquetado) o `LIFESPIRE_DEV_URL` (dev). El proxy de
+  `apiProxy.ts` solo acepta `/v1/...` y `/health/live`, métodos y cabeceras en
+  allowlist, cuerpos ≤ 2 MB, timeout de 10 s y `redirect: 'error'`; las rutas
+  con `..`/`%2e`/`%2f` y las URLs absolutas se rechazan. `window.open` se
+  deniega, los enlaces `http(s)` externos abren en el navegador,
+  `will-navigate` y `will-redirect` solo permiten el origen propio, los
+  permisos de Chromium se deniegan y `<webview>` queda bloqueado.
 - **Datos:** export con diálogo nativo (`will-download` →
   `showSaveDialogSync`), import por input de fichero con los mismos gates. La
-  política multi-pestaña se reduce al single-instance lock. El sync no está
-  conectado: el origen `lifespire-app://app` queda fuera de CORS/cookies del
-  API, así que el escritorio es guest/local, `SettingsScreen` sustituye los
-  paneles de servidor/sync por una nota y los saves se mueven con
-  export/import.
+  política multi-pestaña se reduce al single-instance lock. El save sigue
+  siendo el mismo `GameDocument` en `localStorage`.
+- **Sync:** el renderer no llama al API. Envía `{ path, method, headers, body }`
+  por IPC y el proceso main hace `net.fetch` contra el origen configurado con
+  `X-Client-Platform: desktop` (grant nativo de ADR-0005, sin `Origin` ni
+  `Sec-Fetch-Site`), por lo que no hace falta tocar CORS ni la cookie web. Main
+  captura el `refreshToken` de login/accept-invite/refresh, lo elimina de la
+  respuesta antes de devolverla, lo inyecta en el body del refresh y lo rota.
+  Se cifra con `safeStorage` en `userData/sync-session.json`, asociado al
+  origen; `logout`/`logout-all` 2xx, el cierre de sesión local, un refresh
+  rechazado y el cambio de servidor lo borran. Si `safeStorage` no está
+  disponible o Linux usa `basic_text`, la sesión queda solo en memoria y
+  Settings muestra el aviso "Not saved". Base URL vacía en escritorio es
+  "sync no configurado", nunca same-origin; `/health/live` es la única ruta que
+  puede apuntar a un origen candidato antes de guardarlo.
 - **CI:** `.github/workflows/release.yml` solo corre en tags `v*`, valida la
   versión contra los manifiestos, empaqueta en runners Linux/Windows, compila
   el APK en EAS y publica todo (más `SHA256SUMS.txt`) en la GitHub Release.
@@ -980,8 +997,13 @@ suite de web a través de los shims. Ver [`MOBILE.md`](./MOBILE.md) §8.
 
 El shell de escritorio añade `apps/desktop/src/protocol.test.ts` (Vitest) para
 la resolución URL→fichero, el rechazo de rutas que escapan del build, la
-allow-list de navegación, los enlaces externos y los scripts del service worker.
-Ver [`DESKTOP.md`](./DESKTOP.md) §7.
+allow-list de navegación, los enlaces externos y los scripts del service worker,
+y `apps/desktop/src/apiProxy.test.ts` para las allowlists del proxy, el límite
+de body, el remitente IPC, el stripping/rotación del refresh token, la limpieza
+en logout/cambio de servidor y el fallback sin cifrado. La rama de escritorio
+del cliente web se cubre con el puente mockeado en `apps/web/src/sync/api.test.ts`
+y el gate `desktop` en `native-client.spec.ts` y el e2e de Postgres. Ver
+[`DESKTOP.md`](./DESKTOP.md) §8.
 
 - `rng`/`generator`: determinismo, golden seed, 1.000 mapas, invariantes y edge
   cases (4 rutinas, 1 goal, 3 goals, 10 goals, pool pequeño/grande).
