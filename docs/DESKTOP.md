@@ -57,8 +57,8 @@ they reach the browser.
   throws for any other frame.
 - The API proxy is the only path to the network: `/v1/...` and `/health/live`
   only (no absolute URLs, protocol-relative paths, dot segments or encoded
-  separators), allowlisted methods and headers, a 2 MB body cap, a 10 s
-  timeout and `redirect: 'error'`. Authorization, content type, conditional
+  separators), allowlisted methods and headers, a 1 MB body cap (matching the
+  API), a 10 s timeout and `redirect: 'error'`. Authorization, content type, conditional
   request headers and `Idempotency-Key` are the only headers forwarded.
 - `window.open` is denied, external `http(s)` links open in the system browser,
   and both `will-navigate` and `will-redirect` only allow in-app navigations.
@@ -97,14 +97,18 @@ change is needed. The Electron **main process** is the API client:
   the three headers before sending. Because no renderer traffic can enter the
   partition, this cannot weaken the web gate; the smoke check below verifies
   the wire headers.
-- Link-local and cloud-metadata origins (`169.254.0.0/16`, `fd00:ec2::254`)
-  are always rejected. Private LAN ranges stay allowed because self-hosting a
-  server on the local network is a supported use case.
+- Link-local and cloud-metadata IP literals (`169.254.0.0/16`,
+  `::ffff:169.254.0.0/16`, `fe80::/10`, `fd00:ec2::254`) are always rejected.
+  Private LAN ranges stay allowed because self-hosting a server on the local
+  network is a supported use case. DNS aliases (`metadata.google.internal`,
+  `*.nip.io`) are **not** resolved or blocked; only literal addresses are
+  covered.
 - API responses are capped at 5 MB (declared `Content-Length` and streamed
-  body); an oversized response fails with `RESPONSE_TOO_LARGE`. Auth/sync
-  requests reject redirects, while `/health/live` follows up to three
-  same-origin redirects and reports a clear "use that address" error for a
-  cross-origin bouncing server.
+  body); an oversized response cancels the transfer and fails with
+  `RESPONSE_TOO_LARGE`. Every request, including `/health/live`, uses
+  `redirect: 'error'`; a redirect during the health probe surfaces
+  "That address redirects elsewhere — use the final https:// address."
+  instead of being followed.
 - `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/refresh` are sent
   with `X-Client-Platform: desktop`. With no `Origin`/`Sec-Fetch-Site`, the API
   accepts the native grant (ADR-0005) and returns the refresh token to main.
@@ -142,7 +146,11 @@ Persistence:
 - If `safeStorage.isEncryptionAvailable()` is false, or Linux selects the
   `basic_text` backend (no keyring), the token stays **in main-process memory
   only**. Sync works for the running session, Settings shows a "Not saved"
-  notice, and restarting the app requires a new sign-in.
+  notice, and restarting the app requires a new sign-in. Any pre-existing
+  encrypted file is deleted on boot and on memory-only save, so a later
+  keyring-enabled run cannot restore the previous account. If that deletion
+  fails, the error reaches Settings and the vault stays blocked from reloading
+  for the rest of the process.
 - The save itself is unchanged: the same `GameDocument` in `localStorage`, no
   token in renderer storage, no migration. Export/import remains the offline
   way to move a save.
@@ -228,7 +236,7 @@ manual pass on a desktop session:
 8. Negative checks: with no server saved, signing in fails with the
    "choose a sync server" message; DevTools cannot fetch `/v1` or any other
    URL through `api.request` (paths outside `/v1`/`/health/live`, absolute URLs
-   and bodies over 2 MB are rejected).
+   and bodies over 1 MB are rejected).
 
 ## 9. Known follow-ups
 

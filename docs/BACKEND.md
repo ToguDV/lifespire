@@ -209,7 +209,7 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
   capture/rotation, refusal without a stored token and the injectable transport.
 - `pnpm --filter @lifespire/desktop test` covers the main-process proxy
   (path/header/body/origin allowlists and sender gate), link-local blocking,
-  redirect and response-size gates, refresh-token stripping/rotation, the
+  response-size gates, refresh-token stripping/rotation, the
   generation/single-flight races and the safeStorage vault (including the
   memory-only fallback and atomic persistence).
 - `pnpm --filter @lifespire/mobile test` covers the local notification planner.
@@ -233,6 +233,11 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
 
 ## 8. Follow-ups (not in this PR)
 
+- **Logout family revocation is not transactional with a concurrent refresh.**
+  A refresh that commits between `logout`'s family lookup and its
+  `updateMany` can leave one newer row alive; closing that window needs a
+  family-level lock or state migration. The desktop proxy mitigates the local
+  case by aborting in-flight refreshes before sending logout.
 - Journal/operation sync if conflicts still hurt in real use (see ADR-0001).
 - Remote push (APNs/FCM/Expo Push) is intentionally out of scope; local
   reminders need no server registration.

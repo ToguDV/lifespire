@@ -963,10 +963,11 @@ prototipo retirado:
   tokens. Cada handler IPC valida `event.senderFrame.url` contra
   `lifespire-app://app` (empaquetado) o `LIFESPIRE_DEV_URL` (dev). El proxy de
   `apiProxy.ts` solo acepta `/v1/...` y `/health/live`, métodos y cabeceras en
-  allowlist, cuerpos ≤ 2 MB, respuestas ≤ 5 MB, timeout de 10 s (6 s en
-  health) y `redirect: 'error'` salvo redirects same-origin del health; las
-  rutas con `..`/`%2e`/`%2f`, las URLs absolutas y los orígenes link-local
-  (`169.254.0.0/16`, `fd00:ec2::254`) se rechazan. Los handlers exigen que el
+  allowlist, cuerpos ≤ 1 MB, respuestas ≤ 5 MB, timeout de 10 s (6 s en
+  health) y `redirect: 'error'` siempre; las rutas con `..`/`%2e`/`%2f`, las
+  URLs absolutas y los literales link-local (`169.254.0.0/16`,
+  `::ffff:169.254.0.0/16`, `fe80::/10`, `fd00:ec2::254`) se rechazan. Los
+  alias DNS no se resuelven (solo literales). Los handlers exigen que el
   remitente sea el `mainFrame` del `webContents` de la ventana principal.
   `window.open` se deniega, los enlaces `http(s)` externos abren en el
   navegador, `will-navigate` y `will-redirect` solo permiten el origen propio,
