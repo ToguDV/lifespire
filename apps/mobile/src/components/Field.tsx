@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { StyleSheet, TextInput, View } from 'react-native'
 import type { TextInputProps } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
-import { fonts, radius } from '../theme/tokens'
+import { fonts, layout, radius } from '../theme/tokens'
 import { Text } from './Text'
 
 export function Field({
@@ -20,7 +20,7 @@ export function Field({
   const { colors } = useTheme()
   return (
     <View style={styles.field}>
-      <Text variant="caption" tone="muted" style={styles.label}>
+      <Text variant="micro" tone="muted" style={styles.label}>
         {label}
       </Text>
       {children}
@@ -88,10 +88,6 @@ export function Input({ style, onFocus, onBlur, ...rest }: InputProps) {
 const styles = StyleSheet.create({
   field: { gap: 6 },
   label: {
-    fontFamily: fonts.uiBold,
-    fontSize: 10.9,
-    lineHeight: 14,
-    letterSpacing: 0.65,
     textTransform: 'uppercase',
   },
   errorRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
@@ -109,7 +105,7 @@ const styles = StyleSheet.create({
   inputWrap: { width: '100%' },
   input: {
     width: '100%',
-    minHeight: 44,
+    minHeight: layout.minTouch,
     borderWidth: 1,
     borderRadius: radius.sm,
     paddingHorizontal: 12,

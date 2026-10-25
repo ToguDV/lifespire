@@ -1,11 +1,18 @@
 import { createEmptyDocument, serializeDocument } from '@lifespire/core'
+import { getNow } from '@lifespire/app-core/state/clock'
 import { pickSaveFile, shareTextFile } from '../platform/files'
-import { exportDocumentAs, pickAndValidateSave } from './exportImport'
+import { exportDocument, exportDocumentAs, exportRaw, pickAndValidateSave } from './exportImport'
 
 jest.mock('../platform/files', () => ({
   pickSaveFile: jest.fn(),
   shareTextFile: jest.fn(),
 }))
+
+jest.mock('@lifespire/app-core/state/clock', () => ({
+  getNow: jest.fn(),
+}))
+
+const mockGetNow = jest.mocked(getNow)
 
 const mockPick = jest.mocked(pickSaveFile)
 const mockShare = jest.mocked(shareTextFile)
@@ -74,5 +81,41 @@ describe('mobile save files', () => {
       'lifespire-cloud-2026-10-24.json',
       serializeDocument(document),
     )
+  })
+
+  it('names the export file from the shared clock', async () => {
+    mockGetNow.mockReturnValue(new Date(2026, 9, 24, 12, 0, 0))
+
+    await exportDocument(createEmptyDocument())
+
+    expect(mockGetNow).toHaveBeenCalled()
+    expect(mockShare).toHaveBeenCalledWith(
+      'lifespire-2026-10-24.json',
+      expect.any(String),
+    )
+  })
+
+  it('names the recovery export from the shared clock', async () => {
+    mockGetNow.mockReturnValue(new Date(2026, 9, 24, 12, 0, 0))
+
+    await exportRaw('{}')
+
+    expect(mockGetNow).toHaveBeenCalled()
+    expect(mockShare).toHaveBeenCalledWith('lifespire-recovery-2026-10-24.json', '{}')
+  })
+
+  it('accepts an explicit date for deterministic filenames', async () => {
+    const at = new Date(2026, 0, 5, 9, 0, 0)
+
+    await exportDocument(createEmptyDocument(), at)
+
+    expect(mockShare).toHaveBeenCalledWith(
+      'lifespire-2026-01-05.json',
+      expect.any(String),
+    )
+
+    await exportRaw('{}', at)
+
+    expect(mockShare).toHaveBeenCalledWith('lifespire-recovery-2026-01-05.json', '{}')
   })
 })

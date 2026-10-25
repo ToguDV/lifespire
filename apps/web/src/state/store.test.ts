@@ -860,6 +860,26 @@ describe('view navigation', () => {
     expect(store.getState().view).toEqual({ name: 'home' })
   })
 
+  it('never reopens a stale reward recap after the wheel confirm', () => {
+    const { store } = makeHarness()
+    // RewardScreen leaves the recap through finishReward, never navigate:
+    // history [home, map, node] + navigate({ name: 'map' }) would stack the
+    // reward view, and a later back() would reopen the obsolete recap.
+    store.setState({
+      view: { name: 'reward', nodeId: 'node_1' },
+      history: [{ name: 'home' }, { name: 'map' }, { name: 'node', nodeId: 'node_1' }],
+    })
+
+    store.getState().finishReward({ name: 'map' })
+
+    expect(store.getState().view).toEqual({ name: 'map' })
+    expect(store.getState().history).toEqual([{ name: 'home' }])
+    expect(store.getState().history.map((item) => item.name)).not.toContain('reward')
+
+    store.getState().back()
+    expect(store.getState().view).toEqual({ name: 'home' })
+  })
+
   it('pushes and pops transient history without persisting it', () => {
     const { store, memory, base } = makeHarness()
     store.getState().completeOnboarding(createDemoSetup(base), base)

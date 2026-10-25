@@ -1,5 +1,6 @@
 import { dayKey, serializeDocument } from '@lifespire/core'
 import type { GameDocument } from '@lifespire/core'
+import { getNow } from '@lifespire/app-core/state/clock'
 import { isSaveFileTooLarge, readSaveFile } from '@lifespire/app-core/ui/importSave'
 import type { ImportResult } from '@lifespire/app-core/ui/importSave'
 import { pickSaveFile, shareTextFile } from '../platform/files'
@@ -12,13 +13,13 @@ export async function exportDocumentAs(
   await shareTextFile(filename, serializeDocument(document))
 }
 
-export async function exportDocument(document: GameDocument): Promise<void> {
-  const date = dayKey(new Date())
+export async function exportDocument(document: GameDocument, now: Date = getNow()): Promise<void> {
+  const date = dayKey(now)
   await exportDocumentAs(document, `lifespire-${date}.json`)
 }
 
-export async function exportRaw(text: string): Promise<void> {
-  const date = dayKey(new Date())
+export async function exportRaw(text: string, now: Date = getNow()): Promise<void> {
+  const date = dayKey(now)
   await shareTextFile(`lifespire-recovery-${date}.json`, text)
 }
 

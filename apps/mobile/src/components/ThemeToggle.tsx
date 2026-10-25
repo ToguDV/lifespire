@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
+import { layout } from '../theme/tokens'
 import { Icon } from './Icon'
 import { useAppStore } from '../state/store'
 
@@ -24,8 +25,8 @@ export function ThemeToggle() {
 
 const styles = StyleSheet.create({
   base: {
-    width: 44,
-    height: 44,
+    width: layout.minTouch,
+    height: layout.minTouch,
     alignItems: 'center',
     justifyContent: 'center',
   },

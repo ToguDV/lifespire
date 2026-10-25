@@ -15,7 +15,7 @@ export function Stat({
 }: {
   label: string
   value: ReactNode
-  tone?: 'accent' | 'gold' | 'xp' | 'muted'
+  tone?: 'accent' | 'muted'
   progress?: number
 }) {
   const { colors } = useTheme()
@@ -25,7 +25,7 @@ export function Stat({
   return (
     <View style={styles.stat}>
       {typeof value === 'string' || typeof value === 'number' ? (
-        <Text style={[styles.value, { color }]} numberOfLines={1}>
+        <Text variant="numeral" style={{ color }} numberOfLines={1}>
           {value}
         </Text>
       ) : (
@@ -116,12 +116,6 @@ export function LevelResource({
 
 const styles = StyleSheet.create({
   stat: { minWidth: 0 },
-  value: {
-    fontFamily: fonts.display,
-    fontSize: 21.6,
-    lineHeight: 24,
-    fontVariant: ['tabular-nums'],
-  },
   label: {
     marginTop: 4,
     fontFamily: fonts.uiBold,

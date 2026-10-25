@@ -59,7 +59,8 @@ export function Button({
         : variant === 'secondary'
           ? colors.ink
           : colors.inkMuted
-  const pressedBackground = variant === 'primary' ? colors.accentDeep : colors.surfaceSunken
+  const pressedBackground =
+    variant === 'primary' ? colors.accentDeep : variant === 'danger' ? colors.surface : colors.surfaceSunken
 
   return (
     <Pressable

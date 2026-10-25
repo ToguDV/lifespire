@@ -16,7 +16,7 @@ export function RewardScreen() {
   const run = useAppStore((state) => state.document.run)
   const goals = useAppStore((state) => state.document.goals)
   const tasks = useAppStore((state) => state.document.tasks)
-  const navigate = useAppStore((state) => state.navigate)
+  const finishReward = useAppStore((state) => state.finishReward)
   const resolveNode = useAppStore((state) => state.resolveNode)
   const [confirming, setConfirming] = useState(false)
   const confirmingRef = useRef(false)
@@ -40,9 +40,9 @@ export function RewardScreen() {
 
   useEffect(() => {
     if (!redirectTo) return
-    if (redirectTo === 'map') navigate({ name: 'map' })
-    else navigate({ name: 'node', nodeId: redirectTo })
-  }, [redirectTo, navigate])
+    if (redirectTo === 'map') finishReward({ name: 'map' })
+    else finishReward({ name: 'node', nodeId: redirectTo })
+  }, [redirectTo, finishReward])
 
   const outcome =
     node && node.type === 'wheel' && run && day
@@ -85,13 +85,13 @@ export function RewardScreen() {
     }
 
     state.showRewardToast(event)
-    navigate({ name: 'map' })
+    state.finishReward({ name: 'map' })
   }
 
   if (!node || !day || !map || !run || !outcome || status !== 'current' || redirectTo) {
     return (
       <section className="screen screen--node" data-screen="reward" aria-labelledby="reward-title">
-        <button className="node-back" type="button" onClick={() => navigate({ name: 'map' })}>
+        <button className="node-back" type="button" onClick={() => finishReward({ name: 'map' })}>
           <Icon name="arrow-left" />
           Back to the map
         </button>
@@ -104,7 +104,7 @@ export function RewardScreen() {
               <span className="micro">Reward</span>
               <h1 id="reward-title">No reward is waiting.</h1>
               <p>Return to the map to choose an available node.</p>
-              <Button variant="secondary" onClick={() => navigate({ name: 'map' })}>
+              <Button variant="secondary" onClick={() => finishReward({ name: 'map' })}>
                 Return to the map
                 <Icon name="chevron-right" />
               </Button>
