@@ -102,6 +102,9 @@ change is needed. The Electron **main process** is the API client:
 - On refresh, main injects the stored token into the JSON body; the renderer
   never needs to know it. The access token stays in renderer memory exactly as
   on web.
+- If a 2xx login/refresh does not include a `refreshToken`, the proxy fails
+  with a clear "update the sync server" error instead of showing a session
+  that could never be renewed.
 - `GET /health/live` is the only request that may name another origin: the
   Settings panel probes a candidate server *before* saving it, authenticated
   paths always require the configured origin.
