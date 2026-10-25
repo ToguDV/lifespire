@@ -1,16 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   checkServerHealth,
   clearStoredBaseUrl,
+  getBuildBaseUrl,
   getStoredBaseUrl,
   getSyncBaseUrl,
+  getSyncFetch,
   refreshSyncApi,
   setStoredBaseUrl,
+  validateDesktopServer,
   validateServerUrl,
+  waitForDesktopTransport,
 } from '../../sync/api'
 import { useAuthStore } from '../../sync/authStore'
 import { Button, Panel, PanelHead } from '../components'
+import { isDesktopShell } from '../lib/platform'
 
 function isLocalhost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
@@ -20,6 +25,9 @@ type Phase = 'idle' | 'checking' | 'saving'
 
 export function ServerPanel() {
   const logout = useAuthStore((state) => state.logout)
+  const desktop = isDesktopShell()
+  const buildDefault = getBuildBaseUrl()
+  const canTurnOff = desktop && !buildDefault
   const [stored, setStored] = useState<string | null>(() => {
     try {
       return getStoredBaseUrl()
@@ -33,6 +41,20 @@ export function ServerPanel() {
   const [notice, setNotice] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
   const [unverified, setUnverified] = useState<string | null>(null)
+
+  // A boot-time setServer failure has no caller to await it; surface it here.
+  useEffect(() => {
+    let active = true
+    void waitForDesktopTransport().catch((error: unknown) => {
+      if (!active) return
+      setServerError(
+        error instanceof Error ? error.message : 'Could not prepare the sync session.',
+      )
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const effective = (() => {
     try {
@@ -71,17 +93,24 @@ export function ServerPanel() {
     try {
       // Sessions live on the old server; sign out there first.
       await logout()
+      // Validate with main before persisting or repointing the client: a
+      // rejected origin must leave the UI and main on the same server.
+      await validateDesktopServer(origin)
       if (origin === null) {
         clearStoredBaseUrl()
       } else {
         setStoredBaseUrl(origin)
       }
       refreshSyncApi()
+      // A failed vault cleanup must block the success notice.
+      await waitForDesktopTransport()
       setStored(getStoredBaseUrl())
       setUnverified(null)
       setNotice(
         origin === null
-          ? 'Using the default server. You were signed out — sign in again to sync.'
+          ? canTurnOff
+            ? 'Sync is off. Choose a server to sync between devices.'
+            : 'Using the default server. You were signed out — sign in again to sync.'
           : `Now using ${origin}. You were signed out — sign in again to sync.`,
       )
     } catch (error) {
@@ -108,7 +137,7 @@ export function ServerPanel() {
     }
     setPhase('checking')
     setUnverified(null)
-    checkServerHealth(origin).then(
+    checkServerHealth(origin, getSyncFetch()).then(
       () => {
         void swapTo(origin)
       },
@@ -136,12 +165,15 @@ export function ServerPanel() {
       <PanelHead
         label="Sync server"
         aside={
-          <span className="chip chip--quiet">{stored ? 'custom' : 'default'}</span>
+          <span className="chip chip--quiet">
+            {stored ? 'custom' : desktop ? 'not configured' : 'default'}
+          </span>
         }
       />
       <div className="sync-panel">
         <p className="panel-note">
-          Current server: <strong>{effective || 'this app (same origin)'}</strong>
+          Current server:{' '}
+          <strong>{effective || (desktop ? 'not configured' : 'this app (same origin)')}</strong>
         </p>
         {notice ? (
           <p className="panel-note" role="status">
@@ -217,7 +249,7 @@ export function ServerPanel() {
             </Button>
             {stored ? (
               <Button variant="secondary" onClick={reset} disabled={busy}>
-                Use default
+                {canTurnOff ? 'Turn off sync' : 'Use default'}
               </Button>
             ) : null}
           </div>

@@ -1,6 +1,28 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, Menu, net, protocol, session, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net,
+  protocol,
+  safeStorage,
+  session,
+  shell,
+  type IpcMainInvokeEvent,
+} from 'electron'
+import {
+  API_PROXY_CHANNELS,
+  createApiProxy,
+  createTokenVault,
+  createVaultFile,
+  installFetchMetadataStrip,
+  isTrustedIpcSender,
+  type FetchMetadataSession,
+} from './apiProxy'
 import { buildMenu } from './menu'
 import {
   APP_SCHEME,
@@ -69,6 +91,74 @@ function registerAppProtocol(): void {
     } catch {
       return new Response('Not found', { status: 404 })
     }
+  })
+}
+
+/**
+ * Sync runs in the main process: the renderer asks for a path, main calls the
+ * configured server from the dedicated `lifespire-api` session, and the
+ * refresh token never crosses the bridge. `safeStorage` persists it when the
+ * OS keychain is available.
+ */
+function registerApiProxy(): void {
+  const vaultPath = path.join(app.getPath('userData'), 'sync-session.json')
+  const file = createVaultFile(vaultPath, fs)
+
+  // The proxy gets its own in-memory session: the renderer cannot reach it, so
+  // stripping Chromium's Fetch Metadata here never weakens the browser gate.
+  const apiSession = session.fromPartition('lifespire-api')
+  installFetchMetadataStrip(apiSession as unknown as FetchMetadataSession)
+
+  const proxy = createApiProxy({
+    // Session.fetch is a method: bind it so it always uses this partition.
+    fetch: apiSession.fetch.bind(apiSession) as typeof fetch,
+    vault: createTokenVault({
+      file,
+      crypto: {
+        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+        usesPlainTextBackend: () => {
+          if (process.platform !== 'linux') return false
+          try {
+            return safeStorage.getSelectedStorageBackend() === 'basic_text'
+          } catch {
+            return true
+          }
+        },
+        encryptString: (value) => safeStorage.encryptString(value),
+        decryptString: (buffer) => safeStorage.decryptString(buffer),
+      },
+    }),
+  })
+
+  const guard = (event: IpcMainInvokeEvent): void => {
+    const window = mainWindow
+    const frame = event.senderFrame
+    const trusted = isTrustedIpcSender(
+      {
+        senderIsMainWindow: window !== null && event.sender === window.webContents,
+        frameIsMainFrame: frame !== null && frame === event.sender.mainFrame,
+        frameUrl: frame?.url,
+      },
+      { isPackaged: app.isPackaged, devUrl: DEV_URL },
+    )
+    if (!trusted) throw new Error('Untrusted IPC sender')
+  }
+
+  ipcMain.handle(API_PROXY_CHANNELS.request, (event, payload: unknown) => {
+    guard(event)
+    return proxy.request(payload)
+  })
+  ipcMain.handle(API_PROXY_CHANNELS.setServer, (event, origin: unknown) => {
+    guard(event)
+    return proxy.setServer(origin)
+  })
+  ipcMain.handle(API_PROXY_CHANNELS.sessionState, (event) => {
+    guard(event)
+    return proxy.sessionState()
+  })
+  ipcMain.handle(API_PROXY_CHANNELS.signOut, (event) => {
+    guard(event)
+    return proxy.signOut()
   })
 }
 
@@ -155,11 +245,48 @@ function createWindow(): void {
     dialog.showErrorBox('LifeSpire stopped', `The window process exited: ${details.reason}`)
   })
 
+  watchResponsiveness(window)
+
   if (app.isPackaged) {
     void window.loadURL(buildAppUrl())
   } else {
     void window.loadURL(DEV_URL)
   }
+}
+
+/**
+ * A hung renderer leaves the window frozen with no way out. Electron reports it
+ * through the browser process, so offer a reload instead of forcing a kill.
+ */
+function watchResponsiveness(window: BrowserWindow): void {
+  let prompting = false
+
+  window.on('unresponsive', () => {
+    console.error('[lifespire] renderer unresponsive')
+    if (prompting) return
+    prompting = true
+    void dialog
+      .showMessageBox(window, {
+        type: 'warning',
+        buttons: ['Wait', 'Reload'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'LifeSpire is not responding',
+        message: 'The window stopped responding.',
+        detail:
+          'Your save is stored on this device and will be restored after a reload. Reload only if waiting does not help.',
+      })
+      .then((result) => {
+        if (result.response === 1) window.webContents.reload()
+      })
+      .finally(() => {
+        prompting = false
+      })
+  })
+
+  window.on('responsive', () => {
+    console.error('[lifespire] renderer responsive again')
+  })
 }
 
 if (!app.requestSingleInstanceLock()) {
@@ -186,6 +313,7 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(buildMenu(app.isPackaged))
     registerDownloads()
     restrictPermissions()
+    registerApiProxy()
     createWindow()
 
     app.on('activate', () => {

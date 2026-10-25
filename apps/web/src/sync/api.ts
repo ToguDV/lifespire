@@ -1,10 +1,15 @@
-import { createApiClient } from '@lifespire/api-client'
+import { ApiRequestError, createApiClient } from '@lifespire/api-client'
 import type { ApiClient } from '@lifespire/api-client'
 import {
   normalizeBaseUrl,
   resolveSyncBaseUrl,
   validateServerUrl,
 } from '@lifespire/app-core/sync/baseUrl'
+import type {
+  DesktopBridge,
+  DesktopSessionState,
+} from '../ui/lib/platform'
+import { isDesktopShell } from '../ui/lib/platform'
 import { useAuthStore } from './authStore'
 import { SYNC_BASE_URL_KEY } from './storageKeys'
 
@@ -46,6 +51,11 @@ export function getStoredBaseUrl(): string | null {
   return raw ? (normalizeBaseUrl(raw) ?? raw) : null
 }
 
+/** Build-time default server, if any (desktop shows "Turn off sync" only when absent). */
+export function getBuildBaseUrl(): string | undefined {
+  return readEnvBaseUrl()
+}
+
 export function setStoredBaseUrl(url: string): void {
   const out = validateServerUrl(url)
   if (!out.ok) throw new Error(out.error)
@@ -64,9 +74,235 @@ export function clearStoredBaseUrl(): void {
   }
 }
 
+/** The Electron bridge, only when the renderer is the desktop shell. */
+function desktopBridge(): DesktopBridge | null {
+  if (!isDesktopShell()) return null
+  const bridge = typeof window === 'undefined' ? undefined : window.lifespireDesktop
+  return bridge?.api?.request ? bridge : null
+}
+
+function headerRecord(headers: HeadersInit | undefined): Record<string, string> {
+  if (!headers) return {}
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+    const out: Record<string, string> = {}
+    headers.forEach((value, key) => {
+      out[key] = value
+    })
+    return out
+  }
+  if (Array.isArray(headers)) {
+    const out: Record<string, string> = {}
+    for (const [key, value] of headers) out[key] = value
+    return out
+  }
+  return { ...(headers as Record<string, string>) }
+}
+
+/**
+ * fetch adapter for the desktop shell. API calls go through `api.request` in
+ * the main process; the renderer only builds a Response from the returned
+ * status/headers/body and never sees the refresh token. A missing base URL is
+ * an explicit "not configured" error, never a same-origin fallback.
+ */
+function abortError(): Error {
+  const error = new Error('The sync request was aborted.')
+  error.name = 'AbortError'
+  return error
+}
+
+function withAbort<T>(promise: Promise<T>, signal: AbortSignal | null | undefined): Promise<T> {
+  if (!signal) return promise
+  if (signal.aborted) return Promise.reject(abortError())
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(abortError())
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort)
+        resolve(value)
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(error)
+      },
+    )
+  })
+}
+
+function bridgeError(error: { code: string; message: string }): Error {
+  if (error.code === 'AUTH_TOKEN_EXPIRED' || error.code === 'NATIVE_GRANT_REQUIRED') {
+    return new ApiRequestError(401, error.message, error.code)
+  }
+  if (error.code === 'SYNC_NOT_CONFIGURED') {
+    return new ApiRequestError(400, error.message, error.code)
+  }
+  return new Error(error.message)
+}
+
+let desktopSignOutError: unknown = null
+
+function createDesktopFetch(baseUrl: string, bridge: DesktopBridge): typeof fetch {
+  let configured = ''
+  if (baseUrl) {
+    try {
+      configured = new URL(baseUrl).origin
+    } catch {
+      configured = ''
+    }
+  }
+  const api = bridge.api
+  if (!api) throw new Error('The desktop bridge is missing the API channel.')
+
+  return async (input, init = {}) => {
+    const request = typeof Request !== 'undefined' && input instanceof Request ? input : null
+    const raw = request ? request.url : String(input)
+    let url: URL
+    try {
+      url = new URL(raw, 'lifespire-app://app')
+    } catch {
+      throw new Error('The sync request URL is invalid.')
+    }
+
+    const method = (init.method ?? request?.method ?? 'GET').toUpperCase()
+    const path = `${url.pathname}${url.search}`
+    const health = path === '/health/live' && method === 'GET'
+    let origin: string | undefined
+    if (health) {
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        throw new Error('Enter the LifeSpire server URL to test it.')
+      }
+      origin = url.origin
+    } else {
+      if (!configured) {
+        throw new ApiRequestError(
+          400,
+          'Choose a sync server in Settings before syncing.',
+          'SYNC_NOT_CONFIGURED',
+        )
+      }
+      if (url.origin !== configured) {
+        throw new Error('The sync request does not match the configured server.')
+      }
+    }
+
+    const body = typeof init.body === 'string' ? init.body : undefined
+    const result = await withAbort(
+      api.request({
+        path,
+        method,
+        headers: headerRecord(init.headers ?? request?.headers),
+        body,
+        origin,
+      }),
+      init.signal,
+    )
+    if (!result.ok) throw bridgeError(result.error)
+    if (result.response.cleanupError) {
+      const cleanup = result.response.cleanupError
+      const error = new ApiRequestError(
+        result.response.status,
+        cleanup.message,
+        cleanup.code,
+      )
+      // Logout cleanup failures must survive authStore.logout(), which catches
+      // server errors by design; Settings reads this through
+      // waitForDesktopTransport().
+      if (url.pathname === '/v1/auth/logout' || url.pathname === '/v1/auth/logout-all') {
+        desktopSignOutError = error
+      }
+      throw error
+    }
+
+    const responseInit: ResponseInit = {
+      status: result.response.status,
+      statusText: result.response.statusText,
+      headers: result.response.headers,
+    }
+    if (result.response.status === 204 || result.response.status === 304) {
+      return new Response(null, responseInit)
+    }
+    return new Response(result.response.body, responseInit)
+  }
+}
+
+/** Shared transport for the sync client and the server health probe. */
+export function getSyncFetch(): typeof fetch {
+  const bridge = desktopBridge()
+  if (!bridge) return fetch
+  return createDesktopFetch(getSyncBaseUrl(), bridge)
+}
+
+/** Whether the desktop session survives a restart (settings note). */
+export async function getDesktopSessionState(): Promise<DesktopSessionState | null> {
+  const bridge = desktopBridge()
+  if (!bridge?.auth?.sessionState) return null
+  try {
+    return await bridge.auth.sessionState()
+  } catch {
+    return null
+  }
+}
+
+/** Clears the main-process credential; failures must surface to the caller. */
+async function signOutDesktop(bridge: DesktopBridge): Promise<void> {
+  try {
+    await bridge.auth?.signOut?.()
+  } catch (error) {
+    desktopSignOutError = error
+    throw error
+  }
+}
+
+let pendingDesktopSetServer: Promise<void> | null = null
+let desktopSetServerError: unknown = null
+
+function trackDesktopSetServer(promise: Promise<unknown> | undefined): void {
+  desktopSetServerError = null
+  pendingDesktopSetServer = promise
+    ? promise.then(
+        () => undefined,
+        (error: unknown) => {
+          desktopSetServerError = error
+        },
+      )
+    : Promise.resolve()
+}
+
+/**
+ * Lets Settings await the `sync.setServer` IPC that rebuilds the client. A
+ * vault cleanup failure is reported instead of showing "Now using …".
+ */
+export async function waitForDesktopTransport(): Promise<void> {
+  if (pendingDesktopSetServer) await pendingDesktopSetServer
+  if (desktopSignOutError) {
+    const error = desktopSignOutError
+    desktopSignOutError = null
+    throw error
+  }
+  if (desktopSetServerError) throw desktopSetServerError
+}
+
+/** Validates a server with main before Settings persists or refreshes it. */
+export async function validateDesktopServer(origin: string | null): Promise<void> {
+  const bridge = desktopBridge()
+  await bridge?.sync?.setServer(origin)
+}
+
+/**
+ * Full desktop sign-out for UI callers: authStore.logout() intentionally
+ * swallows network errors, so the local vault result is awaited separately.
+ */
+export async function finishDesktopSignOut(logout: () => Promise<void>): Promise<void> {
+  await logout()
+  await waitForDesktopTransport()
+}
+
 function buildApiClient(): ApiClient {
-  return createApiClient({
-    baseUrl: getSyncBaseUrl(),
+  const baseUrl = getSyncBaseUrl()
+  const bridge = desktopBridge()
+  const client = createApiClient({
+    baseUrl,
+    fetchFn: bridge ? createDesktopFetch(baseUrl, bridge) : undefined,
     getAccessToken: () => {
       try {
         return useAuthStore.getState().getAccessToken()
@@ -82,6 +318,32 @@ function buildApiClient(): ApiClient {
       }
     },
   })
+
+  if (bridge) {
+    // The main process holds the only allowlisted origin. The IPC is ordered
+    // before any later renderer call, including the boot restore; Settings
+    // awaits waitForDesktopTransport() to surface a vault cleanup failure.
+    trackDesktopSetServer(bridge.sync?.setServer(baseUrl || null))
+    const logout = client.logout.bind(client)
+    const logoutAll = client.logoutAll.bind(client)
+    client.logout = async () => {
+      desktopSignOutError = null
+      try {
+        await logout()
+      } finally {
+        await signOutDesktop(bridge)
+      }
+    }
+    client.logoutAll = async () => {
+      desktopSignOutError = null
+      try {
+        await logoutAll()
+      } finally {
+        await signOutDesktop(bridge)
+      }
+    }
+  }
+  return client
 }
 
 export let syncApi: ApiClient = buildApiClient()

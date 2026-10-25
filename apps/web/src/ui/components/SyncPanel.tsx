@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { finishDesktopSignOut } from '../../sync/api'
 import { useAuthStore } from '../../sync/authStore'
 import { useSyncStore } from '../../sync/setup'
 import { Button, Panel, PanelHead } from '../components'
@@ -36,11 +37,24 @@ export function SyncPanel() {
   const [resetPasswordValue, setResetPasswordValue] = useState('')
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
+
+  const submitSignOut = async (): Promise<void> => {
+    setSignOutError(null)
+    try {
+      await finishDesktopSignOut(logout)
+    } catch (error) {
+      setSignOutError(
+        error instanceof Error ? error.message : 'Could not clear the session on this device.',
+      )
+    }
+  }
 
   const submitLogin = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
     setBusy(true)
     setNotice(null)
+    setSignOutError(null)
     try {
       const code = totpCode.trim()
       await login(email, password, code.length > 0 ? code : undefined)
@@ -86,6 +100,11 @@ export function SyncPanel() {
   return (
     <Panel pad>
       <PanelHead label="Sync" aside={<span className="chip chip--quiet">{status}</span>} />
+      {signOutError ? (
+        <p className="field-error" role="alert">
+          {signOutError}
+        </p>
+      ) : null}
       {authStatus === 'authenticated' && user ? (
         <div className="sync-panel">
           <p className="panel-note">
@@ -100,7 +119,7 @@ export function SyncPanel() {
             </p>
           ) : null}
           <div className="settings-actions">
-            <Button variant="secondary" onClick={() => void logout()}>
+            <Button variant="secondary" onClick={() => void submitSignOut()}>
               Sign out
             </Button>
           </div>

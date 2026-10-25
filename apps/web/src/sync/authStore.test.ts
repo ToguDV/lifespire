@@ -104,6 +104,26 @@ describe('authStore', () => {
     expect(storage.getItem('lifespire:mvp0:session')).toBeNull()
   })
 
+  it('drops the stored session when sync is not configured', async () => {
+    const { ApiRequestError } = await import('@lifespire/api-client')
+    const storage = memoryStorage()
+    storage.setItem(
+      'lifespire:mvp0:session',
+      JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'USER' }),
+    )
+    const api = {
+      refresh: vi.fn(async () => {
+        throw new ApiRequestError(400, 'Choose a sync server.', 'SYNC_NOT_CONFIGURED')
+      }),
+    }
+    const store = createAuthStore({ storage, api: api as never })
+    await store.getState().restore()
+
+    expect(store.getState().status).toBe('guest')
+    expect(store.getState().user).toBeNull()
+    expect(storage.getItem('lifespire:mvp0:session')).toBeNull()
+  })
+
   it('logs out and clears token and session', async () => {
     const storage = memoryStorage()
     const api = {

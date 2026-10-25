@@ -2,12 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   checkServerHealth,
   engineApi,
+  finishDesktopSignOut,
+  getDesktopSessionState,
+  getSyncFetch,
   normalizeBaseUrl,
   refreshSyncApi,
   resolveSyncBaseUrl,
+  validateDesktopServer,
   validateServerUrl,
+  waitForDesktopTransport,
 } from './api'
-import { SYNC_BASE_URL_KEY } from './storageKeys'
+import { createAuthStore } from './authStore'
+import { SESSION_KEY, SYNC_BASE_URL_KEY } from './storageKeys'
 
 describe('sync base URL', () => {
   it('normalizes user input to the origin', () => {
@@ -137,6 +143,309 @@ describe('refreshSyncApi', () => {
     ])
   })
 })
+
+describe('desktop bridge', () => {
+  const realFetch = globalThis.fetch
+  const backing = new Map<string, string>()
+
+  interface Recorded {
+    path: string
+    method: string
+    headers?: Record<string, string>
+    body?: string
+    origin?: string
+  }
+
+  let requests: Recorded[]
+  let setServerCalls: Array<string | null>
+  let signOutCalls: number
+  let signOutFailure: Error | null
+  let setServerFailure: Error | null
+  let reply: { status: number; body: string; headers?: Record<string, string> }
+  let cleanupError: { code: string; message: string } | null
+  let failure: { code: string; message: string } | null
+  let hold: Promise<void> | null
+
+  function state(persistence: 'encrypted' | 'memory-only' = 'encrypted') {
+    return { persistence, signedIn: false, serverOrigin: null }
+  }
+
+  beforeEach(() => {
+    backing.clear()
+    requests = []
+    setServerCalls = []
+    signOutCalls = 0
+    signOutFailure = null
+    setServerFailure = null
+    reply = { status: 200, body: '{}' }
+    cleanupError = null
+    failure = null
+    hold = null
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => backing.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        backing.set(key, String(value))
+      },
+      removeItem: (key: string) => {
+        backing.delete(key)
+      },
+    })
+    vi.stubGlobal('window', {
+      lifespireDesktop: {
+        isDesktop: true,
+        api: {
+          request: async (request: Recorded) => {
+            requests.push(request)
+            if (hold) await hold
+            if (failure) return { ok: false, error: failure }
+            return {
+              ok: true,
+              response: {
+                status: reply.status,
+                statusText: '',
+                headers: reply.headers ?? { 'content-type': 'application/json' },
+                body: reply.body,
+                ...(cleanupError ? { cleanupError } : {}),
+              },
+            }
+          },
+        },
+        sync: {
+          setServer: async (origin: string | null) => {
+            setServerCalls.push(origin)
+            if (setServerFailure) throw setServerFailure
+            return state()
+          },
+        },
+        auth: {
+          sessionState: async () => state('memory-only'),
+          signOut: async () => {
+            signOutCalls += 1
+            if (signOutFailure) throw signOutFailure
+            return state()
+          },
+        },
+      },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    globalThis.fetch = realFetch
+    refreshSyncApi()
+  })
+
+  it('fails /v1 requests with a clear error when no server is configured', async () => {
+    refreshSyncApi()
+    const fetchFn = getSyncFetch()
+    await expect(fetchFn('/v1/sync')).rejects.toThrow(/choose a sync server/i)
+    expect(requests).toHaveLength(0)
+  })
+
+  it('routes the client through the bridge instead of renderer fetch', async () => {
+    const globalFetch = vi.fn(async () => {
+      throw new Error('the renderer must not fetch the API directly')
+    })
+    globalThis.fetch = globalFetch as unknown as typeof fetch
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = {
+      status: 200,
+      body: JSON.stringify({
+        version: '3',
+        schemaVersion: 3,
+        document: {},
+        updatedAt: '2026-10-24T00:00:00.000Z',
+      }),
+    }
+
+    const client = refreshSyncApi()
+    const snapshot = await client.getSync()
+
+    expect(snapshot?.version).toBe('3')
+    expect(requests[0]).toMatchObject({ path: '/v1/sync', method: 'GET' })
+    expect(setServerCalls).toContain('https://custom.example.com')
+    expect(globalFetch).not.toHaveBeenCalled()
+  })
+
+  it('clears the main-process credential on sign-out', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    const client = refreshSyncApi()
+    await client.logout()
+    expect(requests[0]).toMatchObject({ path: '/v1/auth/logout', method: 'POST' })
+    expect(signOutCalls).toBe(1)
+  })
+
+  it('uses the same bridge for a health check against a candidate origin', async () => {
+    reply = { status: 200, body: JSON.stringify({ status: 'ok' }) }
+    await expect(
+      checkServerHealth('https://new.example.com', getSyncFetch()),
+    ).resolves.toBe(true)
+    expect(requests[0]).toMatchObject({
+      path: '/health/live',
+      method: 'GET',
+      origin: 'https://new.example.com',
+    })
+  })
+
+  it('exposes the session persistence state to the UI', async () => {
+    await expect(getDesktopSessionState()).resolves.toMatchObject({
+      persistence: 'memory-only',
+    })
+  })
+
+  it('maps AUTH_TOKEN_EXPIRED and clears a memory-only phantom session', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    backing.set(
+      SESSION_KEY,
+      JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'USER' }),
+    )
+    failure = {
+      code: 'AUTH_TOKEN_EXPIRED',
+      message: 'You are not signed in on this server.',
+    }
+    const client = refreshSyncApi()
+    await expect(client.refresh()).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      status: 401,
+      code: 'AUTH_TOKEN_EXPIRED',
+    })
+    const store = createAuthStore({ storage: localStorage, api: client })
+    await store.getState().restore()
+    expect(store.getState().status).toBe('guest')
+    expect(store.getState().user).toBeNull()
+    expect(backing.has(SESSION_KEY)).toBe(false)
+  })
+
+  it('clears the session marker when no server is configured', async () => {
+    backing.set(
+      SESSION_KEY,
+      JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'USER' }),
+    )
+    const client = refreshSyncApi()
+    const store = createAuthStore({ storage: localStorage, api: client })
+    await store.getState().restore()
+    expect(store.getState().status).toBe('guest')
+    expect(backing.has(SESSION_KEY)).toBe(false)
+  })
+
+  it('rejects a pending bridge request when the caller aborts', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    let release: () => void = () => undefined
+    hold = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const controller = new AbortController()
+    const pending = getSyncFetch()('https://custom.example.com/v1/sync', {
+      signal: controller.signal,
+    })
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    release()
+  })
+
+  it('maps NATIVE_GRANT_REQUIRED and clears the session marker', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    backing.set(
+      SESSION_KEY,
+      JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'USER' }),
+    )
+    failure = {
+      code: 'NATIVE_GRANT_REQUIRED',
+      message: 'The server did not grant a desktop session.',
+    }
+    const client = refreshSyncApi()
+    await expect(client.refresh()).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      status: 401,
+      code: 'NATIVE_GRANT_REQUIRED',
+    })
+    const store = createAuthStore({ storage: localStorage, api: client })
+    await store.getState().restore()
+    expect(store.getState().status).toBe('guest')
+    expect(backing.has(SESSION_KEY)).toBe(false)
+  })
+
+  it('surfaces a failed setServer and recovers on the next attempt', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    setServerFailure = new Error('vault is locked')
+    refreshSyncApi()
+    await expect(waitForDesktopTransport()).rejects.toThrow(/vault is locked/)
+    setServerFailure = null
+    refreshSyncApi()
+    await expect(waitForDesktopTransport()).resolves.toBeUndefined()
+  })
+
+  it('propagates a failed local sign-out', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    const client = refreshSyncApi()
+    signOutFailure = new Error('vault is locked')
+    await expect(client.logout()).rejects.toThrow(/vault is locked/)
+    // Settings awaits this to avoid showing a success notice after a failed
+    // local sign-out.
+    await expect(waitForDesktopTransport()).rejects.toThrow(/vault is locked/)
+  })
+
+  it('keeps the desktop health redirect message through checkServerHealth', async () => {
+    failure = {
+      code: 'HEALTH_REDIRECT',
+      message:
+        'No LifeSpire server at that address: it redirects elsewhere — use the final https:// address.',
+    }
+    await expect(
+      checkServerHealth('https://new.example.com', getSyncFetch()),
+    ).rejects.toThrow(/No LifeSpire server at that address/)
+  })
+
+  it('validates a server with main before persisting it', async () => {
+    setServerFailure = new Error('link-local origins are blocked')
+    await expect(validateDesktopServer('http://169.254.169.254')).rejects.toThrow(
+      /link-local origins are blocked/,
+    )
+    expect(setServerCalls).toContain('http://169.254.169.254')
+  })
+
+  it('surfaces a desktop sign-out failure through the SyncPanel helper', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    const client = refreshSyncApi()
+    signOutFailure = new Error('vault is locked')
+    await expect(client.logout()).rejects.toThrow(/vault is locked/)
+    // authStore.logout() swallows the server failure; the panel still awaits
+    // the local result.
+    await expect(finishDesktopSignOut(async () => undefined)).rejects.toThrow(/vault is locked/)
+  })
+
+  it('consumes a logout cleanup warning as a typed error', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    cleanupError = {
+      code: 'VAULT_DELETE_FAILED',
+      message: 'The local sync session could not be cleared.',
+    }
+    const client = refreshSyncApi()
+    await expect(client.logout()).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      status: 204,
+      code: 'VAULT_DELETE_FAILED',
+    })
+    await expect(waitForDesktopTransport()).rejects.toMatchObject({
+      code: 'VAULT_DELETE_FAILED',
+    })
+  })
+
+  it('surfaces other bridge failures as plain errors', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    failure = { code: 'API_UNREACHABLE', message: 'Could not reach the sync server.' }
+    const client = refreshSyncApi()
+    const error = await client.getSync().catch((reason: unknown) => reason)
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).name).not.toBe('ApiRequestError')
+    expect((error as Error).message).toBe('Could not reach the sync server.')
+  })
+})
+
 
 describe('checkServerHealth', () => {
   it('resolves true when /health/live answers ok', async () => {

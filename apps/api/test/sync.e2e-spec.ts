@@ -717,6 +717,80 @@ describe('sync API e2e (postgres)', () => {
       .set('X-Forwarded-For', ip)
       .send({ refreshToken: rotated.body.refreshToken })
       .expect(401);
+
+    // The desktop shell (Electron main process) uses the same grant.
+    const desktopIp = nextIp();
+    const desktopLogin = await request(srv)
+      .post('/v1/auth/login')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', desktopIp)
+      .send({ email, password, deviceName: 'desktop-linux' })
+      .expect(200);
+    expect(typeof desktopLogin.body.refreshToken).toBe('string');
+    const desktopRotated = await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', desktopIp)
+      .send({ refreshToken: desktopLogin.body.refreshToken })
+      .expect(200);
+    expect(desktopRotated.body.refreshToken).not.toBe(desktopLogin.body.refreshToken);
+
+    // A browser-shaped request cannot opt into the desktop grant.
+    await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'desktop')
+      .set('Origin', 'lifespire-app://app')
+      .set('X-Forwarded-For', desktopIp)
+      .send({ refreshToken: desktopRotated.body.refreshToken })
+      .expect(401);
+  }, 60_000);
+
+  it('(m) logout revokes the whole rotated session family', async () => {
+    const email = `family-${suffix}@example.com`;
+    const password = 'family-password-123';
+    await prisma.user.create({
+      data: {
+        email,
+        passwordHash: await hashPassword(password),
+        role: 'USER',
+        status: 'ACTIVE',
+        activatedAt: new Date(),
+      },
+    });
+    const ip = nextIp();
+    const srv = app.getHttpServer();
+    const login = await request(srv)
+      .post('/v1/auth/login')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', ip)
+      .send({ email, password, deviceName: 'desktop-family' })
+      .expect(200);
+    const first = await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', ip)
+      .send({ refreshToken: login.body.refreshToken })
+      .expect(200);
+    const second = await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', ip)
+      .send({ refreshToken: first.body.refreshToken })
+      .expect(200);
+
+    // Logging out with the original access token must revoke the newer rotated
+    // sessions of the same family too, not only the original sid.
+    await request(srv)
+      .post('/v1/auth/logout')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(204);
+
+    await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', ip)
+      .send({ refreshToken: second.body.refreshToken })
+      .expect(401);
   }, 60_000);
 
 });

@@ -24,6 +24,43 @@ describe('api-client', () => {
     }
   });
 
+  it('uses an injected fetch function instead of the global', async () => {
+    let injectedCalls = 0;
+    let globalCalls = 0;
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      globalCalls += 1;
+      throw new Error('the global fetch must not run');
+    }) as typeof fetch;
+    try {
+      const api = createApiClient({
+        baseUrl: 'https://api.example.com',
+        fetchFn: (async (url: unknown, init?: RequestInit) => {
+          injectedCalls += 1;
+          expect(String(url)).toBe('https://api.example.com/v1/me');
+          expect(init?.credentials).toBe('include');
+          return new Response(
+            JSON.stringify({
+              id: 'u1',
+              email: 'a@b.c',
+              role: 'USER',
+              status: 'ACTIVE',
+              totpEnabled: false,
+              createdAt: '2026-10-24T00:00:00.000Z',
+            }),
+            { status: 200 },
+          );
+        }) as typeof fetch,
+      });
+      const me = await api.me();
+      expect(me.email).toBe('a@b.c');
+      expect(injectedCalls).toBe(1);
+      expect(globalCalls).toBe(0);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
   it('throws SyncConflictError on 412', async () => {
     const origFetch = globalThis.fetch;
     globalThis.fetch = (async () =>
@@ -126,6 +163,54 @@ describe('api-client', () => {
       expect(me.email).toBe('a@b.c');
       expect(token).toBe('new-token');
       expect(seenAuth[0]).toBe('Bearer old-token');
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('shares one refresh across concurrent 401 responses', async () => {
+    const origFetch = globalThis.fetch;
+    let token: string | null = 'old-token';
+    let refreshCalls = 0;
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      const target = String(_url);
+      if (target.endsWith('/v1/auth/refresh')) {
+        refreshCalls += 1;
+        // Give the second 401 time to join the in-flight refresh.
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return new Response(JSON.stringify({ accessToken: 'new-token' }), { status: 200 });
+      }
+      const auth = (init?.headers as Record<string, string>)?.Authorization;
+      if (auth === 'Bearer new-token') {
+        return new Response(
+          JSON.stringify({
+            id: 'u1',
+            email: 'a@b.c',
+            role: 'USER',
+            status: 'ACTIVE',
+            totpEnabled: false,
+            createdAt: '2026-10-24T00:00:00.000Z',
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ title: 'Unauthorized', code: 'AUTH_TOKEN_EXPIRED' }), {
+        status: 401,
+      });
+    }) as typeof fetch;
+    try {
+      const api = createApiClient({
+        baseUrl: 'https://api.example.com',
+        getAccessToken: () => token,
+        setAccessToken: (next) => {
+          token = next;
+        },
+      });
+      const [first, second] = await Promise.all([api.me(), api.me()]);
+      expect(first.email).toBe('a@b.c');
+      expect(second.email).toBe('a@b.c');
+      expect(refreshCalls).toBe(1);
+      expect(token).toBe('new-token');
     } finally {
       globalThis.fetch = origFetch;
     }
