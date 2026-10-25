@@ -286,7 +286,7 @@ describe('createApiProxy requests', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'HEALTH_REDIRECT' } })
     if (!result.ok) {
       expect(result.error.message).toBe(
-        'That address redirects elsewhere — use the final https:// address.',
+        'No LifeSpire server at that address: it redirects elsewhere — use the final https:// address.',
       )
     }
     expect(calls[0]?.init.redirect).toBe('error')
@@ -569,10 +569,12 @@ describe('createApiProxy session handling', () => {
 
   it('preserves a 401 when local credential cleanup also fails', async () => {
     let value: string | null = null
+    let failWrite = false
     const lockedVault = createTokenVault({
       file: {
         read: () => value,
         write: (next) => {
+          if (failWrite) throw new Error('vault locked')
           value = next
         },
         remove: () => {
@@ -595,6 +597,7 @@ describe('createApiProxy session handling', () => {
     })
     proxy.setServer(SERVER)
     await proxy.request({ path: '/v1/auth/login', method: 'POST', body: '{}' })
+    failWrite = true
     const result = await proxy.request({ path: '/v1/auth/refresh', method: 'POST' })
     expect(result.ok).toBe(true)
     if (!result.ok) return
@@ -718,18 +721,117 @@ describe('token vault', () => {
     expect(vault.load(SERVER)).toBe('refresh-1')
   })
 
-  it('blocks reloading the vault after a failed delete', () => {
+  it('tombstones a credential when delete fails so a restart cannot restore it', () => {
+    let value: string | null = JSON.stringify({
+      version: 1,
+      origin: SERVER,
+      token: 'old-ciphertext',
+    })
+    const file = {
+      read: () => value,
+      write: (next: string) => {
+        value = next
+      },
+      remove: () => {
+        throw Object.assign(new Error('permission denied'), { code: 'EACCES' })
+      },
+    }
+    const firstRun = createTokenVault({
+      file,
+      crypto: {
+        isEncryptionAvailable: () => false,
+        usesPlainTextBackend: () => false,
+        encryptString: (token) => Buffer.from(token),
+        decryptString: (buffer) => buffer.toString(),
+      },
+    })
+    expect(firstRun.load(SERVER)).toBeNull()
+    expect(value).toBe('{}')
+
+    const restarted = createTokenVault({
+      file,
+      crypto: {
+        isEncryptionAvailable: () => true,
+        usesPlainTextBackend: () => false,
+        encryptString: (token) => Buffer.from(token),
+        decryptString: (buffer) => buffer.toString(),
+      },
+    })
+    expect(restarted.load(SERVER)).toBeNull()
+  })
+
+  it('propagates the error when delete and tombstone both fail', () => {
+    const file = {
+      read: () =>
+        JSON.stringify({ version: 1, origin: SERVER, token: 'old-ciphertext' }),
+      write: () => {
+        throw new Error('tombstone write failed')
+      },
+      remove: () => {
+        throw new Error('delete failed')
+      },
+    }
+    const vault = createTokenVault({
+      file,
+      crypto: {
+        isEncryptionAvailable: () => true,
+        usesPlainTextBackend: () => false,
+        encryptString: (token) => Buffer.from(token),
+        decryptString: (buffer) => buffer.toString(),
+      },
+    })
+    expect(() => vault.load(OTHER_SERVER)).toThrow(/delete failed/)
+  })
+
+  it('accepts a new session after a blocked delete', () => {
+    let value: string | null = JSON.stringify({
+      version: 1,
+      origin: SERVER,
+      token: 'old-ciphertext',
+    })
+    let failRemove = true
+    let failWrite = true
+    const file = {
+      read: () => value,
+      write: (next: string) => {
+        if (failWrite) throw new Error('tombstone write failed')
+        value = next
+      },
+      remove: () => {
+        if (failRemove) throw new Error('delete failed')
+        value = null
+      },
+    }
+    const vault = createTokenVault({
+      file,
+      crypto: {
+        isEncryptionAvailable: () => true,
+        usesPlainTextBackend: () => false,
+        encryptString: (token) => Buffer.from(`enc:${token}`),
+        decryptString: (buffer) => buffer.toString().replace(/^enc:/, ''),
+      },
+    })
+    expect(() => vault.load(OTHER_SERVER)).toThrow(/delete failed/)
+    failWrite = false
+    failRemove = false
+    vault.save(SERVER, 'refresh-new')
+    expect(vault.load(SERVER)).toBe('refresh-new')
+  })
+
+  it('blocks reloading the vault after a failed delete and tombstone', () => {
     let reads = 0
-    let removeFails = true
+    let fail = true
     const vault = createTokenVault({
       file: {
         read: () => {
           reads += 1
           return JSON.stringify({ version: 1, origin: SERVER, token: 'ciphertext' })
         },
-        write: () => undefined,
+        write: () => {
+          if (fail) throw new Error('locked')
+        },
         remove: () => {
-          if (removeFails) throw new Error('locked')
+          if (fail) throw new Error('locked')
         },
       },
       crypto: {
@@ -741,7 +843,7 @@ describe('token vault', () => {
     })
     expect(() => vault.load(SERVER)).toThrow(/locked/)
     expect(reads).toBe(1)
-    removeFails = false
+    fail = false
     expect(vault.load(SERVER)).toBeNull()
     expect(reads).toBe(1)
   })
@@ -768,7 +870,9 @@ describe('token vault', () => {
     const brokenRemove = createTokenVault({
       file: {
         read: () => null,
-        write: () => undefined,
+        write: () => {
+          throw new Error('read-only filesystem')
+        },
         remove: () => {
           throw new Error('read-only filesystem')
         },
@@ -909,12 +1013,17 @@ describe('createVaultFile', () => {
   const VAULT = '/tmp/lifespire/sync-session.json'
   const TEMP = '/tmp/lifespire/sync-session.tmp'
 
-  function fsDouble(options: { failWrite?: boolean; failRemove?: boolean } = {}) {
+  function fsDouble(
+    options: { failWrite?: boolean; failRemove?: boolean; readError?: Error } = {},
+  ) {
     const ops: string[] = []
     let value: string | null = null
     const fs: VaultFs = {
       readFileSync: () => {
-        if (value === null) throw new Error('ENOENT')
+        if (options.readError) throw options.readError
+        if (value === null) {
+          throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+        }
         return value
       },
       mkdirSync: (dirPath, settings) => {
@@ -964,6 +1073,15 @@ describe('createVaultFile', () => {
     const double = fsDouble({ failRemove: true })
     const file = createVaultFile(VAULT, double.fs, () => TEMP)
     expect(() => file.remove()).toThrow(/read-only/)
+  })
+
+  it('treats only ENOENT as a missing credential', () => {
+    const missing = createVaultFile(VAULT, fsDouble().fs, () => TEMP)
+    expect(missing.read()).toBeNull()
+
+    const denied = Object.assign(new Error('permission denied'), { code: 'EACCES' })
+    const file = createVaultFile(VAULT, fsDouble({ readError: denied }).fs, () => TEMP)
+    expect(() => file.read()).toThrow(/permission denied/)
   })
 })
 

@@ -361,8 +361,11 @@ export function createVaultFile(
   const read = (): string | null => {
     try {
       return fs.readFileSync(vaultPath, 'utf8')
-    } catch {
-      return null
+    } catch (error) {
+      // Only a missing file means "no credential". EACCES/read-only volumes
+      // must surface so the caller can tombstone or report the failure.
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
     }
   }
 
@@ -455,9 +458,18 @@ export function createTokenVault(deps: {
   const removeStored = (): void => {
     try {
       deps.file.remove()
-    } catch (error) {
-      vaultBlocked = true
-      throw error
+      vaultBlocked = false
+    } catch (removeError) {
+      // If unlink is blocked, overwrite the credential with an empty tombstone
+      // through the same atomic writer. A restart then sees no session even if
+      // the filesystem refused the delete.
+      try {
+        deps.file.write('{}')
+        vaultBlocked = false
+      } catch {
+        vaultBlocked = true
+        throw removeError
+      }
     }
   }
 
@@ -465,8 +477,11 @@ export function createTokenVault(deps: {
     persistence: () => (canPersist() ? 'encrypted' : 'memory-only'),
 
     load: (origin) => {
-      if (!origin || vaultBlocked) return null
+      if (!origin) return null
+      // A fresh in-memory token is authoritative even after an earlier blocked
+      // delete: a successful save resets the disk guard.
       if (memory?.origin === origin) return memory.token
+      if (vaultBlocked) return null
       if (memory) memory = null
       const raw = deps.file.read()
       const stored = parseStored(raw)
@@ -503,6 +518,7 @@ export function createTokenVault(deps: {
           }
         }
         memory = { origin, token }
+        vaultBlocked = false
         return
       }
       const encrypted = deps.crypto.encryptString(token)
@@ -514,6 +530,7 @@ export function createTokenVault(deps: {
       // Write first: a failed disk write must not leave a phantom session.
       deps.file.write(JSON.stringify(stored))
       memory = { origin, token }
+      vaultBlocked = false
     },
 
     clear: () => {
@@ -793,7 +810,7 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
       if (pathname === HEALTH_PATH && isRedirectFailure(error)) {
         return failure(
           'HEALTH_REDIRECT',
-          'That address redirects elsewhere — use the final https:// address.',
+          'No LifeSpire server at that address: it redirects elsewhere — use the final https:// address.',
         )
       }
       return failure('API_UNREACHABLE', 'Could not reach the sync server.')
