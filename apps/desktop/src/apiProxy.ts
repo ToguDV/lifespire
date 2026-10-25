@@ -4,12 +4,14 @@
  * The renderer lives on `lifespire-app://app`, which the API's browser
  * contract (CORS + HttpOnly `SameSite=Lax` cookies) does not cover. Instead of
  * relaxing the server, every sync request goes through the Electron main
- * process: it calls the configured origin with `net.fetch`, uses the
- * native-client grant and keeps the refresh token out of renderer JavaScript.
+ * process: it calls the configured origin from a dedicated API session, uses
+ * the native-client grant and keeps the refresh token out of renderer
+ * JavaScript.
  *
  * This module is deliberately Electron-free so its policy and session logic
- * can be unit-tested in plain Node. `main.ts` wires `net.fetch`, `safeStorage`
- * and the userData file, and `preload.ts` exposes the narrow IPC bridge.
+ * can be unit-tested in plain Node. `main.ts` wires the dedicated session
+ * fetch, `safeStorage` and the userData file, and `preload.ts` exposes the
+ * narrow IPC bridge.
  */
 
 import { APP_HOST, APP_SCHEME } from './protocol'
@@ -22,8 +24,11 @@ export const API_PROXY_CHANNELS = {
 } as const
 
 export const API_PROXY_TIMEOUT_MS = 10_000
+export const API_PROXY_HEALTH_TIMEOUT_MS = 6_000
 export const API_PROXY_MAX_BODY_BYTES = 2 * 1024 * 1024
+export const API_PROXY_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 export const HEALTH_PATH = '/health/live'
+const HEALTH_REDIRECT_LIMIT = 3
 
 const NATIVE_CLIENT_PLATFORM = 'desktop'
 const AUTH_TOKEN_PATHS: ReadonlySet<string> = new Set([
@@ -92,6 +97,18 @@ export class ApiProxyError extends Error {
   }
 }
 
+/**
+ * Link-local addresses reach cloud metadata services, so they are never valid
+ * sync servers even when the URL is user-supplied. Private LAN ranges stay
+ * allowed: self-hosting is a supported use case.
+ */
+function isBlockedMetadataHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '')
+  const ipv4 = host.startsWith('::ffff:') ? host.slice('::ffff:'.length) : host
+  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(ipv4)) return true
+  return host === 'fd00:ec2::254'
+}
+
 /** World-readable origin check: http(s), no credentials, no path. */
 export function normalizeProxyOrigin(raw: unknown): string | null {
   if (typeof raw !== 'string') return null
@@ -107,6 +124,7 @@ export function normalizeProxyOrigin(raw: unknown): string | null {
   if (url.username || url.password) return null
   if (url.search || url.hash) return null
   if (url.pathname !== '/' && url.pathname !== '') return null
+  if (isBlockedMetadataHost(url.hostname)) return null
   return url.origin
 }
 
@@ -211,15 +229,11 @@ export function sanitizeProxyRequest(raw: unknown): ProxyRequest {
 
 /**
  * Chromium stamps `Sec-Fetch-Site: none` (plus any Origin/Referer) on
- * `net.fetch` requests, and the native-client gate requires Fetch Metadata to
- * be absent. Mutates the headers in place, only for the configured API origin.
+ * session fetches, and the native-client gate requires Fetch Metadata to be
+ * absent. This runs only in the dedicated API session, which no renderer
+ * request can reach, so every request there is a proxy request.
  */
-export function stripFetchMetadata(
-  headers: Record<string, string | string[]>,
-  url: string,
-  apiOrigin: string | null,
-): void {
-  if (!apiOrigin || !url.startsWith(`${apiOrigin}/`)) return
+export function stripFetchMetadata(headers: Record<string, string | string[]>): void {
   for (const name of Object.keys(headers)) {
     const lower = name.toLowerCase()
     if (lower === 'sec-fetch-site' || lower === 'origin' || lower === 'referer') {
@@ -318,9 +332,16 @@ export function createTokenVault(deps: {
     load: (origin) => {
       if (!origin) return null
       if (memory?.origin === origin) return memory.token
+      if (memory) memory = null
       if (!canPersist()) return null
       const stored = readStored()
-      if (!stored || stored.origin !== origin) return null
+      if (!stored) return null
+      if (stored.origin !== origin) {
+        // A credential for another server must not survive a boot with a
+        // different one. The error is visible to the caller on purpose.
+        deps.file.remove()
+        return null
+      }
       try {
         const token = deps.crypto.decryptString(Buffer.from(stored.token, 'base64'))
         memory = { origin, token }
@@ -331,29 +352,26 @@ export function createTokenVault(deps: {
     },
 
     save: (origin, token) => {
-      memory = { origin, token }
-      if (!canPersist()) return
-      try {
-        const encrypted = deps.crypto.encryptString(token)
-        const stored: StoredSession = {
-          version: 1,
-          origin,
-          token: encrypted.toString('base64'),
-        }
-        deps.file.write(JSON.stringify(stored))
-      } catch {
-        // A failed disk write keeps the in-memory session; the next rotation
-        // retries. It must never break an otherwise successful login.
+      if (!canPersist()) {
+        memory = { origin, token }
+        return
       }
+      const encrypted = deps.crypto.encryptString(token)
+      const stored: StoredSession = {
+        version: 1,
+        origin,
+        token: encrypted.toString('base64'),
+      }
+      // Write first: a failed disk write must not leave a phantom session.
+      deps.file.write(JSON.stringify(stored))
+      memory = { origin, token }
     },
 
     clear: () => {
       memory = null
-      try {
-        deps.file.remove()
-      } catch {
-        // Removing a missing file is a no-op.
-      }
+      // Missing files are handled by the file adapter; real delete failures
+      // (permissions, read-only volumes) must reach the caller.
+      deps.file.remove()
     },
   }
 }
@@ -369,6 +387,7 @@ export interface ApiProxyDeps {
   fetch: typeof fetch
   vault: TokenVault
   timeoutMs?: number
+  healthTimeoutMs?: number
 }
 
 function failure(code: string, message: string): ProxyResult {
@@ -403,6 +422,39 @@ function responseFrom(res: Response, body: string): ProxyResponse {
   return { status: res.status, statusText: res.statusText, headers, body }
 }
 
+function isRedirectStatus(status: number): boolean {
+  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+}
+
+/** Normalizes the pathname before matching auth/logout routes (S2). */
+function pathnameOf(path: string): string {
+  return new URL(path, 'http://proxy.invalid').pathname
+}
+
+/** Reads a response without ever buffering more than the proxy cap (I7). */
+async function readResponseBody(res: Response): Promise<string> {
+  const declared = Number(res.headers.get('content-length'))
+  if (Number.isFinite(declared) && declared > API_PROXY_MAX_RESPONSE_BYTES) {
+    throw new ApiProxyError('RESPONSE_TOO_LARGE', 'The server response exceeds 5 MB.')
+  }
+  if (!res.body) return ''
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let text = ''
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > API_PROXY_MAX_RESPONSE_BYTES) {
+      await reader.cancel().catch(() => undefined)
+      throw new ApiProxyError('RESPONSE_TOO_LARGE', 'The server response exceeds 5 MB.')
+    }
+    text += decoder.decode(value, { stream: true })
+  }
+  return text + decoder.decode()
+}
+
 function stripRefreshToken(body: string): { body: string; token: string | null } {
   let parsed: unknown
   try {
@@ -421,11 +473,23 @@ function stripRefreshToken(body: string): { body: string; token: string | null }
 
 export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
   const timeoutMs = deps.timeoutMs ?? API_PROXY_TIMEOUT_MS
+  const healthTimeoutMs = deps.healthTimeoutMs ?? API_PROXY_HEALTH_TIMEOUT_MS
   let serverOrigin: string | null = null
   let refreshToken: string | null = null
   let tokenOrigin: string | null = null
+  // Every server switch or local sign-out invalidates in-flight work. A
+  // response can only commit a token if its generation is still current.
+  let generation = 0
+  const inFlight = new Set<AbortController>()
 
-  const dropToken = (): void => {
+  const abortInFlight = (): void => {
+    for (const controller of inFlight) controller.abort()
+    inFlight.clear()
+  }
+
+  /** Compare-and-swap: only clear the token that the caller actually sent. */
+  const dropToken = (expected?: string): void => {
+    if (expected !== undefined && refreshToken !== expected) return
     refreshToken = null
     tokenOrigin = null
     deps.vault.clear()
@@ -433,7 +497,8 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
 
   const sessionState = (): SessionState => ({
     persistence: deps.vault.persistence(),
-    signedIn: refreshToken !== null,
+    // A token minted for another server can never count as signed in.
+    signedIn: refreshToken !== null && tokenOrigin === serverOrigin && serverOrigin !== null,
     serverOrigin,
   })
 
@@ -442,18 +507,25 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
     if (raw !== null && raw !== undefined && raw !== '' && next === null) {
       throw new ApiProxyError('ORIGIN_NOT_ALLOWED', 'Invalid sync server origin.')
     }
-    if (next !== serverOrigin) {
-      const hadServer = serverOrigin !== null
-      refreshToken = null
-      tokenOrigin = null
-      serverOrigin = next
-      // A new server invalidates the old credential. Going from "no server"
-      // to one is the boot path and must load the persisted token instead.
-      if (hadServer || next === null) deps.vault.clear()
+    generation += 1
+    abortInFlight()
+
+    const previous = serverOrigin
+    refreshToken = null
+    tokenOrigin = null
+    serverOrigin = next
+
+    if (next === null) {
+      // Boot without a server (or turning sync off) always clears the vault.
+      deps.vault.clear()
+    } else if (previous !== null && previous !== next) {
+      deps.vault.clear()
     }
+    // Going from "no server" to one is the boot path: load() also deletes a
+    // persisted credential that belongs to a different origin.
     if (serverOrigin) {
       const loaded = deps.vault.load(serverOrigin)
-      if (loaded) {
+      if (loaded && serverOrigin === next) {
         refreshToken = loaded
         tokenOrigin = serverOrigin
       }
@@ -462,6 +534,8 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
   }
 
   const signOut = (): SessionState => {
+    generation += 1
+    abortInFlight()
     dropToken()
     return sessionState()
   }
@@ -477,58 +551,96 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
       throw error
     }
 
+    const requestGeneration = generation
+    const pathname = pathnameOf(request.path)
+    const isRefresh = pathname === REFRESH_PATH
+    const sentToken = isRefresh ? refreshToken : null
     const headers: Record<string, string> = { ...request.headers }
     let body = request.body
-    if (AUTH_TOKEN_PATHS.has(request.path)) headers['x-client-platform'] = NATIVE_CLIENT_PLATFORM
-    if (request.path === REFRESH_PATH) {
-      if (!refreshToken || tokenOrigin !== targetOrigin) {
+    if (AUTH_TOKEN_PATHS.has(pathname)) headers['x-client-platform'] = NATIVE_CLIENT_PLATFORM
+    if (isRefresh) {
+      if (!sentToken || tokenOrigin !== targetOrigin) {
         return failure('AUTH_TOKEN_EXPIRED', 'You are not signed in on this server.')
       }
       headers['content-type'] = 'application/json'
-      body = JSON.stringify({ refreshToken })
+      body = JSON.stringify({ refreshToken: sentToken })
     }
 
     const controller = new AbortController()
+    inFlight.add(controller)
     let timedOut = false
     const timer = setTimeout(() => {
       timedOut = true
       controller.abort()
-    }, timeoutMs)
+    }, pathname === HEALTH_PATH ? healthTimeoutMs : timeoutMs)
     // Race the transport as well as the signal: a transport that ignores
     // AbortSignal must still not hang the main process forever.
     const timeoutRejection = new Promise<never>((_resolve, reject) => {
-      controller.signal.addEventListener(
-        'abort',
-        () =>
-          reject(new ApiProxyError('API_TIMEOUT', 'The sync server did not answer in time.')),
-        { once: true },
-      )
+      controller.signal.addEventListener('abort', () => reject(new Error('aborted')), {
+        once: true,
+      })
     })
-    let res: Response
-    let responseBody: string
-    try {
-      res = await Promise.race([
-        deps.fetch(`${targetOrigin}${request.path}`, {
+
+    const fetchOnce = (url: string): Promise<Response> =>
+      Promise.race([
+        deps.fetch(url, {
           method: request.method,
           headers,
           body,
           credentials: 'omit',
-          redirect: 'error',
+          redirect: pathname === HEALTH_PATH ? 'manual' : 'error',
           signal: controller.signal,
         }),
         timeoutRejection,
       ])
-      responseBody = await res.text()
-    } catch {
+
+    let res: Response
+    let responseBody: string
+    try {
+      let targetUrl = `${targetOrigin}${request.path}`
+      res = await fetchOnce(targetUrl)
+      // Health probes may bounce http -> http or add a trailing slash; auth
+      // and sync requests still treat every redirect as an error.
+      if (pathname === HEALTH_PATH) {
+        let redirects = 0
+        while (isRedirectStatus(res.status)) {
+          const location = res.headers.get('location')
+          if (!location) break
+          if (redirects >= HEALTH_REDIRECT_LIMIT) {
+            throw new ApiProxyError('TOO_MANY_REDIRECTS', 'The health probe redirected too often.')
+          }
+          const nextUrl = new URL(location, targetUrl)
+          if (nextUrl.origin !== new URL(targetUrl).origin) {
+            throw new ApiProxyError(
+              'REDIRECT_NOT_ALLOWED',
+              `The server redirected to ${nextUrl.origin}. Use that address instead.`,
+            )
+          }
+          targetUrl = nextUrl.toString()
+          res = await fetchOnce(targetUrl)
+          redirects += 1
+        }
+      }
+      responseBody = await readResponseBody(res)
+    } catch (error) {
+      if (error instanceof ApiProxyError) return failure(error.code, error.message)
       if (timedOut) {
         return failure('API_TIMEOUT', 'The sync server did not answer in time.')
+      }
+      if (controller.signal.aborted) {
+        return failure('REQUEST_ABORTED', 'The session changed while the request was in flight.')
       }
       return failure('API_UNREACHABLE', 'Could not reach the sync server.')
     } finally {
       clearTimeout(timer)
+      inFlight.delete(controller)
     }
 
-    if (AUTH_TOKEN_PATHS.has(request.path) && res.ok) {
+    if (requestGeneration !== generation) {
+      return failure('REQUEST_ABORTED', 'The session changed while the request was in flight.')
+    }
+
+    if (AUTH_TOKEN_PATHS.has(pathname) && res.ok) {
       try {
         const stripped = stripRefreshToken(responseBody)
         if (!stripped.token) {
@@ -537,23 +649,34 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
             'The server did not grant a desktop session. Update the sync server and try again.',
           )
         }
-        responseBody = stripped.body
+        // A concurrent logout/server switch, or a newer rotation, wins.
+        if (requestGeneration !== generation || (isRefresh && sentToken !== refreshToken)) {
+          return failure('REQUEST_ABORTED', 'The session changed while the request was in flight.')
+        }
         deps.vault.save(targetOrigin, stripped.token)
         refreshToken = stripped.token
         tokenOrigin = targetOrigin
+        responseBody = stripped.body
       } catch (error) {
         if (error instanceof ApiProxyError) return failure(error.code, error.message)
-        throw error
+        return failure('VAULT_WRITE_FAILED', 'Could not persist the sync session.')
       }
     }
 
-    // A rejected rotation means the family is gone (expired, revoked or
-    // reused); keep a dead token only to fail every future refresh.
-    if (request.path === REFRESH_PATH && (res.status === 401 || res.status === 403)) {
-      dropToken()
+    try {
+      // A rejected rotation means the family is gone (expired, revoked or
+      // reused); keep a dead token only to fail every future refresh.
+      if (isRefresh && (res.status === 401 || res.status === 403)) {
+        dropToken(sentToken ?? undefined)
+      }
+      if (LOGOUT_PATHS.has(pathname) && res.ok) dropToken()
+    } catch {
+      return failure('VAULT_DELETE_FAILED', 'Could not clear the sync session.')
     }
-    if (LOGOUT_PATHS.has(request.path) && res.ok) dropToken()
 
+    if (requestGeneration !== generation) {
+      return failure('REQUEST_ABORTED', 'The session changed while the request was in flight.')
+    }
     return { ok: true, response: responseFrom(res, responseBody) }
   }
 
