@@ -10,6 +10,7 @@ import {
   refreshSyncApi,
   setStoredBaseUrl,
   validateServerUrl,
+  waitForDesktopTransport,
 } from '../../sync/api'
 import { useAuthStore } from '../../sync/authStore'
 import { Button, Panel, PanelHead } from '../components'
@@ -83,6 +84,8 @@ export function ServerPanel() {
         setStoredBaseUrl(origin)
       }
       refreshSyncApi()
+      // A failed vault cleanup must block the success notice.
+      await waitForDesktopTransport()
       setStored(getStoredBaseUrl())
       setUnverified(null)
       setNotice(

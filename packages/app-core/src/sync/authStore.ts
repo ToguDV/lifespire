@@ -214,6 +214,7 @@ export function createAuthStore(deps: AuthStoreDeps = {}) {
             status === 403 ||
             status === 404 ||
             code === 'AUTH_TOKEN_EXPIRED' ||
+            code === 'NATIVE_GRANT_REQUIRED' ||
             code === 'SYNC_NOT_CONFIGURED'
           if (invalid) persistSession(null)
           set({

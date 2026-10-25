@@ -8,6 +8,7 @@ import {
   refreshSyncApi,
   resolveSyncBaseUrl,
   validateServerUrl,
+  waitForDesktopTransport,
 } from './api'
 import { createAuthStore } from './authStore'
 import { SESSION_KEY, SYNC_BASE_URL_KEY } from './storageKeys'
@@ -156,6 +157,8 @@ describe('desktop bridge', () => {
   let requests: Recorded[]
   let setServerCalls: Array<string | null>
   let signOutCalls: number
+  let signOutFailure: Error | null
+  let setServerFailure: Error | null
   let reply: { status: number; body: string; headers?: Record<string, string> }
   let failure: { code: string; message: string } | null
   let hold: Promise<void> | null
@@ -169,6 +172,8 @@ describe('desktop bridge', () => {
     requests = []
     setServerCalls = []
     signOutCalls = 0
+    signOutFailure = null
+    setServerFailure = null
     reply = { status: 200, body: '{}' }
     failure = null
     hold = null
@@ -203,6 +208,7 @@ describe('desktop bridge', () => {
         sync: {
           setServer: async (origin: string | null) => {
             setServerCalls.push(origin)
+            if (setServerFailure) throw setServerFailure
             return state()
           },
         },
@@ -210,6 +216,7 @@ describe('desktop bridge', () => {
           sessionState: async () => state('memory-only'),
           signOut: async () => {
             signOutCalls += 1
+            if (signOutFailure) throw signOutFailure
             return state()
           },
         },
@@ -330,6 +337,49 @@ describe('desktop bridge', () => {
     controller.abort()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
     release()
+  })
+
+  it('maps NATIVE_GRANT_REQUIRED and clears the session marker', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    backing.set(
+      SESSION_KEY,
+      JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'USER' }),
+    )
+    failure = {
+      code: 'NATIVE_GRANT_REQUIRED',
+      message: 'The server did not grant a desktop session.',
+    }
+    const client = refreshSyncApi()
+    await expect(client.refresh()).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      status: 401,
+      code: 'NATIVE_GRANT_REQUIRED',
+    })
+    const store = createAuthStore({ storage: localStorage, api: client })
+    await store.getState().restore()
+    expect(store.getState().status).toBe('guest')
+    expect(backing.has(SESSION_KEY)).toBe(false)
+  })
+
+  it('surfaces a failed setServer and recovers on the next attempt', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    setServerFailure = new Error('vault is locked')
+    refreshSyncApi()
+    await expect(waitForDesktopTransport()).rejects.toThrow(/vault is locked/)
+    setServerFailure = null
+    refreshSyncApi()
+    await expect(waitForDesktopTransport()).resolves.toBeUndefined()
+  })
+
+  it('propagates a failed local sign-out', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    const client = refreshSyncApi()
+    signOutFailure = new Error('vault is locked')
+    await expect(client.logout()).rejects.toThrow(/vault is locked/)
+    // Settings awaits this to avoid showing a success notice after a failed
+    // local sign-out.
+    await expect(waitForDesktopTransport()).rejects.toThrow(/vault is locked/)
   })
 
   it('surfaces other bridge failures as plain errors', async () => {

@@ -130,7 +130,7 @@ function withAbort<T>(promise: Promise<T>, signal: AbortSignal | null | undefine
 }
 
 function bridgeError(error: { code: string; message: string }): Error {
-  if (error.code === 'AUTH_TOKEN_EXPIRED') {
+  if (error.code === 'AUTH_TOKEN_EXPIRED' || error.code === 'NATIVE_GRANT_REQUIRED') {
     return new ApiRequestError(401, error.message, error.code)
   }
   if (error.code === 'SYNC_NOT_CONFIGURED') {
@@ -226,13 +226,46 @@ export async function getDesktopSessionState(): Promise<DesktopSessionState | nu
   }
 }
 
-/** Clears the main-process credential even if the server logout call fails. */
+/** Clears the main-process credential; failures must surface to the caller. */
+let desktopSignOutError: unknown = null
+
 async function signOutDesktop(bridge: DesktopBridge): Promise<void> {
   try {
     await bridge.auth?.signOut?.()
-  } catch {
-    // Local sign-out already happened in the auth store.
+    desktopSignOutError = null
+  } catch (error) {
+    desktopSignOutError = error
+    throw error
   }
+}
+
+let pendingDesktopSetServer: Promise<void> | null = null
+let desktopSetServerError: unknown = null
+
+function trackDesktopSetServer(promise: Promise<unknown> | undefined): void {
+  desktopSetServerError = null
+  pendingDesktopSetServer = promise
+    ? promise.then(
+        () => undefined,
+        (error: unknown) => {
+          desktopSetServerError = error
+        },
+      )
+    : Promise.resolve()
+}
+
+/**
+ * Lets Settings await the `sync.setServer` IPC that rebuilds the client. A
+ * vault cleanup failure is reported instead of showing "Now using …".
+ */
+export async function waitForDesktopTransport(): Promise<void> {
+  if (pendingDesktopSetServer) await pendingDesktopSetServer
+  if (desktopSignOutError) {
+    const error = desktopSignOutError
+    desktopSignOutError = null
+    throw error
+  }
+  if (desktopSetServerError) throw desktopSetServerError
 }
 
 function buildApiClient(): ApiClient {
@@ -258,10 +291,10 @@ function buildApiClient(): ApiClient {
   })
 
   if (bridge) {
-    // The main process holds the only allowlisted origin. Fire-and-forget is
-    // ordered before any later renderer IPC call, including the boot restore.
-    const setServer = bridge.sync?.setServer(baseUrl || null)
-    void setServer?.catch(() => undefined)
+    // The main process holds the only allowlisted origin. The IPC is ordered
+    // before any later renderer call, including the boot restore; Settings
+    // awaits waitForDesktopTransport() to surface a vault cleanup failure.
+    trackDesktopSetServer(bridge.sync?.setServer(baseUrl || null))
     const logout = client.logout.bind(client)
     const logoutAll = client.logoutAll.bind(client)
     client.logout = async () => {

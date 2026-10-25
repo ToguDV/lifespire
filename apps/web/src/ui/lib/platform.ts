@@ -21,6 +21,7 @@ export interface DesktopApiResponse {
   statusText: string
   headers: Record<string, string>
   body: string
+  cleanupError?: { code: string; message: string }
 }
 
 export type DesktopApiResult =
