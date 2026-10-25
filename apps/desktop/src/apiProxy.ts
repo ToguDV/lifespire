@@ -621,7 +621,7 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
           redirects += 1
         }
       }
-      responseBody = await readResponseBody(res)
+      responseBody = await Promise.race([readResponseBody(res), timeoutRejection])
     } catch (error) {
       if (error instanceof ApiProxyError) return failure(error.code, error.message)
       if (timedOut) {
