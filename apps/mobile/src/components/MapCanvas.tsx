@@ -25,21 +25,22 @@ import { playFeedback } from '../state/feedback'
 import { useTheme } from '../theme/ThemeProvider'
 import { useReducedMotion } from '../theme/motion'
 import { useScreenReader } from '../lib/useScreenReader'
+import {
+  BOSS_HEIGHT,
+  BOSS_WIDTH,
+  NODE_TARGET,
+  bossLabelBox,
+  nodeLabelLayout,
+} from '../lib/mapLabelLayout'
 import { fonts, layout as layoutTokens, radius, shadows } from '../theme/tokens'
 import { Icon } from './Icon'
 import type { IconName } from './Icon'
 import { Text } from './Text'
 
-const NODE_TARGET = 54
 const NODE_SIZE = 45
 const NODE_SIZE_DENSE = 40
 const NODE_AVAILABLE = 50
 const NODE_AVAILABLE_DENSE = 44
-const BOSS_WIDTH = 76
-const BOSS_HEIGHT = 82
-const LABEL_MAX_WIDTH = 78
-const LABEL_MAX_WIDTH_DENSE = 64
-const BOSS_LABEL_MAX_WIDTH = 124
 const LABEL_LINE_HEIGHT = 14
 
 /**
@@ -420,7 +421,7 @@ function MapNodeView({
         </Pressable>
         {showLabel ? (
           <View
-            style={styles.labelAbove}
+            style={[styles.labelAbove, bossLabelBox()]}
             pointerEvents="none"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
@@ -491,10 +492,14 @@ function MapNodeView({
         android_ripple={selectable ? { color: colors.accentWash, borderless: true } : undefined}
         style={({ pressed }) => [styles.nodeButton, { opacity: pressed && selectable ? 0.78 : 1 }]}
       >
-        <Animated.View style={justDone ? { transform: [{ scale: stamp }] } : undefined}>{medallion}</Animated.View>
+        <Animated.View style={[justDone ? { transform: [{ scale: stamp }] } : null]}>
+          {medallion}
+        </Animated.View>
       </Pressable>
       {showLabel ? (
         <View
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
         >
@@ -567,30 +572,10 @@ function NodeLabel({
 }) {
   const { colors } = useTheme()
   const color = strong ? colors.inkStrong : colors.ink
-  const center = NODE_TARGET / 2
-  const maxLabel = dense ? LABEL_MAX_WIDTH_DENSE : LABEL_MAX_WIDTH
-  if (side === 'below') {
+  const { placement, box } = nodeLabelLayout({ side, size, cx, canvasWidth, dense })
+  if (placement === 'below') {
     return (
-      <View
-        style={[styles.labelBelow, { left: center, top: center + size / 2 + 5, width: maxLabel }]}
-        pointerEvents="none"
-      >
-        <Text style={[styles.labelText, { color }]} numberOfLines={2}>
-          {text}
-        </Text>
-      </View>
-    )
-  }
-  const maxWidth = Math.min(
-    maxLabel,
-    side === 'left' ? cx - size / 2 - 7 - 6 : canvasWidth - (cx + size / 2 + 7) - 6,
-  )
-  if (maxWidth < 48) {
-    return (
-      <View
-        style={[styles.labelBelow, { left: center, top: center + size / 2 + 5, width: maxLabel }]}
-        pointerEvents="none"
-      >
+      <View style={[styles.labelBelow, box]} pointerEvents="none">
         <Text style={[styles.labelText, { color }]} numberOfLines={2}>
           {text}
         </Text>
@@ -600,17 +585,18 @@ function NodeLabel({
   return (
     <View
       style={[
-        side === 'left' ? styles.labelLeft : styles.labelRight,
-        {
-          top: center,
-          width: maxWidth,
-          ...(side === 'left' ? { right: center + size / 2 + 7 } : { left: center + size / 2 + 7 }),
-        },
+        styles.labelSide,
+        placement === 'left' ? styles.labelLeft : styles.labelRight,
+        box,
       ]}
       pointerEvents="none"
     >
       <Text
-        style={[styles.labelText, side === 'left' ? styles.labelTextRight : styles.labelTextLeft, { color }]}
+        style={[
+          styles.labelText,
+          placement === 'left' ? styles.labelTextRight : styles.labelTextLeft,
+          { color },
+        ]}
         numberOfLines={2}
       >
         {text}
@@ -722,26 +708,17 @@ const styles = StyleSheet.create({
   bossIcon: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   labelBelow: {
     position: 'absolute',
-    transform: [{ translateX: '-50%' }],
     alignItems: 'center',
     overflow: 'visible',
   },
-  labelLeft: {
+  labelSide: {
     position: 'absolute',
-    transform: [{ translateY: '-50%' }],
-    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
-  labelRight: {
-    position: 'absolute',
-    transform: [{ translateY: '-50%' }],
-    alignItems: 'flex-start',
-  },
+  labelLeft: { alignItems: 'flex-end' },
+  labelRight: { alignItems: 'flex-start' },
   labelAbove: {
     position: 'absolute',
-    left: BOSS_WIDTH / 2,
-    top: -4,
-    width: BOSS_LABEL_MAX_WIDTH,
-    transform: [{ translateX: '-50%' }, { translateY: '-100%' }],
     alignItems: 'center',
   },
   labelText: {

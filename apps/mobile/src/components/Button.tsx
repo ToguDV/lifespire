@@ -79,8 +79,10 @@ export function Button({
           backgroundColor: pressed ? pressedBackground : background,
           borderColor: border,
           opacity: disabled ? 0.45 : 1,
-          transform: pressed && (variant === 'primary' || variant === 'danger') ? [{ scale: 0.98 }] : undefined,
         },
+        pressed && (variant === 'primary' || variant === 'danger')
+          ? { transform: [{ scale: 0.98 }] }
+          : null,
         style,
       ]}
     >
