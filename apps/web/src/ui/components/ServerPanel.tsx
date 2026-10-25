@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import {
   checkServerHealth,
   clearStoredBaseUrl,
+  getBuildBaseUrl,
   getStoredBaseUrl,
   getSyncBaseUrl,
   getSyncFetch,
@@ -23,6 +24,8 @@ type Phase = 'idle' | 'checking' | 'saving'
 export function ServerPanel() {
   const logout = useAuthStore((state) => state.logout)
   const desktop = isDesktopShell()
+  const buildDefault = getBuildBaseUrl()
+  const canTurnOff = desktop && !buildDefault
   const [stored, setStored] = useState<string | null>(() => {
     try {
       return getStoredBaseUrl()
@@ -84,7 +87,7 @@ export function ServerPanel() {
       setUnverified(null)
       setNotice(
         origin === null
-          ? desktop
+          ? canTurnOff
             ? 'Sync is off. Choose a server to sync between devices.'
             : 'Using the default server. You were signed out — sign in again to sync.'
           : `Now using ${origin}. You were signed out — sign in again to sync.`,
@@ -225,7 +228,7 @@ export function ServerPanel() {
             </Button>
             {stored ? (
               <Button variant="secondary" onClick={reset} disabled={busy}>
-                {desktop ? 'Turn off sync' : 'Use default'}
+                {canTurnOff ? 'Turn off sync' : 'Use default'}
               </Button>
             ) : null}
           </div>

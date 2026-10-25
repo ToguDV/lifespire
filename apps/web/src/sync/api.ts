@@ -1,4 +1,4 @@
-import { createApiClient } from '@lifespire/api-client'
+import { ApiRequestError, createApiClient } from '@lifespire/api-client'
 import type { ApiClient } from '@lifespire/api-client'
 import {
   normalizeBaseUrl,
@@ -51,6 +51,11 @@ export function getStoredBaseUrl(): string | null {
   return raw ? (normalizeBaseUrl(raw) ?? raw) : null
 }
 
+/** Build-time default server, if any (desktop shows "Turn off sync" only when absent). */
+export function getBuildBaseUrl(): string | undefined {
+  return readEnvBaseUrl()
+}
+
 export function setStoredBaseUrl(url: string): void {
   const out = validateServerUrl(url)
   if (!out.ok) throw new Error(out.error)
@@ -99,8 +104,50 @@ function headerRecord(headers: HeadersInit | undefined): Record<string, string> 
  * status/headers/body and never sees the refresh token. A missing base URL is
  * an explicit "not configured" error, never a same-origin fallback.
  */
+function abortError(): Error {
+  const error = new Error('The sync request was aborted.')
+  error.name = 'AbortError'
+  return error
+}
+
+function withAbort<T>(promise: Promise<T>, signal: AbortSignal | null | undefined): Promise<T> {
+  if (!signal) return promise
+  if (signal.aborted) return Promise.reject(abortError())
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => reject(abortError())
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort)
+        resolve(value)
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(error)
+      },
+    )
+  })
+}
+
+function bridgeError(error: { code: string; message: string }): Error {
+  if (error.code === 'AUTH_TOKEN_EXPIRED') {
+    return new ApiRequestError(401, error.message, error.code)
+  }
+  if (error.code === 'SYNC_NOT_CONFIGURED') {
+    return new ApiRequestError(400, error.message, error.code)
+  }
+  return new Error(error.message)
+}
+
 function createDesktopFetch(baseUrl: string, bridge: DesktopBridge): typeof fetch {
-  const configured = baseUrl.replace(/\/+$/, '')
+  let configured = ''
+  if (baseUrl) {
+    try {
+      configured = new URL(baseUrl).origin
+    } catch {
+      configured = ''
+    }
+  }
   const api = bridge.api
   if (!api) throw new Error('The desktop bridge is missing the API channel.')
 
@@ -125,7 +172,11 @@ function createDesktopFetch(baseUrl: string, bridge: DesktopBridge): typeof fetc
       origin = url.origin
     } else {
       if (!configured) {
-        throw new Error('Choose a sync server in Settings before syncing.')
+        throw new ApiRequestError(
+          400,
+          'Choose a sync server in Settings before syncing.',
+          'SYNC_NOT_CONFIGURED',
+        )
       }
       if (url.origin !== configured) {
         throw new Error('The sync request does not match the configured server.')
@@ -133,14 +184,17 @@ function createDesktopFetch(baseUrl: string, bridge: DesktopBridge): typeof fetc
     }
 
     const body = typeof init.body === 'string' ? init.body : undefined
-    const result = await api.request({
-      path,
-      method,
-      headers: headerRecord(init.headers ?? request?.headers),
-      body,
-      origin,
-    })
-    if (!result.ok) throw new Error(result.error.message)
+    const result = await withAbort(
+      api.request({
+        path,
+        method,
+        headers: headerRecord(init.headers ?? request?.headers),
+        body,
+        origin,
+      }),
+      init.signal,
+    )
+    if (!result.ok) throw bridgeError(result.error)
 
     const responseInit: ResponseInit = {
       status: result.response.status,
@@ -206,7 +260,8 @@ function buildApiClient(): ApiClient {
   if (bridge) {
     // The main process holds the only allowlisted origin. Fire-and-forget is
     // ordered before any later renderer IPC call, including the boot restore.
-    void bridge.sync?.setServer(baseUrl || null)
+    const setServer = bridge.sync?.setServer(baseUrl || null)
+    void setServer?.catch(() => undefined)
     const logout = client.logout.bind(client)
     const logoutAll = client.logoutAll.bind(client)
     client.logout = async () => {

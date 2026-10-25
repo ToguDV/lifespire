@@ -9,7 +9,8 @@ import {
   resolveSyncBaseUrl,
   validateServerUrl,
 } from './api'
-import { SYNC_BASE_URL_KEY } from './storageKeys'
+import { createAuthStore } from './authStore'
+import { SESSION_KEY, SYNC_BASE_URL_KEY } from './storageKeys'
 
 describe('sync base URL', () => {
   it('normalizes user input to the origin', () => {
@@ -156,6 +157,8 @@ describe('desktop bridge', () => {
   let setServerCalls: Array<string | null>
   let signOutCalls: number
   let reply: { status: number; body: string; headers?: Record<string, string> }
+  let failure: { code: string; message: string } | null
+  let hold: Promise<void> | null
 
   function state(persistence: 'encrypted' | 'memory-only' = 'encrypted') {
     return { persistence, signedIn: false, serverOrigin: null }
@@ -167,6 +170,8 @@ describe('desktop bridge', () => {
     setServerCalls = []
     signOutCalls = 0
     reply = { status: 200, body: '{}' }
+    failure = null
+    hold = null
     vi.stubGlobal('localStorage', {
       getItem: (key: string) => backing.get(key) ?? null,
       setItem: (key: string, value: string) => {
@@ -182,6 +187,8 @@ describe('desktop bridge', () => {
         api: {
           request: async (request: Recorded) => {
             requests.push(request)
+            if (hold) await hold
+            if (failure) return { ok: false, error: failure }
             return {
               ok: true,
               response: {
@@ -274,7 +281,68 @@ describe('desktop bridge', () => {
       persistence: 'memory-only',
     })
   })
+
+  it('maps AUTH_TOKEN_EXPIRED and clears a memory-only phantom session', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    backing.set(
+      SESSION_KEY,
+      JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'USER' }),
+    )
+    failure = {
+      code: 'AUTH_TOKEN_EXPIRED',
+      message: 'You are not signed in on this server.',
+    }
+    const client = refreshSyncApi()
+    await expect(client.refresh()).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      status: 401,
+      code: 'AUTH_TOKEN_EXPIRED',
+    })
+    const store = createAuthStore({ storage: localStorage, api: client })
+    await store.getState().restore()
+    expect(store.getState().status).toBe('guest')
+    expect(store.getState().user).toBeNull()
+    expect(backing.has(SESSION_KEY)).toBe(false)
+  })
+
+  it('clears the session marker when no server is configured', async () => {
+    backing.set(
+      SESSION_KEY,
+      JSON.stringify({ id: 'u1', email: 'a@b.c', role: 'USER' }),
+    )
+    const client = refreshSyncApi()
+    const store = createAuthStore({ storage: localStorage, api: client })
+    await store.getState().restore()
+    expect(store.getState().status).toBe('guest')
+    expect(backing.has(SESSION_KEY)).toBe(false)
+  })
+
+  it('rejects a pending bridge request when the caller aborts', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    let release: () => void = () => undefined
+    hold = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const controller = new AbortController()
+    const pending = getSyncFetch()('https://custom.example.com/v1/sync', {
+      signal: controller.signal,
+    })
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    release()
+  })
+
+  it('surfaces other bridge failures as plain errors', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    failure = { code: 'API_UNREACHABLE', message: 'Could not reach the sync server.' }
+    const client = refreshSyncApi()
+    const error = await client.getSync().catch((reason: unknown) => reason)
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).name).not.toBe('ApiRequestError')
+    expect((error as Error).message).toBe('Could not reach the sync server.')
+  })
 })
+
 
 describe('checkServerHealth', () => {
   it('resolves true when /health/live answers ok', async () => {

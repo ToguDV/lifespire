@@ -208,7 +208,13 @@ export function createAuthStore(deps: AuthStoreDeps = {}) {
               : error instanceof Error && 'status' in error
                 ? (error as { status?: unknown }).status
                 : undefined
-          const invalid = status === 401 || status === 403 || status === 404
+          const code = error instanceof ApiRequestError ? error.code : undefined
+          const invalid =
+            status === 401 ||
+            status === 403 ||
+            status === 404 ||
+            code === 'AUTH_TOKEN_EXPIRED' ||
+            code === 'SYNC_NOT_CONFIGURED'
           if (invalid) persistSession(null)
           set({
             status: 'guest',
