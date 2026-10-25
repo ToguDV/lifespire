@@ -88,7 +88,12 @@ change is needed. The Electron **main process** is the API client:
 
 - The renderer calls `window.lifespireDesktop.api.request({ path, method,
   headers, body })`. Main joins it with the configured server origin and calls
-  `net.fetch` with the 10 s timeout, no redirects and no browser headers.
+  `net.fetch` with the 10 s timeout and no redirects.
+- Chromium stamps `Sec-Fetch-Site: none` (and potentially `Origin`/`Referer`)
+  on `net.fetch`, which would fail the native gate. A scoped
+  `webRequest.onBeforeSendHeaders` listener removes those three headers for the
+  configured API origin only; the health probe and every other origin are
+  untouched. The smoke check below verifies the wire headers.
 - `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/refresh` are sent
   with `X-Client-Platform: desktop`. With no `Origin`/`Sec-Fetch-Site`, the API
   accepts the native grant (ADR-0005) and returns the refresh token to main.
@@ -188,7 +193,8 @@ manual pass on a desktop session:
 4. In DevTools, check that `window.lifespireDesktop` has no token getter and
    that neither `localStorage` nor `sessionStorage` contains a refresh token.
    `await window.lifespireDesktop.auth.sessionState()` reports
-   `persistence: "encrypted"` and `signedIn: true`.
+   `persistence: "encrypted"` and `signedIn: true`. The API log for the login
+   shows `X-Client-Platform: desktop` with no `Origin`/`Sec-Fetch-Site`.
 5. Restart the app: the session restores without a new login. Sign out and
    confirm `userData/sync-session.json` is gone and the next launch starts as a
    guest.

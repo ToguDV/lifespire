@@ -5,6 +5,7 @@ import {
   createTokenVault,
   isTrustedSender,
   sanitizeProxyRequest,
+  stripFetchMetadata,
 } from './apiProxy'
 
 const SERVER = 'https://sync.example.com'
@@ -382,6 +383,31 @@ describe('token vault', () => {
     vault.save(SERVER, 'refresh-1')
     expect(vault.load(OTHER_SERVER)).toBeNull()
     expect(file.snapshot()).not.toBeNull()
+  })
+})
+
+describe('stripFetchMetadata', () => {
+  it('removes Fetch Metadata from requests to the configured origin', () => {
+    const headers = {
+      'sec-fetch-site': 'none',
+      Origin: 'lifespire-app://app',
+      referer: 'lifespire-app://app/settings',
+      'content-type': 'application/json',
+    }
+    stripFetchMetadata(headers, `${SERVER}/v1/auth/login`, SERVER)
+    expect(headers).toEqual({ 'content-type': 'application/json' })
+  })
+
+  it('leaves other origins untouched', () => {
+    const headers = { 'sec-fetch-site': 'none' }
+    stripFetchMetadata(headers, `${OTHER_SERVER}/health/live`, SERVER)
+    expect(headers).toEqual({ 'sec-fetch-site': 'none' })
+  })
+
+  it('is a no-op without a configured origin', () => {
+    const headers = { 'sec-fetch-site': 'none' }
+    stripFetchMetadata(headers, `${SERVER}/v1/auth/login`, null)
+    expect(headers).toEqual({ 'sec-fetch-site': 'none' })
   })
 })
 

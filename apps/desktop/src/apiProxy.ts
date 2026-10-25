@@ -209,6 +209,25 @@ export function sanitizeProxyRequest(raw: unknown): ProxyRequest {
   return request
 }
 
+/**
+ * Chromium stamps `Sec-Fetch-Site: none` (plus any Origin/Referer) on
+ * `net.fetch` requests, and the native-client gate requires Fetch Metadata to
+ * be absent. Mutates the headers in place, only for the configured API origin.
+ */
+export function stripFetchMetadata(
+  headers: Record<string, string | string[]>,
+  url: string,
+  apiOrigin: string | null,
+): void {
+  if (!apiOrigin || !url.startsWith(`${apiOrigin}/`)) return
+  for (const name of Object.keys(headers)) {
+    const lower = name.toLowerCase()
+    if (lower === 'sec-fetch-site' || lower === 'origin' || lower === 'referer') {
+      delete headers[name]
+    }
+  }
+}
+
 /** The packaged renderer origin, or the configured dev server while unpackaged. */
 export function isTrustedSender(
   frameUrl: string | null | undefined,

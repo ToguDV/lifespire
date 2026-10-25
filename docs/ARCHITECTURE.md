@@ -975,7 +975,10 @@ prototipo retirado:
 - **Sync:** el renderer no llama al API. Envía `{ path, method, headers, body }`
   por IPC y el proceso main hace `net.fetch` contra el origen configurado con
   `X-Client-Platform: desktop` (grant nativo de ADR-0005, sin `Origin` ni
-  `Sec-Fetch-Site`), por lo que no hace falta tocar CORS ni la cookie web. Main
+  `Sec-Fetch-Site`), por lo que no hace falta tocar CORS ni la cookie web.
+  Chromium añade `Sec-Fetch-Site: none` a `net.fetch`; un listener
+  `webRequest.onBeforeSendHeaders` acotado al origen configurado elimina
+  `Sec-Fetch-Site`, `Origin` y `Referer` antes de la petición. Main
   captura el `refreshToken` de login/accept-invite/refresh, lo elimina de la
   respuesta antes de devolverla, lo inyecta en el body del refresh y lo rota.
   Se cifra con `safeStorage` en `userData/sync-session.json`, asociado al

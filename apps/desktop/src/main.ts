@@ -19,6 +19,7 @@ import {
   createApiProxy,
   createTokenVault,
   isTrustedSender,
+  stripFetchMetadata,
   type TokenVaultFile,
 } from './apiProxy'
 import { buildMenu } from './menu'
@@ -140,6 +141,25 @@ function registerApiProxy(): void {
     }),
   })
 
+  let apiOrigin: string | null = null
+  const setServer = (origin: unknown) => {
+    const state = proxy.setServer(origin)
+    apiOrigin = state.serverOrigin
+    return state
+  }
+
+  // Chromium's network stack stamps `Sec-Fetch-Site: none` on net.fetch, and
+  // the native-client gate requires the absence of Fetch Metadata headers.
+  // Strip them only for the configured API origin; the health probe does not
+  // use the native grant, so it never needs a rewrite.
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      stripFetchMetadata(details.requestHeaders, details.url, apiOrigin)
+      callback({ requestHeaders: details.requestHeaders })
+    },
+  )
+
   const guard = (event: IpcMainInvokeEvent): void => {
     if (!isTrustedSender(event.senderFrame?.url, { isPackaged: app.isPackaged, devUrl: DEV_URL })) {
       throw new Error('Untrusted IPC sender')
@@ -152,7 +172,7 @@ function registerApiProxy(): void {
   })
   ipcMain.handle(API_PROXY_CHANNELS.setServer, (event, origin: unknown) => {
     guard(event)
-    return proxy.setServer(origin)
+    return setServer(origin)
   })
   ipcMain.handle(API_PROXY_CHANNELS.sessionState, (event) => {
     guard(event)
