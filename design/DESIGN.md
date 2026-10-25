@@ -578,7 +578,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 **`topbar`** — Run header.
 - Background `{colors.canvas}`, height 56px on phones, 14px horizontal gutter, bottom border `{colors.hairline}`.
 - Mobile: left, the 21px spire mark plus the wordmark; right, gold (16px coin), `Lv N`, the theme switch and Settings.
-- The day pips and `Day 3 of 7` are **not** in the mobile topbar: each screen carries them in its `screen-head`.
+- The day pips and `Day 3 of 7` are **not** in the mobile topbar: Home carries the week strip and Map carries the day in its kicker; the other screens do not show day context.
 - At 960px and above the same bar adds the run label, pips, day label and XP meter.
 
 **`sidebar`** — Desktop run rail.

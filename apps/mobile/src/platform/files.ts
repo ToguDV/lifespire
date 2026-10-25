@@ -1,4 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker'
+import { MAX_SAVE_BYTES } from '@lifespire/app-core/ui/importSave'
 import { File, Paths } from 'expo-file-system'
 import * as Sharing from 'expo-sharing'
 
@@ -6,6 +7,8 @@ export interface PickedSave {
   text: string
   name: string
   size: number
+  /** Set without reading the file when the picker already reports a huge size. */
+  tooLarge?: boolean
 }
 
 export async function shareTextFile(filename: string, text: string): Promise<void> {
@@ -23,7 +26,7 @@ export async function shareTextFile(filename: string, text: string): Promise<voi
 }
 
 /** Picks a JSON save and returns its text; the size gate runs before parsing. */
-export async function pickSaveFile(maxBytes: number): Promise<PickedSave | null> {
+export async function pickSaveFile(): Promise<PickedSave | null> {
   const result = await DocumentPicker.getDocumentAsync({
     type: ['application/json', 'text/json', 'text/plain', '*/*'],
     copyToCacheDirectory: true,
@@ -34,8 +37,9 @@ export async function pickSaveFile(maxBytes: number): Promise<PickedSave | null>
   if (!asset) return null
   const file = new File(asset.uri)
   const size = asset.size ?? file.size
-  if (size > maxBytes) {
-    throw new Error(`That file is too large. Saves are limited to ${Math.floor(maxBytes / 1024 / 1024)} MB.`)
+  // The validation dialog owns the size message, but a huge file is never read.
+  if (size > MAX_SAVE_BYTES) {
+    return { text: '', name: asset.name, size, tooLarge: true }
   }
   return { text: await file.text(), name: asset.name, size }
 }

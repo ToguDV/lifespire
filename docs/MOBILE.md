@@ -177,7 +177,7 @@ the rest of the app remains fully usable.
   background, canvas text) and the plain toast adds a 44 dp Dismiss;
   `IconPicker` tiles are 54 dp with a visible label and a check badge.
 - Day and run summaries are one framed card with 24 dp sections and hairline
-  dividers, not a stack of panels: an 86 dp seal, the narrative header, one
+  dividers, not a stack of panels: a 70 dp seal, the narrative header, one
   path list with 35 dp medallions, the three XP / Gold / Relics totals and the
   dashed level-up strip. The weekly close adds `StatStrip` bars (0..1
   `progress`), the per-goal bonus block plus the all-goals block, two-column
@@ -218,8 +218,9 @@ the rest of the app remains fully usable.
   recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.
 - The mobile topbar is the 56 dp shell header: 21 px spire mark plus wordmark on
   the left, gold (16 px coin), `Lv N`, the theme switch and Settings on the
-  right. It does not show the day pips or `Day N of 7`; each screen's
-  `ScreenHead` carries them. The topbar uses a 14 px gutter and a hairline
+  right. It does not show the day pips or `Day N of 7`; Home carries the week
+  strip and Map carries the day in its kicker, while the other screens rely on
+  the topbar-free context. The topbar uses a 14 px gutter and a hairline
   bottom border on the canvas background; the tab labels use the 10/13
   uppercase `tab` variant (0.6 tracking), active in `ink` and inactive in
   `inkSoft`. The theme switch and Settings are 44 dp targets, and the brand

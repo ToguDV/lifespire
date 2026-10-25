@@ -116,10 +116,12 @@ export function MapCanvas({
     if (scrolledRef.current) return
     const target = targetId === 'start' ? layout.start : allNodes.find((node) => node.id === targetId)
     if (!target) return
-    scrolledRef.current = true
     const viewport = Math.max(360, Math.min(canvasHeight, 620))
     const y = (target.top / 100) * canvasHeight
     const timer = setTimeout(() => {
+      // Only mark the map centred once the scroll actually runs; an early
+      // cleanup (rotation, settled width) must leave the next attempt free.
+      scrolledRef.current = true
       scrollRef.current?.scrollTo({ y: Math.max(0, y - viewport * 0.55), animated: false })
     }, 80)
     return () => clearTimeout(timer)

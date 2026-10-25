@@ -253,7 +253,7 @@ function MapRail({
               ]}
             >
               <Icon name={item.icon ?? NODE_TYPE_ICON[item.type]} size={14} color={colors.inkMuted} />
-              <Text style={[styles.legendType, { color: colors.doneInk }]}>
+              <Text style={[styles.legendType, { color: colors.inkMuted }]}>
                 {NODE_TYPE_LABEL[item.type]}
               </Text>
               <Text variant="caption" tone="soft" style={styles.legendCopy}>

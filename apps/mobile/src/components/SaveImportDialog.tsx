@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { STORAGE_KEY } from '@lifespire/core'
+import { LOOT_CATALOG, STORAGE_KEY } from '@lifespire/core'
 import type { GameDocument } from '@lifespire/core'
 import type { PickedImportResult } from '../lib/exportImport'
 import { useTheme } from '../theme/ThemeProvider'
@@ -16,8 +17,10 @@ export function SaveImportDialog({
 }: {
   result: PickedImportResult | null
   onClose: () => void
-  onConfirm: (document: GameDocument) => void
+  onConfirm: (document: GameDocument) => boolean
 }) {
+  const { colors } = useTheme()
+  const [confirmError, setConfirmError] = useState<string | null>(null)
   if (!result) return null
   if (!result.ok) {
     return (
@@ -50,7 +53,16 @@ export function SaveImportDialog({
       actions={
         <>
           <Button variant="quiet" onPress={onClose}>Keep current data</Button>
-          <Button onPress={() => onConfirm(result.document)}>Replace local data</Button>
+          <Button
+            onPress={() => {
+              if (onConfirm(result.document)) return
+              setConfirmError(
+                'That save could not be restored. Your current data was left untouched.',
+              )
+            }}
+          >
+            Replace local data
+          </Button>
         </>
       }
     >
@@ -66,10 +78,24 @@ export function SaveImportDialog({
               : 'No run'
           }
         />
-        <Row label="Relics" value={`${summary.relics} of 12`} />
+        <Row label="Relics" value={`${summary.relics} of ${LOOT_CATALOG.length}`} />
         <Row label="Schema" value={`v${summary.schemaVersion}`} />
       </View>
       <ImportWarning fileName={fileName} />
+      {confirmError ? (
+        <View
+          accessibilityRole="alert"
+          style={[
+            styles.error,
+            { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
+          ]}
+        >
+          <Icon name="lock" size={15} color={colors.inkStrong} />
+          <Text variant="bodySm" style={[styles.errorText, { color: colors.inkStrong }]}>
+            {confirmError}
+          </Text>
+        </View>
+      ) : null}
     </Dialog>
   )
 }
@@ -118,4 +144,15 @@ const styles = StyleSheet.create({
     marginTop: space.md,
   },
   warningText: { flex: 1 },
+  error: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginTop: space.md,
+  },
+  errorText: { flex: 1 },
 })

@@ -32,9 +32,9 @@ export interface PickedSaveCanceled {
 export type PickedSaveResult = PickedImportResult | PickedSaveCanceled
 
 export async function pickAndValidateSave(): Promise<PickedSaveResult> {
-  const picked = await pickSaveFile(2 * 1024 * 1024)
+  const picked = await pickSaveFile()
   if (!picked) return { canceled: true }
-  if (isSaveFileTooLarge(picked.size)) {
+  if (picked.tooLarge || isSaveFileTooLarge(picked.size)) {
     return {
       ok: false,
       reason: 'invalid',

@@ -317,7 +317,9 @@ export function SettingsScreen() {
         result={importResult}
         onClose={() => setImportResult(null)}
         onConfirm={(next) => {
-          if (importDocument(next)) setImportResult(null)
+          if (!importDocument(next)) return false
+          setImportResult(null)
+          return true
         }}
       />
 

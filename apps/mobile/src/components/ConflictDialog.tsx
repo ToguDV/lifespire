@@ -83,22 +83,36 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 }
 
 export function ConflictDialog() {
+  const { colors } = useTheme()
   const conflict = useSyncStore((state) => state.conflict)
   const showToast = useAppStore((state) => state.showToast)
   const [busy, setBusy] = useState<'mine' | 'cloud' | 'export' | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
 
   if (!conflict) return null
 
   const closeWithoutResolving = () => {
     if (busy) return
+    setResolveError(null)
     syncEngine.discardConflict()
   }
 
   const keepMine = async () => {
     setBusy('mine')
+    setResolveError(null)
     try {
       backupLocally('keeping this device')
       await syncEngine.resolveKeepMine()
+      const next = useSyncStore.getState()
+      if (next.conflict) {
+        setResolveError(
+          next.lastError ?? 'This device copy could not be uploaded. Try again.',
+        )
+      }
+    } catch (error) {
+      setResolveError(
+        error instanceof Error ? error.message : 'This device copy could not be uploaded.',
+      )
     } finally {
       setBusy(null)
     }
@@ -106,9 +120,18 @@ export function ConflictDialog() {
 
   const keepCloud = async () => {
     setBusy('cloud')
+    setResolveError(null)
     try {
       backupLocally('keeping the cloud copy')
       syncEngine.resolveKeepCloud()
+      const next = useSyncStore.getState()
+      if (next.conflict) {
+        setResolveError('The cloud copy could not be applied. Your device copy is still safe.')
+      }
+    } catch (error) {
+      setResolveError(
+        error instanceof Error ? error.message : 'The cloud copy could not be applied.',
+      )
     } finally {
       setBusy(null)
     }
@@ -182,6 +205,19 @@ export function ConflictDialog() {
           saved={formatWhen(conflict.remoteUpdatedAt)}
         />
       </View>
+      {resolveError ? (
+        <View
+          accessibilityRole="alert"
+          style={[
+            styles.error,
+            { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
+          ]}
+        >
+          <Text variant="bodySm" style={{ color: colors.inkStrong }}>
+            {resolveError}
+          </Text>
+        </View>
+      ) : null}
       {conflict.conflicts.length > 0 ? (
         <View style={styles.reasons}>
           <Text variant="caption" tone="danger">Why the merge stopped:</Text>
@@ -209,4 +245,10 @@ const styles = StyleSheet.create({
   meta: { gap: space.xs },
   metaRow: { gap: 1 },
   reasons: { gap: 2 },
+  error: {
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    padding: space.sm,
+    marginTop: space.xs,
+  },
 })
