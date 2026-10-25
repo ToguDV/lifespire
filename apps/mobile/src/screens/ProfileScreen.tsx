@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { xpIntoLevel, xpToNextLevel } from '@lifespire/core'
 import {
   buildCollection,
@@ -9,16 +9,18 @@ import {
   filterCollection,
 } from '@lifespire/app-core/ui/collection'
 import type { CollectionFilter } from '@lifespire/app-core/ui/collection'
-import { RARITY_LABEL, formatShortDayKey } from '@lifespire/app-core/ui/format'
+import { RARITY_LABEL, formatShortDayKey, lootIcon } from '@lifespire/app-core/ui/format'
 import { useTheme } from '../theme/ThemeProvider'
-import { radius, space } from '../theme/tokens'
+import { fonts, radius, space } from '../theme/tokens'
 import { Button } from '../components/Button'
+import { Chip } from '../components/Chip'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
 import { LootCard } from '../components/LootCard'
 import { Panel, PanelHead, ScreenHead } from '../components/Panel'
 import { Progress } from '../components/Progress'
 import { Screen } from '../components/Screen'
+import { SegmentedControl } from '../components/SegmentedControl'
 import { Stat, StatStrip } from '../components/Stat'
 import { Text } from '../components/Text'
 import { useAppStore } from '../state/store'
@@ -36,111 +38,155 @@ export function ProfileScreen() {
   const duplicates = duplicateConversions(run)
   const duplicateGold = duplicateGoldTotal(duplicates)
   const owned = collection.filter((entry) => entry.owned).length
+  const daysKept = run?.days.filter((day) => day.status === 'completed').length ?? 0
 
   if (!profile) {
     return (
       <Screen>
-        <ScreenHead kicker="The reliquary" title="Relics" />
-        <Panel>
-          <EmptyState icon="gem" title="No profile yet">
-            Finish onboarding to begin a collection.
-          </EmptyState>
-          <Button variant="secondary" onPress={() => navigate({ name: 'home' })} full>
-            Back to camp
-          </Button>
-        </Panel>
+        <ScreenHead
+          kicker="Profile"
+          title="The Reliquary"
+          subtitle="Your level, gold and collection appear after onboarding."
+        />
+        <EmptyState
+          icon="gem"
+          title="No profile yet"
+          action={
+            <Button onPress={() => navigate({ name: 'onboarding' })}>Begin the journey</Button>
+          }
+        >
+          The catalogue below is complete from the start. Relics are revealed as they are found
+          during a run.
+        </EmptyState>
       </Screen>
     )
   }
 
+  const xpNow = xpIntoLevel(profile.xp)
+  const xpLeft = xpToNextLevel(profile.xp)
+
   return (
     <Screen>
       <ScreenHead
-        kicker="The reliquary"
-        title={profile.name}
-        subtitle={
-          <Text variant="bodyMd" tone="muted">
-            Level {profile.level} · {xpIntoLevel(profile.xp)} / 100 XP · {owned}/12 relics found
-          </Text>
-        }
+        kicker="Profile · The Reliquary"
+        title="The Reliquary"
+        subtitle="Tokens found along the climb. No powers, only proof."
         aside={
-          <View style={[styles.avatar, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}>
-            <Text variant="headingMd" tone="deep">{profile.name.slice(0, 1).toUpperCase()}</Text>
-          </View>
+          <Chip icon="gem">
+            {owned} of {collection.length}
+          </Chip>
         }
       />
 
       <Panel>
-        <PanelHead label="The traveller" />
-        <Progress value={xpIntoLevel(profile.xp)} max={100} label="Experience to next level" />
-        <Text variant="caption" tone="muted" style={styles.xpNote}>
-          {xpToNextLevel(profile.xp)} XP to level {profile.level + 1}
-        </Text>
-        <StatStrip>
-          <Stat label="XP" value={profile.xp} tone="xp" />
-          <Stat label="Gold" value={profile.gold} tone="gold" />
-          <Stat label="Relics" value={`${owned}/12`} />
-        </StatStrip>
+        <View style={styles.stripTop}>
+          <View
+            style={[
+              styles.levelBadge,
+              { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+            ]}
+          >
+            <Text style={[styles.levelNumber, { color: colors.accentDeep }]}>{profile.level}</Text>
+            <Text style={[styles.levelCaption, { color: colors.inkMuted }]}>Lv</Text>
+          </View>
+          <View style={styles.stripId}>
+            <Text variant="headingLg">{profile.name}</Text>
+            <Text style={[styles.wayfarer, { color: colors.inkSoft }]}>
+              Wayfarer of the quiet path
+            </Text>
+            <View style={styles.xpMeta}>
+              <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>Experience</Text>
+              <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>{xpNow} / 100</Text>
+            </View>
+            <View style={styles.xpBar}>
+              <Progress value={xpNow} max={100} height={4} label="Experience in this level" />
+            </View>
+            <Text variant="caption" tone="soft" style={styles.xpLeft}>
+              {xpLeft} XP to level {profile.level + 1}
+            </Text>
+          </View>
+        </View>
+        <View style={[styles.stats, { borderColor: colors.hairline }]}>
+          <StatStrip>
+            <Stat label="Gold" value={profile.gold} />
+            <Stat label="Relics" value={owned} />
+            <Stat label="Days kept" value={`${daysKept} / 7`} />
+          </StatStrip>
+        </View>
       </Panel>
 
-      <Panel>
-        <PanelHead label="Collection" aside={<Text variant="caption" tone="soft">{visible.length} shown</Text>} />
-        <View style={styles.filters}>
-          {options.map((option) => {
-            const selected = option.filter === filter
-            return (
-              <Pressable
-                key={option.filter}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => setFilter(option.filter)}
-                style={[
-                  styles.filter,
-                  {
-                    borderColor: selected ? colors.accent : colors.hairline,
-                    backgroundColor: selected ? colors.accentSoft : colors.surface,
-                  },
-                ]}
-              >
-                <Text variant="caption" tone={selected ? 'deep' : 'muted'}>
-                  {option.label}
-                </Text>
-                <Text variant="micro" tone={selected ? 'deep' : 'soft'}>
-                  {option.owned}/{option.total}
-                </Text>
-              </Pressable>
-            )
-          })}
+      <View style={styles.collectionBlock}>
+        <View style={styles.collectionHead}>
+          <Text variant="headingLg">Found so far</Text>
+          <Text variant="micro" tone="muted">
+            {owned} of {collection.length}
+          </Text>
         </View>
+        <SegmentedControl
+          label="Filter relics by rarity"
+          value={filter}
+          onChange={setFilter}
+          options={options.map((option) => ({
+            value: option.filter,
+            label: option.label,
+            detail: `${option.owned}/${option.total}`,
+            accessibilityLabel: `${option.label}: ${option.owned} of ${option.total} found`,
+          }))}
+        />
+        <Text
+          variant="micro"
+          tone="muted"
+          accessibilityLiveRegion="polite"
+          style={styles.collectionStatus}
+        >
+          Showing {visible.length} relics · {owned} found
+        </Text>
         <View style={styles.collection}>
           {visible.map((entry) => (
-            <LootCard key={entry.catalog.id} entry={entry.catalog} owned={entry.owned ?? undefined} detailed />
+            <View key={entry.catalog.id} style={styles.lootCell}>
+              <LootCard entry={entry.catalog} owned={entry.owned ?? undefined} detailed />
+            </View>
           ))}
         </View>
-      </Panel>
+      </View>
 
       <Panel>
         <PanelHead
           label="Duplicate conversions"
-          aside={<Text variant="caption" tone="gold">{duplicateGold} gold</Text>}
+          aside={
+            duplicates.length > 0 ? (
+              <Chip variant="quiet">{`+${duplicateGold} gold`}</Chip>
+            ) : undefined
+          }
         />
-        {duplicates.length === 0 ? (
+        {!run ? (
           <Text variant="bodySm" tone="muted">
-            No duplicate relics were converted in this run.
+            Duplicate history starts with a run. Past runs are not kept in this save.
+          </Text>
+        ) : duplicates.length === 0 ? (
+          <Text variant="bodySm" tone="muted">
+            No duplicate relics have been converted in this run yet. A second copy of a relic
+            becomes gold when it is found.
           </Text>
         ) : (
           <View style={styles.duplicates}>
             {duplicates.map((conversion) => (
-              <View key={conversion.eventId} style={[styles.duplicate, { borderColor: colors.hairline }]}>
-                <Icon name="gem" size={15} color={colors.gold} />
+              <View
+                key={conversion.eventId}
+                style={[styles.duplicate, { borderColor: colors.hairline }]}
+              >
+                <Icon name={lootIcon(conversion.catalogId)} size={15} color={colors.accentDeep} />
                 <View style={styles.duplicateBody}>
-                  <Text variant="bodySm" numberOfLines={1}>{conversion.name}</Text>
+                  <Text variant="bodySm" numberOfLines={1}>
+                    {conversion.name}
+                  </Text>
                   <Text variant="caption" tone="muted">
-                    Day {conversion.dayNumber} · {conversion.date ? formatShortDayKey(conversion.date) : 'unknown'} ·{' '}
+                    Day {conversion.dayNumber} ·{' '}
+                    {conversion.date ? formatShortDayKey(conversion.date) : 'unknown'} ·{' '}
                     {conversion.rarity ? RARITY_LABEL[conversion.rarity] : 'relic'}
                   </Text>
                 </View>
-                <Text variant="bodySm" tone="gold">{`+${conversion.gold}`}</Text>
+                <Text variant="bodySm" tone="gold">{`+${conversion.gold} gold`}</Text>
               </View>
             ))}
           </View>
@@ -151,12 +197,73 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  avatar: { width: 52, height: 52, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  xpNote: { marginVertical: space.xs },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginBottom: space.sm },
-  filter: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: radius.full, paddingHorizontal: space.sm, paddingVertical: 3 },
-  collection: { gap: space.sm },
+  stripTop: { flexDirection: 'row', alignItems: 'center', gap: space.md, flexWrap: 'wrap' },
+  levelBadge: {
+    width: 62,
+    height: 62,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  levelNumber: { fontFamily: fonts.display, fontSize: 21.6, lineHeight: 24 },
+  levelCaption: {
+    position: 'absolute',
+    bottom: 8,
+    fontFamily: fonts.uiBold,
+    fontSize: 7.4,
+    lineHeight: 9,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  stripId: { flex: 1, minWidth: 130 },
+  wayfarer: {
+    marginTop: 3,
+    fontFamily: fonts.uiBold,
+    fontSize: 10.6,
+    lineHeight: 14,
+    letterSpacing: 0.64,
+    textTransform: 'uppercase',
+  },
+  xpMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 9,
+  },
+  xpMetaText: {
+    fontFamily: fonts.uiBold,
+    fontSize: 9.9,
+    lineHeight: 13,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  xpBar: { marginTop: 5 },
+  xpLeft: { marginTop: 6 },
+  stats: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: space.md,
+    paddingTop: space.sm,
+  },
+  collectionBlock: { gap: space.sm },
+  collectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    marginTop: space.xs,
+  },
+  collectionStatus: { paddingHorizontal: 2, paddingBottom: space.xs },
+  collection: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: space.xs },
+  lootCell: { flexBasis: '46%', flexGrow: 1, maxWidth: '48%' },
   duplicates: { gap: space.sm },
-  duplicate: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: space.sm },
+  duplicate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: space.sm,
+  },
   duplicateBody: { flex: 1, gap: 2 },
 })

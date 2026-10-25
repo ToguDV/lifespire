@@ -21,6 +21,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     devError('app', 'render crash', error, { componentStack: info.componentStack ?? '' })
+    if (__DEV__) console.error('[LifeSpire][app] component stack', info.componentStack ?? '')
   }
 
   render(): ReactNode {

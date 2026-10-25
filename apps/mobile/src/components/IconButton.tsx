@@ -10,7 +10,7 @@ export function IconButton({
   label,
   onPress,
   active = false,
-  size = 40,
+  size = 44,
   style,
   disabled = false,
 }: {
@@ -31,20 +31,20 @@ export function IconButton({
       disabled={disabled}
       onPress={onPress}
       android_ripple={{ color: colors.accentWash, borderless: true }}
-      hitSlop={space.xs}
+      hitSlop={space.xxs}
       style={({ pressed }) => [
         styles.base,
         {
           width: size,
           height: size,
-          borderColor: active ? colors.accent : 'transparent',
-          backgroundColor: active ? colors.accentSoft : 'transparent',
-          opacity: disabled ? 0.4 : pressed ? 0.75 : 1,
+          borderColor: active ? colors.hairline : 'transparent',
+          backgroundColor: active ? colors.surfaceRaised : 'transparent',
+          opacity: disabled ? 0.5 : pressed ? 0.75 : 1,
         },
         style,
       ]}
     >
-      <Icon name={icon} size={size * 0.45} color={active ? colors.accentDeep : colors.inkMuted} />
+      <Icon name={icon} size={18} color={active ? colors.accentDeep : colors.inkMuted} />
     </Pressable>
   )
 }

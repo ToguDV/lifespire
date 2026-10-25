@@ -1,5 +1,14 @@
 import type { ReactNode } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
 import { fonts, radius, shadows, space } from '../theme/tokens'
 import { Text } from './Text'
@@ -7,6 +16,8 @@ import { Text } from './Text'
 export function Dialog({
   visible,
   title,
+  eyebrow,
+  description,
   onClose,
   children,
   actions,
@@ -14,12 +25,16 @@ export function Dialog({
 }: {
   visible: boolean
   title: string
+  eyebrow?: string
+  description?: string
   onClose: () => void
   children?: ReactNode
   actions?: ReactNode
   dismissable?: boolean
 }) {
   const { colors } = useTheme()
+  const { width } = useWindowDimensions()
+  const wide = width >= 480
   return (
     <Modal
       visible={visible}
@@ -28,7 +43,10 @@ export function Dialog({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={styles.root}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <Pressable
           style={[styles.backdrop, { backgroundColor: colors.scrim }]}
           onPress={dismissable ? onClose : undefined}
@@ -38,15 +56,31 @@ export function Dialog({
           style={[
             styles.card,
             shadows.float,
-            { backgroundColor: colors.surfaceRaised, borderColor: colors.hairlineStrong },
+            {
+              backgroundColor: colors.surfaceRaised,
+              borderColor: colors.hairlineStrong,
+              padding: wide ? 22 : 18,
+            },
           ]}
           accessibilityViewIsModal
           accessibilityRole="none"
         >
           <View style={[styles.head, { borderColor: colors.hairline }]}>
-            <Text variant="headingMd" accessibilityRole="header" style={styles.title}>
-              {title}
-            </Text>
+            <View style={styles.headText}>
+              {eyebrow ? (
+                <Text variant="micro" tone="muted">
+                  {eyebrow.toUpperCase()}
+                </Text>
+              ) : null}
+              <Text variant="headingLg" accessibilityRole="header" style={styles.title}>
+                {title}
+              </Text>
+              {description ? (
+                <Text variant="bodySm" tone="muted" style={styles.description}>
+                  {description}
+                </Text>
+              ) : null}
+            </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Close dialog"
@@ -66,9 +100,11 @@ export function Dialog({
           >
             {children}
           </ScrollView>
-          {actions ? <View style={[styles.actions, { borderColor: colors.hairline }]}>{actions}</View> : null}
+          {actions ? (
+            <View style={[styles.actions, { borderColor: colors.hairline }]}>{actions}</View>
+          ) : null}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }
@@ -77,24 +113,28 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     justifyContent: 'center',
-    padding: space.lg,
+    alignItems: 'center',
+    padding: space.md,
   },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
   card: {
+    width: '100%',
+    maxWidth: 470,
+    maxHeight: '86%',
     borderRadius: radius.xl,
     borderWidth: 1,
-    padding: space.lg,
-    maxHeight: '86%',
   },
   head: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: space.md,
-    paddingBottom: space.sm,
-    borderBottomWidth: 1,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { flex: 1, marginTop: 4 },
+  headText: { flex: 1, minWidth: 0 },
+  title: { marginTop: 4 },
+  description: { marginTop: 5 },
   close: {
     width: 44,
     height: 44,
@@ -105,15 +145,15 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   closeGlyph: { fontFamily: fonts.ui, fontSize: 22, lineHeight: 24 },
-  bodyScroll: { marginTop: space.sm, flexGrow: 0 },
-  body: { gap: space.md, paddingBottom: space.xs },
+  bodyScroll: { flexGrow: 0, flexShrink: 1 },
+  body: { gap: space.md, paddingTop: 12 },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: space.xs,
+    gap: 8,
     marginTop: 18,
-    paddingTop: space.md,
-    borderTopWidth: 1,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexWrap: 'wrap',
   },
 })

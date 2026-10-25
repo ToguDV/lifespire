@@ -1,21 +1,24 @@
 import { useEffect, useRef } from 'react'
 import { Animated, Pressable, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { RewardEvent } from '@lifespire/core'
-import { NODE_TYPE_LABEL, RARITY_LABEL, lootIcon } from '@lifespire/app-core/ui/format'
+import { NODE_TYPE_LABEL, RARITY_LABEL } from '@lifespire/app-core/ui/format'
 import { useTheme } from '../theme/ThemeProvider'
-import { radius, shadows, space } from '../theme/tokens'
+import { fonts, layout, radius, shadows } from '../theme/tokens'
 import { Icon } from './Icon'
+import type { IconName } from './Icon'
 import { Text } from './Text'
 
 export function Toast({ message, onDismiss }: { message: string | null; onDismiss: () => void }) {
   const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
   const opacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     if (!message) return
     opacity.setValue(0)
     Animated.timing(opacity, { toValue: 1, duration: 160, useNativeDriver: true }).start()
-    const timer = setTimeout(onDismiss, 3600)
+    const timer = setTimeout(onDismiss, 5000)
     return () => clearTimeout(timer)
   }, [message, onDismiss, opacity])
 
@@ -23,19 +26,60 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
   return (
     <Animated.View
       pointerEvents="box-none"
-      style={[styles.toastWrap, { opacity }]}
+      accessibilityLiveRegion="polite"
+      style={[
+        styles.toastWrap,
+        { bottom: layout.tabbarHeight + insets.bottom + 12, opacity },
+      ]}
     >
-      <Pressable
-        accessibilityRole="alert"
-        accessibilityLabel={message}
-        onPress={onDismiss}
-        style={[styles.toast, shadows.soft, { backgroundColor: colors.ink, borderColor: colors.inkStrong }]}
+      <View
+        style={[
+          styles.toast,
+          shadows.float,
+          { backgroundColor: colors.ink, borderColor: colors.hairlineStrong },
+        ]}
       >
         <Text variant="bodySm" tone="inverse" style={styles.toastText}>
           {message}
         </Text>
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss"
+          onPress={onDismiss}
+          hitSlop={8}
+          style={styles.dismiss}
+        >
+          <Text variant="micro" tone="inverse" style={styles.dismissLabel}>
+            Dismiss
+          </Text>
+        </Pressable>
+      </View>
     </Animated.View>
+  )
+}
+
+function Bit({
+  icon,
+  label,
+  color,
+  bold,
+}: {
+  icon: IconName
+  label: string
+  color: string
+  bold?: boolean
+}) {
+  return (
+    <View style={styles.bit}>
+      <Icon name={icon} size={13} color={color} />
+      <Text
+        numberOfLines={1}
+        maxFontSizeMultiplier={1.5}
+        style={[styles.bitText, bold ? styles.bitBold : null, { color }]}
+      >
+        {label}
+      </Text>
+    </View>
   )
 }
 
@@ -47,6 +91,7 @@ export function RewardToast({
   onDismiss: () => void
 }) {
   const { colors } = useTheme()
+  const insets = useSafeAreaInsets()
   const opacity = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
@@ -59,50 +104,69 @@ export function RewardToast({
 
   if (!event) return null
   const isSkip = event.action === 'skip'
+  const title = isSkip
+    ? `${NODE_TYPE_LABEL[event.nodeType]} skipped`
+    : (event.taskTitle ?? event.goalTitle ?? 'The path moves on')
   return (
-    <Animated.View style={[styles.rewardWrap, { opacity }]}>
+    <Animated.View
+      style={[styles.rewardWrap, { bottom: layout.tabbarHeight + insets.bottom + 12, opacity }]}
+    >
       <Pressable
         accessibilityRole="summary"
+        accessibilityLiveRegion="polite"
         accessibilityLabel={`${NODE_TYPE_LABEL[event.nodeType]} ${isSkip ? 'skipped' : 'completed'}`}
         onPress={onDismiss}
-        style={[styles.reward, shadows.float, { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline }]}
+        style={[
+          styles.reward,
+          shadows.float,
+          { backgroundColor: colors.ink, borderColor: colors.hairlineStrong },
+        ]}
       >
-        <View style={styles.rewardHead}>
-          <Icon
-            name={isSkip ? 'arrow-left' : event.nodeType === 'boss' ? 'crown' : 'check'}
-            size={18}
-            color={isSkip ? colors.inkMuted : colors.accent}
-          />
-          <Text variant="micro" tone={isSkip ? 'muted' : 'accent'}>
-            {isSkip ? 'SKIPPED' : 'RECORDED'}
-          </Text>
-          <Text variant="bodySm" tone="muted" style={styles.rewardType}>
-            {NODE_TYPE_LABEL[event.nodeType]}
-          </Text>
+        <View style={[styles.seal, { backgroundColor: colors.accent }]}>
+          <Icon name={isSkip ? 'arrow-left' : 'check'} size={15} color={colors.onAccent} />
         </View>
-        <Text variant="headingSm" numberOfLines={2}>
-          {event.taskTitle ?? event.goalTitle ?? 'The path moves on'}
-        </Text>
-        {!isSkip ? (
-          <View style={styles.rewardRow}>
-            {event.xp > 0 ? <Text variant="bodySm" tone="xp">{`+${event.xp} XP`}</Text> : null}
-            {event.gold > 0 ? <Text variant="bodySm" tone="gold">{`+${event.gold} gold`}</Text> : null}
-            {event.progress > 0 ? <Text variant="bodySm" tone="accent">{`+${event.progress} target`}</Text> : null}
-          </View>
-        ) : null}
-        {event.lootItem ? (
-          <View style={styles.lootRow}>
-            <Icon name={lootIcon(event.lootItem.catalogId)} size={14} color={colors.accent} />
-            <Text variant="bodySm" tone="muted" numberOfLines={1}>
-              {event.lootItem.name} · {RARITY_LABEL[event.lootItem.rarity]}
-            </Text>
-          </View>
-        ) : null}
-        {event.duplicateGold > 0 ? (
-          <Text variant="bodySm" tone="gold">
-            {`Duplicate converted · +${event.duplicateGold} gold`}
+        <View style={styles.rewardBody}>
+          <Text
+            numberOfLines={2}
+            maxFontSizeMultiplier={1.5}
+            style={[styles.rewardTitle, { color: colors.background }]}
+          >
+            {title}
           </Text>
-        ) : null}
+          {!isSkip ? (
+            <View style={styles.bits}>
+              {event.xp > 0 ? (
+                <Bit icon="star" label={`+${event.xp} XP`} color={colors.background} />
+              ) : null}
+              {event.gold > 0 ? (
+                <Bit icon="coin" label={`+${event.gold} gold`} color={colors.background} />
+              ) : null}
+              {event.progress > 0 ? (
+                <Bit
+                  icon="plus"
+                  label={`+${event.progress} target`}
+                  color={colors.background}
+                  bold
+                />
+              ) : null}
+              {event.lootItem ? (
+                <Bit
+                  icon="gem"
+                  label={`${event.lootItem.name} · ${RARITY_LABEL[event.lootItem.rarity]}`}
+                  color={colors.background}
+                  bold
+                />
+              ) : null}
+              {event.duplicateGold > 0 ? (
+                <Bit
+                  icon="coin"
+                  label={`+${event.duplicateGold} g duplicate`}
+                  color={colors.background}
+                />
+              ) : null}
+            </View>
+          ) : null}
+        </View>
       </Pressable>
     </Animated.View>
   )
@@ -111,33 +175,85 @@ export function RewardToast({
 const styles = StyleSheet.create({
   toastWrap: {
     position: 'absolute',
-    left: space.md,
-    right: space.md,
-    bottom: 84,
+    left: 12,
+    right: 12,
     alignItems: 'center',
   },
   toast: {
-    borderRadius: radius.full,
+    width: '100%',
+    maxWidth: 460,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
     borderWidth: 1,
-    paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-    maxWidth: 560,
+    borderRadius: radius.full,
+    paddingTop: 10,
+    paddingRight: 12,
+    paddingBottom: 10,
+    paddingLeft: 16,
   },
-  toastText: { textAlign: 'center' },
+  toastText: { flex: 1, minWidth: 0 },
+  dismiss: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dismissLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    opacity: 0.72,
+  },
   rewardWrap: {
     position: 'absolute',
-    left: space.md,
-    right: space.md,
-    bottom: 84,
+    left: 12,
+    right: 12,
+    alignItems: 'center',
   },
   reward: {
-    borderRadius: radius.lg,
+    width: '100%',
+    maxWidth: 460,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     borderWidth: 1,
-    padding: space.md,
-    gap: space.xs,
+    borderRadius: radius.xl,
+    paddingTop: 12,
+    paddingRight: 12,
+    paddingBottom: 12,
+    paddingLeft: 14,
   },
-  rewardHead: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
-  rewardType: { marginLeft: 'auto' },
-  rewardRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.md },
-  lootRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  seal: {
+    width: 30,
+    height: 30,
+    flexShrink: 0,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rewardBody: { flex: 1, minWidth: 0, gap: 5 },
+  rewardTitle: {
+    fontFamily: fonts.display,
+    fontSize: 15.2,
+    lineHeight: 18,
+  },
+  bits: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 4,
+    columnGap: 10,
+    opacity: 0.92,
+  },
+  bit: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 1 },
+  bitText: {
+    fontFamily: fonts.ui,
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontVariant: ['tabular-nums'],
+    flexShrink: 1,
+  },
+  bitBold: { fontFamily: fonts.uiBold },
 })

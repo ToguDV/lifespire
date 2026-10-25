@@ -4,9 +4,17 @@ import { isSaveFileTooLarge, readSaveFile } from '@lifespire/app-core/ui/importS
 import type { ImportResult } from '@lifespire/app-core/ui/importSave'
 import { pickSaveFile, shareTextFile } from '../platform/files'
 
+/** Serializes a document under an explicit filename chosen by the caller. */
+export async function exportDocumentAs(
+  document: GameDocument,
+  filename: string,
+): Promise<void> {
+  await shareTextFile(filename, serializeDocument(document))
+}
+
 export async function exportDocument(document: GameDocument): Promise<void> {
   const date = dayKey(new Date())
-  await shareTextFile(`lifespire-${date}.json`, serializeDocument(document))
+  await exportDocumentAs(document, `lifespire-${date}.json`)
 }
 
 export async function exportRaw(text: string): Promise<void> {
@@ -14,15 +22,25 @@ export async function exportRaw(text: string): Promise<void> {
   await shareTextFile(`lifespire-recovery-${date}.json`, text)
 }
 
-export interface PickedSaveResult {
+/** A validated or rejected file keeps the name shown in the import preview. */
+export type PickedImportResult = ImportResult & { fileName?: string }
+
+export interface PickedSaveCanceled {
   canceled: true
 }
 
-export async function pickAndValidateSave(): Promise<ImportResult | PickedSaveResult> {
-  const picked = await pickSaveFile(2 * 1024 * 1024)
+export type PickedSaveResult = PickedImportResult | PickedSaveCanceled
+
+export async function pickAndValidateSave(): Promise<PickedSaveResult> {
+  const picked = await pickSaveFile()
   if (!picked) return { canceled: true }
-  if (isSaveFileTooLarge(picked.size)) {
-    return { ok: false, reason: 'invalid', message: 'That file is too large.' }
+  if (picked.tooLarge || isSaveFileTooLarge(picked.size)) {
+    return {
+      ok: false,
+      reason: 'invalid',
+      message: 'That file is too large.',
+      fileName: picked.name,
+    }
   }
-  return readSaveFile(picked.text)
+  return { ...readSaveFile(picked.text), fileName: picked.name }
 }

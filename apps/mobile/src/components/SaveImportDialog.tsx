@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
+import { LOOT_CATALOG, STORAGE_KEY } from '@lifespire/core'
 import type { GameDocument } from '@lifespire/core'
-import type { ImportResult } from '@lifespire/app-core/ui/importSave'
-import { space } from '../theme/tokens'
+import type { PickedImportResult } from '../lib/exportImport'
+import { useTheme } from '../theme/ThemeProvider'
+import { radius, space } from '../theme/tokens'
 import { Button } from './Button'
 import { Dialog } from './Dialog'
+import { Icon } from './Icon'
 import { Text } from './Text'
 
 export function SaveImportDialog({
@@ -11,15 +15,18 @@ export function SaveImportDialog({
   onClose,
   onConfirm,
 }: {
-  result: ImportResult | null
+  result: PickedImportResult | null
   onClose: () => void
-  onConfirm: (document: GameDocument) => void
+  onConfirm: (document: GameDocument) => boolean
 }) {
+  const { colors } = useTheme()
+  const [confirmError, setConfirmError] = useState<string | null>(null)
   if (!result) return null
   if (!result.ok) {
     return (
       <Dialog
         visible
+        eyebrow="Local import"
         title="That save cannot be imported"
         onClose={onClose}
         actions={<Button onPress={onClose}>Close</Button>}
@@ -35,38 +42,79 @@ export function SaveImportDialog({
   }
 
   const summary = result.summary
+  const fileName = result.fileName ?? 'chosen file'
   return (
     <Dialog
       visible
-      title="Import this save?"
+      eyebrow="Local import"
+      title="Restore this save?"
+      description="Review what the file contains before it replaces the data on this device."
       onClose={onClose}
       actions={
         <>
-          <Button variant="quiet" onPress={onClose}>Cancel</Button>
-          <Button onPress={() => onConfirm(result.document)}>Replace my save</Button>
+          <Button variant="quiet" onPress={onClose}>Keep current data</Button>
+          <Button
+            onPress={() => {
+              if (onConfirm(result.document)) return
+              setConfirmError(
+                'That save could not be restored. Your current data was left untouched.',
+              )
+            }}
+          >
+            Replace local data
+          </Button>
         </>
       }
     >
-      <Text variant="bodySm" tone="muted">
-        The current save is copied to a backup first. The imported document is validated before
-        anything is replaced.
-      </Text>
       <View style={styles.rows}>
-        <Row label="Schema" value={`v${summary.schemaVersion}`} />
-        <Row label="Traveller" value={summary.profileName ?? 'No profile'} />
-        <Row label="Level / gold" value={`${summary.level ?? '—'} · ${summary.gold ?? '—'}`} />
-        <Row label="Relics" value={String(summary.relics)} />
-        <Row label="Goals / routines" value={`${summary.goals} / ${summary.routines}`} />
+        <Row label="Profile" value={summary.profileName ?? 'No profile'} />
+        <Row label="Level" value={String(summary.level ?? '—')} />
+        <Row label="Gold" value={String(summary.gold ?? '—')} />
         <Row
           label="Run"
           value={
             summary.runStatus
-              ? `${summary.runStatus} · day ${summary.runDay ?? '—'} · ${summary.daysPlayed} played`
+              ? `${summary.runStatus} · day ${summary.runDay ?? '—'}`
               : 'No run'
           }
         />
+        <Row label="Relics" value={`${summary.relics} of ${LOOT_CATALOG.length}`} />
+        <Row label="Schema" value={`v${summary.schemaVersion}`} />
       </View>
+      <ImportWarning fileName={fileName} />
+      {confirmError ? (
+        <View
+          accessibilityRole="alert"
+          style={[
+            styles.error,
+            { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
+          ]}
+        >
+          <Icon name="lock" size={15} color={colors.inkStrong} />
+          <Text variant="bodySm" style={[styles.errorText, { color: colors.inkStrong }]}>
+            {confirmError}
+          </Text>
+        </View>
+      ) : null}
     </Dialog>
+  )
+}
+
+function ImportWarning({ fileName }: { fileName: string }) {
+  const { colors } = useTheme()
+  return (
+    <View
+      style={[
+        styles.warning,
+        { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
+      ]}
+    >
+      <Icon name="lock" size={15} color={colors.accentDeep} />
+      <Text variant="bodySm" tone="muted" style={styles.warningText}>
+        Replacing overwrites the profile, goals, routines, run and collection currently under{' '}
+        {STORAGE_KEY}. File: {fileName}.
+      </Text>
+    </View>
   )
 }
 
@@ -84,4 +132,27 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: space.md },
   value: { flex: 1, textAlign: 'right' },
   note: { marginTop: space.sm },
+  warning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: radius.sm,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginTop: space.md,
+  },
+  warningText: { flex: 1 },
+  error: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 9,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    marginTop: space.md,
+  },
+  errorText: { flex: 1 },
 })

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native'
+import type { TextStyle } from 'react-native'
 
 export type ColorScheme = 'light' | 'dark'
 
@@ -22,11 +23,6 @@ export interface Palette {
   doneRim: string
   doneInk: string
   scrim: string
-  gold: string
-  xp: string
-  danger: string
-  dangerSoft: string
-  success: string
   wheelTask: string
   wheelGold: string
   wheelXp: string
@@ -55,11 +51,7 @@ const light: Palette = {
   doneRim: '#20241e',
   doneInk: '#f1f0ea',
   scrim: 'rgba(22, 26, 20, 0.42)',
-  gold: '#8a6a2f',
-  xp: '#4d6b5a',
-  danger: '#8a3d34',
-  dangerSoft: '#f0ded9',
-  success: '#4d6b5a',
+  // The wheel is theme-invariant: Day and Night share the same wheel palette.
   wheelTask: '#20241e',
   wheelGold: '#385342',
   wheelXp: '#4d6b5a',
@@ -88,17 +80,13 @@ const dark: Palette = {
   doneRim: '#464c3f',
   doneInk: '#c3c7b9',
   scrim: 'rgba(5, 7, 4, 0.62)',
-  gold: '#d8b56a',
-  xp: '#9dbba8',
-  danger: '#d9a19a',
-  dangerSoft: '#33211f',
-  success: '#9dbba8',
-  wheelTask: '#e8e5d9',
-  wheelGold: '#c5dacb',
-  wheelXp: '#9dbba8',
-  wheelRest: '#c7a980',
+  // Same wheel palette as Day: the wheel never changes with the theme.
+  wheelTask: '#20241e',
+  wheelGold: '#385342',
+  wheelXp: '#4d6b5a',
+  wheelRest: '#6b5a3e',
   wheelStroke: '#40453a',
-  wheelIcon: '#131511',
+  wheelIcon: '#f1f0ea',
 }
 
 export const palettes: Record<ColorScheme, Palette> = { light, dark }
@@ -150,17 +138,19 @@ export type TextVariant =
   | 'caption'
   | 'micro'
   | 'button'
+  | 'numeral'
+  | 'brand'
+  | 'tab'
+  | 'resource'
+  | 'level'
 
-export const type: Record<
-  TextVariant,
-  { fontFamily: string; fontSize: number; lineHeight: number; letterSpacing?: number }
-> = {
-  displayXl: { fontFamily: fonts.display, fontSize: 56, lineHeight: 60, letterSpacing: -0.8 },
-  displayLg: { fontFamily: fonts.display, fontSize: 42, lineHeight: 46, letterSpacing: -0.6 },
-  displayMd: { fontFamily: fonts.display, fontSize: 32, lineHeight: 36, letterSpacing: -0.4 },
-  headingLg: { fontFamily: fonts.display, fontSize: 26, lineHeight: 30, letterSpacing: -0.3 },
+export const type: Record<TextVariant, TextStyle> = {
+  displayXl: { fontFamily: fonts.display, fontSize: 44, lineHeight: 48, letterSpacing: -0.66 },
+  displayLg: { fontFamily: fonts.display, fontSize: 36, lineHeight: 39, letterSpacing: -0.54 },
+  displayMd: { fontFamily: fonts.display, fontSize: 27, lineHeight: 29, letterSpacing: -0.4 },
+  headingLg: { fontFamily: fonts.display, fontSize: 22.5, lineHeight: 25, letterSpacing: -0.22 },
   headingMd: { fontFamily: fonts.display, fontSize: 20, lineHeight: 25 },
-  headingSm: { fontFamily: fonts.display, fontSize: 17, lineHeight: 22 },
+  headingSm: { fontFamily: fonts.display, fontSize: 16.8, lineHeight: 22 },
   bodyLg: { fontFamily: fonts.ui, fontSize: 17, lineHeight: 27 },
   bodyMd: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 23 },
   bodySm: { fontFamily: fonts.ui, fontSize: 13.5, lineHeight: 20 },
@@ -172,29 +162,63 @@ export const type: Record<
     letterSpacing: 1.68,
   },
   button: { fontFamily: fonts.uiBold, fontSize: 13, lineHeight: 18, letterSpacing: 0.26 },
+  numeral: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    lineHeight: 21,
+    letterSpacing: 0,
+    fontVariant: ['tabular-nums'],
+  },
+  brand: {
+    fontFamily: fonts.display,
+    fontSize: 13.8,
+    lineHeight: 18,
+    letterSpacing: 2.07,
+    textTransform: 'uppercase',
+  },
+  tab: {
+    fontFamily: fonts.uiBold,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  resource: {
+    fontFamily: fonts.uiBold,
+    fontSize: 12.8,
+    lineHeight: 16,
+    letterSpacing: 0,
+    fontVariant: ['tabular-nums'],
+  },
+  level: {
+    fontFamily: fonts.uiBold,
+    fontSize: 11.5,
+    lineHeight: 15,
+    letterSpacing: 0.46,
+  },
 }
 
 export const layout = {
-  screenPadding: space.lg,
+  screenPadding: space.md,
   tabbarHeight: 64,
   topbarHeight: 56,
   minTouch: Platform.OS === 'android' ? 48 : 44,
-  maxContentWidth: 760,
+  maxContentWidth: 780,
 } as const
 
 export const shadows = {
   soft: {
-    shadowColor: '#1d2119',
-    shadowOpacity: 0.18,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    elevation: 2,
   },
   float: {
-    shadowColor: '#1d2119',
-    shadowOpacity: 0.24,
+    shadowColor: '#000000',
+    shadowOpacity: 0.14,
     shadowRadius: 28,
     shadowOffset: { width: 0, height: 14 },
-    elevation: 8,
+    elevation: 4,
   },
 } as const

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Switch, View } from 'react-native'
 import type { Goal, GoalInput, GoalIconId } from '@lifespire/core'
-import { isGoalIconId, nextGoalIcon } from '@lifespire/core'
+import { MAX_GOALS, nextGoalIcon } from '@lifespire/core'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
 import { Button } from './Button'
@@ -16,12 +16,16 @@ export function GoalFormDialog({
   goals,
   onClose,
   onSubmit,
+  onArchive,
+  submitError,
 }: {
   visible: boolean
   goal?: Goal | null
   goals: Goal[]
   onClose: () => void
   onSubmit: (input: GoalInput) => void
+  onArchive?: (goal: Goal) => void
+  submitError?: string | null
 }) {
   const { colors } = useTheme()
   const [title, setTitle] = useState('')
@@ -60,10 +64,28 @@ export function GoalFormDialog({
   return (
     <Dialog
       visible={visible}
-      title={goal ? 'Edit goal' : 'New goal'}
+      eyebrow="The week's shape"
+      title={goal ? 'Edit goal' : 'Add a goal'}
+      description={
+        goal
+          ? 'Title and category shape maps drawn from now on. The icon updates across this run; weekly targets stay fixed.'
+          : `A goal holds the routines that move it. A run can hold up to ${MAX_GOALS} active goals.`
+      }
       onClose={onClose}
       actions={
         <>
+          {goal && onArchive ? (
+            <Button
+              variant="danger"
+              icon="archive"
+              onPress={() => {
+                onClose()
+                onArchive(goal)
+              }}
+            >
+              Archive goal
+            </Button>
+          ) : null}
           <Button variant="quiet" onPress={onClose}>
             Cancel
           </Button>
@@ -72,22 +94,44 @@ export function GoalFormDialog({
       }
     >
       <View style={styles.form}>
-        <Field label="Goal name" error={error}>
+        {submitError ? (
+          <View
+            accessibilityRole="alert"
+            style={[
+              styles.alert,
+              { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
+            ]}
+          >
+            <Text variant="caption" style={{ color: colors.inkStrong }}>
+              This goal was not saved
+            </Text>
+            <Text variant="bodySm" style={{ color: colors.inkStrong }}>
+              {submitError}
+            </Text>
+          </View>
+        ) : null}
+        <Field label="Goal title" error={error}>
           <Input
             value={title}
             onChangeText={(value) => {
               setTitle(value)
               if (error) setError(null)
             }}
-            placeholder="Get fit"
+            placeholder="e.g. Move under open sky"
             autoFocus
             returnKeyType="next"
           />
         </Field>
-        <Field label="Category (optional)">
-          <Input value={category} onChangeText={setCategory} placeholder="Body" />
+        <Field label="Category">
+          <Input value={category} onChangeText={setCategory} placeholder="e.g. Movement" />
         </Field>
-        <Field label="Weekly target" hint="How many routines of this goal you want to finish this week.">
+        <Field label="Goal icon" hint="The crest marks this goal on maps and in weekly progress.">
+          <IconPicker value={icon} onChange={setIcon} />
+        </Field>
+        <Field
+          label="Weekly target"
+          hint="How many routines of this goal you want to complete this week (1–7)."
+        >
           <View style={styles.stepper}>
             <Button
               variant="secondary"
@@ -107,12 +151,6 @@ export function GoalFormDialog({
               +
             </Button>
           </View>
-        </Field>
-        <Field label="Crest">
-          <IconPicker
-            value={isGoalIconId(icon) ? icon : 'banner'}
-            onChange={setIcon}
-          />
         </Field>
         <Pressable
           accessibilityRole="switch"
@@ -140,6 +178,12 @@ export function GoalFormDialog({
 
 const styles = StyleSheet.create({
   form: { gap: space.md },
+  alert: {
+    gap: space.xxs,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: space.sm,
+  },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   switchRow: {
     flexDirection: 'row',

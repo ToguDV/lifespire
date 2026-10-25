@@ -21,7 +21,7 @@ export function EffortDots({ effort, showLabel = true }: { effort: Effort; showL
             style={[
               styles.dot,
               {
-                backgroundColor: dot <= level ? colors.accent : colors.surfaceSunken,
+                backgroundColor: dot <= level ? colors.accent : 'transparent',
                 borderColor: dot <= level ? colors.accent : colors.hairline,
               },
             ]}
@@ -40,5 +40,5 @@ export function EffortDots({ effort, showLabel = true }: { effort: Effort; showL
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
   dots: { flexDirection: 'row', gap: 3 },
-  dot: { width: 7, height: 7, borderRadius: radius.full, borderWidth: 1 },
+  dot: { width: 5, height: 5, borderRadius: radius.full, borderWidth: 1 },
 })

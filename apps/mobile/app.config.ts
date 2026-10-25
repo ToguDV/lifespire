@@ -35,6 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         image: './assets/splash-icon.png',
         resizeMode: 'contain',
         backgroundColor: '#F1F0EA',
+        dark: { backgroundColor: '#131511' },
       },
     ],
     'expo-sharing',

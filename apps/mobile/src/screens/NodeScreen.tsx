@@ -24,13 +24,17 @@ import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
-import { Panel, PanelHead, ScreenHead } from '../components/Panel'
+import { Panel, ScreenHead } from '../components/Panel'
 import { Pips } from '../components/Progress'
 import { Screen } from '../components/Screen'
 import { Text } from '../components/Text'
 import { Wheel } from '../components/Wheel'
+import type { WheelPhase } from '../components/Wheel'
 import { playForRewardEvent } from '../lib/resolveFeedback'
+import { playFeedback } from '../state/feedback'
 import { useAppStore } from '../state/store'
+
+type WheelRoll = NonNullable<ReturnType<typeof rollWheelOutcome>>
 
 function AimProgress({ run, node }: { run: Run; node: MapNode }) {
   const { colors } = useTheme()
@@ -100,7 +104,7 @@ function NodeNotes({ node }: { node: MapNode }) {
   return null
 }
 
-function Note({ icon, text }: { icon: 'campfire' | 'chest' | 'wheel' | 'elite' | 'crown'; text: string }) {
+function Note({ icon, text }: { icon: 'campfire' | 'chest' | 'wheel' | 'elite' | 'crown' | 'lock'; text: string }) {
   const { colors } = useTheme()
   return (
     <View style={[styles.note, { backgroundColor: colors.accentWash, borderColor: colors.hairline }]}>
@@ -125,7 +129,8 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
   const node = map ? resolveNodeById(map, nodeId) : null
   const status = map && day && node ? nodeStatus(map, day, nodeId) : 'locked'
   const resolving = useRef(false)
-  const [spinning, setSpinning] = useState(node?.type === 'wheel')
+  const [wheelPhase, setWheelPhase] = useState<WheelPhase>('idle')
+  const [frozenRoll, setFrozenRoll] = useState<WheelRoll | null>(null)
 
   const rolled = useMemo(() => {
     if (!run || !day || !node || node.type !== 'wheel') return null
@@ -158,6 +163,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
   const record = (action: 'complete' | 'skip') => {
     if (resolving.current) return
     resolving.current = true
+    const bossBefore = day.map ? nodeStatus(day.map, day, day.map.boss.id) : null
     resolveNode(node.id, action)
     const state = useAppStore.getState()
     const resolvedDay = state.document.run?.days.find((candidate) => candidate.id === day.id)
@@ -167,6 +173,16 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
       return
     }
     playForRewardEvent(event)
+    if (
+      resolvedDay?.map &&
+      bossBefore !== 'available' &&
+      bossBefore !== 'current'
+    ) {
+      const bossAfter = nodeStatus(resolvedDay.map, resolvedDay, resolvedDay.map.boss.id)
+      if (bossAfter === 'available' || bossAfter === 'current') {
+        setTimeout(() => playFeedback('bossUnlock'), 180)
+      }
+    }
     if (node.type === 'boss') {
       navigate({ name: 'day-summary', dayId: day.id })
       return
@@ -187,10 +203,18 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
   }
 
   const isWheel = node.type === 'wheel'
-  const weeklyProgress = nodeProgress(run, node)
+  // Freeze the preview when the player commits to the spin so a sync that
+  // changes goals mid-animation cannot relabel the sector under the pointer.
+  const wheelRoll = frozenRoll ?? rolled
+  const revealedWheel = isWheel && wheelPhase === 'revealed' ? wheelRoll : null
+  const weeklyProgress = revealedWheel?.progress ? 1 : nodeProgress(run, node)
+  const weeklyGoalTitle = revealedWheel?.task?.goalTitle ?? node.task?.goalTitle ?? null
   const goalCrest = node.task ? (goalIconFor(document.goals, node.task.goalId) ?? 'banner') : null
   const crest = goalCrest ?? NODE_TYPE_ICON[node.type]
   const lootRolls = node.rewards.lootRolls
+  const skipNote = `Skipping grants no XP, gold, loot or weekly progress; it only advances the path.${
+    node.type === 'boss' ? ' Skipping the boss closes the day without the closing bonus.' : ''
+  }`
 
   return (
     <Screen>
@@ -239,6 +263,25 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
             </Chip>
           </View>
 
+          {isWheel && wheelRoll ? (
+            <Wheel
+              key={node.id}
+              segmentIndex={wheelRoll.segmentIndex}
+              result={{
+                outcome: wheelRoll.outcome,
+                taskTitle: wheelRoll.task?.title ?? null,
+                xp: wheelRoll.xp,
+                gold: wheelRoll.gold,
+                progress: wheelRoll.progress,
+              }}
+              onRecap={goRecap}
+              onPhaseChange={(phase) => {
+                if (phase === 'spinning' && !frozenRoll && rolled) setFrozenRoll(rolled)
+                setWheelPhase(phase)
+              }}
+            />
+          ) : null}
+
           <View style={[styles.facts, { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline }]}>
             <NodeFact
               label="Effort"
@@ -265,7 +308,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
             <NodeFact
               label="Goal"
               value={weeklyProgress > 0 ? '+1' : '—'}
-              note={weeklyProgress > 0 && node.task ? `${node.task.goalTitle} this week` : 'No weekly progress'}
+              note={weeklyProgress > 0 && weeklyGoalTitle ? `${weeklyGoalTitle} this week` : 'No weekly progress'}
               last
             />
           </View>
@@ -292,39 +335,34 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
           </Button>
 
           {isWheel ? (
-            <Panel>
-              <PanelHead label="The wheel" aside={<Text variant="caption" tone="soft">{spinning ? 'Turning' : 'Settled'}</Text>} />
-              <Wheel
-                segmentIndex={rolled?.segmentIndex ?? 0}
-                disabled={!spinning}
-                onSettled={() => {
-                  setSpinning(false)
-                  goRecap()
-                }}
-              />
-              <Text variant="caption" tone="muted" style={styles.wheelNote}>
-                The outcome is fixed when you spin. After it settles the recap opens on its own and
-                there is no second spin.
-              </Text>
-              <Button variant="quiet" onPress={() => record('skip')} full>
-                Skip the wheel
-              </Button>
-            </Panel>
+            wheelPhase === 'revealed' ? null : (
+              <>
+                <Note icon="lock" text={skipNote} />
+                <View style={styles.actions}>
+                  <Button
+                    variant="quiet"
+                    disabled={wheelPhase === 'spinning'}
+                    onPress={() => record('skip')}
+                    full
+                  >
+                    Skip this step
+                  </Button>
+                </View>
+              </>
+            )
           ) : (
-            <View style={styles.actions}>
-              <Button icon="check" onPress={() => record('complete')} full>
-                Mark complete
-              </Button>
-              <Button variant="quiet" onPress={() => record('skip')} full>
-                Skip this step
-              </Button>
-            </View>
+            <>
+              <Note icon="lock" text={skipNote} />
+              <View style={styles.actions}>
+                <Button icon="check" onPress={() => record('complete')} full>
+                  Mark complete
+                </Button>
+                <Button variant="quiet" onPress={() => record('skip')} full>
+                  Skip this step
+                </Button>
+              </View>
+            </>
           )}
-
-          <Text variant="caption" tone="soft" style={styles.skipNote}>
-            Skipping grants no XP, gold, loot or weekly progress; it only advances the path.
-            {node.type === 'boss' ? ' Skipping the boss closes the day without the closing bonus.' : ''}
-          </Text>
         </View>
       </Panel>
     </Screen>
@@ -483,7 +521,5 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   bonusValue: { fontFamily: fonts.display, fontSize: 15, lineHeight: 19 },
-  actions: { gap: space.sm },
-  wheelNote: { textAlign: 'center', marginVertical: space.sm },
-  skipNote: { marginBottom: space.md, textAlign: 'center' },
+  actions: { gap: space.sm, marginTop: space.sm },
 })

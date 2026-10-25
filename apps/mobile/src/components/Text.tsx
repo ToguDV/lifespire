@@ -32,15 +32,11 @@ export function Text({
           ? colors.accent
           : tone === 'deep'
             ? colors.accentDeep
-            : tone === 'gold'
-              ? colors.gold
-              : tone === 'xp'
-                ? colors.xp
-                : tone === 'danger'
-                  ? colors.danger
-                  : tone === 'inverse'
-                    ? colors.onAccent
-                    : colors.ink
+            : tone === 'gold' || tone === 'xp' || tone === 'danger'
+              ? colors.inkStrong
+              : tone === 'inverse'
+                ? colors.onAccent
+                : colors.ink
 
   return (
     <RNText

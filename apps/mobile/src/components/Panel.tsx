@@ -33,8 +33,9 @@ export function Panel({
 }
 
 export function PanelHead({ label, aside }: { label: string; aside?: ReactNode }) {
+  const { colors } = useTheme()
   return (
-    <View style={styles.head}>
+    <View style={[styles.head, { borderColor: colors.hairline }]}>
       <Text variant="micro" tone="muted">
         {label.toUpperCase()}
       </Text>
@@ -54,13 +55,17 @@ export function ScreenHead({
   subtitle?: ReactNode
   aside?: ReactNode
 }) {
+  const { colors } = useTheme()
   return (
     <View style={styles.screenHead}>
       <View style={styles.screenHeadText}>
         {kicker ? (
-          <Text variant="micro" tone="accent">
-            {kicker.toUpperCase()}
-          </Text>
+          <View style={styles.kicker}>
+            <View style={[styles.kickerMark, { backgroundColor: colors.accent }]} />
+            <Text variant="micro" tone="muted">
+              {kicker.toUpperCase()}
+            </Text>
+          </View>
         ) : null}
         <Text variant="displayMd" accessibilityRole="header">
           {title}
@@ -91,7 +96,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.sm,
-    marginBottom: space.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: space.sm,
+    marginBottom: space.md,
   },
   screenHead: {
     flexDirection: 'row',
@@ -100,5 +107,7 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   screenHeadText: { flex: 1, gap: space.xs },
+  kicker: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  kickerMark: { width: 5, height: 5, borderRadius: 1, transform: [{ rotate: '45deg' }] },
   aside: { alignItems: 'flex-end' },
 })

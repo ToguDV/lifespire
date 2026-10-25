@@ -119,18 +119,117 @@ the rest of the app remains fully usable.
 
 ## 6. UI notes
 
-- Tokens, palettes and type scale mirror `design/DESIGN.md` and
-  `apps/web/src/styles/tokens.css`; Alegreya/Alegreya Sans are self-loaded
+- Tokens, palettes and type scale derive from the same web clamps in
+  `design/DESIGN.md` and `apps/web/src/styles/tokens.css`, sampled at the
+  320–480 px phone range: display 44/36/27, heading-lg 22.5, a 16 px horizontal
+  gutter and 18/21 tabular numerals. Alegreya/Alegreya Sans are self-loaded
   through `@expo-google-fonts` (OFL), the eight used weights including italics.
+- There are no extra semantic colours on mobile: currency and gems use
+  `accentDeep`, destructive actions and warnings use stone (`surfaceSunken`,
+  `hairlineStrong`, `inkStrong`). `gold` remains a wheel-sector label, not a
+  palette token; `danger` is not a token.
+- Onboarding keeps the web welcome copy and art: the copy comes first, followed
+  by the stroke-only `welcome-art` plate (spire, halo, dotted path, four nodes,
+  pines and crescent) and the lock privacy line. The wizard keeps the four
+  steps, the review summary and the routine-based target suggestions. Editing a
+  goal or routine inside the wizard opens a touch dialog instead of the web
+  inline fieldsets; the domain draft and validation stay shared. The screen
+  keeps a single Back in the footer, and the step chips are the compact
+  adaptation of the web step list.
+- The map mirrors the web state machine: the screen resolves the active day,
+  prefers today's completed or missed day, and derives sealed/locked/hasMap/
+  canOpen so the head chip, empty copy and Next step panel all speak the same
+  state. Sealed, locked and unopened days render the empty map frame (frame
+  meta, decorative contours, `EmptyState`, compass), never a generic panel.
 - The map uses `react-native-svg` plus absolutely positioned `Pressable`
-  nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. The wheel uses the
-  same sector/payout math as web with an `Animated` rotation.
+  nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. Every normal node is a
+  54×54 dp target centred on its coordinate, whatever the visible medallion
+  (45/50; 40/44 on five-node layers). Labels cap at 78 dp (64 dp on layers of
+  three or more nodes)
+  and the boss label keeps 124 dp. Labels stay hidden at rest, including the
+  current node: the first tap reveals the title, the second opens the node.
+  Only available/current nodes reveal and open; the rest are `disabled`. The
+  accessible name comes from `nodeAriaLabel` and the frame announces the group
+  as “Camp at the bottom, N layers above, and the boss at the top.” The current
+  node uses its ring as the only marker: the desktop-only HERE micro label is
+  not rendered on Android. Selecting a node plays the select haptic; the boss
+  opening plays `bossUnlock`.
+- The rail is stacked, not docked: three panels (Next step, Weekly targets,
+  Legend) follow the frame in the single screen scroll at every Android width.
+  The old floating dock is retired. Next step holds the choice rows or the
+  sealed/locked/veiled copy and the foot note; the empty map frame carries the
+  contextual action (read the day/week, return to camp, open the path). Weekly
+  targets uses `AimRow` with the goal crest and pips; the richer legend stays.
+- The wheel shares the web spin physics (`packages/app-core/src/ui/wheel.ts`) and mirrors the
+  canonical geometry in `components/wheelGeometry.ts`: 200×200 disc, ten 36°
+  sectors, 16px icons at radius 62, a fixed 52px hub, a 6px hairline-strong
+  ring, a 9.1s four-turn easeOutQuart `Animated` rotation, a throttled haptic
+  tick every two sector crossings and a 1.8s reveal before the recap. The wheel
+  sits after the node tags and before the facts so the primary action stays near
+  the first viewport on a 390×844 screen; the recap mirrors the web
+  `node-spread`. No sound is bundled: wheel feedback is haptic only, and the
+  haptics toggle already gates it.
+- Shared primitives mirror the published web CSS: `EmptyState` puts a 64 px
+  accent medallion inside a 76 px wash ring and accepts an optional kicker;
+  `StatStrip` is three equal cells split by hairlines (value first, label
+  below); `LootCard` is a vertical 164 px card with a 52×62 niche and the
+  Relics grid is two columns; `Toast`/`RewardToast` invert the palette (ink
+  background, canvas text) and the plain toast adds a 44 dp Dismiss;
+  `IconPicker` tiles are 54 dp with a visible label and a check badge.
+- Day and run summaries are one framed card with 24 dp sections and hairline
+  dividers, not a stack of panels: a 70 dp seal, the narrative header, one
+  path list with 35 dp medallions, the three XP / Gold / Relics totals and the
+  dashed level-up strip. The weekly close adds `StatStrip` bars (0..1
+  `progress`), the per-goal bonus block plus the all-goals block, two-column
+  `LootCard`s and the Reliquary link; the profile line reads `xpIntoLevel` /
+  `xpToNextLevel`, never total XP as “XP”. The open run reuses the same card
+  with its record strip and `Open the map`, and the new-run dialog keeps the
+  retirement warning and surfaces a local error when `startNewRun` fails.
+- Profile is titled **The Reliquary** (`Profile · The Reliquary` kicker) and
+  never uses the player name as the title; the header chip shows owned relics
+  against `collection.length`. The profile strip is one panel with the 62 dp
+  level badge, name, `Wayfarer of the quiet path`, the experience bar and the
+  Gold / Relics / Days kept totals. The collection lives outside that panel
+  under `Found so far`: the shared `SegmentedControl` filters carry their
+  found counts, a polite live region announces `Showing X relics · Y found`
+  and the two-column `LootCard` grid uses the catalogue length for every
+  total. Duplicate history uses a quiet gold chip and separates the “no run”
+  and “no conversions yet” copies.
+- Settings orders Sync, Appearance, Feedback, Data, Notifications, Local data
+  and About so sync and the save are not buried; notifications stay after
+  Data because they are Android-only. Theme options are Day, Night and
+  System. Sync keeps the 12-character password guidance, field hints and
+  success/error tones, and reset is a single `Local data` dialog with the
+  typed confirmation.
+- Recovery starts with the brand row and theme switch, a `Local save`
+  `ScreenHead`, and one neutral panel holding the warning note,
+  import/export/reset actions and the reset note. The second “Start over”
+  panel is retired; export still uses the Android share sheet as “Export
+  original save”.
+- Data safety matches web. The import preview names the chosen JSON file and
+  warns that replacing overwrites the keys under `lifespire:mvp0`. A sync
+  conflict shows both copies (profile, progress, run and saved time), lists up
+  to five merge reasons and can share this device and the cloud copy as two
+  separate `lifespire-this-device-<date>.json` / `lifespire-cloud-<date>.json`
+  files. A local backup is written before keeping either side, and “Export
+  both” also keeps the conflict open until the player decides.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
   recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.
-- Haptics follow the web feedback vocabulary through `expo-haptics`. Sound is
-  not bundled in this release; the haptics toggle is the device feedback
-  preference.
+- The mobile topbar is the 56 dp shell header: 21 px spire mark plus wordmark on
+  the left, gold (16 px coin), `Lv N`, the theme switch and Settings on the
+  right. It does not show the day pips or `Day N of 7`; Home carries the week
+  strip and Map carries the day in its kicker, while the other screens rely on
+  the topbar-free context. The topbar uses a 14 px gutter and a hairline
+  bottom border on the canvas background; the tab labels use the 10/13
+  uppercase `tab` variant (0.6 tracking), active in `ink` and inactive in
+  `inkSoft`. The theme switch and Settings are 44 dp targets, and the brand
+  truncates before the fixed resource cluster on narrow screens.
+- The splash screen has a night variant (`#131511`) next to the light canvas
+  (`#F1F0EA`), and the root view repaints the Android system background with
+  the resolved theme.
+- Haptics follow the web feedback vocabulary through `expo-haptics`; the
+  haptics toggle is the device feedback preference.
 - Every screen uses safe areas, 48 dp touch targets, TalkBack labels/state and
   reduced-motion handling for the wheel, counters and seals.
 

@@ -66,14 +66,9 @@ export function HomeScreen() {
         openDay()
         navigate({ name: 'map' })
         return
-      case 'continue-day': {
-        if (current?.map?.currentNodeId) {
-          navigate({ name: 'node', nodeId: current.map.currentNodeId })
-        } else {
-          navigate({ name: 'map' })
-        }
+      case 'continue-day':
+        navigate({ name: 'map' })
         return
-      }
       case 'review-day':
         if (state.today) navigate({ name: 'day-summary', dayId: state.today.id })
         return
@@ -207,7 +202,7 @@ export function HomeScreen() {
               <Progress value={xpIntoLevel(profile.xp)} max={100} label="Experience to next level" />
             </View>
             <View style={styles.gold}>
-              <Icon name="coin" size={16} color={colors.gold} />
+              <Icon name="coin" size={16} color={colors.accentDeep} />
               <AnimatedNumber value={profile.gold} />
             </View>
           </View>
@@ -220,9 +215,6 @@ export function HomeScreen() {
       ) : null}
 
       <View style={styles.links}>
-        <Button variant="secondary" icon="map" onPress={() => navigate({ name: 'map' })} full>
-          Open the map
-        </Button>
         <Button variant="quiet" icon="banner" onPress={() => navigate({ name: 'goals' })} full>
           Review goals and routines
         </Button>
