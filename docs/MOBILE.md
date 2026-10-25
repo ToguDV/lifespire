@@ -321,6 +321,13 @@ first build must be linked with `eas init` under the team account. Local
 verification can use `pnpm --filter @lifespire/mobile android:native` with an
 Android SDK and a connected device/emulator.
 
+The release workflow builds the `preview` APK on EAS cloud; `EXPO_TOKEN` must be
+a repository secret. `app.config.ts` reads `LIFESPIRE_APP_VERSION` (the tag
+without `v`) so the APK version matches the release, and derives
+`android.versionCode` from it (`major × 1_000_000 + minor × 1_000 + patch`), so
+the code only grows across releases. Without the variable, local builds keep
+`0.1.0`.
+
 ## 10. Known follow-ups
 
 - Physical-device verification and screenshots (this repository's CI has no

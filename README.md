@@ -8,13 +8,15 @@ LifeSpire turns a person's goals and routines into a daily node map inspired by
 with weekly objectives — the more you complete, the more gold, XP, and loot you
 earn.
 
-It's local-first on **web and Android**: one profile, playable as a guest with
-no server. The web app is installable as a PWA and fully usable offline after
-the first load. The Android app (Expo/React Native) shares the same domain,
-save format and optional sync, and adds device-local reminders for the daily
-map, an unresolved evening and the end of the run. An optional closed-beta sync
-API (NestJS + Postgres) links a user's devices; see `docs/BACKEND.md` and
-`docs/MOBILE.md`.
+It's local-first on **web, Android and desktop**: one profile, playable as a
+guest with no server. The web app is installable as a PWA and fully usable
+offline after the first load. The Android app (Expo/React Native) shares the
+same domain, save format and optional sync, and adds device-local reminders for
+the daily map, an unresolved evening and the end of the run. The desktop app is
+an Electron shell around the same web build, shipped as a `.deb`/AppImage,
+portable Linux build and a Windows installer; an optional closed-beta sync API
+(NestJS + Postgres) links a user's devices. See `docs/BACKEND.md`,
+`docs/MOBILE.md` and `docs/DESKTOP.md`.
 
 The node map is the heart of the app: each day you pick a path through 3–15 layers
 plus a boss, with visible trade-offs between progress, effort, and reward. The
@@ -43,13 +45,15 @@ Mobile layouts are fully supported:
 pnpm install --frozen-lockfile
 pnpm dev        # web dev server
 pnpm dev:mobile # Android app (Expo)
+pnpm dev:desktop # Electron shell (run `pnpm dev` in another terminal)
 ```
 
 Open the printed web URL. For Android, open the project in Expo Go or run a
 development build with `pnpm --filter @lifespire/mobile android:native`.
 `docs/MOBILE.md` covers the SDK, the server URL override, local notifications
-and the release checklist. On first launch you can load **demo data** and start a run
-in one click, or create your own goals and routines.
+and the release checklist. For desktop, `docs/DESKTOP.md` covers the packaged
+builds and the tag-driven release workflow. On first launch you can load **demo
+data** and start a run in one click, or create your own goals and routines.
 
 ### Full local stack (single command, hot reload)
 

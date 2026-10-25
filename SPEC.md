@@ -35,6 +35,9 @@ Concrete criteria:
 ### Inside scope
 
 - Responsive web app, installable as a PWA and functional offline after the first load.
+- Desktop app (Electron) that reuses the web build unchanged, with unsigned
+  installers for Linux (`.deb`, AppImage, `tar.gz`) and Windows (NSIS `.exe`,
+  portable zip). See `docs/DESKTOP.md`.
 - Native Android app (Expo/React Native) with the same daily loop, goals,
   collection, save format, import/export and optional account sync.
 - A single local profile. Optional closed-beta sync: multi-user NestJS API
@@ -69,7 +72,8 @@ Concrete criteria:
 - Automatic task verification, timers, or app blocking.
 - Social features, rankings, complex achievements.
 - A second native platform (iOS) verified in this release. The Android app is
-  native; a web wrapper (Tauri/Capacitor) is no longer the plan.
+  native; desktop ships as an Electron shell around the web build (see
+  `docs/DESKTOP.md`), not a second UI. A Tauri/Capacitor wrapper is not planned.
 - Recovering missed days, multiple simultaneous runs, i18n, themes, analytics, or monetization.
 
 ## 4. Concepts and rules
@@ -205,6 +209,9 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 ## 9. Proposed architecture
 
 - Web: React 19 + TypeScript + Vite, reusing the existing scaffold.
+- Desktop: Electron shell (`apps/desktop`) that serves the production web build
+  from a custom `lifespire-app://app` origin; `electron-builder` produces the
+  Linux and Windows installers. No separate UI.
 - Android: Expo SDK 58 + React Native 0.88 + TypeScript, consuming the same
   `@lifespire/core` domain and `@lifespire/app-core` store/sync package.
 - Notifications: `expo-notifications`, a pure planner and a device scheduler;
@@ -247,6 +254,9 @@ The demo is considered complete when it can be run without failures:
     snapshot sync plus the keep-mine/keep-cloud conflict path offline.
 15. Run the tests for generation, rewards, weekly close, and the Android
     notification planner.
+16. Install the desktop build on Linux (`.deb`) and Windows (`.exe`), finish
+    onboarding, resolve a day, reload and confirm the save survives; export the
+    save and confirm the native save dialog opens.
 
 ## 11. Build order
 
