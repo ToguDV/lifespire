@@ -4,11 +4,15 @@ import {
   API_PROXY_MAX_RESPONSE_BYTES,
   createApiProxy,
   createTokenVault,
+  createVaultFile,
+  installFetchMetadataStrip,
+  isTrustedIpcSender,
   isTrustedSender,
   normalizeProxyOrigin,
   sanitizeProxyRequest,
   stripFetchMetadata,
 } from './apiProxy'
+import type { FetchMetadataSession, VaultFs } from './apiProxy'
 
 const SERVER = 'https://sync.example.com'
 const OTHER_SERVER = 'https://other.example.com'
@@ -112,11 +116,24 @@ describe('normalizeProxyOrigin', () => {
     expect(normalizeProxyOrigin('http://[fd00::1]:3000')).toBe('http://[fd00::1]:3000')
   })
 
-  it('always blocks link-local and cloud metadata addresses', () => {
+  it('always blocks IPv4 link-local and cloud metadata addresses', () => {
     expect(normalizeProxyOrigin('http://169.254.169.254')).toBeNull()
     expect(normalizeProxyOrigin('http://169.254.1.1:3000')).toBeNull()
     expect(normalizeProxyOrigin('http://[fd00:ec2::254]')).toBeNull()
     expect(normalizeProxyOrigin('http://[fd00:ec2::254]:8080')).toBeNull()
+  })
+
+  it('canonicalizes IPv4-mapped IPv6 before the metadata check', () => {
+    expect(normalizeProxyOrigin('http://[::ffff:169.254.169.254]')).toBeNull()
+    expect(normalizeProxyOrigin('http://[::ffff:a9fe:a9fe]')).toBeNull()
+  })
+
+  it('blocks the IPv6 link-local range fe80::/10', () => {
+    expect(normalizeProxyOrigin('http://[fe80::1]')).toBeNull()
+    expect(normalizeProxyOrigin('http://[febf::1]:3000')).toBeNull()
+    expect(normalizeProxyOrigin('http://[FE80::ABCD]')).toBeNull()
+    expect(normalizeProxyOrigin('http://[fd00::1]')).toBe('http://[fd00::1]')
+    expect(normalizeProxyOrigin('http://[2001:db8::1]')).toBe('http://[2001:db8::1]')
   })
 })
 
@@ -171,7 +188,7 @@ describe('sanitizeProxyRequest', () => {
     expect(() => sanitizeProxyRequest({ path: '/v1/sync', method: 'OPTIONS' })).toThrow()
   })
 
-  it('rejects a body over 2 MB and allows the exact limit', () => {
+  it('rejects a body over 1 MB and allows the exact limit', () => {
     const exact = 'a'.repeat(API_PROXY_MAX_BODY_BYTES)
     expect(
       sanitizeProxyRequest({
@@ -257,44 +274,22 @@ describe('createApiProxy requests', () => {
     expect(requestHeaders(calls[0]!.init)['x-client-platform']).toBeUndefined()
   })
 
-  it('follows same-origin redirects for the health probe only', async () => {
-    const { proxy, calls } = makeProxy(async (url) => {
-      if (url === `${OTHER_SERVER}/health/live`) {
-        return new Response(null, {
-          status: 302,
-          headers: { location: '/health/live?probe=1' },
-        })
-      }
-      return json({ status: 'ok' })
+  it('maps a health redirect failure to a clear message', async () => {
+    const { proxy, calls } = makeProxy(async () => {
+      throw new TypeError('Failed to fetch: unexpected redirect')
     })
     const result = await proxy.request({
       path: '/health/live',
       method: 'GET',
       origin: OTHER_SERVER,
     })
-    expect(result.ok).toBe(true)
-    expect(calls.map((call) => call.url)).toEqual([
-      `${OTHER_SERVER}/health/live`,
-      `${OTHER_SERVER}/health/live?probe=1`,
-    ])
-    expect(calls[0]?.init.redirect).toBe('manual')
-  })
-
-  it('rejects a health redirect to another origin', async () => {
-    const { proxy } = makeProxy(
-      async () =>
-        new Response(null, {
-          status: 302,
-          headers: { location: 'https://evil.example.com/health/live' },
-        }),
-    )
-    const result = await proxy.request({
-      path: '/health/live',
-      method: 'GET',
-      origin: OTHER_SERVER,
-    })
-    expect(result).toMatchObject({ ok: false, error: { code: 'REDIRECT_NOT_ALLOWED' } })
-    if (!result.ok) expect(result.error.message).toMatch(/use that address/i)
+    expect(result).toMatchObject({ ok: false, error: { code: 'HEALTH_REDIRECT' } })
+    if (!result.ok) {
+      expect(result.error.message).toBe(
+        'That address redirects elsewhere — use the final https:// address.',
+      )
+    }
+    expect(calls[0]?.init.redirect).toBe('error')
   })
 
   it('keeps redirects disabled for API requests', async () => {
@@ -304,16 +299,18 @@ describe('createApiProxy requests', () => {
     expect(calls[0]?.init.redirect).toBe('error')
   })
 
-  it('caps responses declared over 5 MB', async () => {
-    const { proxy } = makeProxy(
-      async () =>
-        new Response('{}', {
-          headers: { 'content-length': String(API_PROXY_MAX_RESPONSE_BYTES + 1) },
-        }),
-    )
+  it('aborts the transfer when Content-Length is over 5 MB', async () => {
+    let signal: AbortSignal | undefined
+    const { proxy } = makeProxy(async (_url, init) => {
+      signal = init.signal ?? undefined
+      return new Response('{}', {
+        headers: { 'content-length': String(API_PROXY_MAX_RESPONSE_BYTES + 1) },
+      })
+    })
     proxy.setServer(SERVER)
     const result = await proxy.request({ path: '/v1/sync', method: 'GET' })
     expect(result).toMatchObject({ ok: false, error: { code: 'RESPONSE_TOO_LARGE' } })
+    expect(signal?.aborted).toBe(true)
   })
 
   it('caps streamed responses over 5 MB', async () => {
@@ -427,6 +424,32 @@ describe('createApiProxy session handling', () => {
     expect(result).toMatchObject({ ok: false, error: { code: 'REQUEST_ABORTED' } })
     expect(proxy.sessionState().signedIn).toBe(false)
     expect(file.snapshot()).toBeNull()
+  })
+
+  it('aborts a transport that respects the signal', async () => {
+    const started = deferred<void>()
+    let sawAbort = false
+    const { proxy } = makeProxy((url, init) => {
+      if (!url.endsWith('/v1/auth/refresh')) return Promise.resolve(json(loginBody()))
+      started.resolve()
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => {
+          sawAbort = true
+          reject(new DOMException('Aborted', 'AbortError'))
+        })
+      })
+    })
+    proxy.setServer(SERVER)
+    await proxy.request({ path: '/v1/auth/login', method: 'POST', body: '{}' })
+    const pending = proxy.request({ path: '/v1/auth/refresh', method: 'POST' })
+    await started.promise
+    proxy.signOut()
+    await expect(pending).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'REQUEST_ABORTED' },
+    })
+    expect(sawAbort).toBe(true)
+    expect(proxy.sessionState().signedIn).toBe(false)
   })
 
   it('aborts an in-flight refresh when the server changes', async () => {
@@ -544,6 +567,42 @@ describe('createApiProxy session handling', () => {
     expect(file.snapshot()).toBeNull()
   })
 
+  it('preserves a 401 when local credential cleanup also fails', async () => {
+    let value: string | null = null
+    const lockedVault = createTokenVault({
+      file: {
+        read: () => value,
+        write: (next) => {
+          value = next
+        },
+        remove: () => {
+          throw new Error('vault locked')
+        },
+      },
+      crypto: {
+        isEncryptionAvailable: () => true,
+        usesPlainTextBackend: () => false,
+        encryptString: (token) => Buffer.from(`enc:${token}`),
+        decryptString: (buffer) => buffer.toString().replace(/^enc:/, ''),
+      },
+    })
+    const proxy = createApiProxy({
+      vault: lockedVault,
+      fetch: (async (url: unknown) =>
+        String(url).endsWith('/v1/auth/refresh')
+          ? json({ title: 'Expired', code: 'AUTH_TOKEN_EXPIRED' }, 401)
+          : json(loginBody())) as typeof fetch,
+    })
+    proxy.setServer(SERVER)
+    await proxy.request({ path: '/v1/auth/login', method: 'POST', body: '{}' })
+    const result = await proxy.request({ path: '/v1/auth/refresh', method: 'POST' })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.response.status).toBe(401)
+    expect(result.response.cleanupError).toMatchObject({ code: 'VAULT_DELETE_FAILED' })
+    expect(proxy.sessionState().signedIn).toBe(false)
+  })
+
   it('keeps the session memory-only when safeStorage is unavailable', async () => {
     for (const options of [{ available: false }, { plaintext: true }]) {
       const { proxy, file } = makeProxy(async () => json(loginBody()), options)
@@ -644,6 +703,49 @@ describe('token vault', () => {
     expect(file.snapshot()).toBeNull()
   })
 
+  it('removes an orphaned credential when booting memory-only', () => {
+    const { vault, file } = makeVault({ available: false })
+    file.write(JSON.stringify({ version: 1, origin: SERVER, token: 'ciphertext' }))
+    expect(vault.load(SERVER)).toBeNull()
+    expect(file.snapshot()).toBeNull()
+  })
+
+  it('removes an existing credential when saving memory-only', () => {
+    const { vault, file } = makeVault({ available: false })
+    file.write(JSON.stringify({ version: 1, origin: SERVER, token: 'ciphertext' }))
+    vault.save(SERVER, 'refresh-1')
+    expect(file.snapshot()).toBeNull()
+    expect(vault.load(SERVER)).toBe('refresh-1')
+  })
+
+  it('blocks reloading the vault after a failed delete', () => {
+    let reads = 0
+    let removeFails = true
+    const vault = createTokenVault({
+      file: {
+        read: () => {
+          reads += 1
+          return JSON.stringify({ version: 1, origin: SERVER, token: 'ciphertext' })
+        },
+        write: () => undefined,
+        remove: () => {
+          if (removeFails) throw new Error('locked')
+        },
+      },
+      crypto: {
+        isEncryptionAvailable: () => false,
+        usesPlainTextBackend: () => false,
+        encryptString: (value) => Buffer.from(value),
+        decryptString: (buffer) => buffer.toString(),
+      },
+    })
+    expect(() => vault.load(SERVER)).toThrow(/locked/)
+    expect(reads).toBe(1)
+    removeFails = false
+    expect(vault.load(SERVER)).toBeNull()
+    expect(reads).toBe(1)
+  })
+
   it('propagates write and delete failures instead of hiding them', () => {
     const brokenWrite = createTokenVault({
       file: {
@@ -698,6 +800,170 @@ describe('stripFetchMetadata', () => {
     const headers = { 'SEC-FETCH-SITE': 'none', origin: 'x', Referer: 'y' }
     stripFetchMetadata(headers)
     expect(headers).toEqual({})
+  })
+})
+
+describe('installFetchMetadataStrip', () => {
+  function fakeSession() {
+    const listeners: Array<{
+      filter: { urls: string[] }
+      listener: (
+        details: { requestHeaders: Record<string, string | string[]> },
+        callback: (response: {
+          requestHeaders: Record<string, string | string[]>
+        }) => void,
+      ) => void
+    }> = []
+    const sessionLike = {
+      webRequest: {
+        onBeforeSendHeaders: (
+          filter: { urls: string[] },
+          listener: (typeof listeners)[number]['listener'],
+        ) => {
+          listeners.push({ filter, listener })
+        },
+      },
+    }
+    return { sessionLike, listeners }
+  }
+
+  it('installs only on the API session, never the default session', () => {
+    const api = fakeSession()
+    const defaultSession = fakeSession()
+    installFetchMetadataStrip(api.sessionLike as unknown as FetchMetadataSession)
+    expect(api.listeners).toHaveLength(1)
+    expect(defaultSession.listeners).toHaveLength(0)
+  })
+
+  it('strips the headers before the request leaves the API session', () => {
+    const api = fakeSession()
+    installFetchMetadataStrip(api.sessionLike as unknown as FetchMetadataSession)
+    let response: { requestHeaders: Record<string, string | string[]> } | null = null
+    api.listeners[0]!.listener(
+      {
+        requestHeaders: {
+          'sec-fetch-site': 'none',
+          Origin: 'lifespire-app://app',
+          'content-type': 'application/json',
+        },
+      },
+      (next) => {
+        response = next
+      },
+    )
+    expect(response).toEqual({ requestHeaders: { 'content-type': 'application/json' } })
+  })
+})
+
+describe('isTrustedIpcSender', () => {
+  const policy = { isPackaged: true, devUrl: 'http://localhost:5173' }
+
+  it('requires the main window, the main frame and the app origin', () => {
+    expect(
+      isTrustedIpcSender(
+        {
+          senderIsMainWindow: true,
+          frameIsMainFrame: true,
+          frameUrl: 'lifespire-app://app/index.html',
+        },
+        policy,
+      ),
+    ).toBe(true)
+  })
+
+  it('rejects another webContents, a subframe or a foreign origin', () => {
+    expect(
+      isTrustedIpcSender(
+        {
+          senderIsMainWindow: false,
+          frameIsMainFrame: true,
+          frameUrl: 'lifespire-app://app/index.html',
+        },
+        policy,
+      ),
+    ).toBe(false)
+    expect(
+      isTrustedIpcSender(
+        {
+          senderIsMainWindow: true,
+          frameIsMainFrame: false,
+          frameUrl: 'lifespire-app://app/index.html',
+        },
+        policy,
+      ),
+    ).toBe(false)
+    expect(
+      isTrustedIpcSender(
+        {
+          senderIsMainWindow: true,
+          frameIsMainFrame: true,
+          frameUrl: 'https://evil.example.com/',
+        },
+        policy,
+      ),
+    ).toBe(false)
+  })
+})
+
+describe('createVaultFile', () => {
+  const VAULT = '/tmp/lifespire/sync-session.json'
+  const TEMP = '/tmp/lifespire/sync-session.tmp'
+
+  function fsDouble(options: { failWrite?: boolean; failRemove?: boolean } = {}) {
+    const ops: string[] = []
+    let value: string | null = null
+    const fs: VaultFs = {
+      readFileSync: () => {
+        if (value === null) throw new Error('ENOENT')
+        return value
+      },
+      mkdirSync: (dirPath, settings) => {
+        ops.push(`mkdir:${dirPath}:${settings.recursive}`)
+      },
+      writeFileSync: (filePath, data, settings) => {
+        if (options.failWrite) throw new Error('disk full')
+        ops.push(`write:${filePath}:${settings.mode}`)
+        value = data
+      },
+      chmodSync: (filePath, mode) => {
+        ops.push(`chmod:${filePath}:${mode}`)
+      },
+      renameSync: (from, to) => {
+        ops.push(`rename:${from}:${to}`)
+      },
+      rmSync: (filePath, settings) => {
+        if (options.failRemove) throw new Error('read-only filesystem')
+        ops.push(`rm:${filePath}:${settings.force}`)
+        value = null
+      },
+    }
+    return { fs, ops, value: () => value }
+  }
+
+  it('writes a 0600 temp file and renames it atomically', () => {
+    const double = fsDouble()
+    const file = createVaultFile(VAULT, double.fs, () => TEMP)
+    file.write('payload')
+    expect(double.ops).toEqual([
+      'mkdir:/tmp/lifespire:true',
+      `write:${TEMP}:384`,
+      `chmod:${TEMP}:384`,
+      `rename:${TEMP}:${VAULT}`,
+    ])
+    expect(file.read()).toBe('payload')
+  })
+
+  it('removes the temp file when the write fails', () => {
+    const double = fsDouble({ failWrite: true })
+    const file = createVaultFile(VAULT, double.fs, () => TEMP)
+    expect(() => file.write('payload')).toThrow(/disk full/)
+    expect(double.ops).toContain(`rm:${TEMP}:true`)
+  })
+
+  it('propagates delete failures', () => {
+    const double = fsDouble({ failRemove: true })
+    const file = createVaultFile(VAULT, double.fs, () => TEMP)
+    expect(() => file.remove()).toThrow(/read-only/)
   })
 })
 

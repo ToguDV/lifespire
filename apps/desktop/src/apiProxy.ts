@@ -14,6 +14,7 @@
  * narrow IPC bridge.
  */
 
+import path from 'node:path'
 import { APP_HOST, APP_SCHEME } from './protocol'
 
 export const API_PROXY_CHANNELS = {
@@ -25,10 +26,9 @@ export const API_PROXY_CHANNELS = {
 
 export const API_PROXY_TIMEOUT_MS = 10_000
 export const API_PROXY_HEALTH_TIMEOUT_MS = 6_000
-export const API_PROXY_MAX_BODY_BYTES = 2 * 1024 * 1024
+export const API_PROXY_MAX_BODY_BYTES = 1024 * 1024
 export const API_PROXY_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 export const HEALTH_PATH = '/health/live'
-const HEALTH_REDIRECT_LIMIT = 3
 
 const NATIVE_CLIENT_PLATFORM = 'desktop'
 const AUTH_TOKEN_PATHS: ReadonlySet<string> = new Set([
@@ -81,6 +81,8 @@ export interface ProxyResponse {
   statusText: string
   headers: Record<string, string>
   body: string
+  /** The HTTP response is preserved even if local credential cleanup failed. */
+  cleanupError?: { code: string; message: string }
 }
 
 export type ProxyResult =
@@ -100,12 +102,35 @@ export class ApiProxyError extends Error {
 /**
  * Link-local addresses reach cloud metadata services, so they are never valid
  * sync servers even when the URL is user-supplied. Private LAN ranges stay
- * allowed: self-hosting is a supported use case.
+ * allowed: self-hosting is a supported use case. Only IP literals are checked;
+ * DNS aliases (metadata.google.internal, *.nip.io) are documented as out of
+ * scope because blocking them would require DNS resolution.
  */
 function isBlockedMetadataHost(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '')
-  const ipv4 = host.startsWith('::ffff:') ? host.slice('::ffff:'.length) : host
-  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(ipv4)) return true
+  if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(host)) return true
+
+  // URL canonicalizes dotted IPv4-mapped addresses to `::ffff:hhhh:hhhh`.
+  if (host.startsWith('::ffff:')) {
+    const groups = host.slice('::ffff:'.length).split(':')
+    if (groups.length === 2) {
+      const high = Number.parseInt(groups[0] ?? '', 16)
+      const low = Number.parseInt(groups[1] ?? '', 16)
+      if (Number.isFinite(high) && Number.isFinite(low)) {
+        const first = (high >> 8) & 0xff
+        const second = high & 0xff
+        if (first === 169 && second === 254) return true
+      }
+    }
+    if (/^169\.254\.\d{1,3}\.\d{1,3}$/.test(host.slice('::ffff:'.length))) return true
+  }
+
+  const firstGroup = host.split(':')[0] ?? ''
+  if (/^[0-9a-f]{1,4}$/.test(firstGroup)) {
+    const prefix = Number.parseInt(firstGroup, 16)
+    // fe80::/10 IPv6 link-local.
+    if ((prefix & 0xffc0) === 0xfe80) return true
+  }
   return host === 'fd00:ec2::254'
 }
 
@@ -205,7 +230,7 @@ export function sanitizeProxyRequest(raw: unknown): ProxyRequest {
     }
     const bytes = new TextEncoder().encode(input.body).length
     if (bytes > API_PROXY_MAX_BODY_BYTES) {
-      throw new ApiProxyError('BODY_TOO_LARGE', 'The request body exceeds 2 MB.')
+      throw new ApiProxyError('BODY_TOO_LARGE', 'The request body exceeds 1 MB.')
     }
     body = input.body
   }
@@ -242,6 +267,34 @@ export function stripFetchMetadata(headers: Record<string, string | string[]>): 
   }
 }
 
+export interface FetchMetadataSession {
+  webRequest: {
+    onBeforeSendHeaders(
+      filter: { urls: string[] },
+      listener: (
+        details: { requestHeaders: Record<string, string | string[]> },
+        callback: (response: {
+          requestHeaders: Record<string, string | string[]>
+        }) => void,
+      ) => void,
+    ): void
+  }
+}
+
+/**
+ * Installs the strip only on the dedicated API session. The default session is
+ * never touched, so renderer requests keep their real Fetch Metadata.
+ */
+export function installFetchMetadataStrip(ses: FetchMetadataSession): void {
+  ses.webRequest.onBeforeSendHeaders(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      stripFetchMetadata(details.requestHeaders)
+      callback({ requestHeaders: details.requestHeaders })
+    },
+  )
+}
+
 /** The packaged renderer origin, or the configured dev server while unpackaged. */
 export function isTrustedSender(
   frameUrl: string | null | undefined,
@@ -262,10 +315,80 @@ export function isTrustedSender(
   }
 }
 
+export interface IpcSenderState {
+  senderIsMainWindow: boolean
+  frameIsMainFrame: boolean
+  frameUrl: string | null | undefined
+}
+
+/** IPC is only accepted from the main window's top frame on the app origin. */
+export function isTrustedIpcSender(
+  state: IpcSenderState,
+  policy: { isPackaged: boolean; devUrl: string },
+): boolean {
+  return (
+    state.senderIsMainWindow &&
+    state.frameIsMainFrame &&
+    isTrustedSender(state.frameUrl, policy)
+  )
+}
+
 export interface TokenVaultFile {
   read(): string | null
   write(value: string): void
   remove(): void
+}
+
+export interface VaultFs {
+  readFileSync(filePath: string, encoding: 'utf8'): string
+  mkdirSync(dirPath: string, options: { recursive: true }): void
+  writeFileSync(filePath: string, data: string, options: { mode: number }): void
+  chmodSync(filePath: string, mode: number): void
+  renameSync(from: string, to: string): void
+  rmSync(filePath: string, options: { force: true }): void
+}
+
+/**
+ * Atomic credential file: write a private temp file, fsync the mode and rename
+ * over the target. A failed write removes the temp file and propagates.
+ */
+export function createVaultFile(
+  vaultPath: string,
+  fs: VaultFs,
+  nextTempPath: (vaultPath: string) => string = (target) =>
+    `${target}.${process.pid}.${Date.now()}.tmp`,
+): TokenVaultFile {
+  const read = (): string | null => {
+    try {
+      return fs.readFileSync(vaultPath, 'utf8')
+    } catch {
+      return null
+    }
+  }
+
+  const write = (value: string): void => {
+    fs.mkdirSync(path.dirname(vaultPath), { recursive: true })
+    const temp = nextTempPath(vaultPath)
+    try {
+      fs.writeFileSync(temp, value, { mode: 0o600 })
+      fs.chmodSync(temp, 0o600)
+      fs.renameSync(temp, vaultPath)
+    } catch (error) {
+      try {
+        fs.rmSync(temp, { force: true })
+      } catch {
+        // Keep the original write error.
+      }
+      throw error
+    }
+  }
+
+  return {
+    read,
+    write,
+    // `force` tolerates a missing file; permission/read-only errors surface.
+    remove: () => fs.rmSync(vaultPath, { force: true }),
+  }
 }
 
 export interface TokenVaultCrypto {
@@ -299,6 +422,10 @@ export function createTokenVault(deps: {
   crypto: TokenVaultCrypto
 }): TokenVault {
   let memory: { origin: string; token: string } | null = null
+  // Once a persisted credential cannot be deleted, never trust the vault
+  // again in this process: reloading it would resurrect a session the user
+  // tried to close.
+  let vaultBlocked = false
 
   const canPersist = (): boolean => {
     try {
@@ -308,8 +435,7 @@ export function createTokenVault(deps: {
     }
   }
 
-  const readStored = (): StoredSession | null => {
-    const raw = deps.file.read()
+  const parseStored = (raw: string | null): StoredSession | null => {
     if (!raw) return null
     try {
       const parsed = JSON.parse(raw) as Partial<StoredSession>
@@ -326,20 +452,33 @@ export function createTokenVault(deps: {
     }
   }
 
+  const removeStored = (): void => {
+    try {
+      deps.file.remove()
+    } catch (error) {
+      vaultBlocked = true
+      throw error
+    }
+  }
+
   return {
     persistence: () => (canPersist() ? 'encrypted' : 'memory-only'),
 
     load: (origin) => {
-      if (!origin) return null
+      if (!origin || vaultBlocked) return null
       if (memory?.origin === origin) return memory.token
       if (memory) memory = null
-      if (!canPersist()) return null
-      const stored = readStored()
-      if (!stored) return null
-      if (stored.origin !== origin) {
-        // A credential for another server must not survive a boot with a
-        // different one. The error is visible to the caller on purpose.
-        deps.file.remove()
+      const raw = deps.file.read()
+      const stored = parseStored(raw)
+      if (!stored) {
+        // Without encryption any leftover file is an orphan, even corrupt.
+        if (!canPersist() && raw !== null) removeStored()
+        return null
+      }
+      // Without encryption a persisted token is unusable. Remove it instead of
+      // leaving an orphan that a later keyring-enabled run would restore.
+      if (!canPersist() || stored.origin !== origin) {
+        removeStored()
         return null
       }
       try {
@@ -353,6 +492,16 @@ export function createTokenVault(deps: {
 
     save: (origin, token) => {
       if (!canPersist()) {
+        // Memory-only sessions must not leave an old encrypted credential
+        // behind for a later process to resurrect.
+        if (deps.file.read() !== null) {
+          try {
+            removeStored()
+          } catch (error) {
+            memory = null
+            throw error
+          }
+        }
         memory = { origin, token }
         return
       }
@@ -371,7 +520,7 @@ export function createTokenVault(deps: {
       memory = null
       // Missing files are handled by the file adapter; real delete failures
       // (permissions, read-only volumes) must reach the caller.
-      deps.file.remove()
+      removeStored()
     },
   }
 }
@@ -413,17 +562,29 @@ function resolveOrigin(request: ProxyRequest, configured: string | null): string
   return configured
 }
 
-function responseFrom(res: Response, body: string): ProxyResponse {
+function responseFrom(
+  res: Response,
+  body: string,
+  cleanupError?: ProxyResponse['cleanupError'],
+): ProxyResponse {
   const headers: Record<string, string> = {}
   res.headers.forEach((value, name) => {
     const lower = name.toLowerCase()
     if (ALLOWED_RESPONSE_HEADERS.has(lower)) headers[lower] = value
   })
-  return { status: res.status, statusText: res.statusText, headers, body }
+  const response: ProxyResponse = { status: res.status, statusText: res.statusText, headers, body }
+  if (cleanupError) response.cleanupError = cleanupError
+  return response
 }
 
-function isRedirectStatus(status: number): boolean {
-  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308
+/** True when the transport rejected a request because it redirected. */
+function isRedirectFailure(error: unknown): boolean {
+  let current: unknown = error
+  for (let depth = 0; depth < 4 && current instanceof Error; depth += 1) {
+    if (/redirect/i.test(current.message)) return true
+    current = (current as Error & { cause?: unknown }).cause
+  }
+  return false
 }
 
 /** Normalizes the pathname before matching auth/logout routes (S2). */
@@ -432,10 +593,23 @@ function pathnameOf(path: string): string {
 }
 
 /** Reads a response without ever buffering more than the proxy cap (I7). */
-async function readResponseBody(res: Response): Promise<string> {
+async function readResponseBody(
+  res: Response,
+  controller: AbortController,
+  markOversize: () => void,
+): Promise<string> {
+  const failOversize = async (): Promise<never> => {
+    // Stop the transfer before surfacing the size error; waiting for the body
+    // would defeat the cap. Mark the reason before aborting: the shared abort
+    // race may reject first.
+    markOversize()
+    controller.abort()
+    await res.body?.cancel().catch(() => undefined)
+    throw new ApiProxyError('RESPONSE_TOO_LARGE', 'The server response exceeds 5 MB.')
+  }
   const declared = Number(res.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > API_PROXY_MAX_RESPONSE_BYTES) {
-    throw new ApiProxyError('RESPONSE_TOO_LARGE', 'The server response exceeds 5 MB.')
+    return failOversize()
   }
   if (!res.body) return ''
   const reader = res.body.getReader()
@@ -448,7 +622,7 @@ async function readResponseBody(res: Response): Promise<string> {
     total += value.byteLength
     if (total > API_PROXY_MAX_RESPONSE_BYTES) {
       await reader.cancel().catch(() => undefined)
-      throw new ApiProxyError('RESPONSE_TOO_LARGE', 'The server response exceeds 5 MB.')
+      return failOversize()
     }
     text += decoder.decode(value, { stream: true })
   }
@@ -588,7 +762,7 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
           headers,
           body,
           credentials: 'omit',
-          redirect: pathname === HEALTH_PATH ? 'manual' : 'error',
+          redirect: 'error',
           signal: controller.signal,
         }),
         timeoutRejection,
@@ -596,39 +770,31 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
 
     let res: Response
     let responseBody: string
+    let responseTooLarge = false
     try {
-      let targetUrl = `${targetOrigin}${request.path}`
-      res = await fetchOnce(targetUrl)
-      // Health probes may bounce http -> http or add a trailing slash; auth
-      // and sync requests still treat every redirect as an error.
-      if (pathname === HEALTH_PATH) {
-        let redirects = 0
-        while (isRedirectStatus(res.status)) {
-          const location = res.headers.get('location')
-          if (!location) break
-          if (redirects >= HEALTH_REDIRECT_LIMIT) {
-            throw new ApiProxyError('TOO_MANY_REDIRECTS', 'The health probe redirected too often.')
-          }
-          const nextUrl = new URL(location, targetUrl)
-          if (nextUrl.origin !== new URL(targetUrl).origin) {
-            throw new ApiProxyError(
-              'REDIRECT_NOT_ALLOWED',
-              `The server redirected to ${nextUrl.origin}. Use that address instead.`,
-            )
-          }
-          targetUrl = nextUrl.toString()
-          res = await fetchOnce(targetUrl)
-          redirects += 1
-        }
-      }
-      responseBody = await Promise.race([readResponseBody(res), timeoutRejection])
+      res = await fetchOnce(`${targetOrigin}${request.path}`)
+      responseBody = await Promise.race([
+        readResponseBody(res, controller, () => {
+          responseTooLarge = true
+        }),
+        timeoutRejection,
+      ])
     } catch (error) {
       if (error instanceof ApiProxyError) return failure(error.code, error.message)
+      if (responseTooLarge) {
+        return failure('RESPONSE_TOO_LARGE', 'The server response exceeds 5 MB.')
+      }
       if (timedOut) {
         return failure('API_TIMEOUT', 'The sync server did not answer in time.')
       }
       if (controller.signal.aborted) {
         return failure('REQUEST_ABORTED', 'The session changed while the request was in flight.')
+      }
+      if (pathname === HEALTH_PATH && isRedirectFailure(error)) {
+        return failure(
+          'HEALTH_REDIRECT',
+          'That address redirects elsewhere — use the final https:// address.',
+        )
       }
       return failure('API_UNREACHABLE', 'Could not reach the sync server.')
     } finally {
@@ -644,6 +810,11 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
       try {
         const stripped = stripRefreshToken(responseBody)
         if (!stripped.token) {
+          try {
+            dropToken(isRefresh ? (sentToken ?? undefined) : undefined)
+          } catch {
+            // The vault is blocked; the typed error still reaches the UI.
+          }
           return failure(
             'NATIVE_GRANT_REQUIRED',
             'The server did not grant a desktop session. Update the sync server and try again.',
@@ -663,6 +834,7 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
       }
     }
 
+    let cleanupError: ProxyResponse['cleanupError']
     try {
       // A rejected rotation means the family is gone (expired, revoked or
       // reused); keep a dead token only to fail every future refresh.
@@ -671,13 +843,20 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
       }
       if (LOGOUT_PATHS.has(pathname) && res.ok) dropToken()
     } catch {
-      return failure('VAULT_DELETE_FAILED', 'Could not clear the sync session.')
+      // Never replace a meaningful 401 (or a successful 204) with a local
+      // cleanup failure: the HTTP semantics drive restore/logout. The vault is
+      // blocked from reloading in this process, and the warning travels with
+      // the response.
+      cleanupError = {
+        code: 'VAULT_DELETE_FAILED',
+        message: 'The local sync session could not be cleared.',
+      }
     }
 
     if (requestGeneration !== generation) {
       return failure('REQUEST_ABORTED', 'The session changed while the request was in flight.')
     }
-    return { ok: true, response: responseFrom(res, responseBody) }
+    return { ok: true, response: responseFrom(res, responseBody, cleanupError) }
   }
 
   return { request, setServer, sessionState, signOut }

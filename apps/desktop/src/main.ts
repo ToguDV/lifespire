@@ -18,9 +18,10 @@ import {
   API_PROXY_CHANNELS,
   createApiProxy,
   createTokenVault,
-  isTrustedSender,
-  stripFetchMetadata,
-  type TokenVaultFile,
+  createVaultFile,
+  installFetchMetadataStrip,
+  isTrustedIpcSender,
+  type FetchMetadataSession,
 } from './apiProxy'
 import { buildMenu } from './menu'
 import {
@@ -101,46 +102,12 @@ function registerAppProtocol(): void {
  */
 function registerApiProxy(): void {
   const vaultPath = path.join(app.getPath('userData'), 'sync-session.json')
-  const file: TokenVaultFile = {
-    read: () => {
-      try {
-        return fs.readFileSync(vaultPath, 'utf8')
-      } catch {
-        return null
-      }
-    },
-    write: (value) => {
-      fs.mkdirSync(path.dirname(vaultPath), { recursive: true })
-      const temp = `${vaultPath}.${process.pid}.${Date.now()}.tmp`
-      try {
-        fs.writeFileSync(temp, value, { mode: 0o600 })
-        fs.chmodSync(temp, 0o600)
-        fs.renameSync(temp, vaultPath)
-      } catch (error) {
-        try {
-          fs.rmSync(temp, { force: true })
-        } catch {
-          // Keep the original write error.
-        }
-        throw error
-      }
-    },
-    remove: () => {
-      // `force` tolerates a missing file; permission/read-only errors surface.
-      fs.rmSync(vaultPath, { force: true })
-    },
-  }
+  const file = createVaultFile(vaultPath, fs)
 
   // The proxy gets its own in-memory session: the renderer cannot reach it, so
   // stripping Chromium's Fetch Metadata here never weakens the browser gate.
   const apiSession = session.fromPartition('lifespire-api')
-  apiSession.webRequest.onBeforeSendHeaders(
-    { urls: ['http://*/*', 'https://*/*'] },
-    (details, callback) => {
-      stripFetchMetadata(details.requestHeaders)
-      callback({ requestHeaders: details.requestHeaders })
-    },
-  )
+  installFetchMetadataStrip(apiSession as unknown as FetchMetadataSession)
 
   const proxy = createApiProxy({
     // Session.fetch is a method: bind it so it always uses this partition.
@@ -165,16 +132,16 @@ function registerApiProxy(): void {
 
   const guard = (event: IpcMainInvokeEvent): void => {
     const window = mainWindow
-    if (!window || event.sender !== window.webContents) {
-      throw new Error('Untrusted IPC sender')
-    }
     const frame = event.senderFrame
-    if (!frame || frame !== event.sender.mainFrame) {
-      throw new Error('Untrusted IPC frame')
-    }
-    if (!isTrustedSender(frame.url, { isPackaged: app.isPackaged, devUrl: DEV_URL })) {
-      throw new Error('Untrusted IPC origin')
-    }
+    const trusted = isTrustedIpcSender(
+      {
+        senderIsMainWindow: window !== null && event.sender === window.webContents,
+        frameIsMainFrame: frame !== null && frame === event.sender.mainFrame,
+        frameUrl: frame?.url,
+      },
+      { isPackaged: app.isPackaged, devUrl: DEV_URL },
+    )
+    if (!trusted) throw new Error('Untrusted IPC sender')
   }
 
   ipcMain.handle(API_PROXY_CHANNELS.request, (event, payload: unknown) => {
