@@ -1,14 +1,43 @@
 import type { ExpoConfig, ConfigContext } from 'expo/config'
+import manifest from './package.json'
 
 const APP_NAME = 'LifeSpire'
 const APP_SLUG = 'lifespire'
 const ANDROID_PACKAGE = 'com.lifespire.app'
+const BASE_VERSION = '0.1.0'
+
+/**
+ * The APK version comes from `apps/mobile/package.json`, which travels with the
+ * project to the EAS builder. Runner environment variables do not, so the
+ * release script bumps this manifest together with the root and desktop ones.
+ */
+function resolveVersion(): string {
+  return /^\d+\.\d+\.\d+$/.test(manifest.version) ? manifest.version : BASE_VERSION
+}
+
+/**
+ * `android.versionCode` must only ever grow. Deriving it from the semantic
+ * version keeps it monotonic across releases without a manual bump. Minor and
+ * patch are expected to stay below 1000; anything else falls back to the base
+ * version so a malformed manifest cannot publish an invalid code.
+ */
+export function versionCodeFor(version: string): number {
+  const parts = version.split('.')
+  const valid = parts.length === 3 && parts.every((part) => /^\d+$/.test(part))
+  if (!valid) return versionCodeFor(BASE_VERSION)
+
+  const [major = 0, minor = 0, patch = 0] = parts.map((part) => Number.parseInt(part, 10))
+  if (minor > 999 || patch > 999) return versionCodeFor(BASE_VERSION)
+  return major * 1_000_000 + minor * 1_000 + patch
+}
+
+const APP_VERSION = resolveVersion()
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: APP_NAME,
   slug: APP_SLUG,
-  version: '0.1.0',
+  version: APP_VERSION,
   orientation: 'portrait',
   scheme: 'lifespire',
   userInterfaceStyle: 'automatic',
@@ -23,7 +52,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     predictiveBackGestureEnabled: true,
     softwareKeyboardLayoutMode: 'resize',
-    versionCode: 1,
+    versionCode: versionCodeFor(APP_VERSION),
   },
   plugins: [
     'expo-sqlite',

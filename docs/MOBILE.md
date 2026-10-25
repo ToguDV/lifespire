@@ -321,6 +321,14 @@ first build must be linked with `eas init` under the team account. Local
 verification can use `pnpm --filter @lifespire/mobile android:native` with an
 Android SDK and a connected device/emulator.
 
+The release workflow builds the `preview` APK on EAS cloud; `EXPO_TOKEN` must be
+a repository secret and the project must be linked once with `eas init` so
+`extra.eas.projectId` is committed. `apps/mobile/package.json` is the version
+source: `app.config.ts` reads it and derives `android.versionCode` as
+`major × 1_000_000 + minor × 1_000 + patch`, so the code only grows across
+releases. Bump that manifest together with the root and desktop ones before
+tagging; the release workflow verifies all three.
+
 ## 10. Known follow-ups
 
 - Physical-device verification and screenshots (this repository's CI has no

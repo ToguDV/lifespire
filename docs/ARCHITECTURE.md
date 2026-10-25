@@ -10,11 +10,13 @@ Fuentes: [`SPEC.md`](../SPEC.md) y [`design/DESIGN.md`](../design/DESIGN.md)
 ## 1. Estructura
 
 Monorepo pnpm (`pnpm-workspace.yaml`): `apps/web` (Vite + React),
-`apps/mobile` (Expo + React Native, Android), `apps/api` (NestJS sync API),
+`apps/desktop` (shell Electron sobre el build web), `apps/mobile` (Expo + React
+Native, Android), `apps/api` (NestJS sync API),
 `packages/core` (dominio puro, fuente única), `packages/app-core` (store,
 persistencia, sync y helpers puros compartidos) y `packages/api-client`
 (cliente tipado). Detalle del backend en [`BACKEND.md`](./BACKEND.md), de la
-app Android en [`MOBILE.md`](./MOBILE.md) y decisiones en [`adr/`](./adr/).
+app Android en [`MOBILE.md`](./MOBILE.md), del escritorio en
+[`DESKTOP.md`](./DESKTOP.md) y decisiones en [`adr/`](./adr/).
 
 ```text
 apps/web/src/
@@ -68,6 +70,9 @@ apps/web/src/
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
 apps/api/src/      auth, users, admin, devices, sync, health, audit, prisma, cli
+apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas),
+  preload.ts (puente de solo lectura), menu.ts y protocol.ts (resolución de
+  assets y política de navegación); electron-builder.yml empaqueta el build web
 apps/mobile/src/        shell nativo, tokens, componentes, pantallas, mapa SVG,
   notificaciones locales y adaptadores de plataforma (ver MOBILE.md)
 packages/core/src/      dominio puro, fuente única (tests de dominio/contenido)
@@ -939,11 +944,44 @@ prototipo retirado:
   `expo-document-picker`, mismos gates de 2 MB y `readSaveFile`. El esquema
   `GameDocument` no cambia.
 
+### App de escritorio (Electron)
+
+- **Alcance:** el mismo build de `apps/web/dist` dentro de Electron; no hay
+  pantallas ni lógica de escritorio. Instaladores `.deb`/AppImage/`tar.gz` y
+  NSIS/zip; sin firma ni auto-update en esta línea. Ver `DESKTOP.md`.
+- **Origen:** `src/main.ts` registra el esquema privilegiado
+  `lifespire-app://app` y sirve los ficheros con `protocol.handle` →
+  `net.fetch(file://…)`. El origen estable conserva `localStorage`, así que el
+  save es el mismo `GameDocument` (schema 3) y no se añade otra persistencia.
+  Las rutas que escapan del directorio empaquetado se rechazan.
+- **PWA:** `registerSW.js` y `sw.js` responden con un script vacío; el shell ya
+  sirve los assets desde disco y no debe montar un segundo caché.
+- **Seguridad:** `contextIsolation`, `sandbox`, sin `nodeIntegration`; el
+  preload solo expone `{ isDesktop, platform }`. `window.open` se deniega, los
+  enlaces `http(s)` externos abren en el navegador, `will-navigate` y
+  `will-redirect` solo permiten el origen propio, los permisos de Chromium se
+  deniegan y `<webview>` queda bloqueado.
+- **Datos:** export con diálogo nativo (`will-download` →
+  `showSaveDialogSync`), import por input de fichero con los mismos gates. La
+  política multi-pestaña se reduce al single-instance lock. El sync no está
+  conectado: el origen `lifespire-app://app` queda fuera de CORS/cookies del
+  API, así que el escritorio es guest/local, `SettingsScreen` sustituye los
+  paneles de servidor/sync por una nota y los saves se mueven con
+  export/import.
+- **CI:** `.github/workflows/release.yml` solo corre en tags `v*`, valida la
+  versión contra los manifiestos, empaqueta en runners Linux/Windows, compila
+  el APK en EAS y publica todo (más `SHA256SUMS.txt`) en la GitHub Release.
+
 ## 7. Tests obligatorios por módulo
 
 La app Android añade `apps/mobile/src/notifications/planner.test.ts` (Jest) para
 las reglas de recordatorios; el resto de la lógica compartida se cubre con la
 suite de web a través de los shims. Ver [`MOBILE.md`](./MOBILE.md) §8.
+
+El shell de escritorio añade `apps/desktop/src/protocol.test.ts` (Vitest) para
+la resolución URL→fichero, el rechazo de rutas que escapan del build, la
+allow-list de navegación, los enlaces externos y los scripts del service worker.
+Ver [`DESKTOP.md`](./DESKTOP.md) §7.
 
 - `rng`/`generator`: determinismo, golden seed, 1.000 mapas, invariantes y edge
   cases (4 rutinas, 1 goal, 3 goals, 10 goals, pool pequeño/grande).

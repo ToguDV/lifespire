@@ -27,6 +27,10 @@
   architecture, SQLite persistence, native auth/sync, local notifications,
   Android setup, testing and release checks. The app lives in `apps/mobile/`
   and shares `packages/core` + `packages/app-core` with web.
+- **Desktop app:** [`docs/DESKTOP.md`](./docs/DESKTOP.md) defines the Electron
+  shell in `apps/desktop/` (custom `lifespire-app://app` origin over the web
+  build, security model, native save dialog, packaging and the tag-driven
+  release workflow), including the unsigned-installer and desktop-sync limits.
 - **Visual design:** the shipped application is the **accepted** visual
   reference, together with the design-system specification. Specifically:
   - [`design/DESIGN.md`](./design/DESIGN.md): design system (color, typography,
@@ -86,6 +90,7 @@ pnpm install --frozen-lockfile
 pnpm dev          # web (apps/web)
 pnpm dev:api      # sync API (apps/api, needs DATABASE_URL)
 pnpm dev:mobile   # Android app (apps/mobile, Expo)
+pnpm dev:desktop  # Electron shell (apps/desktop); run `pnpm dev` alongside it
 pnpm lint         # all workspaces
 pnpm typecheck    # all workspaces
 pnpm typecheck:e2e  # web E2E + Playwright config
@@ -94,6 +99,8 @@ pnpm test:mobile  # Android planner/auth unit tests
 pnpm test:e2e     # web Playwright E2E (apps/web)
 pnpm build        # all workspaces (includes the Android JS bundle)
 pnpm build:mobile # Metro Android bundle only
+pnpm build:desktop  # Electron main/preload typecheck + emit only
+pnpm package:desktop  # web + shell + OS installers (electron-builder)
 pnpm preview      # serve the web build (PWA/offline)
 ```
 
@@ -108,11 +115,16 @@ and `@lifespire/api-client` scope the shared packages.
   tests live in [`apps/api/test/`](./apps/api/test) and need Postgres.
 - The [`ci.yml`](./.github/workflows/ci.yml) workflow always runs lint,
   typecheck, E2E typecheck, tests, and build across all workspaces, including
-  the Android Jest suite and Metro bundle; the `e2e` job only runs when
-  critical paths change (web domain/state/content/shell/screens, mobile, API,
-  shared packages, E2E config, lockfile) or manually via `workflow_dispatch`.
-  The `api-e2e` job runs the API flow against a Postgres service under the same
-  gate.
+  the Android Jest suite, the Metro bundle and the Electron shell. The `e2e` job
+  only runs when critical paths change (web domain/state/content/shell/screens,
+  mobile, API, shared packages, E2E config, lockfile) or manually via
+  `workflow_dispatch`. The `api-e2e` job runs the API flow against a Postgres
+  service under the same gate.
+- [`release.yml`](./.github/workflows/release.yml) runs only on `v*` tags:
+  verify the tag against the manifests, run the quality gates, package the
+  Electron installers on Linux/Windows, build the Android APK on EAS cloud
+  (`EXPO_TOKEN` secret) and publish every artifact plus checksums to the GitHub
+  release. Windows installers are unsigned; there is no auto-update.
 - Do not add E2E to every change: if you touch a critical path, also update
   `e2e/` to cover the new behavior.
 

@@ -1,0 +1,245 @@
+name: Release
+
+# Artifacts are only produced from an explicit version tag. Bump the version in
+# the root and desktop manifests, commit, then:
+#   git tag v0.2.0 && git push origin v0.2.0
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # Windows installers are unsigned in this release line.
+  CSC_IDENTITY_AUTO_DISCOVERY: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Verify the tag matches the manifests
+        run: node .github/scripts/verify-release-version.mjs
+
+  quality:
+    needs: verify
+    runs-on: ubuntu-latest
+    env:
+      # Dummy URL: prisma generate resolves config without connecting.
+      DATABASE_URL: postgresql://lifespire:lifespire@localhost:5433/lifespire
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Check core parity
+        run: bash scripts/check-core-parity.sh
+
+      - name: Approve native builds
+        run: pnpm approve-builds --all
+
+      - name: Prisma generate
+        run: pnpm --filter @lifespire/api prisma:generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Typecheck E2E
+        run: pnpm typecheck:e2e
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  desktop:
+    needs: verify
+    name: desktop (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            builder_args: --linux
+            artifact: lifespire-linux
+            files: |
+              apps/desktop/release/*.deb
+              apps/desktop/release/*.AppImage
+              apps/desktop/release/*.tar.gz
+          - os: windows-latest
+            builder_args: --win
+            artifact: lifespire-windows
+            files: |
+              apps/desktop/release/*.exe
+              apps/desktop/release/*.zip
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        run: pnpm --filter @lifespire/web build
+
+      - name: Build shell
+        run: pnpm --filter @lifespire/desktop build
+
+      - name: Package
+        run: pnpm --filter @lifespire/desktop exec electron-builder ${{ matrix.builder_args }} --publish never
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+          retention-days: 14
+
+  android:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Require the Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Missing EXPO_TOKEN. Create an Expo access token and add it as a repository secret."
+            exit 1
+          fi
+          if ! grep -qs "projectId" apps/mobile/app.config.ts apps/mobile/app.json; then
+            echo "::error::The Expo project is not linked. Run \`eas init\` in apps/mobile and commit extra.eas.projectId."
+            exit 1
+          fi
+
+      - name: Build and download the APK (EAS cloud)
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx --yes eas-cli@^16 build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json > "$RUNNER_TEMP/eas-build.json"
+
+          node -e '
+            const fs = require("node:fs");
+            const file = process.env.RUNNER_TEMP + "/eas-build.json";
+            const builds = JSON.parse(fs.readFileSync(file, "utf8"));
+            const url = builds.at(-1)?.artifacts?.buildUrl;
+            if (!url) {
+              console.error("EAS did not return a buildUrl:", JSON.stringify(builds, null, 2));
+              process.exit(1);
+            }
+            fs.writeFileSync(process.env.RUNNER_TEMP + "/apk-url.txt", url);
+          '
+
+          version="${GITHUB_REF_NAME#v}"
+          curl --fail --location "$(cat "$RUNNER_TEMP/apk-url.txt")" \
+            --output "$GITHUB_WORKSPACE/LifeSpire-${version}.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifespire-android
+          path: LifeSpire-*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [quality, desktop, android]
+    # Desktop installers must not be held hostage by a missing Expo token or an
+    # EAS outage; the android job still turns the run red so the gap is visible.
+    if: ${{ !cancelled() && needs.quality.result == 'success' && needs.desktop.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Note a missing APK
+        if: ${{ needs.android.result != 'success' }}
+        run: echo "::warning::No Android APK for this tag (android=${{ needs.android.result }}). Check EXPO_TOKEN, eas init and the EAS credentials."
+
+      - name: Checksums
+        working-directory: artifacts
+        run: |
+          ls -lh
+          sha256sum ./* > SHA256SUMS.txt
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          {
+            echo "LifeSpire ${version} — desktop and Android builds for this tag."
+            echo
+            echo "### Downloads"
+            echo
+            for file in artifacts/*; do
+              echo "- \`$(basename "$file")\` ($(du -h "$file" | cut -f1))"
+            done
+            echo
+            echo "### Notes"
+            echo
+            echo "- Linux: install the \`.deb\` with \`sudo apt install ./LifeSpire-*.deb\`, or \`chmod +x\` the AppImage and run it."
+            echo "- Windows: run the installer or unpack the portable zip. Installers are **unsigned**, so SmartScreen may warn (More info → Run anyway)."
+            echo "- Android: sideload the APK when it is attached."
+            echo "- The desktop save stays on this device (local-first, same \`GameDocument\` as web/Android); export and import live in Settings."
+            echo "- Verify downloads against \`SHA256SUMS.txt\`."
+          } > release-notes.md
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" artifacts/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" artifacts/* \
+              --title "LifeSpire $GITHUB_REF_NAME" \
+              --notes-file release-notes.md \
+              --verify-tag
+          fi

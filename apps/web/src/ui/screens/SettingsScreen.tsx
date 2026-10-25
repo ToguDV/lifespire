@@ -20,6 +20,7 @@ import { ServerPanel } from '../components/ServerPanel'
 import { AdminPanel } from '../components/AdminPanel'
 import { useFeedbackPrefs } from '../lib/feedback'
 import { saveFileName } from '../lib/importSave'
+import { isDesktopShell } from '../lib/platform'
 import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -37,6 +38,7 @@ export function SettingsScreen() {
   const [feedback, setFeedback] = useFeedbackPrefs()
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
+  const desktop = isDesktopShell()
 
   const resetReady = isResetConfirmation(resetPhrase)
 
@@ -71,14 +73,31 @@ export function SettingsScreen() {
         kicker="Profile · Local data"
         title="Settings"
         titleId="settings-title"
-        sub="Appearance, the local save and optional device sync."
-        meta={<SyncStatus />}
+        sub={
+          desktop
+            ? 'Appearance, feedback and the local save.'
+            : 'Appearance, the local save and optional device sync.'
+        }
+        meta={desktop ? undefined : <SyncStatus />}
       />
 
       <div className="settings-body">
-        <ServerPanel />
-        <SyncPanel />
-        <AdminPanel />
+        {desktop ? (
+          <Panel pad>
+            <PanelHead label="Sync" aside={<span className="chip chip--quiet">Desktop</span>} />
+            <p className="panel-note">
+              This build keeps your save on this device. Account sync needs a browser session and
+              is not available in the desktop app yet; use the export and import actions below to
+              move the save between devices.
+            </p>
+          </Panel>
+        ) : (
+          <>
+            <ServerPanel />
+            <SyncPanel />
+            <AdminPanel />
+          </>
+        )}
         <Panel pad>
           <PanelHead label="Appearance" />
           <div className="field">
