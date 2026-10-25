@@ -531,12 +531,16 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
     if (AUTH_TOKEN_PATHS.has(request.path) && res.ok) {
       try {
         const stripped = stripRefreshToken(responseBody)
-        responseBody = stripped.body
-        if (stripped.token) {
-          deps.vault.save(targetOrigin, stripped.token)
-          refreshToken = stripped.token
-          tokenOrigin = targetOrigin
+        if (!stripped.token) {
+          return failure(
+            'NATIVE_GRANT_REQUIRED',
+            'The server did not grant a desktop session. Update the sync server and try again.',
+          )
         }
+        responseBody = stripped.body
+        deps.vault.save(targetOrigin, stripped.token)
+        refreshToken = stripped.token
+        tokenOrigin = targetOrigin
       } catch (error) {
         if (error instanceof ApiProxyError) return failure(error.code, error.message)
         throw error

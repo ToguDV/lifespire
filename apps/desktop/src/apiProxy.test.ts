@@ -260,6 +260,24 @@ describe('createApiProxy session handling', () => {
     expect(stored.origin).toBe(SERVER)
   })
 
+  it('rejects an auth response without a desktop refresh token', async () => {
+    const { proxy, calls } = makeProxy(async () =>
+      json({
+        accessToken: 'access-1',
+        user: { id: 'u1', email: 'a@b.c', role: 'USER', status: 'ACTIVE' },
+        totpSetupRequired: false,
+      }),
+    )
+    proxy.setServer(SERVER)
+    const result = await proxy.request({ path: '/v1/auth/login', method: 'POST', body: '{}' })
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: 'NATIVE_GRANT_REQUIRED' },
+    })
+    expect(calls).toHaveLength(1)
+    expect(proxy.sessionState().signedIn).toBe(false)
+  })
+
   it('injects the stored token on refresh and rotates it', async () => {
     const { proxy, calls, file } = makeProxy(async (url) => {
       if (url.endsWith('/v1/auth/refresh')) {
