@@ -24,6 +24,43 @@ describe('api-client', () => {
     }
   });
 
+  it('uses an injected fetch function instead of the global', async () => {
+    let injectedCalls = 0;
+    let globalCalls = 0;
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      globalCalls += 1;
+      throw new Error('the global fetch must not run');
+    }) as typeof fetch;
+    try {
+      const api = createApiClient({
+        baseUrl: 'https://api.example.com',
+        fetchFn: (async (url: unknown, init?: RequestInit) => {
+          injectedCalls += 1;
+          expect(String(url)).toBe('https://api.example.com/v1/me');
+          expect(init?.credentials).toBe('include');
+          return new Response(
+            JSON.stringify({
+              id: 'u1',
+              email: 'a@b.c',
+              role: 'USER',
+              status: 'ACTIVE',
+              totpEnabled: false,
+              createdAt: '2026-10-24T00:00:00.000Z',
+            }),
+            { status: 200 },
+          );
+        }) as typeof fetch,
+      });
+      const me = await api.me();
+      expect(me.email).toBe('a@b.c');
+      expect(injectedCalls).toBe(1);
+      expect(globalCalls).toBe(0);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
   it('throws SyncConflictError on 412', async () => {
     const origFetch = globalThis.fetch;
     globalThis.fetch = (async () =>

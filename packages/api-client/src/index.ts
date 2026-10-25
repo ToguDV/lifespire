@@ -105,6 +105,12 @@ export interface ApiClientOptions {
   platform?: 'android' | 'ios';
   getRefreshToken?: () => string | null;
   setRefreshToken?: (token: string | null) => void;
+  /**
+   * Transport override. The desktop shell routes requests through its main
+   * process so the refresh token never reaches renderer JavaScript; every other
+   * client keeps the global fetch.
+   */
+  fetchFn?: typeof fetch;
 }
 
 /** Wraps a version in ETag quotes unless already quoted (`"n"` / `W/"n"`). */
@@ -139,6 +145,7 @@ function isAuthPath(path: string): boolean {
 export function createApiClient(options: ApiClientOptions) {
   const base = options.baseUrl.replace(/\/$/, '');
   const native = options.mode === 'native';
+  const fetchFn = options.fetchFn ?? fetch;
 
   function nativeHeaders(): Record<string, string> {
     if (!native) return {};
@@ -157,7 +164,7 @@ export function createApiClient(options: ApiClientOptions) {
     const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
     const token = options.getAccessToken?.();
     if (token) headers.Authorization = `Bearer ${token}`;
-    const res = await fetch(`${base}${path}`, { ...init, headers, credentials: 'include' });
+    const res = await fetchFn(`${base}${path}`, { ...init, headers, credentials: 'include' });
     if (res.status === 204 || res.status === 304) {
       return { res, data: undefined as T };
     }
