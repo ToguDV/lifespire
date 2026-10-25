@@ -25,6 +25,7 @@
     "dev:desktop": "pnpm --filter @lifespire/desktop dev"
   },
   "devDependencies": {
+    "@babel/runtime": "^7.29.10",
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2"
   },

@@ -25,3 +25,11 @@ describe('app config version', () => {
     expect(versionCodeFor('v0.2.0')).toBe(1000)
   })
 })
+
+describe('app config EAS link', () => {
+  it('exposes the linked Expo project so CI can build without a prompt', () => {
+    const resolved = config({ config: {} } as ConfigContext)
+    const eas = (resolved.extra as { eas?: { projectId?: unknown } } | undefined)?.eas
+    expect(eas?.projectId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+  })
+})
