@@ -46,7 +46,11 @@ they reach the browser.
   renderer never sees Node or Electron APIs.
 - The preload exposes only `{ isDesktop: true, platform }`.
 - `window.open` is denied, external `http(s)` links open in the system browser,
-  and `will-navigate` only allows in-app navigations.
+  and both `will-navigate` and `will-redirect` only allow in-app navigations.
+- Every Chromium permission request and permission check is denied; the app
+  needs none.
+- Failed loads and crashed renderer processes surface a native error dialog
+  instead of an invisible window.
 - `<webview>` attachment is blocked, the dev menu with reload/devtools is only
   installed in unpackaged builds, and a second launch focuses the existing
   window instead of opening another one.
@@ -63,8 +67,9 @@ they reach the browser.
   notifications are out of scope, so there is no permission prompt.
 - **Sync is not wired for desktop yet.** The renderer origin is
   `lifespire-app://app`, which the API's CORS list and cookie handling do not
-  cover; the desktop app is guest/local in this release. Use export/import to
-  move a save between desktop and the other clients.
+  cover; the desktop app is guest/local in this release. Settings replaces the
+  sync/server panels with a note and points at export/import, which is how a
+  save moves between desktop and the other clients.
 
 ## 5. Commands
 
@@ -81,23 +86,29 @@ pnpm --filter @lifespire/desktop package:win
 `electron-builder` writes to `apps/desktop/release/` (gitignored). The web build
 is a prerequisite: the packaging scripts run `@lifespire/web build` first and the
 packaged app fails to load if `apps/web/dist` is missing.
-
 ## 6. CI release
 
 [`release.yml`](../.github/workflows/release.yml) runs only on `v*` tags:
 
-1. `verify` fails unless the tag matches the root and desktop `version`.
+1. `verify` fails unless the tag matches `version` in the root, desktop and
+   mobile `package.json` manifests.
 2. `quality` repeats the gates from `ci.yml` (lint, typecheck, E2E typecheck,
    tests, build).
 3. `desktop` packages on `ubuntu-latest` (`.deb`, `.AppImage`, `.tar.gz`) and
    `windows-latest` (NSIS `.exe`, portable `.zip`).
 4. `android` builds the APK on EAS cloud with the `preview` profile. It needs the
-   `EXPO_TOKEN` repository secret; `LIFESPIRE_APP_VERSION` comes from the tag and
-   feeds `app.config.ts`.
+   `EXPO_TOKEN` repository secret and a project that has been linked once with
+   `eas init` (committed `extra.eas.projectId`) plus EAS-managed Android
+   credentials. `app.config.ts` reads the version from
+   `apps/mobile/package.json`, which travels to the builder; runner environment
+   variables do not, so the tag never silently ships the wrong APK.
 5. `publish` attaches every artifact plus `SHA256SUMS.txt` to the GitHub release.
+   It waits for quality and the desktop builds but tolerates a failed `android`
+   job: the run stays red, a warning is printed and the installers are still
+   published. The release notes list whatever files ended up attached.
 
-Release checklist: bump `version` in the root and desktop `package.json`, commit,
-then `git tag vX.Y.Z && git push origin vX.Y.Z`.
+Release checklist: bump `version` in the root, desktop and mobile `package.json`,
+commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
 Installers are unsigned. Linux `.deb` installs without warnings; Windows shows the
 SmartScreen "unknown publisher" prompt. Adding code signing later only needs the
@@ -110,8 +121,9 @@ download the next release manually.
 - `pnpm --filter @lifespire/desktop test` covers URL resolution, path-traversal
   rejection, the navigation allow-list and the external-link policy.
 - Packaging smoke check (Linux, run locally because CI has no display):
-  `electron-builder --dir`, launch `release/linux-unpacked/lifespire`, confirm the
-  welcome screen, self-hosted fonts, `localStorage` writes and the preload bridge
+  `pnpm --filter @lifespire/desktop exec electron-builder --dir`, launch
+  `release/linux-unpacked/lifespire`, confirm the welcome screen, self-hosted
+  fonts, `localStorage` writes and the preload bridge
   (`window.lifespireDesktop`), with no console errors.
 
 ## 8. Known follow-ups

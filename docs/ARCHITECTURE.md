@@ -958,13 +958,16 @@ prototipo retirado:
   sirve los assets desde disco y no debe montar un segundo caché.
 - **Seguridad:** `contextIsolation`, `sandbox`, sin `nodeIntegration`; el
   preload solo expone `{ isDesktop, platform }`. `window.open` se deniega, los
-  enlaces `http(s)` externos abren en el navegador, `will-navigate` solo permite
-  el origen propio y `<webview>` queda bloqueado.
+  enlaces `http(s)` externos abren en el navegador, `will-navigate` y
+  `will-redirect` solo permiten el origen propio, los permisos de Chromium se
+  deniegan y `<webview>` queda bloqueado.
 - **Datos:** export con diálogo nativo (`will-download` →
   `showSaveDialogSync`), import por input de fichero con los mismos gates. La
   política multi-pestaña se reduce al single-instance lock. El sync no está
   conectado: el origen `lifespire-app://app` queda fuera de CORS/cookies del
-  API, así que el escritorio es guest/local y mueve saves con export/import.
+  API, así que el escritorio es guest/local, `SettingsScreen` sustituye los
+  paneles de servidor/sync por una nota y los saves se mueven con
+  export/import.
 - **CI:** `.github/workflows/release.yml` solo corre en tags `v*`, valida la
   versión contra los manifiestos, empaqueta en runners Linux/Windows, compila
   el APK en EAS y publica todo (más `SHA256SUMS.txt`) en la GitHub Release.

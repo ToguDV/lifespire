@@ -322,11 +322,12 @@ verification can use `pnpm --filter @lifespire/mobile android:native` with an
 Android SDK and a connected device/emulator.
 
 The release workflow builds the `preview` APK on EAS cloud; `EXPO_TOKEN` must be
-a repository secret. `app.config.ts` reads `LIFESPIRE_APP_VERSION` (the tag
-without `v`) so the APK version matches the release, and derives
-`android.versionCode` from it (`major × 1_000_000 + minor × 1_000 + patch`), so
-the code only grows across releases. Without the variable, local builds keep
-`0.1.0`.
+a repository secret and the project must be linked once with `eas init` so
+`extra.eas.projectId` is committed. `apps/mobile/package.json` is the version
+source: `app.config.ts` reads it and derives `android.versionCode` as
+`major × 1_000_000 + minor × 1_000 + patch`, so the code only grows across
+releases. Bump that manifest together with the root and desktop ones before
+tagging; the release workflow verifies all three.
 
 ## 10. Known follow-ups
 
