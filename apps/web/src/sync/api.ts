@@ -5,6 +5,11 @@ import {
   resolveSyncBaseUrl,
   validateServerUrl,
 } from '@lifespire/app-core/sync/baseUrl'
+import type {
+  DesktopBridge,
+  DesktopSessionState,
+} from '../ui/lib/platform'
+import { isDesktopShell } from '../ui/lib/platform'
 import { useAuthStore } from './authStore'
 import { SYNC_BASE_URL_KEY } from './storageKeys'
 
@@ -64,9 +69,124 @@ export function clearStoredBaseUrl(): void {
   }
 }
 
+/** The Electron bridge, only when the renderer is the desktop shell. */
+function desktopBridge(): DesktopBridge | null {
+  if (!isDesktopShell()) return null
+  const bridge = typeof window === 'undefined' ? undefined : window.lifespireDesktop
+  return bridge?.api?.request ? bridge : null
+}
+
+function headerRecord(headers: HeadersInit | undefined): Record<string, string> {
+  if (!headers) return {}
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+    const out: Record<string, string> = {}
+    headers.forEach((value, key) => {
+      out[key] = value
+    })
+    return out
+  }
+  if (Array.isArray(headers)) {
+    const out: Record<string, string> = {}
+    for (const [key, value] of headers) out[key] = value
+    return out
+  }
+  return { ...(headers as Record<string, string>) }
+}
+
+/**
+ * fetch adapter for the desktop shell. API calls go through `api.request` in
+ * the main process; the renderer only builds a Response from the returned
+ * status/headers/body and never sees the refresh token. A missing base URL is
+ * an explicit "not configured" error, never a same-origin fallback.
+ */
+function createDesktopFetch(baseUrl: string, bridge: DesktopBridge): typeof fetch {
+  const configured = baseUrl.replace(/\/+$/, '')
+  const api = bridge.api
+  if (!api) throw new Error('The desktop bridge is missing the API channel.')
+
+  return async (input, init = {}) => {
+    const request = typeof Request !== 'undefined' && input instanceof Request ? input : null
+    const raw = request ? request.url : String(input)
+    let url: URL
+    try {
+      url = new URL(raw, 'lifespire-app://app')
+    } catch {
+      throw new Error('The sync request URL is invalid.')
+    }
+
+    const method = (init.method ?? request?.method ?? 'GET').toUpperCase()
+    const path = `${url.pathname}${url.search}`
+    const health = path === '/health/live' && method === 'GET'
+    let origin: string | undefined
+    if (health) {
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        throw new Error('Enter the LifeSpire server URL to test it.')
+      }
+      origin = url.origin
+    } else {
+      if (!configured) {
+        throw new Error('Choose a sync server in Settings before syncing.')
+      }
+      if (url.origin !== configured) {
+        throw new Error('The sync request does not match the configured server.')
+      }
+    }
+
+    const body = typeof init.body === 'string' ? init.body : undefined
+    const result = await api.request({
+      path,
+      method,
+      headers: headerRecord(init.headers ?? request?.headers),
+      body,
+      origin,
+    })
+    if (!result.ok) throw new Error(result.error.message)
+
+    const responseInit: ResponseInit = {
+      status: result.response.status,
+      statusText: result.response.statusText,
+      headers: result.response.headers,
+    }
+    if (result.response.status === 204 || result.response.status === 304) {
+      return new Response(null, responseInit)
+    }
+    return new Response(result.response.body, responseInit)
+  }
+}
+
+/** Shared transport for the sync client and the server health probe. */
+export function getSyncFetch(): typeof fetch {
+  const bridge = desktopBridge()
+  if (!bridge) return fetch
+  return createDesktopFetch(getSyncBaseUrl(), bridge)
+}
+
+/** Whether the desktop session survives a restart (settings note). */
+export async function getDesktopSessionState(): Promise<DesktopSessionState | null> {
+  const bridge = desktopBridge()
+  if (!bridge?.auth?.sessionState) return null
+  try {
+    return await bridge.auth.sessionState()
+  } catch {
+    return null
+  }
+}
+
+/** Clears the main-process credential even if the server logout call fails. */
+async function signOutDesktop(bridge: DesktopBridge): Promise<void> {
+  try {
+    await bridge.auth?.signOut?.()
+  } catch {
+    // Local sign-out already happened in the auth store.
+  }
+}
+
 function buildApiClient(): ApiClient {
-  return createApiClient({
-    baseUrl: getSyncBaseUrl(),
+  const baseUrl = getSyncBaseUrl()
+  const bridge = desktopBridge()
+  const client = createApiClient({
+    baseUrl,
+    fetchFn: bridge ? createDesktopFetch(baseUrl, bridge) : undefined,
     getAccessToken: () => {
       try {
         return useAuthStore.getState().getAccessToken()
@@ -82,6 +202,29 @@ function buildApiClient(): ApiClient {
       }
     },
   })
+
+  if (bridge) {
+    // The main process holds the only allowlisted origin. Fire-and-forget is
+    // ordered before any later renderer IPC call, including the boot restore.
+    void bridge.sync?.setServer(baseUrl || null)
+    const logout = client.logout.bind(client)
+    const logoutAll = client.logoutAll.bind(client)
+    client.logout = async () => {
+      try {
+        await logout()
+      } finally {
+        await signOutDesktop(bridge)
+      }
+    }
+    client.logoutAll = async () => {
+      try {
+        await logoutAll()
+      } finally {
+        await signOutDesktop(bridge)
+      }
+    }
+  }
+  return client
 }
 
 export let syncApi: ApiClient = buildApiClient()

@@ -5,12 +5,14 @@ import {
   clearStoredBaseUrl,
   getStoredBaseUrl,
   getSyncBaseUrl,
+  getSyncFetch,
   refreshSyncApi,
   setStoredBaseUrl,
   validateServerUrl,
 } from '../../sync/api'
 import { useAuthStore } from '../../sync/authStore'
 import { Button, Panel, PanelHead } from '../components'
+import { isDesktopShell } from '../lib/platform'
 
 function isLocalhost(hostname: string): boolean {
   return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
@@ -20,6 +22,7 @@ type Phase = 'idle' | 'checking' | 'saving'
 
 export function ServerPanel() {
   const logout = useAuthStore((state) => state.logout)
+  const desktop = isDesktopShell()
   const [stored, setStored] = useState<string | null>(() => {
     try {
       return getStoredBaseUrl()
@@ -81,7 +84,9 @@ export function ServerPanel() {
       setUnverified(null)
       setNotice(
         origin === null
-          ? 'Using the default server. You were signed out — sign in again to sync.'
+          ? desktop
+            ? 'Sync is off. Choose a server to sync between devices.'
+            : 'Using the default server. You were signed out — sign in again to sync.'
           : `Now using ${origin}. You were signed out — sign in again to sync.`,
       )
     } catch (error) {
@@ -108,7 +113,7 @@ export function ServerPanel() {
     }
     setPhase('checking')
     setUnverified(null)
-    checkServerHealth(origin).then(
+    checkServerHealth(origin, getSyncFetch()).then(
       () => {
         void swapTo(origin)
       },
@@ -136,12 +141,15 @@ export function ServerPanel() {
       <PanelHead
         label="Sync server"
         aside={
-          <span className="chip chip--quiet">{stored ? 'custom' : 'default'}</span>
+          <span className="chip chip--quiet">
+            {stored ? 'custom' : desktop ? 'not configured' : 'default'}
+          </span>
         }
       />
       <div className="sync-panel">
         <p className="panel-note">
-          Current server: <strong>{effective || 'this app (same origin)'}</strong>
+          Current server:{' '}
+          <strong>{effective || (desktop ? 'not configured' : 'this app (same origin)')}</strong>
         </p>
         {notice ? (
           <p className="panel-note" role="status">
@@ -217,7 +225,7 @@ export function ServerPanel() {
             </Button>
             {stored ? (
               <Button variant="secondary" onClick={reset} disabled={busy}>
-                Use default
+                {desktop ? 'Turn off sync' : 'Use default'}
               </Button>
             ) : null}
           </div>

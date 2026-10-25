@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   checkServerHealth,
   engineApi,
+  getDesktopSessionState,
+  getSyncFetch,
   normalizeBaseUrl,
   refreshSyncApi,
   resolveSyncBaseUrl,
@@ -135,6 +137,142 @@ describe('refreshSyncApi', () => {
       'https://custom.example.com/v1/sync',
       'https://custom.example.com/v1/sync',
     ])
+  })
+})
+
+describe('desktop bridge', () => {
+  const realFetch = globalThis.fetch
+  const backing = new Map<string, string>()
+
+  interface Recorded {
+    path: string
+    method: string
+    headers?: Record<string, string>
+    body?: string
+    origin?: string
+  }
+
+  let requests: Recorded[]
+  let setServerCalls: Array<string | null>
+  let signOutCalls: number
+  let reply: { status: number; body: string; headers?: Record<string, string> }
+
+  function state(persistence: 'encrypted' | 'memory-only' = 'encrypted') {
+    return { persistence, signedIn: false, serverOrigin: null }
+  }
+
+  beforeEach(() => {
+    backing.clear()
+    requests = []
+    setServerCalls = []
+    signOutCalls = 0
+    reply = { status: 200, body: '{}' }
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => backing.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        backing.set(key, String(value))
+      },
+      removeItem: (key: string) => {
+        backing.delete(key)
+      },
+    })
+    vi.stubGlobal('window', {
+      lifespireDesktop: {
+        isDesktop: true,
+        api: {
+          request: async (request: Recorded) => {
+            requests.push(request)
+            return {
+              ok: true,
+              response: {
+                status: reply.status,
+                statusText: '',
+                headers: reply.headers ?? { 'content-type': 'application/json' },
+                body: reply.body,
+              },
+            }
+          },
+        },
+        sync: {
+          setServer: async (origin: string | null) => {
+            setServerCalls.push(origin)
+            return state()
+          },
+        },
+        auth: {
+          sessionState: async () => state('memory-only'),
+          signOut: async () => {
+            signOutCalls += 1
+            return state()
+          },
+        },
+      },
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    globalThis.fetch = realFetch
+    refreshSyncApi()
+  })
+
+  it('fails /v1 requests with a clear error when no server is configured', async () => {
+    refreshSyncApi()
+    const fetchFn = getSyncFetch()
+    await expect(fetchFn('/v1/sync')).rejects.toThrow(/choose a sync server/i)
+    expect(requests).toHaveLength(0)
+  })
+
+  it('routes the client through the bridge instead of renderer fetch', async () => {
+    const globalFetch = vi.fn(async () => {
+      throw new Error('the renderer must not fetch the API directly')
+    })
+    globalThis.fetch = globalFetch as unknown as typeof fetch
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = {
+      status: 200,
+      body: JSON.stringify({
+        version: '3',
+        schemaVersion: 3,
+        document: {},
+        updatedAt: '2026-10-24T00:00:00.000Z',
+      }),
+    }
+
+    const client = refreshSyncApi()
+    const snapshot = await client.getSync()
+
+    expect(snapshot?.version).toBe('3')
+    expect(requests[0]).toMatchObject({ path: '/v1/sync', method: 'GET' })
+    expect(setServerCalls).toContain('https://custom.example.com')
+    expect(globalFetch).not.toHaveBeenCalled()
+  })
+
+  it('clears the main-process credential on sign-out', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    const client = refreshSyncApi()
+    await client.logout()
+    expect(requests[0]).toMatchObject({ path: '/v1/auth/logout', method: 'POST' })
+    expect(signOutCalls).toBe(1)
+  })
+
+  it('uses the same bridge for a health check against a candidate origin', async () => {
+    reply = { status: 200, body: JSON.stringify({ status: 'ok' }) }
+    await expect(
+      checkServerHealth('https://new.example.com', getSyncFetch()),
+    ).resolves.toBe(true)
+    expect(requests[0]).toMatchObject({
+      path: '/health/live',
+      method: 'GET',
+      origin: 'https://new.example.com',
+    })
+  })
+
+  it('exposes the session persistence state to the UI', async () => {
+    await expect(getDesktopSessionState()).resolves.toMatchObject({
+      persistence: 'memory-only',
+    })
   })
 })
 

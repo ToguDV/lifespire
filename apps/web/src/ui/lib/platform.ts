@@ -1,7 +1,45 @@
 /** Read-only bridge exposed by the Electron preload (apps/desktop/src/preload.ts). */
+export type DesktopSessionPersistence = 'encrypted' | 'memory-only'
+
+export interface DesktopSessionState {
+  persistence: DesktopSessionPersistence
+  signedIn: boolean
+  serverOrigin: string | null
+}
+
+export interface DesktopApiRequest {
+  path: string
+  method: string
+  headers?: Record<string, string>
+  body?: string
+  /** Only used for the unauthenticated `/health/live` probe. */
+  origin?: string
+}
+
+export interface DesktopApiResponse {
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  body: string
+}
+
+export type DesktopApiResult =
+  | { ok: true; response: DesktopApiResponse }
+  | { ok: false; error: { code: string; message: string } }
+
 export interface DesktopBridge {
   isDesktop?: boolean
   platform?: string
+  api?: {
+    request(request: DesktopApiRequest): Promise<DesktopApiResult>
+  }
+  sync?: {
+    setServer(origin: string | null): Promise<DesktopSessionState>
+  }
+  auth?: {
+    sessionState(): Promise<DesktopSessionState>
+    signOut(): Promise<DesktopSessionState>
+  }
 }
 
 declare global {

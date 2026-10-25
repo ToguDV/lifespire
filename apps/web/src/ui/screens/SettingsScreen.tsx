@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { dayKey } from '../../domain/dates'
 import { STORAGE_KEY } from '../../domain/balance'
 import { serializeDocument } from '../../domain/schema'
 import type { ThemePreference } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
+import { getDesktopSessionState } from '../../sync/api'
 import {
   Button,
   Dialog,
@@ -21,6 +22,7 @@ import { AdminPanel } from '../components/AdminPanel'
 import { useFeedbackPrefs } from '../lib/feedback'
 import { saveFileName } from '../lib/importSave'
 import { isDesktopShell } from '../lib/platform'
+import type { DesktopSessionPersistence } from '../lib/platform'
 import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -28,6 +30,37 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'dark', label: 'Night' },
   { value: 'system', label: 'System' },
 ]
+
+/**
+ * safeStorage is memory-only when the OS keychain is unavailable (or Linux
+ * falls back to `basic_text`). The session still works until the app closes;
+ * say so instead of pretending it was saved.
+ */
+function DesktopSessionNote() {
+  const [persistence, setPersistence] = useState<DesktopSessionPersistence | null>(null)
+
+  useEffect(() => {
+    let active = true
+    void getDesktopSessionState().then((state) => {
+      if (active) setPersistence(state?.persistence ?? null)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (persistence !== 'memory-only') return null
+
+  return (
+    <Panel pad>
+      <PanelHead label="Sync session" aside={<span className="chip chip--quiet">Not saved</span>} />
+      <p className="panel-note" role="note">
+        This system keychain is not available, so the sync session stays in memory. Sync works
+        while the app is open, but you will sign in again after restarting it.
+      </p>
+    </Panel>
+  )
+}
 
 export function SettingsScreen() {
   const gameDocument = useAppStore((state) => state.document)
@@ -73,31 +106,15 @@ export function SettingsScreen() {
         kicker="Profile · Local data"
         title="Settings"
         titleId="settings-title"
-        sub={
-          desktop
-            ? 'Appearance, feedback and the local save.'
-            : 'Appearance, the local save and optional device sync.'
-        }
-        meta={desktop ? undefined : <SyncStatus />}
+        sub="Appearance, the local save and optional device sync."
+        meta={<SyncStatus />}
       />
 
       <div className="settings-body">
-        {desktop ? (
-          <Panel pad>
-            <PanelHead label="Sync" aside={<span className="chip chip--quiet">Desktop</span>} />
-            <p className="panel-note">
-              This build keeps your save on this device. Account sync needs a browser session and
-              is not available in the desktop app yet; use the export and import actions below to
-              move the save between devices.
-            </p>
-          </Panel>
-        ) : (
-          <>
-            <ServerPanel />
-            <SyncPanel />
-            <AdminPanel />
-          </>
-        )}
+        {desktop ? <DesktopSessionNote /> : null}
+        <ServerPanel />
+        <SyncPanel />
+        {!desktop ? <AdminPanel /> : null}
         <Panel pad>
           <PanelHead label="Appearance" />
           <div className="field">
