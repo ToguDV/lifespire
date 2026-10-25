@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   checkServerHealth,
@@ -9,6 +9,7 @@ import {
   getSyncFetch,
   refreshSyncApi,
   setStoredBaseUrl,
+  validateDesktopServer,
   validateServerUrl,
   waitForDesktopTransport,
 } from '../../sync/api'
@@ -40,6 +41,20 @@ export function ServerPanel() {
   const [notice, setNotice] = useState<string | null>(null)
   const [phase, setPhase] = useState<Phase>('idle')
   const [unverified, setUnverified] = useState<string | null>(null)
+
+  // A boot-time setServer failure has no caller to await it; surface it here.
+  useEffect(() => {
+    let active = true
+    void waitForDesktopTransport().catch((error: unknown) => {
+      if (!active) return
+      setServerError(
+        error instanceof Error ? error.message : 'Could not prepare the sync session.',
+      )
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const effective = (() => {
     try {
@@ -78,6 +93,9 @@ export function ServerPanel() {
     try {
       // Sessions live on the old server; sign out there first.
       await logout()
+      // Validate with main before persisting or repointing the client: a
+      // rejected origin must leave the UI and main on the same server.
+      await validateDesktopServer(origin)
       if (origin === null) {
         clearStoredBaseUrl()
       } else {

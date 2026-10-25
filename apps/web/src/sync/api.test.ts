@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   checkServerHealth,
   engineApi,
+  finishDesktopSignOut,
   getDesktopSessionState,
   getSyncFetch,
   normalizeBaseUrl,
   refreshSyncApi,
   resolveSyncBaseUrl,
+  validateDesktopServer,
   validateServerUrl,
   waitForDesktopTransport,
 } from './api'
@@ -160,6 +162,7 @@ describe('desktop bridge', () => {
   let signOutFailure: Error | null
   let setServerFailure: Error | null
   let reply: { status: number; body: string; headers?: Record<string, string> }
+  let cleanupError: { code: string; message: string } | null
   let failure: { code: string; message: string } | null
   let hold: Promise<void> | null
 
@@ -175,6 +178,7 @@ describe('desktop bridge', () => {
     signOutFailure = null
     setServerFailure = null
     reply = { status: 200, body: '{}' }
+    cleanupError = null
     failure = null
     hold = null
     vi.stubGlobal('localStorage', {
@@ -201,6 +205,7 @@ describe('desktop bridge', () => {
                 statusText: '',
                 headers: reply.headers ?? { 'content-type': 'application/json' },
                 body: reply.body,
+                ...(cleanupError ? { cleanupError } : {}),
               },
             }
           },
@@ -380,6 +385,54 @@ describe('desktop bridge', () => {
     // Settings awaits this to avoid showing a success notice after a failed
     // local sign-out.
     await expect(waitForDesktopTransport()).rejects.toThrow(/vault is locked/)
+  })
+
+  it('keeps the desktop health redirect message through checkServerHealth', async () => {
+    failure = {
+      code: 'HEALTH_REDIRECT',
+      message:
+        'No LifeSpire server at that address: it redirects elsewhere — use the final https:// address.',
+    }
+    await expect(
+      checkServerHealth('https://new.example.com', getSyncFetch()),
+    ).rejects.toThrow(/No LifeSpire server at that address/)
+  })
+
+  it('validates a server with main before persisting it', async () => {
+    setServerFailure = new Error('link-local origins are blocked')
+    await expect(validateDesktopServer('http://169.254.169.254')).rejects.toThrow(
+      /link-local origins are blocked/,
+    )
+    expect(setServerCalls).toContain('http://169.254.169.254')
+  })
+
+  it('surfaces a desktop sign-out failure through the SyncPanel helper', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    const client = refreshSyncApi()
+    signOutFailure = new Error('vault is locked')
+    await expect(client.logout()).rejects.toThrow(/vault is locked/)
+    // authStore.logout() swallows the server failure; the panel still awaits
+    // the local result.
+    await expect(finishDesktopSignOut(async () => undefined)).rejects.toThrow(/vault is locked/)
+  })
+
+  it('consumes a logout cleanup warning as a typed error', async () => {
+    backing.set(SYNC_BASE_URL_KEY, 'https://custom.example.com')
+    reply = { status: 204, body: '' }
+    cleanupError = {
+      code: 'VAULT_DELETE_FAILED',
+      message: 'The local sync session could not be cleared.',
+    }
+    const client = refreshSyncApi()
+    await expect(client.logout()).rejects.toMatchObject({
+      name: 'ApiRequestError',
+      status: 204,
+      code: 'VAULT_DELETE_FAILED',
+    })
+    await expect(waitForDesktopTransport()).rejects.toMatchObject({
+      code: 'VAULT_DELETE_FAILED',
+    })
   })
 
   it('surfaces other bridge failures as plain errors', async () => {

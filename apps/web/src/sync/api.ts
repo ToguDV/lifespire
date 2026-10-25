@@ -139,6 +139,8 @@ function bridgeError(error: { code: string; message: string }): Error {
   return new Error(error.message)
 }
 
+let desktopSignOutError: unknown = null
+
 function createDesktopFetch(baseUrl: string, bridge: DesktopBridge): typeof fetch {
   let configured = ''
   if (baseUrl) {
@@ -195,6 +197,21 @@ function createDesktopFetch(baseUrl: string, bridge: DesktopBridge): typeof fetc
       init.signal,
     )
     if (!result.ok) throw bridgeError(result.error)
+    if (result.response.cleanupError) {
+      const cleanup = result.response.cleanupError
+      const error = new ApiRequestError(
+        result.response.status,
+        cleanup.message,
+        cleanup.code,
+      )
+      // Logout cleanup failures must survive authStore.logout(), which catches
+      // server errors by design; Settings reads this through
+      // waitForDesktopTransport().
+      if (url.pathname === '/v1/auth/logout' || url.pathname === '/v1/auth/logout-all') {
+        desktopSignOutError = error
+      }
+      throw error
+    }
 
     const responseInit: ResponseInit = {
       status: result.response.status,
@@ -227,12 +244,9 @@ export async function getDesktopSessionState(): Promise<DesktopSessionState | nu
 }
 
 /** Clears the main-process credential; failures must surface to the caller. */
-let desktopSignOutError: unknown = null
-
 async function signOutDesktop(bridge: DesktopBridge): Promise<void> {
   try {
     await bridge.auth?.signOut?.()
-    desktopSignOutError = null
   } catch (error) {
     desktopSignOutError = error
     throw error
@@ -268,6 +282,21 @@ export async function waitForDesktopTransport(): Promise<void> {
   if (desktopSetServerError) throw desktopSetServerError
 }
 
+/** Validates a server with main before Settings persists or refreshes it. */
+export async function validateDesktopServer(origin: string | null): Promise<void> {
+  const bridge = desktopBridge()
+  await bridge?.sync?.setServer(origin)
+}
+
+/**
+ * Full desktop sign-out for UI callers: authStore.logout() intentionally
+ * swallows network errors, so the local vault result is awaited separately.
+ */
+export async function finishDesktopSignOut(logout: () => Promise<void>): Promise<void> {
+  await logout()
+  await waitForDesktopTransport()
+}
+
 function buildApiClient(): ApiClient {
   const baseUrl = getSyncBaseUrl()
   const bridge = desktopBridge()
@@ -298,6 +327,7 @@ function buildApiClient(): ApiClient {
     const logout = client.logout.bind(client)
     const logoutAll = client.logoutAll.bind(client)
     client.logout = async () => {
+      desktopSignOutError = null
       try {
         await logout()
       } finally {
@@ -305,6 +335,7 @@ function buildApiClient(): ApiClient {
       }
     }
     client.logoutAll = async () => {
+      desktopSignOutError = null
       try {
         await logoutAll()
       } finally {
