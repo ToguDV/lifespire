@@ -52,6 +52,12 @@ describe('resolveAssetPath', () => {
     expect(resolveAssetPath(ROOT, `${APP_ORIGIN}/..%2Fsecrets.json`)).toBeNull()
   })
 
+  it('keeps files whose name merely starts with dots', () => {
+    expect(resolveAssetPath(ROOT, `${APP_ORIGIN}/..well-known/security.txt`)).toBe(
+      path.join(ROOT, '..well-known', 'security.txt'),
+    )
+  })
+
   it('rejects other origins and malformed URLs', () => {
     expect(resolveAssetPath(ROOT, 'https://example.com/index.html')).toBeNull()
     expect(resolveAssetPath(ROOT, `${APP_SCHEME}://other/index.html`)).toBeNull()

@@ -75,9 +75,12 @@ function registerAppProtocol(): void {
 /** Save exports go through a native dialog instead of Chromium's silent path. */
 function registerDownloads(): void {
   session.defaultSession.on('will-download', (_event, item) => {
+    // Chromium already suggests a name from the download attribute; keep only
+    // the basename so it can never point outside the Downloads folder.
+    const suggested = path.basename(item.getFilename())
     const target = dialog.showSaveDialogSync({
       title: 'Save LifeSpire data',
-      defaultPath: path.join(app.getPath('downloads'), item.getFilename()),
+      defaultPath: path.join(app.getPath('downloads'), suggested),
     })
 
     if (!target) {
@@ -87,6 +90,13 @@ function registerDownloads(): void {
 
     item.setSavePath(target)
   })
+}
+
+/** Denies every permission request: the local-first app needs none of them. */
+function restrictPermissions(): void {
+  const target = session.defaultSession
+  target.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
+  target.setPermissionCheckHandler(() => false)
 }
 
 function createWindow(): void {
@@ -120,10 +130,29 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  window.webContents.on('will-navigate', (event, url) => {
+  const guardNavigation = (event: { preventDefault: () => void }, url: string) => {
     if (isInternalNavigation(url, { isPackaged: app.isPackaged, devUrl: DEV_URL })) return
     event.preventDefault()
     if (isExternalWebUrl(url)) void shell.openExternal(url)
+  }
+
+  window.webContents.on('will-navigate', guardNavigation)
+  window.webContents.on('will-redirect', guardNavigation)
+
+  window.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
+      // -3 is an aborted load, which happens on normal navigations.
+      if (!isMainFrame || errorCode === -3) return
+      dialog.showErrorBox(
+        'LifeSpire could not open',
+        `${errorDescription} (${errorCode})\n${validatedUrl}`,
+      )
+    },
+  )
+
+  window.webContents.on('render-process-gone', (_event, details) => {
+    dialog.showErrorBox('LifeSpire stopped', `The window process exited: ${details.reason}`)
   })
 
   if (app.isPackaged) {
@@ -156,6 +185,7 @@ if (!app.requestSingleInstanceLock()) {
     registerAppProtocol()
     Menu.setApplicationMenu(buildMenu(app.isPackaged))
     registerDownloads()
+    restrictPermissions()
     createWindow()
 
     app.on('activate', () => {

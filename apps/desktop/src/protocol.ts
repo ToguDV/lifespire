@@ -48,7 +48,10 @@ export function resolveAssetPath(rootDir: string, requestUrl: string): string | 
   const candidate = path.resolve(root, relative === '' ? 'index.html' : relative)
   const inside = path.relative(root, candidate)
 
-  if (inside === '' || inside.startsWith('..') || path.isAbsolute(inside)) return null
+  // `path.relative` returns `..` (or `../x`) when the target escapes the root;
+  // a file literally named `..foo` stays inside and must remain valid.
+  const escapes = inside === '..' || inside.startsWith(`..${path.sep}`)
+  if (inside === '' || escapes || path.isAbsolute(inside)) return null
   return candidate
 }
 
