@@ -304,8 +304,16 @@ export class AuthService {
   }
 
   async logout(sessionId: string): Promise<void> {
+    // Logout is a device-wide action: revoke every rotation in the family, not
+    // only the sid carried by the (possibly older) access token. Otherwise a
+    // refresh that rotated just before logout would leave a live session.
+    const session = await this.prisma.refreshSession.findUnique({
+      where: { id: sessionId },
+      select: { familyId: true },
+    });
+    if (!session) return;
     await this.prisma.refreshSession.updateMany({
-      where: { id: sessionId, revokedAt: null },
+      where: { familyId: session.familyId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }
