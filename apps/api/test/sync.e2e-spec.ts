@@ -717,6 +717,32 @@ describe('sync API e2e (postgres)', () => {
       .set('X-Forwarded-For', ip)
       .send({ refreshToken: rotated.body.refreshToken })
       .expect(401);
+
+    // The desktop shell (Electron main process) uses the same grant.
+    const desktopIp = nextIp();
+    const desktopLogin = await request(srv)
+      .post('/v1/auth/login')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', desktopIp)
+      .send({ email, password, deviceName: 'desktop-linux' })
+      .expect(200);
+    expect(typeof desktopLogin.body.refreshToken).toBe('string');
+    const desktopRotated = await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'desktop')
+      .set('X-Forwarded-For', desktopIp)
+      .send({ refreshToken: desktopLogin.body.refreshToken })
+      .expect(200);
+    expect(desktopRotated.body.refreshToken).not.toBe(desktopLogin.body.refreshToken);
+
+    // A browser-shaped request cannot opt into the desktop grant.
+    await request(srv)
+      .post('/v1/auth/refresh')
+      .set('X-Client-Platform', 'desktop')
+      .set('Origin', 'lifespire-app://app')
+      .set('X-Forwarded-For', desktopIp)
+      .send({ refreshToken: desktopRotated.body.refreshToken })
+      .expect(401);
   }, 60_000);
 
 });

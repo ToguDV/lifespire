@@ -10,6 +10,23 @@ describe('isNativeClient', () => {
     expect(isNativeClient({ headers: { 'x-client-platform': 'ios' } })).toBe(true);
   });
 
+  it('accepts the desktop shell request shape', () => {
+    expect(isNativeClient({ headers: { 'x-client-platform': 'desktop' } })).toBe(true);
+  });
+
+  it('rejects the desktop shell when the request looks like a browser', () => {
+    expect(
+      isNativeClient({
+        headers: { 'x-client-platform': 'desktop', origin: 'lifespire-app://app' },
+      }),
+    ).toBe(false);
+    expect(
+      isNativeClient({
+        headers: { 'x-client-platform': 'desktop', 'sec-fetch-site': 'same-origin' },
+      }),
+    ).toBe(false);
+  });
+
   it('rejects an unknown platform', () => {
     expect(isNativeClient({ headers: { 'x-client-platform': 'web' } })).toBe(false);
   });

@@ -7,9 +7,13 @@
  * either one (they are forbidden headers). Requiring their absence, plus the
  * explicit native-client header, keeps the HttpOnly cookie contract for web
  * while letting the Android/iOS app receive a token for secure storage.
+ *
+ * `desktop` is the Electron shell: its main process calls the API with
+ * `net.fetch`, so no browser headers are attached, and it keeps the token in
+ * the OS keychain instead of the renderer.
  */
 export const NATIVE_CLIENT_HEADER = 'x-client-platform';
-export const NATIVE_CLIENT_PLATFORMS = ['android', 'ios'] as const;
+export const NATIVE_CLIENT_PLATFORMS = ['android', 'ios', 'desktop'] as const;
 
 export interface NativeClientRequest {
   headers: Record<string, unknown>;
