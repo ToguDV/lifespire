@@ -1,6 +1,26 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { app, BrowserWindow, dialog, Menu, net, protocol, session, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  net,
+  protocol,
+  safeStorage,
+  session,
+  shell,
+  type IpcMainInvokeEvent,
+} from 'electron'
+import {
+  API_PROXY_CHANNELS,
+  createApiProxy,
+  createTokenVault,
+  isTrustedSender,
+  type TokenVaultFile,
+} from './apiProxy'
 import { buildMenu } from './menu'
 import {
   APP_SCHEME,
@@ -69,6 +89,78 @@ function registerAppProtocol(): void {
     } catch {
       return new Response('Not found', { status: 404 })
     }
+  })
+}
+
+/**
+ * Sync runs in the main process: the renderer asks for a path, main calls the
+ * configured server with `net.fetch`, and the refresh token never crosses the
+ * bridge. `safeStorage` persists it when the OS keychain is available.
+ */
+function registerApiProxy(): void {
+  const vaultPath = path.join(app.getPath('userData'), 'sync-session.json')
+  const file: TokenVaultFile = {
+    read: () => {
+      try {
+        return fs.readFileSync(vaultPath, 'utf8')
+      } catch {
+        return null
+      }
+    },
+    write: (value) => {
+      fs.mkdirSync(path.dirname(vaultPath), { recursive: true })
+      fs.writeFileSync(vaultPath, value, { mode: 0o600 })
+    },
+    remove: () => {
+      try {
+        fs.rmSync(vaultPath, { force: true })
+      } catch {
+        // A missing credential file needs no cleanup.
+      }
+    },
+  }
+
+  const proxy = createApiProxy({
+    fetch: net.fetch as unknown as typeof fetch,
+    vault: createTokenVault({
+      file,
+      crypto: {
+        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+        usesPlainTextBackend: () => {
+          if (process.platform !== 'linux') return false
+          try {
+            return safeStorage.getSelectedStorageBackend() === 'basic_text'
+          } catch {
+            return true
+          }
+        },
+        encryptString: (value) => safeStorage.encryptString(value),
+        decryptString: (buffer) => safeStorage.decryptString(buffer),
+      },
+    }),
+  })
+
+  const guard = (event: IpcMainInvokeEvent): void => {
+    if (!isTrustedSender(event.senderFrame?.url, { isPackaged: app.isPackaged, devUrl: DEV_URL })) {
+      throw new Error('Untrusted IPC sender')
+    }
+  }
+
+  ipcMain.handle(API_PROXY_CHANNELS.request, (event, payload: unknown) => {
+    guard(event)
+    return proxy.request(payload)
+  })
+  ipcMain.handle(API_PROXY_CHANNELS.setServer, (event, origin: unknown) => {
+    guard(event)
+    return proxy.setServer(origin)
+  })
+  ipcMain.handle(API_PROXY_CHANNELS.sessionState, (event) => {
+    guard(event)
+    return proxy.sessionState()
+  })
+  ipcMain.handle(API_PROXY_CHANNELS.signOut, (event) => {
+    guard(event)
+    return proxy.signOut()
   })
 }
 
@@ -186,6 +278,7 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(buildMenu(app.isPackaged))
     registerDownloads()
     restrictPermissions()
+    registerApiProxy()
     createWindow()
 
     app.on('activate', () => {
