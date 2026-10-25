@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import Svg, { G, Path } from 'react-native-svg'
 import {
+  RUN_DAYS,
   availableNodeIds,
   currentDay,
   nodeProgress,
@@ -419,7 +420,7 @@ export function MapScreen() {
   const kicker = run.status === 'closed'
     ? 'Run I · The week is sealed'
     : day
-      ? `Run I · Day ${day.index + 1} of 7`
+      ? `Run I · Day ${day.index + 1} of ${RUN_DAYS}`
       : 'Run I · No day remains'
 
   let action: ReactNode = null
@@ -555,6 +556,7 @@ const styles = StyleSheet.create({
     bottom: 7,
     zIndex: 1,
     borderWidth: 1,
+    // 12px inner inset keeps pixel parity with the web map frame.
     borderRadius: 12,
     opacity: 0.45,
   },
@@ -567,11 +569,12 @@ const styles = StyleSheet.create({
   },
   compass: { position: 'absolute', right: 18, bottom: 16, zIndex: 3, opacity: 0.5 },
   lede: { marginBottom: space.sm },
-  choices: { gap: 9 },
+  choices: { gap: space.xs },
   choice: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 11,
+    gap: space.sm,
+    // 10px keeps the web choice-row density; no token covers it.
     padding: 10,
     borderWidth: 1,
     borderRadius: radius.md,
@@ -585,6 +588,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   choiceBody: { flex: 1, gap: 2 },
+  // 15/10.5px keep pixel parity with the web choice rows.
   choiceTitle: {
     fontFamily: fonts.display,
     fontSize: 15,
@@ -597,11 +601,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.64,
     textTransform: 'uppercase',
   },
-  foot: { flexDirection: 'row', alignItems: 'flex-start', gap: 7, marginTop: space.sm },
+  foot: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs, marginTop: space.sm },
   footText: { flex: 1 },
   aims: { gap: space.sm },
   legend: { gap: 0 },
-  legendRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 2 },
+  // 2px row padding and 10px legend type keep web parity; no token covers them.
+  legendRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs, paddingVertical: 2 },
   legendType: {
     width: 62,
     fontFamily: fonts.uiBold,

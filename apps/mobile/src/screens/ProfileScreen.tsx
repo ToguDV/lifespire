@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { xpIntoLevel, xpToNextLevel } from '@lifespire/core'
+import { RUN_DAYS, XP_PER_LEVEL, xpIntoLevel, xpToNextLevel } from '@lifespire/core'
 import {
   buildCollection,
   collectionFilterOptions,
@@ -96,10 +96,10 @@ export function ProfileScreen() {
             </Text>
             <View style={styles.xpMeta}>
               <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>Experience</Text>
-              <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>{xpNow} / 100</Text>
+              <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>{xpNow} / {XP_PER_LEVEL}</Text>
             </View>
             <View style={styles.xpBar}>
-              <Progress value={xpNow} max={100} height={4} label="Experience in this level" />
+              <Progress value={xpNow} max={XP_PER_LEVEL} height={4} label="Experience in this level" />
             </View>
             <Text variant="caption" tone="soft" style={styles.xpLeft}>
               {xpLeft} XP to level {profile.level + 1}
@@ -110,7 +110,7 @@ export function ProfileScreen() {
           <StatStrip>
             <Stat label="Gold" value={profile.gold} />
             <Stat label="Relics" value={owned} />
-            <Stat label="Days kept" value={`${daysKept} / 7`} />
+            <Stat label="Days kept" value={`${daysKept} / ${RUN_DAYS}`} />
           </StatStrip>
         </View>
       </Panel>
@@ -186,7 +186,7 @@ export function ProfileScreen() {
                     {conversion.rarity ? RARITY_LABEL[conversion.rarity] : 'relic'}
                   </Text>
                 </View>
-                <Text variant="bodySm" tone="gold">{`+${conversion.gold} gold`}</Text>
+                <Text variant="bodySm" tone="deep">{`+${conversion.gold} gold`}</Text>
               </View>
             ))}
           </View>
@@ -207,6 +207,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
+  // 21.6/7.4/10.6/9.9px keep pixel parity with the web reliquary header.
   levelNumber: { fontFamily: fonts.display, fontSize: 21.6, lineHeight: 24 },
   levelCaption: {
     position: 'absolute',
@@ -256,7 +257,8 @@ const styles = StyleSheet.create({
   },
   collectionStatus: { paddingHorizontal: 2, paddingBottom: space.xs },
   collection: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: space.xs },
-  lootCell: { flexBasis: '46%', flexGrow: 1, maxWidth: '48%' },
+  // 47% cells match the summary loot grid; 10px gutter keeps web parity.
+  lootCell: { flexBasis: '47%', flexGrow: 1, maxWidth: '48%' },
   duplicates: { gap: space.sm },
   duplicate: {
     flexDirection: 'row',

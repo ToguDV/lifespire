@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import {
   BOSS_CLOSING_BONUS,
@@ -23,6 +23,8 @@ import { fonts, radius, space } from '../theme/tokens'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
 import { EmptyState } from '../components/EmptyState'
+import { FactCell, FactsRow } from '../components/FactsRow'
+import { HeroArt } from '../components/HeroArt'
 import { Icon } from '../components/Icon'
 import { Panel, ScreenHead } from '../components/Panel'
 import { Pips } from '../components/Progress'
@@ -129,8 +131,16 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
   const node = map ? resolveNodeById(map, nodeId) : null
   const status = map && day && node ? nodeStatus(map, day, nodeId) : 'locked'
   const resolving = useRef(false)
+  const bossTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [wheelPhase, setWheelPhase] = useState<WheelPhase>('idle')
   const [frozenRoll, setFrozenRoll] = useState<WheelRoll | null>(null)
+
+  useEffect(
+    () => () => {
+      if (bossTimer.current !== null) clearTimeout(bossTimer.current)
+    },
+    [],
+  )
 
   const rolled = useMemo(() => {
     if (!run || !day || !node || node.type !== 'wheel') return null
@@ -180,7 +190,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
     ) {
       const bossAfter = nodeStatus(resolvedDay.map, resolvedDay, resolvedDay.map.boss.id)
       if (bossAfter === 'available' || bossAfter === 'current') {
-        setTimeout(() => playFeedback('bossUnlock'), 180)
+        bossTimer.current = setTimeout(() => playFeedback('bossUnlock'), 180)
       }
     }
     if (node.type === 'boss') {
@@ -220,23 +230,12 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
     <Screen>
       <NodeBackLink />
       <Panel pad={false} style={styles.spread}>
-        <View style={[styles.art, { backgroundColor: colors.surfaceSunken, borderColor: colors.hairline }]}>
-          <View style={styles.medallionStage}>
-            <View style={[styles.ringOuter, { borderColor: colors.hairline }]} pointerEvents="none" />
-            <View style={[styles.ringInner, { borderColor: colors.hairlineStrong }]} pointerEvents="none" />
-            <View style={[styles.halo, { backgroundColor: colors.accentSoft }]} />
-            <View style={[styles.medallion, { backgroundColor: colors.surfaceRaised, borderColor: colors.accent }]}>
-              <Icon name={crest} size={34} color={colors.accentDeep} />
-            </View>
-          </View>
-          <Text variant="micro" tone="muted" style={styles.kicker}>
-            {isWheel ? 'Wheel node' : nodeTypeLine(node)}
-          </Text>
-          <Text style={[styles.title, { color: colors.ink }]} accessibilityRole="header">
-            {nodeTitle(node)}
-          </Text>
-          <Text style={[styles.flavor, { color: colors.inkMuted }]}>{nodeFlavor(node)}</Text>
-        </View>
+        <HeroArt
+          icon={crest}
+          kicker={isWheel ? 'Wheel node' : nodeTypeLine(node)}
+          title={nodeTitle(node)}
+          flavor={nodeFlavor(node)}
+        />
 
         <View style={styles.body}>
           <View style={styles.tags}>
@@ -282,36 +281,36 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
             />
           ) : null}
 
-          <View style={[styles.facts, { backgroundColor: colors.surfaceRaised, borderColor: colors.hairline }]}>
-            <NodeFact
+          <FactsRow style={styles.factsMargin}>
+            <FactCell
               label="Effort"
               value={node.task ? EFFORT_LABEL[node.task.effort] : '—'}
               note={effortNote(node)}
             />
             {node.type === 'wheel' ? (
-              <NodeFact label="Outcome" icon="wheel" value="Surprise" note="Task, gold, XP or rest" />
+              <FactCell label="Outcome" icon="wheel" value="Surprise" note="Task, gold, XP or rest" />
             ) : node.type === 'treasure' ? (
-              <NodeFact
+              <FactCell
                 label="Fortune"
                 icon="coin"
                 value={`+${node.rewards.gold}`}
                 note={`${lootRolls} loot roll${lootRolls === 1 ? '' : 's'}`}
               />
             ) : (
-              <NodeFact
+              <FactCell
                 label="Experience"
                 icon="star"
                 value={`+${node.rewards.xp}`}
                 note={`${node.rewards.gold > 0 ? `+${node.rewards.gold} gold` : 'A small recovery'}${lootRolls > 0 ? ` · ${lootRolls} loot roll${lootRolls === 1 ? '' : 's'}` : ''}`}
               />
             )}
-            <NodeFact
+            <FactCell
               label="Goal"
               value={weeklyProgress > 0 ? '+1' : '—'}
               note={weeklyProgress > 0 && weeklyGoalTitle ? `${weeklyGoalTitle} this week` : 'No weekly progress'}
               last
             />
-          </View>
+          </FactsRow>
 
           {node.task ? <AimProgress run={run} node={node} /> : null}
           <NodeNotes node={node} />
@@ -379,6 +378,7 @@ function NodeBackLink() {
       onPress={() => navigate({ name: 'map' })}
       android_ripple={{ color: colors.accentWash }}
       style={styles.backLink}
+      hitSlop={12}
     >
       <Icon name="arrow-left" size={16} color={colors.inkMuted} />
       <Text variant="button" tone="muted">
@@ -388,129 +388,26 @@ function NodeBackLink() {
   )
 }
 
-function NodeFact({
-  label,
-  value,
-  note,
-  icon,
-  last = false,
-}: {
-  label: string
-  value: string
-  note: string
-  icon?: 'wheel' | 'coin' | 'star'
-  last?: boolean
-}) {
-  const { colors } = useTheme()
-  return (
-    <View style={[styles.fact, last ? null : { borderColor: colors.hairline, borderRightWidth: 1 }]}>
-      <Text variant="micro" tone="muted" style={styles.factLabel}>
-        {label.toUpperCase()}
-      </Text>
-      <View style={styles.factValue}>
-        {icon ? <Icon name={icon} size={14} color={colors.accentDeep} /> : null}
-        <Text style={[styles.factStrong, { color: colors.inkStrong }]}>{value}</Text>
-      </View>
-      <Text style={[styles.factNote, { color: colors.inkSoft }]} numberOfLines={3}>
-        {note}
-      </Text>
-    </View>
-  )
-}
-
 const styles = StyleSheet.create({
   backLink: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    // 6px icon-text rhythm; no token covers it.
     gap: 6,
-    paddingVertical: 8,
+    minHeight: 48,
+    justifyContent: 'center',
     paddingRight: 12,
   },
   spread: { overflow: 'hidden' },
-  art: {
-    position: 'relative',
-    alignItems: 'center',
-    padding: 24,
-    borderBottomWidth: 1,
-    overflow: 'hidden',
-  },
-  medallionStage: {
-    width: 190,
-    height: 190,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringOuter: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    opacity: 0.8,
-  },
-  ringInner: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    opacity: 0.65,
-  },
-  halo: {
-    position: 'absolute',
-    width: 90,
-    height: 90,
-    borderRadius: radius.full,
-  },
-  medallion: {
-    width: 78,
-    height: 78,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  kicker: { marginTop: 18, textAlign: 'center' },
-  title: {
-    marginTop: 5,
-    fontFamily: fonts.display,
-    fontSize: 30,
-    lineHeight: 33,
-    textAlign: 'center',
-  },
-  flavor: {
-    marginTop: 9,
-    paddingHorizontal: 8,
-    fontFamily: fonts.displayItalic,
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
   body: { padding: 18 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  facts: {
-    flexDirection: 'row',
-    marginTop: 16,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    overflow: 'hidden',
-  },
-  fact: { flex: 1, gap: 4, paddingVertical: 11, paddingHorizontal: 10 },
-  factLabel: { fontSize: 10, letterSpacing: 1 },
-  factValue: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  factStrong: {
-    fontFamily: fonts.display,
-    fontSize: 15,
-    lineHeight: 18,
-    fontVariant: ['tabular-nums'],
-  },
-  factNote: { fontSize: 10, lineHeight: 13 },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
+  factsMargin: { marginTop: 16 },
   aim: { gap: space.xs, marginTop: space.md },
   aimHead: { flexDirection: 'row', justifyContent: 'space-between', gap: space.sm },
   aimCount: { fontVariant: ['tabular-nums'] },
-  aimAfter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 9 },
+  // 6px icon-text rhythm; no token covers it.
+  aimAfter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space.xs },
   note: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs, borderWidth: 1, borderRadius: radius.md, padding: space.sm, marginTop: space.md },
   noteText: { flex: 1 },
   bonus: {

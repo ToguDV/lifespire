@@ -3,7 +3,9 @@ import { Pressable, StyleSheet, View } from 'react-native'
 import Svg, { Circle, G, Path } from 'react-native-svg'
 import {
   MAX_GOALS,
+  MAX_WEEKLY_OBJECTIVE,
   MIN_ACTIVE_TASKS,
+  MIN_WEEKLY_OBJECTIVE,
   createDemoSetup,
   draftToSetup,
   validateSetup,
@@ -25,6 +27,7 @@ import { Screen } from '../components/Screen'
 import { TaskFormDialog } from '../components/TaskFormDialog'
 import { Text } from '../components/Text'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { upsertDraftGoal, upsertDraftTask } from '../lib/draftContent'
 import { useAppStore } from '../state/store'
 
 const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
@@ -57,60 +60,22 @@ export function OnboardingScreen() {
   }
 
   const saveGoal = (input: GoalInput) => {
-    const goals = input.id
-      ? draft.goals.map((goal) =>
-          goal.id === input.id
-            ? {
-                ...goal,
-                title: input.title,
-                category: input.category,
-                icon: input.icon ?? goal.icon,
-                weeklyObjective: input.weeklyObjective,
-                active: input.active,
-              }
-            : goal,
-        )
-      : [
-          ...draft.goals,
-          {
-            id: useAppStore.getState().newId('goal'),
-            title: input.title,
-            category: input.category,
-            icon: input.icon ?? 'banner',
-            weeklyObjective: input.weeklyObjective,
-            active: input.active,
-            createdAt: getNow().toISOString(),
-          },
-        ]
-    patch({ goals })
+    patch({
+      goals: upsertDraftGoal(draft.goals, input, {
+        newId: useAppStore.getState().newId,
+        now: getNow,
+      }),
+    })
     setGoalDialog(undefined)
   }
 
   const saveTask = (input: TaskInput) => {
-    const tasks = input.id
-      ? draft.tasks.map((task) =>
-          task.id === input.id
-            ? {
-                ...task,
-                goalId: input.goalId,
-                title: input.title,
-                effort: input.effort,
-                active: input.active,
-              }
-            : task,
-        )
-      : [
-          ...draft.tasks,
-          {
-            id: useAppStore.getState().newId('task'),
-            goalId: input.goalId,
-            title: input.title,
-            effort: input.effort,
-            active: input.active,
-            createdAt: getNow().toISOString(),
-          },
-        ]
-    patch({ tasks })
+    patch({
+      tasks: upsertDraftTask(draft.tasks, input, {
+        newId: useAppStore.getState().newId,
+        now: getNow,
+      }),
+    })
     setTaskDialog(undefined)
   }
 
@@ -282,7 +247,7 @@ export function OnboardingScreen() {
           CREATE YOUR PATH · STEP {step} OF 4
         </Text>
       </View>
-      <Text variant="displayMd">{copy.title}</Text>
+      <Text variant="displayMd" accessibilityRole="header" accessibilityLiveRegion="polite">{copy.title}</Text>
       <Text variant="bodyMd" tone="muted" style={styles.wizardCopy}>
         {copy.body}
       </Text>
@@ -372,7 +337,7 @@ export function OnboardingScreen() {
             Add goal
           </Button>
           {formError ? (
-            <Text variant="caption" tone="danger" accessibilityRole="alert">
+            <Text variant="caption" tone="default" accessibilityRole="alert">
               {formError}
             </Text>
           ) : null}
@@ -420,7 +385,7 @@ export function OnboardingScreen() {
             Active routines: {activeRoutineCount} · minimum {MIN_ACTIVE_TASKS}
           </Text>
           {formError ? (
-            <Text variant="caption" tone="danger" accessibilityRole="alert">
+            <Text variant="caption" tone="default" accessibilityRole="alert">
               {formError}
             </Text>
           ) : null}
@@ -472,7 +437,10 @@ export function OnboardingScreen() {
                             candidate.id === goal.id
                               ? {
                                   ...candidate,
-                                  weeklyObjective: Math.max(1, candidate.weeklyObjective - 1),
+                                  weeklyObjective: Math.max(
+                                    MIN_WEEKLY_OBJECTIVE,
+                                    candidate.weeklyObjective - 1,
+                                  ),
                                 }
                               : candidate,
                           ),
@@ -492,7 +460,10 @@ export function OnboardingScreen() {
                             candidate.id === goal.id
                               ? {
                                   ...candidate,
-                                  weeklyObjective: Math.min(7, candidate.weeklyObjective + 1),
+                                  weeklyObjective: Math.min(
+                                    MAX_WEEKLY_OBJECTIVE,
+                                    candidate.weeklyObjective + 1,
+                                  ),
                                 }
                               : candidate,
                           ),
@@ -524,18 +495,18 @@ export function OnboardingScreen() {
 
           {!validation.ok ? (
             <Panel>
-              <Text variant="headingSm" tone="danger">
+              <Text variant="headingSm" tone="default">
                 Before you begin
               </Text>
               {validation.errors.map((error) => (
-                <Text key={error} variant="bodySm" tone="danger">
+                <Text key={error} variant="bodySm" tone="default">
                   · {error}
                 </Text>
               ))}
             </Panel>
           ) : null}
           {formError ? (
-            <Text variant="caption" tone="danger" accessibilityRole="alert">
+            <Text variant="caption" tone="default" accessibilityRole="alert">
               {formError}
             </Text>
           ) : null}
@@ -760,6 +731,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
   },
   note: { marginTop: space.sm },
+  // 6px icon-text rhythm; no token covers it.
   privacyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 0 },
   privacyText: { flex: 1 },
   wizardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -768,7 +740,7 @@ const styles = StyleSheet.create({
   step: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: space.xxs,
     borderWidth: 1,
     borderRadius: radius.full,
     paddingHorizontal: space.sm,
@@ -788,7 +760,7 @@ const styles = StyleSheet.create({
   taskBody: { flex: 1, gap: 2 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   routineList: { gap: 2, marginTop: space.xs },
-  reviewCounts: { marginTop: 4 },
+  reviewCounts: { marginTop: space.xxs },
   reviewNote: { marginTop: space.xs },
   footer: {
     flexDirection: 'row',

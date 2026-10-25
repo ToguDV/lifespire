@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native'
-import { currentDay, xpIntoLevel, xpToNextLevel } from '@lifespire/core'
+import { RUN_DAYS, XP_PER_LEVEL, currentDay, xpIntoLevel, xpToNextLevel } from '@lifespire/core'
 import type { Run } from '@lifespire/core'
 import {
   formatDayKey,
@@ -88,7 +88,7 @@ export function HomeScreen() {
         subtitle={
           <Text variant="bodyMd" tone="muted">
             {meta.label}
-            {run ? (labelDay ? ` · Day ${labelDay.index + 1} of 7` : ' · Week sealed') : ' · No run yet'}
+            {run ? (labelDay ? ` · Day ${labelDay.index + 1} of ${RUN_DAYS}` : ' · Week sealed') : ' · No run yet'}
           </Text>
         }
         aside={
@@ -197,9 +197,9 @@ export function HomeScreen() {
             <View style={styles.profileBody}>
               <Text variant="headingSm">{profile.name}</Text>
               <Text variant="caption" tone="muted">
-                {xpIntoLevel(profile.xp)} / 100 XP · {profile.loot.length} relics
+                {xpIntoLevel(profile.xp)} / {XP_PER_LEVEL} XP · {profile.loot.length} relics
               </Text>
-              <Progress value={xpIntoLevel(profile.xp)} max={100} label="Experience to next level" />
+              <Progress value={xpIntoLevel(profile.xp)} max={XP_PER_LEVEL} label="Experience to next level" />
             </View>
             <View style={styles.gold}>
               <Icon name="coin" size={16} color={colors.accentDeep} />
@@ -239,6 +239,7 @@ function WeekStrip({ run, todayKey }: { run: Run; todayKey: string }) {
         return (
           <View
             key={day.id}
+            accessible
             accessibilityLabel={`Day ${day.index + 1}, ${WEEK_WORD[marker]}`}
             style={[
               styles.weekDay,

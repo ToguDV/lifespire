@@ -39,6 +39,7 @@ export function GoalsScreen() {
   const archiveGoal = useAppStore((state) => state.archiveGoal)
   const saveTask = useAppStore((state) => state.saveTask)
   const archiveTask = useAppStore((state) => state.archiveTask)
+  const showToast = useAppStore((state) => state.showToast)
   const run = document.run
   const [goalDialog, setGoalDialog] = useState<Goal | null | undefined>(undefined)
   const [goalError, setGoalError] = useState<string | null>(null)
@@ -146,11 +147,13 @@ export function GoalsScreen() {
   }
 
   const restoreGoal = (goal: Goal) => {
-    saveGoal({ ...goal, active: true })
+    const result = saveGoal({ ...goal, active: true })
+    if (!result.ok) showToast(result.errors.join(' '))
   }
 
   const restoreTask = (task: Task) => {
-    saveTask({ ...task, active: true })
+    const result = saveTask({ ...task, active: true })
+    if (!result.ok) showToast(result.errors.join(' '))
   }
 
   return (
@@ -538,6 +541,7 @@ const styles = StyleSheet.create({
   archivedBody: { gap: space.md },
   archivedGroup: { gap: space.sm },
   archivedRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  // 6px icon-text rhythm; no token covers it.
   quietNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   quietNoteText: { flex: 1 },
   alert: {
