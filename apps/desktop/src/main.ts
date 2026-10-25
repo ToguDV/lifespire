@@ -143,7 +143,8 @@ function registerApiProxy(): void {
   )
 
   const proxy = createApiProxy({
-    fetch: apiSession.fetch as unknown as typeof fetch,
+    // Session.fetch is a method: bind it so it always uses this partition.
+    fetch: apiSession.fetch.bind(apiSession) as typeof fetch,
     vault: createTokenVault({
       file,
       crypto: {
