@@ -107,8 +107,8 @@ change is needed. The Electron **main process** is the API client:
   body); an oversized response cancels the transfer and fails with
   `RESPONSE_TOO_LARGE`. Every request, including `/health/live`, uses
   `redirect: 'error'`; a redirect during the health probe surfaces
-  "That address redirects elsewhere — use the final https:// address."
-  instead of being followed.
+  "No LifeSpire server at that address: it redirects elsewhere — use the
+  final https:// address." instead of being followed.
 - `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/refresh` are sent
   with `X-Client-Platform: desktop`. With no `Origin`/`Sec-Fetch-Site`, the API
   accepts the native grant (ADR-0005) and returns the refresh token to main.
@@ -127,7 +127,9 @@ change is needed. The Electron **main process** is the API client:
   Settings panel probes a candidate server *before* saving it, authenticated
   paths always require the configured origin.
 - The configured origin is pushed by the renderer on boot and after every
-  server switch (`sync.setServer`). An empty base URL means "sync not
+  server switch (`sync.setServer`). Settings validates the candidate with main
+  **before** persisting the URL or repointing the client, so a rejected origin
+  leaves the UI and main on the same server. An empty base URL means "sync not
   configured" with a clear error; the desktop never falls back to same-origin.
 
 Persistence:
@@ -148,9 +150,11 @@ Persistence:
   only**. Sync works for the running session, Settings shows a "Not saved"
   notice, and restarting the app requires a new sign-in. Any pre-existing
   encrypted file is deleted on boot and on memory-only save, so a later
-  keyring-enabled run cannot restore the previous account. If that deletion
-  fails, the error reaches Settings and the vault stays blocked from reloading
-  for the rest of the process.
+  keyring-enabled run cannot restore the previous account. If unlink fails,
+  the file is atomically overwritten with a `{}` tombstone (and `load` rejects
+  empty/tombstone files); only when both delete and tombstone fail does the
+  error reach Settings, where sign-out also awaits the local result instead of
+  pretending the session was cleared.
 - The save itself is unchanged: the same `GameDocument` in `localStorage`, no
   token in renderer storage, no migration. Export/import remains the offline
   way to move a save.

@@ -989,7 +989,9 @@ prototipo retirado:
   sesión o cambiar de servidor. Se cifra con `safeStorage` en
   `userData/sync-session.json` de forma atómica, asociado al origen; `logout`/
   `logout-all` 2xx, el cierre de sesión local, un refresh rechazado y el cambio
-  de servidor lo borran. Si `safeStorage` no está disponible o Linux usa
+  de servidor lo borran. Si el unlink falla, se escribe un tombstone `{}`; si
+  también falla, el error llega a Settings y el vault queda bloqueado. Si
+  `safeStorage` no está disponible o Linux usa
   `basic_text`, la sesión queda solo en memoria y Settings muestra el aviso
   "Not saved". Base URL vacía en escritorio es "sync no configurado", nunca
   same-origin; `/health/live` es la única ruta que puede apuntar a un origen
