@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
+  AccessibilityInfo,
   Animated,
   Pressable,
   ScrollView,
@@ -113,6 +114,13 @@ export function MapCanvas({
     prevBossOpen.current = bossOpen
   }, [bossOpen])
 
+  // Rotation (or a new map) changes the viewport: drop the "already centred"
+  // flag so the scroll effect below re-centers instead of trusting the
+  // pre-rotation offset.
+  useEffect(() => {
+    scrolledRef.current = false
+  }, [map.id, width])
+
   useEffect(() => {
     if (scrolledRef.current) return
     const target = targetId === 'start' ? layout.start : allNodes.find((node) => node.id === targetId)
@@ -131,14 +139,23 @@ export function MapCanvas({
   const toX = (leftPercent: number) => (leftPercent / 100) * canvasWidth
   const toY = (topPercent: number) => (topPercent / 100) * canvasHeight
   const groupLabel = `Day map. Camp at the bottom, ${layout.layers.length} layers above, and the boss at the top.`
+  // Stable id-keyed callbacks so the memoized node views only re-render when
+  // their own props change instead of on every parent render.
+  const handleReveal = useCallback((id: string) => setRevealed(id), [])
+  const handleSelectNode = useCallback(
+    (id: string) => {
+      setRevealed(null)
+      onSelect(id)
+    },
+    [onSelect],
+  )
 
   return (
     <View
+      accessible
+      accessibilityLabel={groupLabel}
       style={[styles.frame, { backgroundColor: colors.surface, borderColor: colors.hairline, ...shadows.soft }]}
     >
-      <Text accessible accessibilityRole="text" accessibilityLabel={groupLabel} style={styles.hiddenLabel}>
-        {groupLabel}
-      </Text>
       <View style={styles.meta} pointerEvents="none">
         <Text variant="micro" tone="soft">
           THE ASCENT · {resolvedCount} OF {map.layers.length + 1} RESOLVED
@@ -242,11 +259,8 @@ export function MapCanvas({
                 nodeLayout.id === lastResolvedId &&
                 nodeStatus(map, day, nodeLayout.id) === 'completed'
               }
-              onReveal={() => setRevealed(nodeLayout.id)}
-              onSelect={() => {
-                setRevealed(null)
-                onSelect(nodeLayout.id)
-              }}
+              onReveal={handleReveal}
+              onSelect={handleSelectNode}
             />
           ))}
         </View>
@@ -277,7 +291,7 @@ function CampMark({ x, y }: { x: number; y: number }) {
   )
 }
 
-function MapNodeView({
+const MapNodeView = memo(function MapNodeView({
   nodeLayout,
   map,
   day,
@@ -303,8 +317,8 @@ function MapNodeView({
   screenReader: boolean
   revealed: boolean
   justDone: boolean
-  onReveal: () => void
-  onSelect: () => void
+  onReveal: (id: string) => void
+  onSelect: (id: string) => void
 }) {
   const { colors } = useTheme()
   const status = nodeStatus(map, day, nodeLayout.id)
@@ -344,13 +358,27 @@ function MapNodeView({
 
   const press = () => {
     if (!selectable) return
-    // TalkBack activates a node once: the accessible name already announces the
-    // step, so skip the visual-only first-tap reveal.
-    if (!revealed && !screenReader) {
-      onReveal()
+    if (revealed || screenReader) {
+      // Revealed nodes and confirmed TalkBack users activate at once: the
+      // accessible name already announces the step, so skip the visual-only
+      // first-tap reveal.
+      onSelect(nodeLayout.id)
       return
     }
-    onSelect()
+    // The hook starts at false until the native preference resolves, so a
+    // TalkBack user on first mount would otherwise get the visual-only reveal
+    // instead of opening the node. Ask the OS at press time, same pattern as
+    // the wheel spin (Wheel.tsx): fall back to the hook when unanswerable.
+    void (async () => {
+      let talkBack = false
+      try {
+        talkBack = await AccessibilityInfo.isScreenReaderEnabled()
+      } catch {
+        // Keep the hook value (false) when the platform cannot answer.
+      }
+      if (talkBack) onSelect(nodeLayout.id)
+      else onReveal(nodeLayout.id)
+    })()
   }
 
   const checkScale = checkPop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] })
@@ -421,7 +449,7 @@ function MapNodeView({
         </Pressable>
         {showLabel ? (
           <View
-            style={[styles.labelAbove, bossLabelBox()]}
+            style={[styles.labelAbove, bossLabelBox(cx, canvasWidth)]}
             pointerEvents="none"
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
@@ -516,7 +544,7 @@ function MapNodeView({
       ) : null}
     </View>
   )
-}
+})
 
 function bossOpenFill(status: NodeStatus): boolean {
   return status === 'available' || status === 'current'
@@ -611,12 +639,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 18,
     overflow: 'hidden',
-  },
-  hiddenLabel: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
-    opacity: 0,
   },
   meta: {
     position: 'absolute',
