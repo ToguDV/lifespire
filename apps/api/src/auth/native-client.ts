@@ -8,9 +8,9 @@
  * explicit native-client header, keeps the HttpOnly cookie contract for web
  * while letting the Android/iOS app receive a token for secure storage.
  *
- * `desktop` is the Electron shell: its main process calls the API with
- * `net.fetch`, so no browser headers are attached, and it keeps the token in
- * the OS keychain instead of the renderer.
+ * `desktop` is the Electron shell: its main process calls the API from a
+ * dedicated in-memory session that strips Fetch Metadata before sending, and
+ * it keeps the token in the OS keychain instead of the renderer.
  */
 export const NATIVE_CLIENT_HEADER = 'x-client-platform';
 export const NATIVE_CLIENT_PLATFORMS = ['android', 'ios', 'desktop'] as const;

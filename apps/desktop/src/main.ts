@@ -95,8 +95,9 @@ function registerAppProtocol(): void {
 
 /**
  * Sync runs in the main process: the renderer asks for a path, main calls the
- * configured server with `net.fetch`, and the refresh token never crosses the
- * bridge. `safeStorage` persists it when the OS keychain is available.
+ * configured server from the dedicated `lifespire-api` session, and the
+ * refresh token never crosses the bridge. `safeStorage` persists it when the
+ * OS keychain is available.
  */
 function registerApiProxy(): void {
   const vaultPath = path.join(app.getPath('userData'), 'sync-session.json')
@@ -110,19 +111,39 @@ function registerApiProxy(): void {
     },
     write: (value) => {
       fs.mkdirSync(path.dirname(vaultPath), { recursive: true })
-      fs.writeFileSync(vaultPath, value, { mode: 0o600 })
+      const temp = `${vaultPath}.${process.pid}.${Date.now()}.tmp`
+      try {
+        fs.writeFileSync(temp, value, { mode: 0o600 })
+        fs.chmodSync(temp, 0o600)
+        fs.renameSync(temp, vaultPath)
+      } catch (error) {
+        try {
+          fs.rmSync(temp, { force: true })
+        } catch {
+          // Keep the original write error.
+        }
+        throw error
+      }
     },
     remove: () => {
-      try {
-        fs.rmSync(vaultPath, { force: true })
-      } catch {
-        // A missing credential file needs no cleanup.
-      }
+      // `force` tolerates a missing file; permission/read-only errors surface.
+      fs.rmSync(vaultPath, { force: true })
     },
   }
 
+  // The proxy gets its own in-memory session: the renderer cannot reach it, so
+  // stripping Chromium's Fetch Metadata here never weakens the browser gate.
+  const apiSession = session.fromPartition('lifespire-api')
+  apiSession.webRequest.onBeforeSendHeaders(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      stripFetchMetadata(details.requestHeaders)
+      callback({ requestHeaders: details.requestHeaders })
+    },
+  )
+
   const proxy = createApiProxy({
-    fetch: net.fetch as unknown as typeof fetch,
+    fetch: apiSession.fetch as unknown as typeof fetch,
     vault: createTokenVault({
       file,
       crypto: {
@@ -141,28 +162,17 @@ function registerApiProxy(): void {
     }),
   })
 
-  let apiOrigin: string | null = null
-  const setServer = (origin: unknown) => {
-    const state = proxy.setServer(origin)
-    apiOrigin = state.serverOrigin
-    return state
-  }
-
-  // Chromium's network stack stamps `Sec-Fetch-Site: none` on net.fetch, and
-  // the native-client gate requires the absence of Fetch Metadata headers.
-  // Strip them only for the configured API origin; the health probe does not
-  // use the native grant, so it never needs a rewrite.
-  session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: ['http://*/*', 'https://*/*'] },
-    (details, callback) => {
-      stripFetchMetadata(details.requestHeaders, details.url, apiOrigin)
-      callback({ requestHeaders: details.requestHeaders })
-    },
-  )
-
   const guard = (event: IpcMainInvokeEvent): void => {
-    if (!isTrustedSender(event.senderFrame?.url, { isPackaged: app.isPackaged, devUrl: DEV_URL })) {
+    const window = mainWindow
+    if (!window || event.sender !== window.webContents) {
       throw new Error('Untrusted IPC sender')
+    }
+    const frame = event.senderFrame
+    if (!frame || frame !== event.sender.mainFrame) {
+      throw new Error('Untrusted IPC frame')
+    }
+    if (!isTrustedSender(frame.url, { isPackaged: app.isPackaged, devUrl: DEV_URL })) {
+      throw new Error('Untrusted IPC origin')
     }
   }
 
@@ -172,7 +182,7 @@ function registerApiProxy(): void {
   })
   ipcMain.handle(API_PROXY_CHANNELS.setServer, (event, origin: unknown) => {
     guard(event)
-    return setServer(origin)
+    return proxy.setServer(origin)
   })
   ipcMain.handle(API_PROXY_CHANNELS.sessionState, (event) => {
     guard(event)
