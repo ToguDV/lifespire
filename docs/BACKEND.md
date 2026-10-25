@@ -61,8 +61,9 @@ infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
   token. Native login/accept-invite return `refreshToken`; native refresh
   accepts `{ refreshToken }`. Rotation, hashing, family reuse detection and
   revocation are identical. `desktop` is the Electron main process: it calls
-  with `net.fetch` (no browser headers), keeps the token out of the renderer
-  and stores it with Electron `safeStorage`; see `DESKTOP.md` §5.
+  from a dedicated in-memory session whose Fetch Metadata headers are stripped
+  before sending, keeps the token out of the renderer and stores it with
+  Electron `safeStorage`; see `DESKTOP.md` §5.
 - Refresh: opaque 32-byte token, sha256 in DB, HttpOnly cookie
   `__Secure-ls_rt` (`Secure` in prod, `SameSite=Lax`, `Path=/v1/auth`),
   rotated per use, 30-day expiry, family-based reuse detection (reuse revokes
@@ -78,7 +79,9 @@ infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
   take effect immediately). TOTP secrets are AES-256-GCM encrypted.
 - Roles re-checked in DB on every admin call; the last active admin cannot be
   disabled, demoted or deleted (recovery via `admin:create` CLI on the server).
-- Logout revokes one session; logout-all revokes all; password change
+- Logout revokes the **refresh family** of the presented session (every
+  rotation of that device, even if an access token still points at an older
+  sid); logout-all revokes every family of the user; password change
   (`POST /v1/auth/password`) and password reset both revoke all sessions
   (all devices must log in again).
 
@@ -146,7 +149,9 @@ behavior. The server never interprets dates — it stores the document.
   This is a closed-beta tradeoff; a PKCE/Custom Tab flow is the long-term path
   if third-party clients appear. The refresh token is never logged. On desktop
   the IPC boundary is the second layer: only the main process can call the API
-  with `desktop`, and the renderer proxy response has the token stripped.
+  with `desktop`, from a dedicated `lifespire-api` session that strips
+  `Sec-Fetch-Site`/`Origin`/`Referer`; the renderer cannot reach that session,
+  and the proxy response has the token stripped.
 - Accepted tradeoff: disabled accounts are enumerable via the login `403`
   (anyone holding valid credentials for a disabled account can distinguish it
   from a bad-password `401`); accepted so operators and users get a clear
@@ -203,13 +208,14 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
 - `pnpm --filter @lifespire/api-client test` covers cookie mode, native token
   capture/rotation, refusal without a stored token and the injectable transport.
 - `pnpm --filter @lifespire/desktop test` covers the main-process proxy
-  (path/header/body/origin allowlists and sender gate), refresh-token
-  stripping/rotation and the safeStorage vault, including the memory-only
-  fallback.
+  (path/header/body/origin allowlists and sender gate), link-local blocking,
+  redirect and response-size gates, refresh-token stripping/rotation, the
+  generation/single-flight races and the safeStorage vault (including the
+  memory-only fallback and atomic persistence).
 - `pnpm --filter @lifespire/mobile test` covers the local notification planner.
   The Postgres flow also exercises the `desktop` login/refresh pair and the
   browser-shaped rejection.
-- `pnpm --filter @lifespire/api test:e2e` — 11 flows against Postgres:
+- `pnpm --filter @lifespire/api test:e2e` — 13 flows against Postgres:
   (a) admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/
   replay/key-reuse/revisions, device revoke, disable, last-admin guard;
   (b) password-reset link (single-use, revokes sessions); (c) TOTP
@@ -219,14 +225,14 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
   (e) expired invite; (f) refresh reuse kills the family; (g) concurrent
   writers/refreshes (one wins); (h) admin self-delete (last blocked 400,
   second 204); (i) audit pagination 400 on bad page; (j) totp/enable
-  throttle 429; (k) sync metrics count pushes and conflicts.
+  throttle 429; (k) sync metrics count pushes and conflicts; (l) native
+  `desktop` login/refresh plus the browser-shaped rejection; (m) logout
+  revokes the rotated family even from an older access token.
 - Dev DB: `docker compose -f infra/docker-compose.dev.yml up -d`, then
   `DATABASE_URL=… pnpm --filter @lifespire/api prisma:migrate`.
 
 ## 8. Follow-ups (not in this PR)
 
-- Native auth e2e (Postgres): login → body refresh → rotation/reuse/revoke,
-  including the browser-header rejection case.
 - Journal/operation sync if conflicts still hurt in real use (see ADR-0001).
 - Remote push (APNs/FCM/Expo Push) is intentionally out of scope; local
   reminders need no server registration.

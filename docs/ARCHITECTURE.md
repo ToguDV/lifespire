@@ -963,31 +963,36 @@ prototipo retirado:
   tokens. Cada handler IPC valida `event.senderFrame.url` contra
   `lifespire-app://app` (empaquetado) o `LIFESPIRE_DEV_URL` (dev). El proxy de
   `apiProxy.ts` solo acepta `/v1/...` y `/health/live`, métodos y cabeceras en
-  allowlist, cuerpos ≤ 2 MB, timeout de 10 s y `redirect: 'error'`; las rutas
-  con `..`/`%2e`/`%2f` y las URLs absolutas se rechazan. `window.open` se
-  deniega, los enlaces `http(s)` externos abren en el navegador,
-  `will-navigate` y `will-redirect` solo permiten el origen propio, los
-  permisos de Chromium se deniegan y `<webview>` queda bloqueado.
+  allowlist, cuerpos ≤ 2 MB, respuestas ≤ 5 MB, timeout de 10 s (6 s en
+  health) y `redirect: 'error'` salvo redirects same-origin del health; las
+  rutas con `..`/`%2e`/`%2f`, las URLs absolutas y los orígenes link-local
+  (`169.254.0.0/16`, `fd00:ec2::254`) se rechazan. Los handlers exigen que el
+  remitente sea el `mainFrame` del `webContents` de la ventana principal.
+  `window.open` se deniega, los enlaces `http(s)` externos abren en el
+  navegador, `will-navigate` y `will-redirect` solo permiten el origen propio,
+  los permisos de Chromium se deniegan y `<webview>` queda bloqueado.
 - **Datos:** export con diálogo nativo (`will-download` →
   `showSaveDialogSync`), import por input de fichero con los mismos gates. La
   política multi-pestaña se reduce al single-instance lock. El save sigue
   siendo el mismo `GameDocument` en `localStorage`.
 - **Sync:** el renderer no llama al API. Envía `{ path, method, headers, body }`
-  por IPC y el proceso main hace `net.fetch` contra el origen configurado con
-  `X-Client-Platform: desktop` (grant nativo de ADR-0005, sin `Origin` ni
-  `Sec-Fetch-Site`), por lo que no hace falta tocar CORS ni la cookie web.
-  Chromium añade `Sec-Fetch-Site: none` a `net.fetch`; un listener
-  `webRequest.onBeforeSendHeaders` acotado al origen configurado elimina
-  `Sec-Fetch-Site`, `Origin` y `Referer` antes de la petición. Main
-  captura el `refreshToken` de login/accept-invite/refresh, lo elimina de la
-  respuesta antes de devolverla, lo inyecta en el body del refresh y lo rota.
-  Se cifra con `safeStorage` en `userData/sync-session.json`, asociado al
-  origen; `logout`/`logout-all` 2xx, el cierre de sesión local, un refresh
-  rechazado y el cambio de servidor lo borran. Si `safeStorage` no está
-  disponible o Linux usa `basic_text`, la sesión queda solo en memoria y
-  Settings muestra el aviso "Not saved". Base URL vacía en escritorio es
-  "sync no configurado", nunca same-origin; `/health/live` es la única ruta que
-  puede apuntar a un origen candidato antes de guardarlo.
+  por IPC y el proceso main hace `ses.fetch` desde una sesión dedicada
+  (`lifespire-api`, en memoria) contra el origen configurado con
+  `X-Client-Platform: desktop` (grant nativo de ADR-0005). El listener
+  `webRequest.onBeforeSendHeaders` de esa sesión elimina `Sec-Fetch-Site`,
+  `Origin` y `Referer`; la sesión por defecto y el renderer no la pueden usar,
+  así que el gate web no se debilita y no hace falta tocar CORS ni cookies.
+  Main captura el `refreshToken` de login/accept-invite/refresh, lo elimina de
+  la respuesta antes de devolverla, lo inyecta en el body del refresh y lo
+  rota con un contador de generación que aborta peticiones en vuelo al cerrar
+  sesión o cambiar de servidor. Se cifra con `safeStorage` en
+  `userData/sync-session.json` de forma atómica, asociado al origen; `logout`/
+  `logout-all` 2xx, el cierre de sesión local, un refresh rechazado y el cambio
+  de servidor lo borran. Si `safeStorage` no está disponible o Linux usa
+  `basic_text`, la sesión queda solo en memoria y Settings muestra el aviso
+  "Not saved". Base URL vacía en escritorio es "sync no configurado", nunca
+  same-origin; `/health/live` es la única ruta que puede apuntar a un origen
+  candidato antes de guardarlo, y los orígenes link-local/metadata se rechazan.
 - **CI:** `.github/workflows/release.yml` solo corre en tags `v*`, valida la
   versión contra los manifiestos, empaqueta en runners Linux/Windows, compila
   el APK en EAS y publica todo (más `SHA256SUMS.txt`) en la GitHub Release.

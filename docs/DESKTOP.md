@@ -88,12 +88,23 @@ change is needed. The Electron **main process** is the API client:
 
 - The renderer calls `window.lifespireDesktop.api.request({ path, method,
   headers, body })`. Main joins it with the configured server origin and calls
-  `net.fetch` with the 10 s timeout and no redirects.
+  `ses.fetch` from a **dedicated in-memory session** (`lifespire-api`), with a
+  10 s timeout for API calls and 6 s for health. The default session (and the
+  renderer) never sees these requests.
 - Chromium stamps `Sec-Fetch-Site: none` (and potentially `Origin`/`Referer`)
-  on `net.fetch`, which would fail the native gate. A scoped
-  `webRequest.onBeforeSendHeaders` listener removes those three headers for the
-  configured API origin only; the health probe and every other origin are
-  untouched. The smoke check below verifies the wire headers.
+  on session fetches, which would fail the native gate. A
+  `webRequest.onBeforeSendHeaders` listener in that dedicated session removes
+  the three headers before sending. Because no renderer traffic can enter the
+  partition, this cannot weaken the web gate; the smoke check below verifies
+  the wire headers.
+- Link-local and cloud-metadata origins (`169.254.0.0/16`, `fd00:ec2::254`)
+  are always rejected. Private LAN ranges stay allowed because self-hosting a
+  server on the local network is a supported use case.
+- API responses are capped at 5 MB (declared `Content-Length` and streamed
+  body); an oversized response fails with `RESPONSE_TOO_LARGE`. Auth/sync
+  requests reject redirects, while `/health/live` follows up to three
+  same-origin redirects and reports a clear "use that address" error for a
+  cross-origin bouncing server.
 - `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/refresh` are sent
   with `X-Client-Platform: desktop`. With no `Origin`/`Sec-Fetch-Site`, the API
   accepts the native grant (ADR-0005) and returns the refresh token to main.
@@ -101,7 +112,10 @@ change is needed. The Electron **main process** is the API client:
   renderer builds its `Response`.
 - On refresh, main injects the stored token into the JSON body; the renderer
   never needs to know it. The access token stays in renderer memory exactly as
-  on web.
+  on web. Web/mobile/desktop serialize concurrent 401s into a single refresh,
+  and a sign-out or server switch aborts any in-flight proxy request via a
+  generation counter, so a late rotation can never revive a closed session or
+  land under another origin.
 - If a 2xx login/refresh does not include a `refreshToken`, the proxy fails
   with a clear "update the sync server" error instead of showing a session
   that could never be renewed.
@@ -118,9 +132,13 @@ Persistence:
   `{ version, origin, token }`, with `token` encrypted by Electron
   `safeStorage` (OS keychain) and base64-encoded. It is keyed to the server
   origin, so a different server never reuses it.
-- Every rotation writes the new token. Successful `logout`/`logout-all`,
-  local sign-out, a rejected refresh and a server change delete it. The vault
-  is cleared before the renderer can issue another request.
+- Every rotation writes the new token atomically (temp file + rename,
+  `0600`). Successful `logout`/`logout-all`, local sign-out, a rejected
+  refresh and a server change delete it; boot with no server or with another
+  origin removes a stale credential. Write/delete failures surface instead of
+  leaving a phantom session. Server-side, `logout` revokes the whole refresh
+  family, so even an access token that predates the last rotation closes
+  every sibling rotation.
 - If `safeStorage.isEncryptionAvailable()` is false, or Linux selects the
   `basic_text` backend (no keyring), the token stays **in main-process memory
   only**. Sync works for the running session, Settings shows a "Not saved"

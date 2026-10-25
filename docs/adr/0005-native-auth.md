@@ -32,15 +32,19 @@ Add an explicit **native client grant** to the existing auth endpoints:
 4. The Android app stores the token in `expo-secure-store` (Android Keystore
    backed) and keeps the access token in memory. The session marker in SQLite
    contains only id/email/role.
-5. The Electron desktop app calls the API from its **main process** with
-   `net.fetch` and `X-Client-Platform: desktop`. Main captures the login/refresh
-   token, strips it from the IPC response before the renderer builds a
-   `Response`, injects it into refresh bodies and rotates it. It is encrypted
-   with Electron `safeStorage` in `userData`, keyed by server origin; without
-   encryption (or with the Linux `basic_text` backend) the session stays in
-   main-process memory and the UI reports that it will not survive a restart.
+5. The Electron desktop app calls the API from its **main process**, using a
+   dedicated in-memory session (`lifespire-api`) and
+   `X-Client-Platform: desktop`. That session strips `Sec-Fetch-Site`,
+   `Origin` and `Referer` before sending; the renderer cannot reach it. Main
+   captures the login/refresh token, strips it from the IPC response before
+   the renderer builds a `Response`, injects it into refresh bodies and rotates
+   it. It is encrypted with Electron `safeStorage` in `userData`, keyed by
+   server origin; without encryption (or with the Linux `basic_text` backend)
+   the session stays in main-process memory and the UI reports that it will
+   not survive a restart.
 6. Logout clears both the access token and the secure-store refresh token; the
-   existing server logout revokes the session.
+   server logout revokes the whole refresh family of that device, and
+   logout-all revokes every family of the user.
 
 The API client gains `mode: 'cookie' | 'native'` and refresh-token callbacks.
 The web client keeps `mode: 'cookie'` and its behaviour is byte-for-byte
