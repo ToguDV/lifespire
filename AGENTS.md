@@ -9,8 +9,10 @@
   (goal, routine, weekly target) and records that the code keeps the older
   "aim" names for identifiers, CSS classes, and DOM hooks.
 - **Workflow:** [`WORKFLOW.md`](./WORKFLOW.md) sets the commit format, PR
-  content, the TDD requirement, and the mandatory cleanup at the end of a
-  session. It is binding for agents and humans.
+  content, the TDD requirement, the web-first/mobile-parity delivery order with
+  its parity and code-review gates, subagent delegation for long tasks, and the
+  mandatory cleanup at the end of a session. It is binding for agents and
+  humans.
 - **Architecture diagnosis:** [`docs/ARCHITECTURE-REVIEW.md`](./docs/ARCHITECTURE-REVIEW.md)
   records the 2026-10-23 review, prioritized findings, and remediation roadmap.
   It is a snapshot, not a contract; `docs/ARCHITECTURE.md` remains the module
@@ -125,6 +127,13 @@ and `@lifespire/api-client` scope the shared packages.
 - Minimum accessibility: visible focus, 44 px web / 48 dp Android touch
   targets, sufficient contrast, keyboard navigation/TalkBack, and respect for
   reduced motion.
+- **Web first, then mobile parity:** implement user-facing changes on web, get
+  the user's explicit approval, then port them to Android. Verify the parity
+  with subagents and run the final code review before opening the PR
+  (`WORKFLOW.md` §5–§7).
+- **Long tasks:** delegate to subagents when the work spans several screens,
+  whole flows (web + mobile), new test suites, or long verification loops; the
+  main agent integrates and owns the gates (`WORKFLOW.md` §8).
 - Changes must leave `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:e2e`,
   `pnpm test`, and `pnpm build` green (the build includes the Android bundle).
   If the change touches critical paths, add or update the corresponding E2E and

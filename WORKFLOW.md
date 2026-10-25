@@ -52,9 +52,15 @@ Conventional-Commits style, matching the squashed commit intent.
   - `pnpm build` — pass/fail
   - Manual checks performed (screen sizes, theme, offline, etc.)
 - **Screenshots** — for UI changes, before/after or light+dark.
+- **Mobile parity** — the parity table from §6, or the documented exemption
+  (§5) when the change has no mobile equivalent.
+- **Code review** — the §7 review outcome: findings fixed, and the ones left
+  open as accepted follow-ups.
 - **Out of scope / follow-ups** — anything deliberately not addressed.
 
 ### Review & merge
+- **One PR per session.** Never open a second PR to stage the mobile port or a
+  follow-up: intermediate approvals (§5) happen on the session branch.
 - PRs are opened **without requiring approval** to be created; the author (or
   agent) opens it and reports the URL.
 - **The user reviews the PR and approves the merge.** Do not merge on the user's
@@ -76,7 +82,84 @@ For any feature, fix, or behavior change, follow TDD:
   change is purely mechanical (rename, formatting, docs).
 - Pure domain logic (`src/domain/`) must always be covered by tests.
 
-## 5. Sync awareness (mandatory for every feature)
+## 5. Delivery order: web first, then mobile parity
+
+LifeSpire ships two clients — web (`apps/web`) and Android (`apps/mobile`) —
+that share `packages/core` and `packages/app-core`. To prevent divergent
+implementations, every user-facing change follows this order:
+
+1. **Design and implement on web only.** TDD applies (§4); keep the change
+   small and reviewable.
+2. **Ask the user to approve the web change.** Report the branch, the commit
+   range, and what to look at (screen, flow, theme). Wait for explicit
+   approval; do not start the mobile port speculatively. There is **one PR per
+   session** (§3), so the web change is reviewed as commits on the session
+   branch, not as a separate PR.
+3. **Port the approved behavior to mobile.** Match interaction, copy, states,
+   tokens (`apps/mobile/src/theme/tokens.ts`), accessibility, and persistence
+   (`GameDocument`). Platform differences (native notifications, haptics, file
+   system, navigation) are documented in `docs/MOBILE.md`.
+4. **Verify parity** (§6) and only then run the final code review (§7).
+
+Mobile parity is mandatory for anything that changes behavior or UI. Changes
+with no plausible mobile equivalent (PWA/service-worker work, the sync API,
+tooling, docs) are exempt: state the reason in the PR under
+"Out of scope / follow-ups", and still check that no shared package
+(`packages/core`, `packages/app-core`) changes behavior without the mobile side
+being considered.
+
+## 6. Parity verification (subagent-orchestrated)
+
+Once the mobile port lands, verify that parity is real and not nominal:
+
+- **Orchestrate at least two subagents in parallel**, one auditing `apps/web`
+  and one auditing `apps/mobile`, against the same checklist: screens and
+  navigation, copy and vocabulary from `GLOSARY.md`, empty/loading/error
+  states, theme (light/dark), accessibility (44 px web / 48 dp Android, focus,
+  TalkBack, reduced motion), and data (same `GameDocument` shape, migrations,
+  export/import).
+- The main agent synthesizes both reports into a parity table
+  (behavior → web → mobile → equal/divergent) and decides: fix the divergence,
+  or record it as an accepted follow-up with the user.
+- **Do not move to the final code review while a functional divergence is
+  open.** Present the table together with the mobile change.
+- Very small changes (copy tweak, one-line style fix, mechanical rename) may be
+  verified by the main agent itself; say so when reporting.
+
+## 7. Final code review (mandatory)
+
+After web and mobile are both approved and parity is verified, delegate a
+review to the `code-reviewer` subagent (read-only; it must not change code)
+covering:
+
+- architecture and module boundaries per `docs/ARCHITECTURE.md` and
+  `docs/MOBILE.md`;
+- consistency across web, mobile, and shared packages (naming, state, tokens);
+- bugs, edge cases, and regressions, including the date-injection rule for
+  calendar-dependent logic;
+- persistence and sync: schema versioning, migrations, and the conservative
+  auto-merge in ADR-0004;
+- tests: are the new behaviors covered, and at the right layer;
+- simplicity (KISS/YAGNI) and leftover dead code.
+
+Fix the findings that are load-bearing, re-run the quality gates (§10), and
+report the remaining findings in the PR.
+
+## 8. Delegating long tasks to subagents
+
+Use subagents when a task is too large for one pass — several screens, a whole
+flow ported to mobile, new test suites, or long verification loops:
+
+- Split by area (web UI, mobile UI, tests, docs) and run independent workers in
+  parallel, while keeping the order of §5 (web first, then mobile).
+- Give each worker its own context (files, tokens, acceptance criteria, TDD
+  requirement); child sessions start empty.
+- The main agent integrates the work, resolves conflicts, and owns the gates:
+  never accept subagent output without running lint/typecheck/tests.
+- Trivial mechanical work (typos, one-line edits, renames) does not need a
+  subagent.
+
+## 9. Sync awareness (mandatory for every feature)
 
 Every feature must keep sync working. The app is local-first with per-account
 cloud sync (see `docs/BACKEND.md` and ADR-0001/ADR-0004):
@@ -94,7 +177,7 @@ cloud sync (see `docs/BACKEND.md` and ADR-0001/ADR-0004):
 - Never persist an unvalidated document as the merge base; the `:base` key
   refreshes automatically on successful push/pull.
 
-## 6. Quality gates (must be green before opening a PR)
+## 10. Quality gates (must be green before opening a PR)
 
 ```bash
 pnpm lint
@@ -114,7 +197,7 @@ branch before opening the PR. Never open a PR with red checks.
 > rebuild (`sudo chown -R "$(id -u):$(id -g)" apps/api/dist` or
 > `sudo rm -rf apps/api/dist`). Never run builds as root.
 
-## 7. Agent cleanup (mandatory before finishing)
+## 11. Agent cleanup (mandatory before finishing)
 
 When an agent finishes a session, it **must leave the environment clean**:
 
@@ -128,14 +211,19 @@ When an agent finishes a session, it **must leave the environment clean**:
 - **No untracked noise.** `git status` should show only intentional changes.
 - Report the branch name and PR URL to the user, then stop.
 
-## 8. Session checklist (agent)
+## 12. Session checklist (agent)
 
-1. Create session branch.
-2. Make changes; commit with conventional format.
-3. Run all quality gates, including `pnpm typecheck:e2e` (E2E too when critical
+1. Create the session branch.
+2. Implement the change on web (TDD, §4).
+3. Present the web change to the user and wait for explicit approval.
+4. Port the approved behavior to mobile (or record the documented exemption).
+5. Verify parity (§6) with subagents and close the divergences.
+6. Run the final code review (§7) and fix the load-bearing findings.
+7. Run all quality gates, including `pnpm typecheck:e2e` (E2E too when critical
    paths changed).
-4. **Register any new/moved/deleted `.md` file in `AGENTS.md`** (Fuentes de
+8. **Register any new/moved/deleted `.md` file in `AGENTS.md`** (Fuentes de
    verdad) in the same change. A doc without a reference there is incomplete.
-5. Push branch and open PR (no approval required to open).
-6. Clean up: stop servers, remove artifacts, verify `git status`.
-7. Report branch + PR URL; await user review/merge.
+9. Push the branch and open the single PR of the session (no approval required
+   to open).
+10. Clean up: stop servers, remove artifacts, verify `git status`.
+11. Report branch + PR URL; await user review/merge.
