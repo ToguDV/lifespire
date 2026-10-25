@@ -168,6 +168,54 @@ describe('api-client', () => {
     }
   });
 
+  it('shares one refresh across concurrent 401 responses', async () => {
+    const origFetch = globalThis.fetch;
+    let token: string | null = 'old-token';
+    let refreshCalls = 0;
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      const target = String(_url);
+      if (target.endsWith('/v1/auth/refresh')) {
+        refreshCalls += 1;
+        // Give the second 401 time to join the in-flight refresh.
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return new Response(JSON.stringify({ accessToken: 'new-token' }), { status: 200 });
+      }
+      const auth = (init?.headers as Record<string, string>)?.Authorization;
+      if (auth === 'Bearer new-token') {
+        return new Response(
+          JSON.stringify({
+            id: 'u1',
+            email: 'a@b.c',
+            role: 'USER',
+            status: 'ACTIVE',
+            totpEnabled: false,
+            createdAt: '2026-10-24T00:00:00.000Z',
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ title: 'Unauthorized', code: 'AUTH_TOKEN_EXPIRED' }), {
+        status: 401,
+      });
+    }) as typeof fetch;
+    try {
+      const api = createApiClient({
+        baseUrl: 'https://api.example.com',
+        getAccessToken: () => token,
+        setAccessToken: (next) => {
+          token = next;
+        },
+      });
+      const [first, second] = await Promise.all([api.me(), api.me()]);
+      expect(first.email).toBe('a@b.c');
+      expect(second.email).toBe('a@b.c');
+      expect(refreshCalls).toBe(1);
+      expect(token).toBe('new-token');
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
   it('keeps the web cookie mode unchanged', async () => {
     const seen: Record<string, string> = {}
     const origFetch = globalThis.fetch

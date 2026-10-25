@@ -179,7 +179,9 @@ export function createApiClient(options: ApiClientOptions) {
     return { res, data: (await res.json()) as T };
   }
 
-  async function refreshTokens(): Promise<{ accessToken: string; refreshToken?: string }> {
+  let refreshInFlight: Promise<{ accessToken: string; refreshToken?: string }> | null = null;
+
+  async function performRefresh(): Promise<{ accessToken: string; refreshToken?: string }> {
     const refreshToken = options.getRefreshToken?.() ?? null;
     if (native && !refreshToken) {
       throw new ApiRequestError(401, 'Missing refresh token', 'AUTH_TOKEN_EXPIRED');
@@ -197,6 +199,20 @@ export function createApiClient(options: ApiClientOptions) {
     );
     rememberAuth(data);
     return data;
+  }
+
+  /**
+   * Single-flight rotation: concurrent 401s share one refresh promise. Two
+   * rotations would present the same token twice and the server would revoke
+   * the whole family as reuse.
+   */
+  function refreshTokens(): Promise<{ accessToken: string; refreshToken?: string }> {
+    if (!refreshInFlight) {
+      refreshInFlight = performRefresh().finally(() => {
+        refreshInFlight = null;
+      });
+    }
+    return refreshInFlight;
   }
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<{ res: Response; data: T }> {
