@@ -245,11 +245,48 @@ function createWindow(): void {
     dialog.showErrorBox('LifeSpire stopped', `The window process exited: ${details.reason}`)
   })
 
+  watchResponsiveness(window)
+
   if (app.isPackaged) {
     void window.loadURL(buildAppUrl())
   } else {
     void window.loadURL(DEV_URL)
   }
+}
+
+/**
+ * A hung renderer leaves the window frozen with no way out. Electron reports it
+ * through the browser process, so offer a reload instead of forcing a kill.
+ */
+function watchResponsiveness(window: BrowserWindow): void {
+  let prompting = false
+
+  window.on('unresponsive', () => {
+    console.error('[lifespire] renderer unresponsive')
+    if (prompting) return
+    prompting = true
+    void dialog
+      .showMessageBox(window, {
+        type: 'warning',
+        buttons: ['Wait', 'Reload'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'LifeSpire is not responding',
+        message: 'The window stopped responding.',
+        detail:
+          'Your save is stored on this device and will be restored after a reload. Reload only if waiting does not help.',
+      })
+      .then((result) => {
+        if (result.response === 1) window.webContents.reload()
+      })
+      .finally(() => {
+        prompting = false
+      })
+  })
+
+  window.on('responsive', () => {
+    console.error('[lifespire] renderer responsive again')
+  })
 }
 
 if (!app.requestSingleInstanceLock()) {
