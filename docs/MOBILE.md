@@ -206,8 +206,9 @@ the rest of the app remains fully usable.
   import/export/reset actions and the reset note. The second “Start over”
   panel is retired; export still uses the Android share sheet as “Export
   original save”.
-- Data safety matches web. The import preview names the chosen JSON file and
-  warns that replacing overwrites the keys under `lifespire:mvp0`. A sync
+- Data safety matches web. The import preview names the chosen JSON file on a
+  valid save and warns that replacing overwrites the keys under
+  `lifespire:mvp0`; a rejected file reports the reason without the name. A sync
   conflict shows both copies (profile, progress, run and saved time), lists up
   to five merge reasons and can share this device and the cloud copy as two
   separate `lifespire-this-device-<date>.json` / `lifespire-cloud-<date>.json`

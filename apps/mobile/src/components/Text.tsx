@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeProvider'
 import { type as typography } from '../theme/tokens'
 import type { TextVariant } from '../theme/tokens'
 
-export type Tone = 'default' | 'muted' | 'soft' | 'accent' | 'deep' | 'gold' | 'xp' | 'danger' | 'inverse'
+export type Tone = 'default' | 'muted' | 'soft' | 'accent' | 'deep' | 'inverse'
 
 export interface TextPropsX extends TextProps {
   variant?: TextVariant
@@ -32,11 +32,9 @@ export function Text({
           ? colors.accent
           : tone === 'deep'
             ? colors.accentDeep
-            : tone === 'gold' || tone === 'xp' || tone === 'danger'
-              ? colors.inkStrong
-              : tone === 'inverse'
-                ? colors.onAccent
-                : colors.ink
+            : tone === 'inverse'
+              ? colors.onAccent
+              : colors.ink
 
   return (
     <RNText

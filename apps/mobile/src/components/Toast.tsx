@@ -18,7 +18,14 @@ export function Toast({ message, onDismiss }: { message: string | null; onDismis
     if (!message) return
     opacity.setValue(0)
     Animated.timing(opacity, { toValue: 1, duration: 160, useNativeDriver: true }).start()
-    const timer = setTimeout(onDismiss, 5000)
+    // Fade out (~150ms) before dismissing so the toast never blinks away.
+    const timer = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(
+        ({ finished }) => {
+          if (finished) onDismiss()
+        },
+      )
+    }, 5000)
     return () => clearTimeout(timer)
   }, [message, onDismiss, opacity])
 
@@ -98,7 +105,14 @@ export function RewardToast({
     if (!event) return
     opacity.setValue(0)
     Animated.spring(opacity, { toValue: 1, useNativeDriver: true, damping: 18 }).start()
-    const timer = setTimeout(onDismiss, 5200)
+    // Fade out (~150ms) before dismissing so the reward never blinks away.
+    const timer = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(
+        ({ finished }) => {
+          if (finished) onDismiss()
+        },
+      )
+    }, 5200)
     return () => clearTimeout(timer)
   }, [event, onDismiss, opacity])
 
@@ -109,6 +123,7 @@ export function RewardToast({
     : (event.taskTitle ?? event.goalTitle ?? 'The path moves on')
   return (
     <Animated.View
+      pointerEvents="box-none"
       style={[styles.rewardWrap, { bottom: layout.tabbarHeight + insets.bottom + 12, opacity }]}
     >
       <Pressable
@@ -160,7 +175,7 @@ export function RewardToast({
               {event.duplicateGold > 0 ? (
                 <Bit
                   icon="coin"
-                  label={`+${event.duplicateGold} g duplicate`}
+                  label={`+${event.duplicateGold} gold duplicate`}
                   color={colors.background}
                 />
               ) : null}

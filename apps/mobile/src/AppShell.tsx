@@ -260,10 +260,10 @@ export function AppShell() {
       {storageWarning === 'write-failed' && !storageIssue ? (
         <View style={[styles.warning, { backgroundColor: colors.surfaceSunken, borderColor: colors.hairlineStrong }]}>
           <Icon name="lock" size={14} color={colors.inkStrong} />
-          <Text variant="caption" tone="danger" style={styles.warningText}>
+          <Text variant="caption" style={styles.warningText}>
             Changes are not being saved on this device. Export a copy from Settings.
           </Text>
-          <Text variant="caption" tone="danger" onPress={() => navigate({ name: 'settings' })}>
+          <Text variant="caption" onPress={() => navigate({ name: 'settings' })}>
             Open
           </Text>
         </View>
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: space.xs,
-    paddingHorizontal: 14,
+    paddingHorizontal: layout.screenPadding,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1, minWidth: 0 },
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     paddingTop: space.xs,
     minHeight: layout.tabbarHeight,
   },
-  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: 44 },
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, minHeight: layout.minTouch },
   tabBar: {
     position: 'absolute',
     top: 0,

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
-import { fonts, radius, space } from '../theme/tokens'
+import { fonts, layout, radius, space } from '../theme/tokens'
 import { Text } from './Text'
 
 export interface SegmentedOption<T extends string> {
@@ -49,7 +49,7 @@ export function SegmentedControl<T extends string>({
             ]}
           >
             <View style={styles.optionBody}>
-              <Text variant="caption" tone={selected ? 'default' : 'soft'} style={styles.optionLabel}>
+              <Text variant="micro" tone={selected ? 'default' : 'soft'} style={styles.optionLabel}>
                 {option.label}
               </Text>
               {option.detail ? (
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   },
   option: {
     flex: 1,
-    minHeight: 44,
+    minHeight: layout.minTouch,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -90,10 +90,6 @@ const styles = StyleSheet.create({
   },
   optionBody: { alignItems: 'center', gap: 1 },
   optionLabel: {
-    fontFamily: fonts.uiBold,
-    fontSize: 10.9,
-    lineHeight: 14,
-    letterSpacing: 0.44,
     textTransform: 'uppercase',
   },
   optionDetail: {

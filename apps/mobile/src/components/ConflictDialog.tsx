@@ -220,7 +220,7 @@ export function ConflictDialog() {
       ) : null}
       {conflict.conflicts.length > 0 ? (
         <View style={styles.reasons}>
-          <Text variant="caption" tone="danger">Why the merge stopped:</Text>
+          <Text variant="caption" tone="default">Why the merge stopped:</Text>
           {conflict.conflicts.slice(0, 5).map((reason) => (
             <Text key={reason} variant="caption" tone="muted">· {reason}</Text>
           ))}

@@ -1,11 +1,15 @@
 import { Pressable, StyleSheet, View } from 'react-native'
 import type { ReactNode } from 'react'
 import { useTheme } from '../theme/ThemeProvider'
-import { fonts, radius } from '../theme/tokens'
+import { radius } from '../theme/tokens'
 import { Icon } from './Icon'
 import type { IconName } from './Icon'
 import { Pips } from './Progress'
 import { Text } from './Text'
+
+export function clampAimFilled(progress: number, target: number): number {
+  return Math.max(0, Math.min(progress, target))
+}
 
 export function AimRow({
   icon,
@@ -28,7 +32,7 @@ export function AimRow({
 }) {
   const { colors } = useTheme()
   const filled = typeof progress === 'number' && typeof target === 'number'
-    ? Math.min(progress, target)
+    ? clampAimFilled(progress, target)
     : 0
   const content = (
     <View style={styles.row}>
@@ -36,7 +40,7 @@ export function AimRow({
         <Icon name={icon} size={15} color={colors.accentDeep} />
       </View>
       <View style={styles.body}>
-        <Text numberOfLines={2} style={[styles.title, { color: colors.ink }]}>
+        <Text variant="resource" numberOfLines={2} style={{ color: colors.ink }}>
           {title}
         </Text>
         {subtitle ? (
@@ -88,7 +92,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   body: { flex: 1, minWidth: 0, gap: 5 },
-  title: { fontFamily: fonts.uiBold, fontSize: 12.8, lineHeight: 16 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   count: { marginLeft: 'auto', fontVariant: ['tabular-nums'] },
 })

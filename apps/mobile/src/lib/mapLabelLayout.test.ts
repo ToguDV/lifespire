@@ -100,7 +100,7 @@ describe('map label geometry', () => {
   })
 
   it('centers the boss label above the hexagon', () => {
-    const box = bossLabelBox()
+    const box = bossLabelBox(160, 320)
 
     expect(box).toEqual({
       left: BOSS_WIDTH / 2 - BOSS_LABEL_MAX_WIDTH / 2,
@@ -108,6 +108,35 @@ describe('map label geometry', () => {
       width: BOSS_LABEL_MAX_WIDTH,
     })
     expectFiniteGeometry(box)
+  })
+
+  it('clamps a below label inside the canvas gutters at both edges', () => {
+    const canvasWidth = 320
+    for (const cx of [40, 300]) {
+      const { placement, box } = nodeLabelLayout({
+        side: 'below',
+        size: 45,
+        cx,
+        canvasWidth,
+        dense: false,
+      })
+      expect(placement).toBe('below')
+      const absoluteLeft = cx - NODE_TARGET / 2 + (box.left ?? 0)
+      expect(absoluteLeft).toBeGreaterThanOrEqual(6)
+      expect(absoluteLeft + box.width).toBeLessThanOrEqual(canvasWidth - 6)
+      expectFiniteGeometry(box)
+    }
+  })
+
+  it('clamps the boss label inside the canvas gutters at both edges', () => {
+    const canvasWidth = 320
+    for (const cx of [40, 300]) {
+      const box = bossLabelBox(cx, canvasWidth)
+      const absoluteLeft = cx - BOSS_WIDTH / 2 + (box.left ?? 0)
+      expect(absoluteLeft).toBeGreaterThanOrEqual(6)
+      expect(absoluteLeft + box.width).toBeLessThanOrEqual(canvasWidth - 6)
+      expectFiniteGeometry(box)
+    }
   })
 
   it('keeps every label finite across node sizes and side lanes', () => {

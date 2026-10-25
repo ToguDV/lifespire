@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native'
 import type { Effort, Goal, Task, TaskInput } from '@lifespire/core'
 import { EFFORT_LABEL } from '@lifespire/app-core/ui/format'
@@ -8,8 +8,12 @@ import { Button } from './Button'
 import { Dialog } from './Dialog'
 import { EffortDots } from './EffortDots'
 import { Field, Input } from './Field'
+import { dialogDraftShouldReset } from './GoalFormDialog'
 import { Icon } from './Icon'
 import { Text } from './Text'
+
+// Re-exported so the task dialog test covers the same draft guard.
+export { dialogDraftShouldReset }
 
 export function TaskFormDialog({
   visible,
@@ -37,9 +41,18 @@ export function TaskFormDialog({
   const [active, setActive] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const noActiveGoals = activeGoals.length === 0
+  const draftRef = useRef<{ visible: boolean; id: string | undefined }>({
+    visible: false,
+    id: undefined,
+  })
 
   useEffect(() => {
-    if (!visible) return
+    const prev = draftRef.current
+    const next = { visible, id: task?.id }
+    draftRef.current = next
+    // A background sync refreshes `goals` with the dialog open: keep the
+    // typed draft unless the dialog just opened or another routine is edited.
+    if (!dialogDraftShouldReset(prev, next)) return
     const preferredGoalId = task?.goalId ?? defaultGoalId
     const selectedGoalId = activeGoals.some((goal) => goal.id === preferredGoalId)
       ? (preferredGoalId ?? '')
@@ -204,6 +217,11 @@ export function TaskFormDialog({
             onValueChange={setActive}
             trackColor={{ true: colors.accent, false: colors.surfaceSunken }}
             thumbColor={colors.surfaceRaised}
+            // The outer Pressable is the single switch control; the native
+            // toggle is visual only and hidden from TalkBack.
+            pointerEvents="none"
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
           />
         </Pressable>
       </View>
@@ -223,6 +241,9 @@ const styles = StyleSheet.create({
   goal: {
     flexDirection: 'row',
     alignItems: 'center',
+    // 48 dp touch target, like Button's minTouch: the chip content stays
+    // vertically centered by alignItems.
+    minHeight: 48,
     gap: space.xs,
     borderWidth: 1,
     borderRadius: radius.full,

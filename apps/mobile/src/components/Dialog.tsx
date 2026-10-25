@@ -50,7 +50,10 @@ export function Dialog({
         <Pressable
           style={[styles.backdrop, { backgroundColor: colors.scrim }]}
           onPress={dismissable ? onClose : undefined}
-          accessibilityLabel="Close dialog"
+          accessibilityRole={dismissable ? 'button' : undefined}
+          accessibilityLabel={dismissable ? 'Close dialog' : undefined}
+          accessibilityElementsHidden={!dismissable}
+          importantForAccessibility={dismissable ? 'auto' : 'no'}
         />
         <View
           style={[

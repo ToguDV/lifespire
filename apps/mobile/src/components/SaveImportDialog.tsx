@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { LOOT_CATALOG, STORAGE_KEY } from '@lifespire/core'
+import { LOOT_CATALOG } from '@lifespire/core'
 import type { GameDocument } from '@lifespire/core'
 import type { PickedImportResult } from '../lib/exportImport'
 import { useTheme } from '../theme/ThemeProvider'
@@ -21,8 +21,14 @@ export function SaveImportDialog({
 }) {
   const { colors } = useTheme()
   const [confirmError, setConfirmError] = useState<string | null>(null)
+  // A new pick replaces the previous result: drop the stale confirm error so
+  // a retry starts clean.
+  useEffect(() => {
+    setConfirmError(null)
+  }, [result])
   if (!result) return null
   if (!result.ok) {
+    const fileName = result.fileName ?? 'chosen file'
     return (
       <Dialog
         visible
@@ -31,11 +37,11 @@ export function SaveImportDialog({
         onClose={onClose}
         actions={<Button onPress={onClose}>Close</Button>}
       >
-        <Text variant="bodySm" tone="danger">
+        <Text variant="bodySm" tone="default">
           {result.message}
         </Text>
         <Text variant="caption" tone="soft" style={styles.note}>
-          Your current save and the local storage were not changed.
+          File: {fileName}. Your current save and the local storage were not changed.
         </Text>
       </Dialog>
     )
@@ -109,10 +115,10 @@ function ImportWarning({ fileName }: { fileName: string }) {
         { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
       ]}
     >
-      <Icon name="lock" size={15} color={colors.accentDeep} />
+      <Icon name="archive" size={15} color={colors.accentDeep} />
       <Text variant="bodySm" tone="muted" style={styles.warningText}>
-        Replacing overwrites the profile, goals, routines, run and collection currently under{' '}
-        {STORAGE_KEY}. File: {fileName}.
+        Replacing overwrites the profile, goals, routines, run and collection in los datos
+        de este dispositivo. File: {fileName}.
       </Text>
     </View>
   )

@@ -234,7 +234,7 @@ export function SettingsScreen() {
         />
         {permission === 'denied' ? (
           <View style={styles.permissionBlock}>
-            <Text variant="caption" tone="danger">
+            <Text variant="caption" tone="default">
               Android is blocking LifeSpire notifications. Allow them in system settings.
             </Text>
             <Button variant="secondary" small onPress={() => void Linking.openSettings()}>
@@ -290,7 +290,7 @@ export function SettingsScreen() {
       </Panel>
 
       <Panel>
-        <PanelHead label="Local data" aside={<Text variant="caption" tone="danger">Careful</Text>} />
+        <PanelHead label="Local data" aside={<Text variant="caption" tone="default">Careful</Text>} />
         <Text variant="bodySm" tone="muted">
           Resetting removes the local save after copying it to a backup. It cannot be undone from
           here.
@@ -515,7 +515,7 @@ function SyncSection() {
             {serverVersion ? `Cloud v${serverVersion}` : 'No cloud save yet'}
             {lastPushedAt ? ` · last push ${new Date(lastPushedAt).toLocaleTimeString()}` : ''}
           </Text>
-          {syncError ? <Text variant="caption" tone="danger">{syncError}</Text> : null}
+          {syncError ? <Text variant="caption" tone="default">{syncError}</Text> : null}
           <Button variant="secondary" onPress={() => void logout()}>Sign out</Button>
           <Text variant="caption" tone="soft">
             Signing out keeps a per-account copy on this device. Offline edits queue and sync on
@@ -553,7 +553,7 @@ function SyncSection() {
           <Button onPress={() => void submitLogin()} loading={busy}>
             {busy ? 'Signing in…' : 'Sign in'}
           </Button>
-          {authError ? <Text variant="caption" tone="danger">{authError}</Text> : null}
+          {authError ? <Text variant="caption" tone="default">{authError}</Text> : null}
           <Button variant="quiet" small onPress={() => setShowExtras((value) => !value)}>
             {showExtras ? 'Hide invite and password reset' : 'Invite and password reset'}
           </Button>
@@ -604,7 +604,7 @@ function SyncSection() {
             keyboardType="url"
           />
         </Field>
-        {serverError ? <Text variant="caption" tone="danger">{serverError}</Text> : null}
+        {serverError ? <Text variant="caption" tone="default">{serverError}</Text> : null}
         {serverNotice ? <Text variant="caption" tone="accent">{serverNotice}</Text> : null}
         <View style={styles.serverActions}>
           <Button variant="secondary" small onPress={() => void saveServer()} loading={checking}>
@@ -642,7 +642,7 @@ function DevSection() {
 
 const styles = StyleSheet.create({
   choices: { flexDirection: 'row', gap: space.xs },
-  choice: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderRadius: radius.md, paddingVertical: space.sm },
+  choice: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderRadius: radius.md, minHeight: 48, paddingVertical: space.sm },
   note: { marginTop: space.sm },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space.sm },
   settingBody: { flex: 1, gap: 2 },

@@ -52,13 +52,28 @@ export interface NodeLabelInput {
   dense: boolean
 }
 
-function belowBox(size: number, maxLabel: number): MapLabelBox {
+function belowBox(size: number, maxLabel: number, cx: number, canvasWidth: number): MapLabelBox {
   const center = NODE_TARGET / 2
+  // The wrap is anchored at `cx - NODE_TARGET / 2`, so the raw offset must be
+  // clamped in absolute canvas pixels to stay inside the edge gutters.
+  const origin = cx - NODE_TARGET / 2
+  const absolute = clampToCanvas(origin + (center - maxLabel / 2), maxLabel, canvasWidth)
   return {
-    left: center - maxLabel / 2,
+    left: absolute - origin,
     top: center + size / 2 + LABEL_GAP_BELOW,
     width: maxLabel,
   }
+}
+
+/**
+ * Keeps an absolutely-positioned label inside `[EDGE, canvasWidth - width -
+ * EDGE]`, matching the web gutter. When the canvas is narrower than the label
+ * plus both gutters, the label pins to the leading edge.
+ */
+function clampToCanvas(absoluteLeft: number, width: number, canvasWidth: number): number {
+  const min = LABEL_EDGE_PADDING
+  const max = Math.max(min, canvasWidth - width - LABEL_EDGE_PADDING)
+  return Math.min(Math.max(absoluteLeft, min), max)
 }
 
 /**
@@ -76,7 +91,7 @@ export function nodeLabelLayout({
   const center = NODE_TARGET / 2
   const maxLabel = dense ? LABEL_MAX_WIDTH_DENSE : LABEL_MAX_WIDTH
   if (side === 'below') {
-    return { placement: 'below', box: belowBox(size, maxLabel) }
+    return { placement: 'below', box: belowBox(size, maxLabel, cx, canvasWidth) }
   }
 
   const maxWidth = Math.min(
@@ -86,7 +101,7 @@ export function nodeLabelLayout({
       : canvasWidth - (cx + size / 2 + LABEL_GAP_SIDE) - LABEL_EDGE_PADDING,
   )
   if (maxWidth < LABEL_MIN_SIDE_WIDTH) {
-    return { placement: 'below', box: belowBox(size, maxLabel) }
+    return { placement: 'below', box: belowBox(size, maxLabel, cx, canvasWidth) }
   }
 
   return {
@@ -102,10 +117,21 @@ export function nodeLabelLayout({
   }
 }
 
-/** Box for the boss name, centered above the hexagon. */
-export function bossLabelBox(): MapLabelBox {
+/**
+ * Box for the boss name, centered above the hexagon and clamped to the canvas
+ * gutters. `cx`/`canvasWidth` are canvas pixels: the wrap sits at
+ * `cx - BOSS_WIDTH / 2`, so the offset is clamped in absolute coordinates like
+ * the node labels below.
+ */
+export function bossLabelBox(cx: number, canvasWidth: number): MapLabelBox {
+  const origin = cx - BOSS_WIDTH / 2
+  const absolute = clampToCanvas(
+    origin + (BOSS_WIDTH / 2 - BOSS_LABEL_MAX_WIDTH / 2),
+    BOSS_LABEL_MAX_WIDTH,
+    canvasWidth,
+  )
   return {
-    left: BOSS_WIDTH / 2 - BOSS_LABEL_MAX_WIDTH / 2,
+    left: absolute - origin,
     bottom: BOSS_HEIGHT + 4,
     width: BOSS_LABEL_MAX_WIDTH,
   }

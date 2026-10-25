@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import {
+  MAX_WEEKLY_OBJECTIVE,
+  MIN_WEEKLY_OBJECTIVE,
   OBJECTIVE_BONUS,
-  findLootById,
+  RUN_DAYS,
+  XP_PER_LEVEL,
   xpIntoLevel,
   xpToNextLevel,
 } from '@lifespire/core'
-import type { Goal, LootItem, Run } from '@lifespire/core'
+import type { Goal, Run } from '@lifespire/core'
 import {
   allAimsBonusCopy,
   duplicateGoldCopy,
@@ -16,170 +18,29 @@ import {
   objectiveBonusCopy,
   weeklyBonusTotalCopy,
 } from '@lifespire/app-core/ui/runSummary'
-import { RARITY_LABEL, goalIconFor, lootIcon, romanDay } from '@lifespire/app-core/ui/format'
+import { goalIconFor, romanDay } from '@lifespire/app-core/ui/format'
 import { getNow } from '@lifespire/app-core/state/clock'
 import { useTheme } from '../theme/ThemeProvider'
 import { fonts, radius, space } from '../theme/tokens'
 import { AimRow } from '../components/AimRow'
-import { AnimatedNumber } from '../components/AnimatedNumber'
 import { Button } from '../components/Button'
 import { Dialog } from '../components/Dialog'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
 import type { IconName } from '../components/Icon'
-import { LootCard } from '../components/LootCard'
 import { Panel, ScreenHead } from '../components/Panel'
 import { Screen } from '../components/Screen'
 import { Stat, StatStrip } from '../components/Stat'
+import {
+  ReportEmptyCard,
+  ReportLootGrid,
+  ReportSeal,
+  ReportSection,
+  ReportSectionHead,
+  ReportTotals,
+} from '../components/SummaryReport'
 import { Text } from '../components/Text'
 import { useAppStore } from '../state/store'
-
-function Section({ children, last = false }: { children: ReactNode; last?: boolean }) {
-  const { colors } = useTheme()
-  return (
-    <View
-      style={[
-        styles.section,
-        last
-          ? null
-          : { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.hairline },
-      ]}
-    >
-      {children}
-    </View>
-  )
-}
-
-function SectionHead({ title, aside }: { title: string; aside?: ReactNode }) {
-  return (
-    <View style={styles.sectionHead}>
-      <Text variant="headingSm" accessibilityRole="header" style={styles.sectionTitle}>
-        {title}
-      </Text>
-      {aside}
-    </View>
-  )
-}
-
-function Seal({
-  numeral,
-  label,
-  accessibilityLabel,
-  icon = 'spire',
-}: {
-  numeral: string
-  label: string
-  accessibilityLabel: string
-  icon?: IconName
-}) {
-  const { colors } = useTheme()
-  return (
-    <View
-      accessible
-      accessibilityLabel={accessibilityLabel}
-      style={[styles.seal, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}
-    >
-      <View style={[styles.sealInner, { borderColor: colors.accent }]}>
-        <Icon name={icon} size={15} color={colors.accentDeep} />
-        <Text maxFontSizeMultiplier={1.2} style={[styles.sealNumber, { color: colors.accentDeep }]}>
-          {numeral}
-        </Text>
-        <Text maxFontSizeMultiplier={1.2} style={[styles.sealLabel, { color: colors.accentDeep }]}>
-          {label}
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-function Total({ icon, value, label }: { icon: IconName; value: number; label: string }) {
-  const { colors } = useTheme()
-  return (
-    <View style={styles.total}>
-      <View style={styles.totalValue}>
-        <Icon name={icon} size={15} color={colors.accentDeep} />
-        <AnimatedNumber
-          value={value}
-          prefix="+"
-          style={{ ...styles.totalNumber, color: colors.inkStrong }}
-        />
-      </View>
-      <Text variant="micro" tone="soft" style={styles.totalLabel}>
-        {label}
-      </Text>
-    </View>
-  )
-}
-
-function Totals({ xp, gold, relics }: { xp: number; gold: number; relics: number }) {
-  const { colors } = useTheme()
-  return (
-    <View style={styles.totals} accessibilityLabel="Run totals">
-      <Total icon="star" value={xp} label="Experience" />
-      <View style={[styles.totalDivider, { borderColor: colors.hairline }]}>
-        <View style={styles.totalDividerInner}>
-          <Total icon="coin" value={gold} label="Gold" />
-        </View>
-      </View>
-      <View style={[styles.totalDivider, { borderColor: colors.hairline }]}>
-        <View style={styles.totalDividerInner}>
-          <Total icon="gem" value={relics} label="Relics" />
-        </View>
-      </View>
-    </View>
-  )
-}
-
-function LootFallback({ item }: { item: LootItem }) {
-  const { colors } = useTheme()
-  return (
-    <View
-      style={[
-        styles.lootFallback,
-        { borderColor: colors.hairline, backgroundColor: colors.surfaceRaised },
-      ]}
-    >
-      <Icon name={lootIcon(item.catalogId)} size={16} color={colors.accent} />
-      <View style={styles.lootFallbackBody}>
-        <Text variant="bodySm" numberOfLines={2}>
-          {item.name}
-        </Text>
-        <Text variant="caption" tone="muted">
-          {RARITY_LABEL[item.rarity]}
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-function LootGrid({ loot }: { loot: LootItem[] }) {
-  const { colors } = useTheme()
-  if (loot.length === 0) {
-    return (
-      <View
-        style={[styles.emptyLoot, { borderColor: colors.hairlineStrong }]}
-        accessibilityLabel="No new relic this week"
-      >
-        <Icon name="lock" size={18} color={colors.inkSoft} />
-        <Text variant="micro" tone="soft" style={styles.emptyLootLabel}>
-          No new relic this week
-        </Text>
-      </View>
-    )
-  }
-  return (
-    <View style={styles.lootGrid}>
-      {loot.map((item) => {
-        const entry = findLootById(item.catalogId)
-        return (
-          <View key={item.id} style={styles.lootCell}>
-            {entry ? <LootCard entry={entry} owned={item} /> : <LootFallback item={item} />}
-          </View>
-        )
-      })}
-    </View>
-  )
-}
 
 function BonusBlock({
   icon,
@@ -234,14 +95,6 @@ function BonusBlock({
   )
 }
 
-function EmptyCard({ children }: { children: ReactNode }) {
-  return (
-    <Panel pad={false} style={styles.card}>
-      <View style={styles.section}>{children}</View>
-    </Panel>
-  )
-}
-
 export function RunSummaryScreen() {
   const { colors } = useTheme()
   const document = useAppStore((state) => state.document)
@@ -266,14 +119,14 @@ export function RunSummaryScreen() {
     return (
       <Screen>
         <ScreenHead kicker="The week" title="Run summary" />
-        <EmptyCard>
+        <ReportEmptyCard>
           <EmptyState icon="crown" title="No run yet">
             Begin a run from camp to start the week.
           </EmptyState>
           <Button variant="secondary" onPress={() => navigate({ name: 'home' })} full>
             Back to camp
           </Button>
-        </EmptyCard>
+        </ReportEmptyCard>
       </Screen>
     )
   }
@@ -286,11 +139,11 @@ export function RunSummaryScreen() {
     return (
       <Screen>
         <ScreenHead kicker="The week" title="Sealing the week" />
-        <EmptyCard>
+        <ReportEmptyCard>
           <EmptyState icon="crown" title="The week is closing">
-            The weekly bonus is being written. Pull to refresh or return to camp.
+            The weekly bonus is being written. Return to camp to continue.
           </EmptyState>
-        </EmptyCard>
+        </ReportEmptyCard>
       </Screen>
     )
   }
@@ -332,7 +185,7 @@ export function RunSummaryScreen() {
   return (
     <Screen>
       <Panel pad={false} style={styles.card}>
-        <Section>
+        <ReportSection>
           <View style={styles.headRow}>
             <View style={styles.headCopy}>
               <Text variant="micro" tone="muted">
@@ -347,16 +200,16 @@ export function RunSummaryScreen() {
                 {`${profile?.name ?? 'The traveller'}, every page is recorded. The totals below are already part of your profile.`}
               </Text>
             </View>
-            <Seal numeral={romanDay(6)} label="WEEK" accessibilityLabel="Week seal" />
+            <ReportSeal numeral={romanDay(6)} label="WEEK" accessibilityLabel="Week seal" />
           </View>
-        </Section>
+        </ReportSection>
 
-        <Section>
-          <SectionHead
+        <ReportSection>
+          <ReportSectionHead
             title="The week recorded"
             aside={
               <Text variant="caption" tone="soft">
-                {`${daysRecorded} of 7 days · ${steps} steps`}
+                {`${daysRecorded} of ${RUN_DAYS} days · ${steps} steps`}
               </Text>
             }
           />
@@ -364,12 +217,12 @@ export function RunSummaryScreen() {
             <Stat
               value={totals.daysPlayed}
               label="Days played"
-              progress={totals.daysPlayed / 7}
+              progress={totals.daysPlayed / RUN_DAYS}
             />
             <Stat
               value={totals.daysMissed}
               label="Days missed"
-              progress={totals.daysMissed / 7}
+              progress={totals.daysMissed / RUN_DAYS}
             />
             <Stat
               value={totals.nodesCompleted}
@@ -385,18 +238,18 @@ export function RunSummaryScreen() {
               ? ` ${totals.nodesSkipped} ${totals.nodesSkipped === 1 ? 'step was' : 'steps were'} skipped and earned nothing.`
               : ''}
           </Text>
-        </Section>
+        </ReportSection>
 
-        <Section>
-          <Totals xp={totals.xp} gold={totals.gold} relics={totals.lootCount} />
+        <ReportSection>
+          <ReportTotals xp={totals.xp} gold={totals.gold} relics={totals.lootCount} accessibilityLabel="Run totals" />
           <Text variant="bodySm" tone="soft" style={styles.note}>
             These totals include every node reward and the weekly bonus. The bonus was granted
             once, when the week closed; reading this page again never adds it a second time.
           </Text>
-        </Section>
+        </ReportSection>
 
-        <Section>
-          <SectionHead
+        <ReportSection>
+          <ReportSectionHead
             title="Weekly goals"
             aside={
               <Text variant="caption" tone="soft">
@@ -445,10 +298,10 @@ export function RunSummaryScreen() {
               ))}
             </View>
           )}
-        </Section>
+        </ReportSection>
 
-        <Section>
-          <SectionHead
+        <ReportSection>
+          <ReportSectionHead
             title="How the weekly bonus was earned"
             aside={
               <Text variant="caption" tone="soft">
@@ -501,10 +354,10 @@ export function RunSummaryScreen() {
               {`Weekly bonus total · ${weeklyBonusTotalCopy(summary)}. This is the amount already added to your profile.`}
             </Text>
           </View>
-        </Section>
+        </ReportSection>
 
-        <Section>
-          <SectionHead
+        <ReportSection>
+          <ReportSectionHead
             title="Relics found at the close"
             aside={
               <Text variant="caption" tone="soft">
@@ -512,7 +365,7 @@ export function RunSummaryScreen() {
               </Text>
             }
           />
-          <LootGrid loot={summary.loot} />
+          <ReportLootGrid loot={summary.loot} />
           <Text variant="bodySm" tone="soft" style={styles.note}>
             {duplicateGoldCopy(summary.duplicateGold)}
           </Text>
@@ -522,9 +375,9 @@ export function RunSummaryScreen() {
               relics.
             </Text>
           ) : null}
-        </Section>
+        </ReportSection>
 
-        <Section last>
+        <ReportSection last>
           <View
             style={[
               styles.levelUp,
@@ -533,7 +386,7 @@ export function RunSummaryScreen() {
           >
             <Icon name="star" size={15} color={colors.accentDeep} />
             <Text style={[styles.levelUpText, { color: colors.accentDeep }]}>
-              {`${profile?.name ?? 'The traveller'} · Level ${profile?.level ?? 1} · ${profile ? xpIntoLevel(profile.xp) : 0} / 100 into this level · ${profile ? xpToNextLevel(profile.xp) : 100} to the next`}
+              {`${profile?.name ?? 'The traveller'} · Level ${profile?.level ?? 1} · ${profile ? xpIntoLevel(profile.xp) : 0} / ${XP_PER_LEVEL} into this level · ${profile ? xpToNextLevel(profile.xp) : XP_PER_LEVEL} to the next`}
             </Text>
           </View>
 
@@ -561,7 +414,7 @@ export function RunSummaryScreen() {
               collection. You can review the new weekly goals before it begins.
             </Text>
           </View>
-        </Section>
+        </ReportSection>
       </Panel>
 
       <Dialog
@@ -635,7 +488,7 @@ export function RunSummaryScreen() {
                       setTargets((current) => ({
                         ...current,
                         [goal.id]: Math.max(
-                          1,
+                          MIN_WEEKLY_OBJECTIVE,
                           (current[goal.id] ?? goal.weeklyObjective) - 1,
                         ),
                       }))
@@ -653,7 +506,7 @@ export function RunSummaryScreen() {
                       setTargets((current) => ({
                         ...current,
                         [goal.id]: Math.min(
-                          7,
+                          MAX_WEEKLY_OBJECTIVE,
                           (current[goal.id] ?? goal.weeklyObjective) + 1,
                         ),
                       }))
@@ -680,7 +533,7 @@ function ActiveRun({ run }: { run: Run }) {
   return (
     <Screen>
       <Panel pad={false} style={styles.card}>
-        <Section>
+        <ReportSection>
           <View style={styles.headRow}>
             <View style={styles.headCopy}>
               <Text variant="micro" tone="muted">
@@ -694,19 +547,19 @@ function ActiveRun({ run }: { run: Run }) {
                 from this page.
               </Text>
             </View>
-            <Seal
+            <ReportSeal
               numeral={romanDay(6)}
               label="WEEK"
               icon="compass"
               accessibilityLabel="Week in progress"
             />
           </View>
-        </Section>
+        </ReportSection>
 
-        <Section>
+        <ReportSection>
           <StatStrip>
-            <Stat value={kept} label="Days played" progress={kept / 7} />
-            <Stat value={missed} label="Days missed" progress={missed / 7} />
+            <Stat value={kept} label="Days played" progress={kept / RUN_DAYS} />
+            <Stat value={missed} label="Days missed" progress={missed / RUN_DAYS} />
             <Stat
               value={run.totals.nodesCompleted}
               label="Steps kept"
@@ -714,22 +567,23 @@ function ActiveRun({ run }: { run: Run }) {
             />
           </StatStrip>
           <Text variant="bodySm" tone="soft" style={styles.note}>
-            {`${7 - kept - missed} ${7 - kept - missed === 1 ? 'day' : 'days'} still ahead. The weekly bonus is granted once, when the run closes.`}
+            {`${RUN_DAYS - kept - missed} ${RUN_DAYS - kept - missed === 1 ? 'day' : 'days'} still ahead. The weekly bonus is granted once, when the run closes.`}
           </Text>
-        </Section>
+        </ReportSection>
 
-        <Section>
-          <Totals
+        <ReportSection>
+          <ReportTotals
             xp={run.totals.xp}
             gold={run.totals.gold}
             relics={run.totals.lootCount}
+            accessibilityLabel="Run totals"
           />
           <Text variant="bodySm" tone="soft" style={styles.note}>
             Totals so far. Nothing here is final until the seventh day is sealed.
           </Text>
-        </Section>
+        </ReportSection>
 
-        <Section>
+        <ReportSection>
           <View style={styles.sectionLabel}>
             <Text variant="micro" tone="muted">
               WEEKLY TARGETS
@@ -754,9 +608,9 @@ function ActiveRun({ run }: { run: Run }) {
               </View>
             ))}
           </View>
-        </Section>
+        </ReportSection>
 
-        <Section last>
+        <ReportSection last>
           <View style={styles.waitNote}>
             <Icon name="lock" size={15} color={colors.inkMuted} />
             <Text style={[styles.waitNoteText, { color: colors.inkMuted }]}>
@@ -772,7 +626,7 @@ function ActiveRun({ run }: { run: Run }) {
               Return to camp
             </Button>
           </View>
-        </Section>
+        </ReportSection>
       </Panel>
     </Screen>
   )
@@ -780,67 +634,10 @@ function ActiveRun({ run }: { run: Run }) {
 
 const styles = StyleSheet.create({
   card: { overflow: 'hidden' },
-  section: { padding: space.xl },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-    marginBottom: space.sm,
-  },
   sectionLabel: { marginBottom: space.xs },
-  sectionTitle: { flexShrink: 1 },
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
-  headCopy: { flex: 1, minWidth: 0, gap: 4 },
-  seal: {
-    width: 70,
-    height: 70,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-6deg' }],
-  },
-  sealInner: {
-    width: 60,
-    height: 60,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 1,
-  },
-  sealNumber: {
-    fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 21,
-    letterSpacing: 1,
-  },
-  sealLabel: {
-    fontFamily: fonts.uiBold,
-    fontSize: 7.4,
-    lineHeight: 9,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
+  headCopy: { flex: 1, minWidth: 0, gap: space.xxs },
   note: { marginTop: space.xs },
-  totals: { flexDirection: 'row' },
-  total: { flex: 1, minWidth: 0, gap: 3 },
-  totalValue: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  totalNumber: {
-    fontFamily: fonts.display,
-    fontSize: 21.6,
-    lineHeight: 24,
-    fontVariant: ['tabular-nums'],
-  },
-  totalLabel: {
-    fontSize: 9.4,
-    lineHeight: 12,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
-  totalDivider: { flex: 1, borderLeftWidth: StyleSheet.hairlineWidth },
-  totalDividerInner: { flex: 1, paddingLeft: 10 },
   aims: { gap: 0 },
   aimDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -848,7 +645,8 @@ const styles = StyleSheet.create({
     marginTop: space.xxs,
   },
   aimMeta: {
-    paddingLeft: 40,
+    paddingLeft: space.xxxl,
+    // 6px keeps the web aim-meta rhythm; no token covers it.
     paddingBottom: 6,
     fontFamily: fonts.uiBold,
     fontSize: 10,
@@ -856,7 +654,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  aimLoot: { paddingLeft: 40, paddingBottom: space.xxs },
+  aimLoot: { paddingLeft: space.xxxl, paddingBottom: space.xxs },
   bonuses: { gap: space.sm },
   bonus: {
     flexDirection: 'row',
@@ -875,13 +673,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bonusBody: { flex: 1, minWidth: 0, gap: 3 },
+  // 16.3px keeps pixel parity with the web summary bonus line.
   bonusStrong: { fontFamily: fonts.display, fontSize: 16.3, lineHeight: 20 },
   rareNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 7,
+    gap: space.xs,
     marginTop: space.sm,
   },
+  // 13.6px keeps pixel parity with the web italic note.
   noteText: {
     flex: 1,
     fontFamily: fonts.displayItalic,
@@ -891,7 +691,7 @@ const styles = StyleSheet.create({
   levelUp: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 7,
+    gap: space.xs,
     marginTop: space.sm,
     paddingVertical: 8,
     paddingHorizontal: space.sm,
@@ -899,6 +699,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderRadius: radius.sm,
   },
+  // 11.2px keeps pixel parity with the web level-up strip.
   levelUpText: {
     flex: 1,
     fontFamily: fonts.uiBold,
@@ -906,34 +707,11 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     letterSpacing: 0.4,
   },
-  lootGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  lootCell: { flexBasis: '47%', flexGrow: 1, maxWidth: '48%' },
-  lootFallback: {
-    minHeight: 90,
-    padding: space.sm,
-    borderWidth: 1,
-    borderRadius: radius.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xs,
-  },
-  lootFallbackBody: { flex: 1, minWidth: 0, gap: 2 },
-  emptyLoot: {
-    minHeight: 104,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: space.xs,
-    padding: space.sm,
-  },
-  emptyLootLabel: { textAlign: 'center', textTransform: 'uppercase' },
   actions: { gap: space.sm, marginTop: space.sm },
   waitNote: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 7,
+    gap: space.xs,
     marginTop: space.sm,
   },
   waitNoteText: {
@@ -952,6 +730,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   warningText: { flex: 1 },
+  // 6px icon-text rhythm; no token covers it.
   keptRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   keptText: { flex: 1 },
   error: {

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
-import { radius, space } from '../theme/tokens'
+import { layout, radius, space } from '../theme/tokens'
 import { Icon } from './Icon'
 import type { IconName } from './Icon'
 
@@ -10,7 +10,7 @@ export function IconButton({
   label,
   onPress,
   active = false,
-  size = 44,
+  size = layout.minTouch,
   style,
   disabled = false,
 }: {

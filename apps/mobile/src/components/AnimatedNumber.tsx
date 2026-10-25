@@ -37,13 +37,19 @@ export function AnimatedNumber({
     const id = progress.addListener(({ value: t }) => {
       setDisplay(Math.round(from + (value - from) * t))
     })
-    Animated.timing(progress, {
+    let mounted = true
+    const animation = Animated.timing(progress, {
       toValue: 1,
       duration: 420,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
-    }).start(() => setDisplay(value))
+    })
+    animation.start(() => {
+      if (mounted) setDisplay(value)
+    })
     return () => {
+      mounted = false
+      animation.stop()
       progress.removeListener(id)
     }
   }, [value, reduced, progress])

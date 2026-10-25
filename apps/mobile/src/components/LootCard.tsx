@@ -21,6 +21,8 @@ export function LootCard({
   if (!owned) {
     return (
       <View
+        accessible
+        accessibilityRole="summary"
         style={[styles.card, styles.locked, { borderColor: colors.hairline }]}
         accessibilityLabel="Undiscovered relic"
       >
@@ -42,6 +44,8 @@ export function LootCard({
   const filled = rarityPips(entry.rarity)
   return (
     <View
+      accessible
+      accessibilityRole="summary"
       style={[
         styles.card,
         shadows.soft,
@@ -70,7 +74,12 @@ export function LootCard({
         <Text variant="headingSm" numberOfLines={2}>
           {entry.name}
         </Text>
-        <View style={styles.rarityRow} accessibilityLabel={`Rarity ${filled} of 3`}>
+        <View
+          accessible
+          accessibilityRole="text"
+          style={styles.rarityRow}
+          accessibilityLabel={`Rarity ${filled} of 3`}
+        >
           <View style={styles.pips}>
             {[1, 2, 3].map((step) => (
               <View

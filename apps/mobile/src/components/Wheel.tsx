@@ -155,12 +155,6 @@ export function Wheel({
     ]).start()
   }
 
-  const announceResult = () => {
-    AccessibilityInfo.announceForAccessibility(
-      `${outcomeLine(result)}. ${rewardLine(result)}`,
-    )
-  }
-
   const spin = async () => {
     if (started.current || phaseRef.current !== 'idle') return
     started.current = true
@@ -222,7 +216,10 @@ export function Wheel({
 
       changePhase('revealed')
       playFeedback('wheelReveal')
-      announceResult()
+      // Single announcement for the settled outcome: the result card below is
+      // focusable with the same label plus a polite live region, so it
+      // announces once on appearance. The manual announceForAccessibility call
+      // that used to sit here double-announced with the card focus.
 
       if (!reducedRef.current) {
         Animated.parallel([
@@ -420,6 +417,7 @@ export function Wheel({
         <Animated.View
           accessible
           accessibilityRole="text"
+          accessibilityLiveRegion="polite"
           accessibilityLabel={`${outcomeLine(result)}. ${rewardLine(result)}`}
           style={[
             styles.result,
@@ -509,6 +507,9 @@ const styles = StyleSheet.create({
     width: 20,
     height: 18,
     zIndex: 3,
+    // Honored by RN 0.88 on Android (processTransformOrigin /
+    // BaseViewConfig): the flick pivots around the top-center hinge, so no
+    // manual translate compensation is needed.
     transformOrigin: '50% 0%',
   },
   pointerShadow: {

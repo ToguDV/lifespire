@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Switch, View } from 'react-native'
 import type { Goal, GoalInput, GoalIconId } from '@lifespire/core'
 import { MAX_GOALS, nextGoalIcon } from '@lifespire/core'
@@ -9,6 +9,22 @@ import { Dialog } from './Dialog'
 import { Field, Input } from './Field'
 import { IconPicker } from './IconPicker'
 import { Text } from './Text'
+
+/**
+ * Decides whether a goal/task dialog must reset its draft. The dialog stays
+ * mounted while `goals` sync in the background, so a goals-array refresh with
+ * the dialog open must keep the typed draft: reset only on the closed→open
+ * transition (including the first mount while open) or when the edited
+ * entity's id changes.
+ */
+export function dialogDraftShouldReset(
+  prev: { visible: boolean; id: string | null | undefined },
+  next: { visible: boolean; id: string | null | undefined },
+): boolean {
+  if (!next.visible) return false
+  if (!prev.visible) return true
+  return (prev.id ?? null) !== (next.id ?? null)
+}
 
 export function GoalFormDialog({
   visible,
@@ -34,9 +50,18 @@ export function GoalFormDialog({
   const [weeklyObjective, setWeeklyObjective] = useState(3)
   const [active, setActive] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const draftRef = useRef<{ visible: boolean; id: string | undefined }>({
+    visible: false,
+    id: undefined,
+  })
 
   useEffect(() => {
-    if (!visible) return
+    const prev = draftRef.current
+    const next = { visible, id: goal?.id }
+    draftRef.current = next
+    // A background sync refreshes `goals` with the dialog open: keep the
+    // typed draft unless the dialog just opened or another goal is edited.
+    if (!dialogDraftShouldReset(prev, next)) return
     setTitle(goal?.title ?? '')
     setCategory(goal?.category ?? '')
     setIcon(goal?.icon ?? nextGoalIcon(goals))
@@ -169,6 +194,11 @@ export function GoalFormDialog({
             onValueChange={setActive}
             trackColor={{ true: colors.accent, false: colors.surfaceSunken }}
             thumbColor={colors.surfaceRaised}
+            // The outer Pressable is the single switch control; the native
+            // toggle is visual only and hidden from TalkBack.
+            pointerEvents="none"
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
           />
         </Pressable>
       </View>
