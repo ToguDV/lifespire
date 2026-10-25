@@ -1,0 +1,53 @@
+appId: app.lifespire.desktop
+productName: LifeSpire
+copyright: LifeSpire contributors
+executableName: lifespire
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+
+# The web build is packaged untouched; the shell serves it from a custom
+# protocol so localStorage keeps one stable origin.
+extraResources:
+  - from: ../web/dist
+    to: web
+
+asar: true
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+linux:
+  target:
+    - target: deb
+      arch: [x64]
+    - target: AppImage
+      arch: [x64]
+    - target: tar.gz
+      arch: [x64]
+  category: Utility
+  icon: build/icon.png
+  syncDesktopName: true
+  maintainer: LifeSpire contributors <noreply@lifespire.app>
+  synopsis: A quiet ascent through your goals
+  description: >-
+    LifeSpire turns your goals and routines into a daily node map. Local-first,
+    offline, and kept on your device.
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-setup.${ext}
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: zip
+      arch: [x64]
+  executableName: LifeSpire
+  icon: build/icon.png

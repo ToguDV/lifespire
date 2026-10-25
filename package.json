@@ -9,6 +9,8 @@
     "build": "pnpm -r build",
     "build:web": "pnpm --filter @lifespire/web build",
     "build:api": "pnpm --filter @lifespire/api build",
+    "build:desktop": "pnpm --filter @lifespire/desktop build",
+    "package:desktop": "pnpm --filter @lifespire/desktop package",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "typecheck:e2e": "pnpm --filter @lifespire/web typecheck:e2e",
@@ -19,7 +21,8 @@
     "preview": "pnpm --filter @lifespire/web preview",
     "dev:mobile": "pnpm --filter @lifespire/mobile start",
     "build:mobile": "pnpm --filter @lifespire/mobile build",
-    "test:mobile": "pnpm --filter @lifespire/mobile test"
+    "test:mobile": "pnpm --filter @lifespire/mobile test",
+    "dev:desktop": "pnpm --filter @lifespire/desktop dev"
   },
   "devDependencies": {
     "oxlint": "^1.81.0",

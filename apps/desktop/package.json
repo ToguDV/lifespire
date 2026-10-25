@@ -1,0 +1,31 @@
+{
+  "name": "@lifespire/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "LifeSpire desktop — Electron shell for the local-first web app.",
+  "author": "LifeSpire contributors",
+  "desktopName": "lifespire.desktop",
+  "homepage": "https://github.com/ToguDV/lifespire",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "pnpm build && electron .",
+    "build": "tsc -p tsconfig.build.json",
+    "package": "pnpm --filter @lifespire/web build && pnpm build && electron-builder --publish never",
+    "package:linux": "pnpm --filter @lifespire/web build && pnpm build && electron-builder --linux --publish never",
+    "package:win": "pnpm --filter @lifespire/web build && pnpm build && electron-builder --win --publish never",
+    "lint": "oxlint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
