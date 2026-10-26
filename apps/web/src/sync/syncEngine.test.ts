@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiRequestError } from '@lifespire/api-client'
 import { createEmptyDocument } from '../domain/schema'
 import type { GameDocument } from '../domain/types'
-import { accountBaseKey } from './storageKeys'
+import { accountBaseKey, accountMetaKey } from './storageKeys'
 import { createSyncEngine } from './syncEngine'
 
 function docWithGold(gold: number): GameDocument {
@@ -408,6 +409,347 @@ describe('syncEngine auto-merge', () => {
     expect(engine.getState().status).toBe('synced')
     expect(engine.getState().conflict).toBeNull()
     expect(local.profile?.gold).toBe(40)
+    engine.dispose()
+  })
+})
+
+describe('syncEngine watch feed', () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('applies a remote version announced by the watch and calls the notice hook', async () => {
+    const storage = memoryStorage()
+    let local = docWithGold(10)
+    const remote = docWithGold(20)
+    const onRemoteApplied = vi.fn()
+    const watchSync = vi.fn(async () => ({ version: '2', updatedAt: '2026-10-24T00:02:00.000Z' }))
+    const getSync = vi.fn(async () => ({
+      version: '2',
+      schemaVersion: 3,
+      document: remote,
+      updatedAt: '2026-10-24T00:02:00.000Z',
+    }))
+    const engine = createSyncEngine({
+      storage,
+      api: { getSync, putSync: vi.fn(), watchSync } as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: (doc) => {
+        local = doc
+      },
+      onRemoteApplied,
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('1')
+    engine.startWatching()
+
+    await vi.waitFor(() => expect(onRemoteApplied).toHaveBeenCalledTimes(1))
+    expect(watchSync).toHaveBeenCalledWith('1', expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(getSync).toHaveBeenCalledWith('1')
+    expect(local.profile?.gold).toBe(20)
+    expect(engine.getState().serverVersion).toBe('2')
+    expect(engine.getState().status).toBe('synced')
+    engine.stopWatching()
+    engine.dispose()
+  })
+
+  it('ignores its own version and does not pull', async () => {
+    const storage = memoryStorage()
+    const getSync = vi.fn()
+    const engine = createSyncEngine({
+      storage,
+      api: {
+        getSync,
+        putSync: vi.fn(),
+        watchSync: vi.fn(async () => ({ version: '1', updatedAt: '2026-10-24T00:00:00.000Z' })),
+      } as never,
+      userId: 'u1',
+      getLocalDocument: () => docWithGold(1),
+      applyRemoteDocument: vi.fn(),
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('1')
+    engine.startWatching()
+
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(getSync).not.toHaveBeenCalled()
+    engine.stopWatching()
+    engine.dispose()
+  })
+
+  it('defers a watch pull while a push is in flight and advances the cursor', async () => {
+    const storage = memoryStorage()
+    let local = docWithGold(10)
+    let releasePush: (value: { version: string; updatedAt: string }) => void = () => undefined
+    const putSync = vi.fn(
+      () =>
+        new Promise<{ version: string; updatedAt: string }>((resolve) => {
+          releasePush = resolve
+        }),
+    )
+    const watchSync = vi
+      .fn()
+      .mockResolvedValueOnce({ version: '3', updatedAt: '2026-10-24T00:02:00.000Z' })
+      .mockImplementation(() => new Promise(() => undefined))
+    const remote = docWithGold(30)
+    const getSync = vi.fn(async () => ({
+      version: '3',
+      schemaVersion: 3,
+      document: remote,
+      updatedAt: '2026-10-24T00:02:00.000Z',
+    }))
+    const onRemoteApplied = vi.fn()
+    const engine = createSyncEngine({
+      storage,
+      api: { getSync, putSync, watchSync } as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: (doc) => {
+        local = doc
+      },
+      onRemoteApplied,
+      getDevOffset: () => 0,
+      isOnline: () => true,
+      pushDelayMs: 1,
+    })
+    engine.setServerVersion('1')
+    engine.markDirty()
+
+    await vi.waitFor(() => expect(putSync).toHaveBeenCalledTimes(1))
+    engine.startWatching()
+
+    await vi.waitFor(() => expect(watchSync.mock.calls.length).toBeGreaterThanOrEqual(2))
+    expect(watchSync.mock.calls[1]?.[0]).toBe('3')
+    expect(getSync).not.toHaveBeenCalled()
+
+    releasePush({ version: '2', updatedAt: '2026-10-24T00:02:00.000Z' })
+    await vi.waitFor(() => expect(onRemoteApplied).toHaveBeenCalledTimes(1))
+    expect(local.profile?.gold).toBe(30)
+    expect(engine.getState().serverVersion).toBe('3')
+    engine.stopWatching()
+    engine.dispose()
+  })
+
+  it('flushes a watch notification that arrived during an in-flight pull', async () => {
+    const storage = memoryStorage()
+    let local = docWithGold(10)
+    let releaseFirstPull: (value: {
+      version: string
+      schemaVersion: number
+      document: GameDocument
+      updatedAt: string
+    }) => void = () => undefined
+    const firstPull = new Promise<{
+      version: string
+      schemaVersion: number
+      document: GameDocument
+      updatedAt: string
+    }>((resolve) => {
+      releaseFirstPull = resolve
+    })
+    const getSync = vi
+      .fn()
+      .mockImplementationOnce(() => firstPull)
+      .mockResolvedValueOnce({
+        version: '3',
+        schemaVersion: 3,
+        document: docWithGold(30),
+        updatedAt: '2026-10-24T00:03:00.000Z',
+      })
+    const watchSync = vi
+      .fn()
+      .mockResolvedValueOnce({ version: '3', updatedAt: '2026-10-24T00:03:00.000Z' })
+      .mockImplementation(() => new Promise(() => undefined))
+    const onRemoteApplied = vi.fn()
+    const engine = createSyncEngine({
+      storage,
+      api: { getSync, putSync: vi.fn(), watchSync } as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: (doc) => {
+        local = doc
+      },
+      onRemoteApplied,
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('1')
+    void engine.pullNow()
+    engine.startWatching()
+
+    await vi.waitFor(() => expect(watchSync).toHaveBeenCalled())
+    expect(getSync).toHaveBeenCalledTimes(1)
+    releaseFirstPull({
+      version: '2',
+      schemaVersion: 3,
+      document: docWithGold(20),
+      updatedAt: '2026-10-24T00:02:00.000Z',
+    })
+
+    await vi.waitFor(() => expect(onRemoteApplied).toHaveBeenCalledTimes(1))
+    expect(getSync).toHaveBeenCalledTimes(2)
+    expect(local.profile?.gold).toBe(30)
+    expect(engine.getState().serverVersion).toBe('3')
+    engine.stopWatching()
+    engine.dispose()
+  })
+
+  it('accepts the server version when it is lower than the old cursor', async () => {
+    const storage = memoryStorage()
+    let local = docWithGold(10)
+    const watchSync = vi
+      .fn()
+      .mockResolvedValueOnce({ version: '1', updatedAt: '2026-10-24T00:01:00.000Z' })
+      .mockImplementation(() => new Promise(() => undefined))
+    const getSync = vi.fn(async () => ({
+      version: '1',
+      schemaVersion: 3,
+      document: docWithGold(5),
+      updatedAt: '2026-10-24T00:01:00.000Z',
+    }))
+    const engine = createSyncEngine({
+      storage,
+      api: { getSync, putSync: vi.fn(), watchSync } as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: (doc) => {
+        local = doc
+      },
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('3')
+    engine.startWatching()
+
+    await vi.waitFor(() => expect(watchSync.mock.calls.length).toBeGreaterThanOrEqual(2))
+    expect(watchSync.mock.calls[1]?.[0]).toBe('1')
+    expect(local.profile?.gold).toBe(5)
+    expect(engine.getState().serverVersion).toBe('1')
+    engine.stopWatching()
+    engine.dispose()
+  })
+
+  it('aborts a zombie long-poll with the watchdog and keeps retrying', async () => {
+    const storage = memoryStorage()
+    const observed: { signal: AbortSignal | null } = { signal: null }
+    const watchSync = vi.fn(
+      (_since?: string, opts?: { signal?: AbortSignal }) =>
+        new Promise<{ version: string; updatedAt: string }>((_resolve, reject) => {
+          observed.signal = opts?.signal ?? null
+          opts?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+        }),
+    )
+    const engine = createSyncEngine({
+      storage,
+      api: { getSync: vi.fn(), putSync: vi.fn(), watchSync } as never,
+      userId: 'u1',
+      getLocalDocument: () => docWithGold(1),
+      applyRemoteDocument: vi.fn(),
+      getDevOffset: () => 0,
+      isOnline: () => true,
+      watchRequestTimeoutMs: 20,
+    })
+    engine.setServerVersion('1')
+    engine.startWatching()
+
+    await vi.waitFor(() => expect(observed.signal).not.toBeNull())
+    await vi.waitFor(() => expect(observed.signal?.aborted).toBe(true))
+    await vi.waitFor(() => expect(engine.getState().status).toBe('error'))
+    engine.stopWatching()
+    engine.dispose()
+  })
+
+  it('stops the loop and aborts the pending request', async () => {
+    const storage = memoryStorage()
+    const observed: { signal: AbortSignal | null } = { signal: null }
+    const watchSync = vi.fn(async (_since?: string, opts?: { signal?: AbortSignal }) => {
+      observed.signal = opts?.signal ?? null
+      return new Promise<{ version: string; updatedAt: string }>(() => undefined)
+    })
+    const engine = createSyncEngine({
+      storage,
+      api: { getSync: vi.fn(), putSync: vi.fn(), watchSync } as never,
+      userId: 'u1',
+      getLocalDocument: () => docWithGold(1),
+      applyRemoteDocument: vi.fn(),
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('1')
+    engine.startWatching()
+    await vi.waitFor(() => expect(watchSync).toHaveBeenCalledTimes(1))
+
+    engine.stopWatching()
+    expect(observed.signal?.aborted).toBe(true)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(watchSync).toHaveBeenCalledTimes(1)
+    engine.dispose()
+  })
+
+  it('falls back to polling when the server lacks the watch endpoint', async () => {
+    const storage = memoryStorage()
+    const getSync = vi.fn(async () => null)
+    const engine = createSyncEngine({
+      storage,
+      api: {
+        getSync,
+        putSync: vi.fn(),
+        watchSync: vi.fn(async () => {
+          throw new ApiRequestError(404, 'Not found')
+        }),
+      } as never,
+      userId: 'u1',
+      getLocalDocument: () => docWithGold(1),
+      applyRemoteDocument: vi.fn(),
+      getDevOffset: () => 0,
+      isOnline: () => true,
+      pollIntervalMs: 10,
+    })
+    engine.setServerVersion('1')
+    engine.startWatching()
+
+    await vi.waitFor(() => expect(getSync).toHaveBeenCalled())
+    engine.stopPolling()
+    engine.stopWatching()
+    engine.dispose()
+  })
+
+  it('keeps local data and clears the stale cursor when the cloud save is deleted', async () => {
+    const storage = memoryStorage()
+    const onCloudDeleted = vi.fn()
+    storage.setItem(
+      accountMetaKey('u1'),
+      JSON.stringify({ version: '3', updatedAt: '2026-10-24T00:00:00.000Z', checksum: 'c' }),
+    )
+    let local = docWithGold(12)
+    const engine = createSyncEngine({
+      storage,
+      api: {
+        getSync: vi.fn(),
+        putSync: vi.fn(),
+        watchSync: vi.fn(async () => ({ version: null, updatedAt: null })),
+      } as never,
+      userId: 'u1',
+      getLocalDocument: () => local,
+      applyRemoteDocument: (doc) => {
+        local = doc
+      },
+      onCloudDeleted,
+      getDevOffset: () => 0,
+      isOnline: () => true,
+    })
+    engine.setServerVersion('3')
+    engine.startWatching()
+
+    await vi.waitFor(() => expect(onCloudDeleted).toHaveBeenCalledTimes(1))
+    expect(engine.getState().serverVersion).toBeNull()
+    expect(engine.getState().status).toBe('dirty')
+    expect(local.profile?.gold).toBe(12)
+    expect(storage.getItem(accountMetaKey('u1'))).toBeNull()
+    engine.stopWatching()
     engine.dispose()
   })
 })

@@ -62,6 +62,12 @@ export interface SyncPushResult {
   updatedAt: string;
 }
 
+/** Version-only signal from the long-poll change feed. */
+export interface SyncWatchResult {
+  version: string | null;
+  updatedAt: string | null;
+}
+
 export interface SyncRevision {
   version: string;
   schemaVersion: number;
@@ -341,6 +347,26 @@ export function createApiClient(options: ApiClientOptions) {
         headers,
         body: JSON.stringify({ document }),
       });
+      return data;
+    },
+
+    /**
+     * Long-polls for a newer cloud version. Returns the current version on
+     * timeout (unchanged), or `version: null` when the cloud save was deleted.
+     * An older server without the endpoint surfaces as a 404 ApiRequestError.
+     */
+    async watchSync(
+      since?: string,
+      opts: { signal?: AbortSignal; waitMs?: number } = {},
+    ): Promise<SyncWatchResult> {
+      const params = new URLSearchParams();
+      if (since) params.set('since', since);
+      if (opts.waitMs !== undefined) params.set('wait', String(opts.waitMs));
+      const query = params.toString();
+      const { data } = await request<SyncWatchResult>(
+        `/v1/sync/watch${query ? `?${query}` : ''}`,
+        { signal: opts.signal },
+      );
       return data;
     },
 

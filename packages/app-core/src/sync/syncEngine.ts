@@ -1,4 +1,5 @@
 import { SyncConflictError } from '@lifespire/api-client'
+import { ApiRequestError } from '@lifespire/api-client'
 import type { ApiClient } from '@lifespire/api-client'
 import type { GameDocument } from '@lifespire/core'
 import { tryAutoMerge } from '@lifespire/core'
@@ -44,15 +45,27 @@ export interface SyncEngineDeps {
     setItem(key: string, value: string): void
     removeItem(key: string): void
   }
-  api: Pick<ApiClient, 'getSync' | 'putSync'>
+  api: Pick<ApiClient, 'getSync' | 'putSync' | 'watchSync'>
   userId: string | null
   getLocalDocument: () => GameDocument
   applyRemoteDocument: (document: GameDocument) => void
+  /**
+   * Called when a watch notification led to a direct remote apply (not an
+   * auto-merge or a conflict resolution). The UI uses it for a discreet
+   * "updated from another device" notice.
+   */
+  onRemoteApplied?: () => void
+  /** The cloud save was deleted from another device. */
+  onCloudDeleted?: () => void
   getDevOffset?: () => number
   isOnline?: () => boolean
   now?: () => Date
   pushDelayMs?: number
   pollIntervalMs?: number
+  /** Minimum delay before retrying an immediate, unchanged watch response. */
+  watchIdleDelayMs?: number
+  /** Aborts a zombie long-poll so the loop can retry (default 40 s). */
+  watchRequestTimeoutMs?: number
   useLocks?: boolean
   /**
    * Best-effort hook before an auto-merged document overwrites the cloud
@@ -65,6 +78,12 @@ export interface SyncEngineDeps {
 const PUSH_DELAY_MS = 1500
 const POLL_INTERVAL_MS = 60_000
 const MAX_BACKOFF_MS = 60_000
+const WATCH_BACKOFF_START_MS = 2_000
+const WATCH_BACKOFF_MAX_MS = 30_000
+const WATCH_IDLE_DELAY_MS = 1_000
+// Longer than the server's 30 s maximum wait, short enough to free a zombie
+// socket (laptop sleep, NAT rebind, proxy holding the response).
+const WATCH_REQUEST_TIMEOUT_MS = 40_000
 
 function newIdempotencyKey(): string {
   try {
@@ -183,11 +202,70 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     ? (readMeta(deps.storage, deps.userId)?.checksum ?? null)
     : null
 
+  // Long-poll state. The cursor is independent from `serverVersion`: it must
+  // advance even when the client cannot pull immediately (push or conflict),
+  // otherwise the server would return the same pending version in a tight loop.
+  let watching = false
+  let watchUnsupported = false
+  let watchSince: string | null = null
+  let watchAbort: AbortController | null = null
+  let watchBackoffMs = WATCH_BACKOFF_START_MS
+  let watchSleepCancel: (() => void) | null = null
+  let pullInFlight = false
+  let pullAgain = false
+  let pullAgainAnnounce = false
+  let pendingPull = false
+  let pendingAnnounce = false
+  /** Invalidates in-flight pulls across account switches and sign-outs. */
+  let pullGeneration = 0
+
   const clearPushTimer = (): void => {
     if (pushTimer !== null) {
       clearTimeout(pushTimer)
       pushTimer = null
     }
+  }
+
+  const clearWatchSleep = (): void => {
+    if (watchSleepCancel) {
+      const cancel = watchSleepCancel
+      watchSleepCancel = null
+      cancel()
+    }
+  }
+
+  const watchSleep = (ms: number): Promise<void> =>
+    new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        watchSleepCancel = null
+        resolve()
+      }, ms)
+      watchSleepCancel = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+    })
+
+  const isWatchUnsupported = (error: unknown): boolean =>
+    error instanceof ApiRequestError && [404, 405, 501].includes(error.status)
+
+  const isNewerVersion = (candidate: string, current: string | null): boolean => {
+    if (current === null) return true
+    try {
+      return BigInt(candidate) > BigInt(current)
+    } catch {
+      return candidate !== current
+    }
+  }
+
+  /** Runs a deferred pull as soon as the engine is idle again. */
+  const flushPendingPull = (): void => {
+    if (!pendingPull) return
+    if (pullInFlight || state.status === 'pushing' || state.status === 'conflict') return
+    const announce = pendingAnnounce
+    pendingPull = false
+    pendingAnnounce = false
+    void engine.pullNow({ announce })
   }
 
   const persistVersion = (version: string, updatedAt: string, checksum: string, document: unknown): void => {
@@ -233,6 +311,9 @@ export function createSyncEngine(deps: SyncEngineDeps) {
     }
     if (state.status === 'conflict') return
 
+    // A long-poll pull may still be in flight. The CAS + If-Match serialize the
+    // write and openConflict re-reads the version, so the worst case here is a
+    // redundant round trip, never a lost update.
     pushInFlight = true
     setState({ status: 'pushing', lastError: null })
     try {
@@ -262,6 +343,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
       }
     } finally {
       pushInFlight = false
+      flushPendingPull()
     }
   }
 
@@ -274,8 +356,11 @@ export function createSyncEngine(deps: SyncEngineDeps) {
   }
 
   const openConflict = async (): Promise<void> => {
+    const generation = pullGeneration
+    const userId = state.userId
     try {
       const snapshot = await deps.api.getSync()
+      if (generation !== pullGeneration || state.userId !== userId) return
       if (!snapshot) {
         setState({ status: 'dirty', lastError: 'The cloud save vanished. Pushing again.' })
         scheduleRetry()
@@ -358,6 +443,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         lastPushedAt: now().toISOString(),
         lastAutoMergeAt: now().toISOString(),
       })
+      flushPendingPull()
     } catch (error) {
       if (error instanceof SyncConflictError) {
         await openConflict()
@@ -367,6 +453,117 @@ export function createSyncEngine(deps: SyncEngineDeps) {
           lastError: error instanceof Error ? error.message : 'Push failed.',
         })
         scheduleRetry()
+      }
+    }
+  }
+
+  function clearCloudState(userId: string): void {
+    try {
+      deps.storage.removeItem(accountMetaKey(userId))
+      deps.storage.removeItem(accountBaseKey(userId))
+    } catch {
+      // Best-effort, like the rest of the sync meta.
+    }
+    baseChecksum = null
+    baseDocument = null
+    watchSince = null
+    pushKey = null
+    setState({
+      serverVersion: null,
+      updatedAt: null,
+      conflict: null,
+      status: 'dirty',
+      lastError: null,
+    })
+    deps.onCloudDeleted?.()
+  }
+
+  /**
+   * Runs the long-poll loop until stopped, the account changes or the server
+   * does not know the endpoint. The cursor advances on every notification even
+   * when the pull is deferred, so the server is never asked for the same
+   * pending version in a tight loop.
+   */
+  async function runWatchLoop(userId: string): Promise<void> {
+    while (watching && state.userId === userId) {
+      if (getDevOffset() !== 0) {
+        await watchSleep(5_000)
+        continue
+      }
+      if (!isOnline()) {
+        watching = false
+        setState({ status: 'offline' })
+        return
+      }
+
+      const since = watchSince ?? state.serverVersion ?? undefined
+      const controller = new AbortController()
+      watchAbort = controller
+      const startedAt = Date.now()
+      let timedOut = false
+      const watchdog = setTimeout(() => {
+        timedOut = true
+        controller.abort()
+      }, deps.watchRequestTimeoutMs ?? WATCH_REQUEST_TIMEOUT_MS)
+      try {
+        const result = await deps.api.watchSync(since, { signal: controller.signal })
+        clearTimeout(watchdog)
+        if (!watching || state.userId !== userId) return
+        if (controller.signal.aborted && !timedOut) return
+        watchBackoffMs = WATCH_BACKOFF_START_MS
+
+        if (result.version === null) {
+          // No cloud copy. Only react when this device previously had one;
+          // a fresh account simply keeps waiting for its first upload.
+          if (state.serverVersion !== null) clearCloudState(userId)
+          if (Date.now() - startedAt < 100) {
+            await watchSleep(deps.watchIdleDelayMs ?? WATCH_IDLE_DELAY_MS)
+          }
+        } else {
+          // The server's current version is authoritative: accept a lower one
+          // too (delete + recreate) instead of keeping a cursor it can never
+          // satisfy again.
+          if (result.version !== watchSince) watchSince = result.version
+          if (result.version !== state.serverVersion) {
+            if (state.status === 'conflict' || state.status === 'pushing' || pullInFlight) {
+              pendingPull = true
+              pendingAnnounce = true
+            } else {
+              await engine.pullNow({ announce: true })
+              if (
+                state.serverVersion !== null &&
+                isNewerVersion(state.serverVersion, watchSince)
+              ) {
+                watchSince = state.serverVersion
+              }
+            }
+          } else if (Date.now() - startedAt < 100) {
+            // A proxy or buggy server answered an unchanged cursor instantly;
+            // do not spin.
+            await watchSleep(deps.watchIdleDelayMs ?? WATCH_IDLE_DELAY_MS)
+          }
+        }
+      } catch (error) {
+        clearTimeout(watchdog)
+        if (!watching || state.userId !== userId) return
+        // An abort from stopWatching ends the loop; a watchdog abort retries.
+        if (controller.signal.aborted && !timedOut) return
+        if (isWatchUnsupported(error)) {
+          // Older server: keep the app syncing with the legacy poll.
+          watchUnsupported = true
+          watching = false
+          engine.startPolling()
+          return
+        }
+        setState({
+          status: isOnline() ? 'error' : 'offline',
+          lastError: error instanceof Error ? error.message : 'Sync watch failed.',
+        })
+        watchBackoffMs = Math.min(watchBackoffMs * 2, WATCH_BACKOFF_MAX_MS)
+        await watchSleep(watchBackoffMs)
+      } finally {
+        clearTimeout(watchdog)
+        if (watchAbort === controller) watchAbort = null
       }
     }
   }
@@ -386,6 +583,15 @@ export function createSyncEngine(deps: SyncEngineDeps) {
 
     setUserId: (userId: string | null): void => {
       clearPushTimer()
+      engine.stopWatching()
+      engine.stopPolling()
+      pullGeneration += 1
+      pullAgain = false
+      pullAgainAnnounce = false
+      pendingPull = false
+      pendingAnnounce = false
+      watchUnsupported = false
+      watchSince = null
       pushKey = null
       backoffMs = 2000
       if (!userId) {
@@ -407,6 +613,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
       const meta = readMeta(deps.storage, userId)
       baseChecksum = meta?.checksum ?? null
       baseDocument = readBaseDocument(deps.storage, userId)
+      watchSince = meta?.version ?? null
       state = {
         status: 'synced',
         userId,
@@ -468,14 +675,28 @@ export function createSyncEngine(deps: SyncEngineDeps) {
       }, pushDelay)
     },
 
-    pullNow: async (): Promise<void> => {
+    pullNow: async (options: { announce?: boolean } = {}): Promise<void> => {
       const userId = state.userId
       if (!userId || getDevOffset() !== 0 || !isOnline()) return
-      if (state.status === 'conflict' || state.status === 'pushing') return
+      if (pullInFlight) {
+        pullAgain = true
+        if (options.announce) pullAgainAnnounce = true
+        return
+      }
+      if (state.status === 'conflict' || state.status === 'pushing') {
+        pendingPull = true
+        if (options.announce) pendingAnnounce = true
+        return
+      }
+      pendingPull = false
+      pendingAnnounce = false
       const previous = state.status
+      const generation = pullGeneration
+      pullInFlight = true
       setState({ status: 'pulling' })
       try {
         const snapshot = await deps.api.getSync(state.serverVersion ?? undefined)
+        if (generation !== pullGeneration || state.userId !== userId) return
         const dirtyDuringPull = state.status === 'dirty'
         const wasDirty = previous === 'dirty' || dirtyDuringPull
         if (!snapshot) {
@@ -493,7 +714,8 @@ export function createSyncEngine(deps: SyncEngineDeps) {
           return
         }
         if (wasDirty) {
-          // Local edits plus a newer cloud save: never auto-merge (ADR-0001).
+          // Local edits plus a newer cloud save: openConflict still tries the
+          // conservative 3-way merge before showing the dialog (ADR-0004).
           await openConflict()
           return
         }
@@ -502,12 +724,24 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         if (state.status === 'pulling') {
           setState({ status: 'synced', lastError: null })
         }
+        if (options.announce) deps.onRemoteApplied?.()
       } catch (error) {
         if (state.status === 'pulling') {
           setState({
             status: 'error',
             lastError: error instanceof Error ? error.message : 'Pull failed.',
           })
+        }
+      } finally {
+        pullInFlight = false
+        if (pullAgain) {
+          const announce = pullAgainAnnounce
+          pullAgain = false
+          pullAgainAnnounce = false
+          void engine.pullNow({ announce })
+        } else {
+          // A watch notification may have arrived while this pull ran.
+          flushPendingPull()
         }
       }
     },
@@ -528,6 +762,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         backoffMs = 2000
         persistVersion(result.version, result.updatedAt, checksumDocument(document), document)
         setState({ status: 'synced', conflict: null, lastPushedAt: now().toISOString() })
+        flushPendingPull()
       } catch (error) {
         if (error instanceof SyncConflictError) {
           await openConflict()
@@ -547,10 +782,12 @@ export function createSyncEngine(deps: SyncEngineDeps) {
       persistVersion(conflict.remoteVersion, conflict.remoteUpdatedAt, checksumDocument(conflict.remote), conflict.remote)
       pushKey = null
       setState({ status: 'synced', conflict: null, lastError: null })
+      flushPendingPull()
     },
 
     discardConflict: (): void => {
       setState({ conflict: null, status: state.serverVersion ? 'synced' : 'dirty' })
+      flushPendingPull()
     },
 
     handleOnline: (): void => {
@@ -559,6 +796,37 @@ export function createSyncEngine(deps: SyncEngineDeps) {
         setState({ status: 'dirty' })
         void engine.pullNow()
       }
+      engine.startWatching()
+    },
+
+    /**
+     * Starts the authenticated change feed. Falls back to the legacy 60 s
+     * poll when the server predates /v1/sync/watch.
+     */
+    startWatching: (): void => {
+      if (watchUnsupported) {
+        // The server predates the feed (or rejected it): keep the legacy poll
+        // alive across background/resume and network changes.
+        engine.startPolling()
+        return
+      }
+      if (watching) return
+      const userId = state.userId
+      if (!userId) return
+      watching = true
+      watchBackoffMs = WATCH_BACKOFF_START_MS
+      if (watchSince === null) watchSince = state.serverVersion
+      engine.stopPolling()
+      void runWatchLoop(userId)
+    },
+
+    stopWatching: (): void => {
+      watching = false
+      if (watchAbort) {
+        watchAbort.abort()
+        watchAbort = null
+      }
+      clearWatchSleep()
     },
 
     startPolling: (): void => {
@@ -578,6 +846,7 @@ export function createSyncEngine(deps: SyncEngineDeps) {
 
     dispose: (): void => {
       clearPushTimer()
+      engine.stopWatching()
       engine.stopPolling()
       listeners.clear()
     },

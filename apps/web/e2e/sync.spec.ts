@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from '@playwright/test'
+import { expect, test, type BrowserContext, type Page, type Route } from '@playwright/test'
 
 const DEMO_BUTTON = /Begin with demo data/i
 const ACTIONABLE_NODE = 'button[data-node-id][data-status="available"], button[data-node-id][data-status="current"]'
@@ -12,6 +12,38 @@ interface CloudState {
 function createMockServer() {
   const cloud: CloudState = { version: null, document: null, updatedAt: new Date().toISOString() }
   const puts: Array<{ ifMatch: string | null; create: boolean }> = []
+  const watchers: Array<{ route: Route; since: number | null }> = []
+
+  async function fulfillWatch(entry: { route: Route; since: number | null }): Promise<void> {
+    if (cloud.version === null) {
+      if (entry.since !== null) {
+        await entry.route
+          .fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ version: null, updatedAt: null }),
+          })
+          .catch(() => undefined)
+      }
+      return
+    }
+    if (entry.since !== null && cloud.version <= entry.since) return
+    await entry.route
+      .fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ version: String(cloud.version), updatedAt: cloud.updatedAt }),
+      })
+      .catch(() => undefined)
+  }
+
+  async function notifyWatchers(): Promise<void> {
+    const ready = watchers.filter(
+      (entry) => cloud.version !== null && (entry.since === null || cloud.version > entry.since),
+    )
+    for (const entry of ready) watchers.splice(watchers.indexOf(entry), 1)
+    await Promise.all(ready.map((entry) => fulfillWatch(entry)))
+  }
 
   async function route(context: BrowserContext) {
     await context.route('**/v1/auth/refresh', async (route) => {
@@ -34,6 +66,19 @@ function createMockServer() {
           createdAt: '2026-10-24T00:00:00.000Z',
         }),
       })
+    })
+    await context.route('**/v1/sync/watch*', async (route) => {
+      const sinceParam = new URL(route.request().url()).searchParams.get('since')
+      const entry = { route, since: sinceParam === null ? null : Number(sinceParam) }
+      if (cloud.version !== null && (entry.since === null || cloud.version > entry.since)) {
+        await fulfillWatch(entry)
+        return
+      }
+      if (cloud.version === null && entry.since !== null) {
+        await fulfillWatch(entry)
+        return
+      }
+      watchers.push(entry)
     })
     await context.route('**/v1/sync', async (route) => {
       const req = route.request()
@@ -79,6 +124,7 @@ function createMockServer() {
           cloud.version = 1
           cloud.document = payload.document ?? null
           cloud.updatedAt = new Date().toISOString()
+          await notifyWatchers()
           await route.fulfill({
             status: 201,
             contentType: 'application/json',
@@ -99,6 +145,7 @@ function createMockServer() {
         cloud.version += 1
         cloud.document = payload.document ?? null
         cloud.updatedAt = new Date().toISOString()
+        await notifyWatchers()
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -182,7 +229,8 @@ test.describe('sync engine', () => {
       await completeFirstNode(pageA)
       await expect.poll(async () => server.cloud.version, { timeout: 15000 }).toBe(2)
 
-      await pageB.reload()
+      // B stays open: the long-poll announces v2 and B applies it without a reload.
+      await expect(pageB.getByText('Updated from another device.')).toBeVisible({ timeout: 15000 })
       await openMap(pageB)
       await expect(pageB.locator(`button[data-node-id="${nodeId}"]`)).toHaveAttribute(
         'data-status',
@@ -214,13 +262,19 @@ test.describe('sync engine', () => {
 
       await openMap(pageA)
       await openMap(pageB)
+      // B edits against the stale v1 base: force a push without pulling first.
+      // Going offline keeps the watch from applying A's v2 before B's edit; on
+      // reconnect the engine pulls + auto-merges and falls back to the 412
+      // conflict dialog when the same node diverged (unit tests cover the
+      // direct If-Match 412 path).
+      await ctxB.setOffline(true)
       await completeFirstNode(pageA)
       await expect.poll(async () => server.cloud.version, { timeout: 15000 }).toBe(2)
 
-      // B edits against the stale v1 base: force a push without pulling first.
       // Skipping the node A completed is a genuine divergence (same node,
       // different action), so the dialog must appear with zero loss.
       await skipFirstNode(pageB)
+      await ctxB.setOffline(false)
       await expect(pageB.getByRole('dialog', { name: /Sync conflict/i })).toBeVisible({ timeout: 20000 })
       await expect(pageB.getByRole('heading', { name: /This device/i })).toBeVisible()
       await expect(pageB.getByRole('heading', { name: /^Cloud$/i })).toBeVisible()

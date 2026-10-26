@@ -14,6 +14,7 @@ describe('validateEnv', () => {
     expect(env.JWT_ISSUER).toBe('lifespire');
     expect(env.NODE_ENV).toBe('development');
     expect(env.MAX_REQUEST_BYTES).toBe(1048576);
+    expect(env.SYNC_WATCH_TIMEOUT_MS).toBe(25_000);
   });
 
   it('rejects missing DATABASE_URL', () => {

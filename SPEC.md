@@ -297,5 +297,6 @@ Remote push notifications, shop and gold sinks, relics/cards with effects,
 social features and rankings, calendar or health integrations, missed-day
 recovery mode, adaptive content, and an iOS release. Device-local Android
 reminders are in scope; sync between a user's devices exists as a closed-beta
-API (`docs/BACKEND.md`); public signup, email delivery and realtime are not
-part of the current scope.
+API (`docs/BACKEND.md`), including near-real-time updates while the app is open
+(ADR-0006). Public signup, email delivery and remote push to a closed app are
+not part of the current scope.

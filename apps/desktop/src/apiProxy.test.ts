@@ -57,6 +57,7 @@ function makeProxy(
     plaintext?: boolean
     timeoutMs?: number
     healthTimeoutMs?: number
+    watchTimeoutMs?: number
   } = {},
 ) {
   const calls: Call[] = []
@@ -65,6 +66,7 @@ function makeProxy(
     vault,
     timeoutMs: options.timeoutMs,
     healthTimeoutMs: options.healthTimeoutMs,
+    watchTimeoutMs: options.watchTimeoutMs,
     fetch: (async (input: unknown, init?: RequestInit) => {
       calls.push({ url: String(input), init: init ?? {} })
       return handler(String(input), init ?? {})
@@ -340,6 +342,24 @@ describe('createApiProxy requests', () => {
       origin: OTHER_SERVER,
     })
     expect(result).toMatchObject({ ok: false, error: { code: 'API_TIMEOUT' } })
+  })
+
+  it('gives the long-poll watch its own longer timeout', async () => {
+    const { proxy } = makeProxy(
+      () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => resolve(json({ version: '3' })), 20)
+        }),
+      { timeoutMs: 5, watchTimeoutMs: 500 },
+    )
+    proxy.setServer(SERVER)
+    const result = await proxy.request({
+      path: '/v1/sync/watch?since=2',
+      method: 'GET',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.response.body).toContain('"3"')
   })
 
   it('maps transport failures and timeouts', async () => {

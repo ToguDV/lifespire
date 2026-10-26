@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { checksumDocument, IDEMPOTENCY_TTL_DAYS, SYNC_REVISIONS_KEPT } from './document-check';
 import type { SyncPushOutcome } from './sync-metrics';
 import { SyncMetrics } from './sync-metrics';
+import { SyncWatchService } from './sync-watch.service';
 import { requireActiveUser } from '../common/require-active';
 import { formatETag, nextVersion, parseIfMatch, shouldIncrementVersion } from './sync-version';
 
@@ -55,6 +56,7 @@ export class SyncService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly metrics: SyncMetrics,
+    private readonly watch: SyncWatchService,
     @InjectPinoLogger(SyncService.name) private readonly logger: PinoLogger,
   ) {}
 
@@ -181,6 +183,7 @@ export class SyncService {
         });
         await this.audit.log({ actorId: userId, action: 'sync.push', metadata: { version: '1' }, ip: input.ip });
         this.track('created', size, startedAt, '1');
+        this.watch.notify(userId, { version: '1', updatedAt: created.updatedAt.toISOString() });
         return { version: '1', updatedAt: created.updatedAt, created: true };
       } catch (e) {
         const replayed = await this.replayMutation(userId, input.idempotencyKey as string, requestHash, 'recorded');
@@ -254,6 +257,7 @@ export class SyncService {
     }
     await this.audit.log({ actorId: userId, action: 'sync.push', metadata: { version: target.toString() }, ip: input.ip });
     this.track('updated', size, startedAt, target.toString());
+    this.watch.notify(userId, { version: target.toString(), updatedAt: res.updatedAt.toISOString() });
     return { version: res.version.toString(), updatedAt: res.updatedAt, created: false };
   }
 
@@ -265,6 +269,7 @@ export class SyncService {
       this.prisma.syncDocument.deleteMany({ where: { userId } }),
     ]);
     await this.audit.log({ actorId: userId, action: 'sync.deleted' });
+    this.watch.notify(userId, { version: null, updatedAt: null });
   }
 
   async revisions(userId: string, limit = 20) {

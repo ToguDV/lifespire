@@ -81,11 +81,15 @@ persistent browser cookie jar, so native clients use an explicit grant:
 - the access token stays in memory; the session marker in SQLite only restores
   the account identity.
 
-Sync uses the same engine: initial pull, debounced push, 60-second poll while
-foreground, immediate pull when the app becomes active, and NetInfo to flip
-between offline and online. The conservative 3-way merge and the keep-mine /
-keep-cloud dialog are shared with web. Guest saves are adopted by a fresh
-account exactly like on web.
+Sync uses the same engine: initial pull, debounced push (1.5 s), an
+authenticated long-poll change feed while the app is in the foreground
+(`GET /v1/sync/watch`, ADR-0006), an immediate pull when the app becomes active,
+and NetInfo to flip between offline and online. The feed stops on background and
+older servers without the endpoint fall back to the 60-second poll. A remote
+apply shows a discreet "Updated from another device." toast; keeping the feed
+alive with the app closed would need remote push, which is out of scope. The
+conservative 3-way merge and the keep-mine / keep-cloud dialog are shared with
+web. Guest saves are adopted by a fresh account exactly like on web.
 
 ## 5. Local notifications
 
