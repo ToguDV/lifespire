@@ -16,7 +16,8 @@ the daily map, an unresolved evening and the end of the run. The desktop app is
 an Electron shell around the same web build, shipped as a `.deb`/AppImage,
 portable Linux build and a Windows installer; an optional closed-beta sync API
 (NestJS + Postgres) links a user's devices. See `docs/BACKEND.md`,
-`docs/MOBILE.md` and `docs/DESKTOP.md`.
+`docs/RUNBOOK.md`, `docs/MOBILE.md` and `docs/DESKTOP.md`. Deploying the sync
+stack? Jump to [Deploy (VPS)](#deploy-vps).
 
 The node map is the heart of the app: each day you pick a path through 3–15 layers
 plus a boss, with visible trade-offs between progress, effort, and reward. The
@@ -82,6 +83,86 @@ pnpm test       # Vitest (web/core/API) + Jest (Android planner)
 pnpm build      # typecheck + production build + Android JS bundle
 pnpm preview    # serve the build (test PWA / offline)
 ```
+
+---
+
+## Deploy (VPS)
+
+You need Docker with Compose and a domain. Pick one HTTPS setup:
+
+- **Mode A** — you already run a reverse proxy (Nginx Proxy Manager, nginx,
+  Traefik…).
+- **Mode B** — you don't; the bundled Caddy overlay handles the certificate.
+
+### 1. Configure
+
+```bash
+git clone https://github.com/ToguDV/lifespire.git
+cd lifespire
+cp apps/api/.env.example .env
+```
+
+Edit `.env`:
+
+- `POSTGRES_PASSWORD` — a strong password;
+- `JWT_SECRET` — run `openssl rand -base64 48`;
+- `TOTP_ENCRYPTION_KEY` — run `openssl rand -base64 32`;
+- `PUBLIC_WEB_URL` and `CORS_ORIGINS` — `https://your.domain`.
+
+For mode B also set `DOMAIN=your.domain` and `ACME_EMAIL=you@example.com`.
+
+### 2. Start
+
+Mode A:
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build --remove-orphans
+```
+
+`--remove-orphans` stops an old Caddy container if you are migrating from that
+setup. Point your proxy at the API and forward **everything**:
+
+- `http://127.0.0.1:3000` if it runs on the host;
+- `http://api:3000` if it shares the `lifespire_internal` network
+  (`docker network connect lifespire_internal <proxy-container>`).
+
+Mode B:
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.prod.yml \
+  -f infra/docker-compose.caddy.yml up -d --build
+```
+
+Caddy gets the certificate and forwards everything to the API. No path rules
+are needed in either mode.
+
+### 3. First admin
+
+```bash
+docker compose --env-file .env -f infra/docker-compose.prod.yml exec api \
+  node dist/cli/admin-create.js --email you@example.com
+```
+
+Open `https://your.domain`, sign in, finish TOTP setup, then invite users from
+the admin panel.
+
+### 4. Verify
+
+```bash
+curl https://your.domain/health/ready
+# {"status":"ok","db":"up"}
+```
+
+### Updating
+
+```bash
+git pull
+docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build
+```
+
+Migrations run automatically on start. Add `-f infra/docker-compose.caddy.yml`
+if you use mode B. Backups, rollback, proxy timeouts and troubleshooting:
+[`docs/RUNBOOK.md`](./docs/RUNBOOK.md).
 
 ---
 
@@ -152,6 +233,7 @@ Maps are rendered with custom SVG. No graph library, no UI kit.
 - Spec & rules: [`SPEC.md`](./SPEC.md)
 - Architecture & contracts: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
 - Sync backend: [`docs/BACKEND.md`](./docs/BACKEND.md) + [`docs/adr/`](./docs/adr/)
+- VPS runbook: [`docs/RUNBOOK.md`](./docs/RUNBOOK.md)
 - Design system: [`design/DESIGN.md`](./design/DESIGN.md) — the spec the app implements
 - UI notes: [`docs/UI.md`](./docs/UI.md)
 - PWA / offline: [`docs/PWA.md`](./docs/PWA.md)
