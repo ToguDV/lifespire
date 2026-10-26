@@ -172,7 +172,14 @@ async function signIn(page: Page) {
     )
   })
   await page.reload()
-  await expect(page.getByRole('button', { name: DEMO_BUTTON })).toBeVisible({ timeout: 15000 })
+  // Wait for the app to be ready, not for onboarding specifically: when the
+  // account already has a cloud save, the initial pull can replace onboarding
+  // before this returns. Each test asserts the screen it expects right after.
+  await expect(
+    page
+      .getByRole('button', { name: DEMO_BUTTON })
+      .or(page.getByRole('navigation', { name: 'Primary' }).first()),
+  ).toBeVisible({ timeout: 15000 })
 }
 
 async function startDemo(page: Page) {
