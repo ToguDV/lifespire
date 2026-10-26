@@ -30,7 +30,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      WEB_DIST_DIR: /srv/web
+      # Image default; set WEB_DIST_DIR= (empty) to run the API only.
+      WEB_DIST_DIR: ${WEB_DIST_DIR-/srv/web}
       DATABASE_URL: postgresql://${POSTGRES_USER:-lifespire}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lifespire}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       JWT_ISSUER: ${JWT_ISSUER:-lifespire}

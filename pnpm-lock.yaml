@@ -65,6 +65,9 @@ importers:
       class-validator:
         specifier: ^0.14.0
         version: 0.14.4
+      compression:
+        specifier: ^1.8.2
+        version: 1.8.2(supports-color@8.1.1)
       cookie-parser:
         specifier: ^1.4.6
         version: 1.4.7
@@ -108,6 +111,9 @@ importers:
       '@nestjs/testing':
         specifier: ^12.0.0
         version: 12.2.0(@nestjs/common@12.2.0(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@8.1.1))(@nestjs/core@12.2.0)(@nestjs/platform-express@12.2.0)
+      '@types/compression':
+        specifier: ^1.8.1
+        version: 1.8.1
       '@types/cookie-parser':
         specifier: ^1.4.8
         version: 1.4.10(@types/express@5.0.6)
@@ -2741,6 +2747,9 @@ packages:
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
+
+  '@types/compression@1.8.1':
+    resolution: {integrity: sha512-kCFuWS0ebDbmxs0AXYn6e2r2nrGAb5KwQhknjSPSPgJcGd8+HVSILlUyFhGqML2gk39HcG7D1ydW9/qpYkN00Q==}
 
   '@types/connect@3.4.38':
     resolution: {integrity: sha512-K6uROf1LD88uDQqJCktA4yzL1YYAK6NgfsI0v/mTgyPKWsX1CnJ0XPSDhViejru1GcRkLWb8RlzFYJRqGUbaug==}
@@ -10124,6 +10133,11 @@ snapshots:
     dependencies:
       '@types/deep-eql': 4.0.2
       assertion-error: 2.0.1
+
+  '@types/compression@1.8.1':
+    dependencies:
+      '@types/express': 5.0.6
+      '@types/node': 24.19.2
 
   '@types/connect@3.4.38':
     dependencies:
