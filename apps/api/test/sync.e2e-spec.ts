@@ -321,6 +321,48 @@ describe('sync API e2e (postgres)', () => {
     expect(reuse.body.code).toBe('RESET_USED');
   }, 60_000);
 
+  it('(b2) reset activates a PENDING account and explains weak passwords', async () => {
+    const ip = nextIp();
+    const email = `pending-user-${suffix}@example.com`;
+    const created = await adminCreateUser(email, 'USER');
+    expect(created.inviteLink).toContain('/accept-invite#token=');
+
+    const linkRes = await request(app.getHttpServer())
+      .post(`/v1/admin/users/${created.id}/reset-link`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(201);
+    const resetToken = inviteTokenOf(linkRes.body.resetLink as string);
+
+    // A weak password fails before the token is claimed, with an actionable title.
+    const weak = await request(app.getHttpServer())
+      .post('/v1/auth/reset-password')
+      .set('X-Forwarded-For', ip)
+      .send({ token: resetToken, password: 'my-lifespire-2026' })
+      .expect(422);
+    expect(weak.body.title).toMatch(/common words/i);
+
+    // The same still-valid link sets the password and activates the account.
+    await request(app.getHttpServer())
+      .post('/v1/auth/reset-password')
+      .set('X-Forwarded-For', ip)
+      .send({ token: resetToken, password: 'pending-admin-pw-123' })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/v1/auth/login')
+      .set('X-Forwarded-For', ip)
+      .send({ email, password: 'pending-admin-pw-123', deviceName: 'pending-device' })
+      .expect(200);
+    expect(login.body.user.status).toBe('ACTIVE');
+
+    const reuse = await request(app.getHttpServer())
+      .post('/v1/auth/reset-password')
+      .set('X-Forwarded-For', ip)
+      .send({ token: resetToken, password: 'pending-admin-pw-456' })
+      .expect(400);
+    expect(reuse.body.code).toBe('RESET_USED');
+  }, 60_000);
+
   it('(c) TOTP negatives: required, wrong code, recovery single-use', async () => {
     const ip = nextIp();
     const email = `user-c-${suffix}@example.com`;

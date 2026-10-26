@@ -8,7 +8,7 @@ import { ApiError } from '../common/api-error';
 import { sha256Hex } from '../common/crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateInviteToken, INVITE_TOKEN_TTL_MS, RESET_TOKEN_TTL_MS } from './invite-token';
-import { isAllowedPassword } from './password-policy';
+import { passwordPolicyIssue } from './password-policy';
 import { hashPassword, verifyPassword } from './password';
 import { decryptSecret, encryptSecret, generateRecoveryCodes } from './totp-crypto';
 import { checkTotp, createTotpSecret, totpUri } from './totp';
@@ -54,6 +54,14 @@ export class AuthService {
     const key = this.config.get<string>('TOTP_ENCRYPTION_KEY');
     if (!key) throw new Error('TOTP_ENCRYPTION_KEY is not configured');
     return key;
+  }
+
+  /** Throws a 422 with the specific policy reason shown next to the field. */
+  private assertPassword(password: string): void {
+    const issue = passwordPolicyIssue(password);
+    if (issue) {
+      throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: issue });
+    }
   }
 
   private signAccess(params: {
@@ -162,9 +170,7 @@ export class AuthService {
     password: string;
     device: DeviceInfo;
   }): Promise<{ accessToken: string; refreshToken: string; userId: string }> {
-    if (!isAllowedPassword(input.password)) {
-      throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
-    }
+    this.assertPassword(input.password);
     const tokenHash = sha256Hex(input.token);
     const record = await this.prisma.accountToken.findUnique({
       where: { tokenHash },
@@ -329,9 +335,7 @@ export class AuthService {
   }
 
   async resetPassword(input: { token: string; password: string }): Promise<void> {
-    if (!isAllowedPassword(input.password)) {
-      throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
-    }
+    this.assertPassword(input.password);
     const tokenHash = sha256Hex(input.token);
     const record = await this.prisma.accountToken.findUnique({
       where: { tokenHash },
@@ -354,20 +358,43 @@ export class AuthService {
     if (claimed.count === 0) {
       throw new ApiError({ status: 400, code: 'RESET_USED', title: 'Reset link already used' });
     }
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),
-      this.prisma.refreshSession.updateMany({
+    let activated = false;
+    await this.prisma.$transaction(async (tx) => {
+      // Re-read inside the transaction: an admin may have disabled the account
+      // between issuing the link and consuming it, and a reset must not
+      // reactivate a DISABLED user.
+      const user = await tx.user.findUnique({
+        where: { id: record.userId },
+        select: { status: true },
+      });
+      if (!user) {
+        throw new ApiError({ status: 400, code: 'RESET_INVALID', title: 'Invalid reset link' });
+      }
+      activated = user.status === 'PENDING';
+      await tx.user.update({
+        where: { id: record.userId },
+        data: {
+          passwordHash,
+          // The documented first-admin bootstrap creates a PENDING account and
+          // then issues a reset link; consuming it is the activation step.
+          ...(activated ? { status: 'ACTIVE', activatedAt: new Date() } : {}),
+        },
+      });
+      await tx.refreshSession.updateMany({
         where: { userId: record.userId, revokedAt: null },
         data: { revokedAt: new Date() },
-      }),
-    ]);
-    await this.audit.log({ actorId: record.userId, targetId: record.userId, action: 'auth.password_reset' });
+      });
+    });
+    await this.audit.log({
+      actorId: record.userId,
+      targetId: record.userId,
+      action: 'auth.password_reset',
+      ...(activated ? { metadata: { activated: true } } : {}),
+    });
   }
 
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
-    if (!isAllowedPassword(newPassword)) {
-      throw new ApiError({ status: 422, code: 'VALIDATION_FAILED', title: 'Password too weak' });
-    }
+    this.assertPassword(newPassword);
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     if (!user.passwordHash || !(await verifyPassword(user.passwordHash, currentPassword))) {
       throw new ApiError({

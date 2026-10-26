@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAllowedPassword } from './password-policy';
+import { isAllowedPassword, passwordPolicyIssue } from './password-policy';
 
 describe('password-policy', () => {
   it('requires at least 12 chars', () => {
@@ -24,5 +24,13 @@ describe('password-policy', () => {
     expect(isAllowedPassword('my-qwertyui-pass')).toBe(false);
     expect(isAllowedPassword('hunter2-letmein!')).toBe(false);
     expect(isAllowedPassword('MY-LIFESPIRE-2026!')).toBe(false);
+  });
+
+  it('explains each failure so the UI can show it next to the field', () => {
+    expect(passwordPolicyIssue('short1A!')).toMatch(/at least 12/);
+    expect(passwordPolicyIssue('ab12CD-.'.repeat(33))).toMatch(/at most 256/);
+    expect(passwordPolicyIssue('abcabcabcabc')).toMatch(/5 different/);
+    expect(passwordPolicyIssue('my-lifespire-2026')).toMatch(/common words/);
+    expect(passwordPolicyIssue('a-good-password-123')).toBeNull();
   });
 });
