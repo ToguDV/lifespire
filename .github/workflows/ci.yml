@@ -223,4 +223,5 @@ jobs:
           sh scripts/prisma-client-dir.sh /srv/api >/dev/null
           node -e 'require("@prisma/client"); console.log("prisma client ok")'
           test "$(id -u)" != "0"
+          if WEB_DIST_DIR=/nope sh docker-entrypoint.sh 2>/dev/null; then exit 1; fi
           EOF
