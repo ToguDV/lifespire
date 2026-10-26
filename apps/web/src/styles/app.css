@@ -2317,6 +2317,19 @@ html:not([data-theme]) .theme-glyph--sun {
   line-height: 1.1;
 }
 
+.summary-head__copy h1 {
+  margin-top: 4px;
+  font-size: 1.65rem;
+  line-height: 1.1;
+}
+
+.summary-head__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .summary-head__copy p {
   margin-top: 5px;
   color: var(--ink-soft);
@@ -3439,6 +3452,10 @@ body[data-screen="welcome"] .viewport {
   }
 
   .summary-head__copy h2 {
+    font-size: 2rem;
+  }
+
+  .summary-head__copy h1 {
     font-size: 2rem;
   }
 
