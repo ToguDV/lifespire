@@ -53,7 +53,12 @@ infra/                 prod compose (API + Postgres, opt-in Caddy overlay),
   (`/accept-invite#token=…`, token in the fragment). The admin delivers it
   manually. Invites expire in 72 h and are single-use.
 - Password resets are also manual links (`/reset-password#token=…`, 1 h,
-  single-use, revokes all sessions on use).
+  single-use, revokes all sessions on use). Consuming a valid reset activates
+  a `PENDING` account (the first-admin bootstrap) and leaves a `DISABLED`
+  account disabled. The web link opens the password screen directly; a fresh
+  browser can reach the same forms from the welcome screen.
+- The reset/invite token must be generated against the same database the web
+  app talks to; a link from a local database is rejected by production.
 - Passwords: Argon2id, 12–256 chars. Login errors are generic to avoid
   enumeration; disabled accounts get an explicit 403.
 - Access: JWT 15 min (`sub`, `email`, `role`, `sid`, `did`, `totpVerified`).
@@ -218,10 +223,12 @@ migration notes, rollback, first admin/reset, health and restore drill.
 - `pnpm --filter @lifespire/mobile test` covers the local notification planner.
   The Postgres flow also exercises the `desktop` login/refresh pair and the
   browser-shaped rejection.
-- `pnpm --filter @lifespire/api test:e2e` — 14 flows against Postgres:
+- `pnpm --filter @lifespire/api test:e2e` — 15 flows against Postgres:
   (a) admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/
   replay/key-reuse/revisions, device revoke, disable, last-admin guard;
-  (b) password-reset link (single-use, revokes sessions); (c) TOTP
+  (b) password-reset link (single-use, revokes sessions); (b2) reset
+  activates a `PENDING` account, weak passwords explain the policy and do not
+  consume the link; (c) TOTP
   required/wrong-code/recovery-code single-use; (d) sync validation gates
   (headers, 512 KB document cap, schema 426/422, malformed 422,
   rule-violation 422 via core);

@@ -101,10 +101,13 @@ docker compose --env-file .env -f infra/docker-compose.prod.yml \
 # one-time link to set the password
 docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-create.js --email admin@example.com
 docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email admin@example.com
-# open the app → Settings → Sync → "Forgot your password?", paste the link,
-# choose a 12+ character password, sign in and finish TOTP setup
+# open the printed link directly (it opens the password screen), choose a
+# 12+ character password, sign in and finish TOTP setup. The reset also
+# activates a PENDING account created without --password.
+# Fresh browser without a local save: use "Already have an account? Sign in"
+# on the welcome screen, or paste the link under Settings → Sync.
 
-# manual reset link for any user
+# manual reset link for any user (same production container/database as the API)
 docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email user@example.com
 
 # backups (cron daily): infra/backup.sh, 30-day retention + optional restic

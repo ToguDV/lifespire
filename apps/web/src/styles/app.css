@@ -2893,6 +2893,14 @@ body[data-screen="welcome"] .viewport {
   min-height: 48px;
 }
 
+.welcome-account {
+  margin-top: 12px;
+}
+
+.welcome-account .btn {
+  min-height: 44px;
+}
+
 .welcome-foot {
   display: flex;
   align-items: flex-start;

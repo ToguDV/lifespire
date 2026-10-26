@@ -19,7 +19,7 @@ import { nextGoalIcon } from '../../domain/goalIcons'
 import type { Effort, Goal, Task } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
-import { Button, Icon, IconPicker, Panel, ThemeToggle } from '../components'
+import { Button, Dialog, Icon, IconPicker, Panel, SyncPanel, ThemeToggle } from '../components'
 import { EFFORT_LABEL, goalIconName } from '../lib/format'
 
 const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
@@ -48,6 +48,7 @@ export function OnboardingScreen() {
   const createId = useAppStore((state) => state.newId)
 
   const [showErrors, setShowErrors] = useState(false)
+  const [syncOpen, setSyncOpen] = useState(false)
   const errorSummaryId = useId()
   const draft = document.onboardingDraft ?? createEmptyDraft()
   const goals = draft.goals
@@ -418,9 +419,15 @@ export function OnboardingScreen() {
               </div>
             </form>
 
+            <div className="welcome-account">
+              <Button variant="quiet" onClick={() => setSyncOpen(true)}>
+                Already have an account? Sign in
+              </Button>
+            </div>
+
             <p className="welcome-foot">
               <Icon name="lock" />
-              Your data stays in this browser. No account, no cloud.
+              Your data stays in this browser. Sync is optional.
             </p>
 
             <div className="welcome-ornament" aria-hidden="true">
@@ -475,6 +482,20 @@ export function OnboardingScreen() {
             </svg>
           </div>
         </div>
+
+        <Dialog
+          open={syncOpen}
+          title="Sign in or restore"
+          description="Use your LifeSpire account, an invite link or a password reset link. Your local save stays untouched."
+          onClose={() => setSyncOpen(false)}
+          footer={
+            <Button variant="quiet" onClick={() => setSyncOpen(false)}>
+              Close
+            </Button>
+          }
+        >
+          <SyncPanel />
+        </Dialog>
       </section>
     )
   }
