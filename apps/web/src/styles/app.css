@@ -3588,7 +3588,7 @@ body[data-screen="welcome"] .viewport {
   }
 
   .aims-grid {
-    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
