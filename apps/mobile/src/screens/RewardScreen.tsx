@@ -7,16 +7,13 @@ import {
   rollWheelOutcome,
 } from '@lifespire/core'
 import type { WheelOutcome } from '@lifespire/core'
-import { useTheme } from '../theme/ThemeProvider'
-import { radius, space } from '../theme/tokens'
+import { space } from '../theme/tokens'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { FactCell, FactsRow } from '../components/FactsRow'
 import { HeroArt } from '../components/HeroArt'
-import { Icon } from '../components/Icon'
 import { Panel } from '../components/Panel'
 import { Screen } from '../components/Screen'
-import { Text } from '../components/Text'
 import { playFeedback } from '../state/feedback'
 import { playForRewardEvent } from '../lib/resolveFeedback'
 import { useAppStore } from '../state/store'
@@ -31,30 +28,12 @@ function outcomeTitle(outcome: {
   return 'A quiet rest'
 }
 
-function rewardLines(outcome: {
-  outcome: WheelOutcome
-  xp: number
-  gold: number
-  progress: number
-}): string[] {
-  if (outcome.outcome === 'task') {
-    return [
-      `+${outcome.xp} XP`,
-      `+${outcome.gold} gold`,
-      ...(outcome.progress > 0 ? ['+1 toward weekly target'] : []),
-    ]
-  }
-  if (outcome.outcome === 'gold') return [`+${outcome.gold} gold`]
-  return [`+${outcome.xp} XP`]
-}
-
 /**
  * Second step of the wheel claim: the outcome is recomputed with the same
  * deterministic seed as the node preview, so this recap can never promise more
  * than the resolution grants. Nothing is recorded until Done.
  */
 export function RewardScreen({ nodeId }: { nodeId: string }) {
-  const { colors } = useTheme()
   const document = useAppStore((state) => state.document)
   const finishReward = useAppStore((state) => state.finishReward)
   const resolveNode = useAppStore((state) => state.resolveNode)
@@ -141,7 +120,7 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
     return (
       <Screen bottomInset={false}>
         <Panel>
-          <EmptyState icon="wheel" title="No reward is waiting">
+          <EmptyState icon="wheel" title="No reward is waiting.">
             Return to the map to choose an available node.
           </EmptyState>
           <Button variant="secondary" onPress={() => finishReward({ name: 'map' })} full>
@@ -153,39 +132,31 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
   }
 
   const title = outcomeTitle(outcome)
-  const lines = rewardLines(outcome)
-  const goalTitle = outcome.task?.goalTitle ?? null
+  const rewards = [
+    ...(outcome.xp > 0 ? [`+${outcome.xp} XP`] : []),
+    ...(outcome.gold > 0 ? [`+${outcome.gold} gold`] : []),
+    ...(outcome.progress > 0 ? ['+1 goal'] : []),
+    ...(outcome.task ? [outcome.task.goalTitle] : []),
+  ]
 
   return (
     <Screen bottomInset={false}>
       <Panel pad={false} style={styles.spread}>
-        <HeroArt
-          icon="wheel"
-          kicker="Wheel reward"
-          title="Your reward"
-          flavor="The wheel has settled. Keeping the step records this."
-        />
+        <HeroArt icon="wheel" kicker="Wheel reward" title="Your reward" />
 
         <View style={styles.body}>
           <FactsRow>
-            <FactCell label="Outcome" value={title} note={lines.join(' · ')} />
-            <FactCell
-              label="Weekly progress"
-              value={outcome.progress > 0 ? '+1' : '—'}
-              note={outcome.progress > 0 && goalTitle ? `${goalTitle} this week` : 'No weekly progress'}
-              last
-            />
+            <FactCell label="Outcome" value={title} note={rewards.join(' · ')} last />
           </FactsRow>
 
-          <View style={[styles.confirmNote, { backgroundColor: colors.accentWash, borderColor: colors.hairline }]}>
-            <Icon name="check" size={16} color={colors.accent} />
-            <Text variant="bodySm" tone="muted" style={styles.confirmText}>
-              Keeping the step records the reward above and advances the path.
-            </Text>
-          </View>
-
           <View style={styles.actions}>
-            <Button icon="check" onPress={confirm} disabled={confirming} full>
+            <Button
+              icon="check"
+              onPress={confirm}
+              disabled={confirming}
+              accessibilityHint="Keeping the step records the reward and advances the path."
+              full
+            >
               Done
             </Button>
           </View>
@@ -198,15 +169,5 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
 const styles = StyleSheet.create({
   spread: { overflow: 'hidden' },
   body: { padding: 18 },
-  confirmNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.xs,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: space.sm,
-    marginTop: space.md,
-  },
-  confirmText: { flex: 1 },
   actions: { marginTop: space.md },
 })

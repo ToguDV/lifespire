@@ -88,7 +88,7 @@ export function TaskFormDialog({
       visible={visible}
       eyebrow="Routines"
       title={task ? 'Edit routine' : 'Add a routine'}
-      description="Edits only shape maps drawn after this change."
+      description="Edits shape future maps."
       onClose={onClose}
       actions={
         <>
@@ -96,7 +96,7 @@ export function TaskFormDialog({
             Cancel
           </Button>
           <Button onPress={submit} disabled={noActiveGoals}>
-            {task ? 'Save routine' : 'Add routine'}
+            Save routine
           </Button>
         </>
       }
@@ -173,7 +173,7 @@ export function TaskFormDialog({
             })}
           </ScrollView>
         </Field>
-        <Field label="Effort" hint="Effort changes the reward, never the weekly progress.">
+        <Field label="Effort">
           <View style={styles.efforts}>
             {(['light', 'medium', 'high'] as const).map((value) => {
               const selected = value === effort
@@ -206,12 +206,9 @@ export function TaskFormDialog({
           onPress={() => setActive((value) => !value)}
           style={[styles.switchRow, { borderColor: colors.hairline }]}
         >
-          <View style={styles.switchCopy}>
-            <Text variant="bodySm">Active in this run</Text>
-            <Text variant="caption" tone="muted">
-              Archived routines keep their history and stop appearing on new maps.
-            </Text>
-          </View>
+          <Text variant="bodySm" style={styles.switchLabel}>
+            Active
+          </Text>
           <Switch
             value={active}
             onValueChange={setActive}
@@ -268,5 +265,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: space.sm,
   },
-  switchCopy: { flex: 1, gap: 2 },
+  switchLabel: { flex: 1 },
 })

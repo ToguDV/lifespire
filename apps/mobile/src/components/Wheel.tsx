@@ -63,7 +63,7 @@ function outcomeLine(result: WheelResult): string {
 function rewardLine(result: WheelResult): string {
   if (result.outcome === 'task') {
     return `+${result.xp} XP · +${result.gold} gold${
-      result.progress > 0 ? ' · +1 toward weekly target' : ''
+      result.progress > 0 ? ' · +1 goal' : ''
     }`
   }
   if (result.outcome === 'gold') return `+${result.gold} gold`

@@ -5,7 +5,9 @@ import {
   MAX_GOALS,
   MAX_WEEKLY_OBJECTIVE,
   MIN_ACTIVE_TASKS,
+  MIN_GOALS,
   MIN_WEEKLY_OBJECTIVE,
+  RUN_DAYS,
   createDemoSetup,
   draftToSetup,
   validateSetup,
@@ -51,8 +53,7 @@ export function OnboardingScreen() {
   const patch = (next: Partial<OnboardingDraft>) => updateDraft(next)
 
   const startDemo = () => {
-    const setup = createDemoSetup(getNow())
-    beginJourney({ ...setup, name: draft.name.trim() || setup.name })
+    beginJourney(createDemoSetup(getNow()))
   }
 
   const startCustom = () => {
@@ -155,7 +156,7 @@ export function OnboardingScreen() {
               A SEVEN-DAY RUN
             </Text>
           </View>
-          <Text variant="displayLg">
+          <Text variant="displayLg" accessibilityRole="header">
             A day is a{' '}
             <Text style={[styles.pathWord, { color: colors.accentDeep }]}>path</Text>.
           </Text>
@@ -167,35 +168,12 @@ export function OnboardingScreen() {
 
         <WelcomeArt />
 
-        <View style={styles.points}>
-          <WelcomePoint icon="map" text="Each day draws its own path of layers and a boss." />
-          <WelcomePoint icon="star" text="Completed routines grant XP, gold and weekly progress." />
-          <WelcomePoint
-            icon="crown"
-            text="Seven days make a run; the weekly bonus lands at its close."
-          />
+        <View style={styles.welcomeActions}>
+          <Button onPress={startDemo} full>
+            Begin with demo data
+          </Button>
+          <CreatePathButton onPress={startCustom} />
         </View>
-
-        <Panel>
-          <Field label="What should we call you? (optional)">
-            <Input
-              value={draft.name}
-              onChangeText={(name) => patch({ name })}
-              placeholder="Traveller"
-              autoComplete="name"
-            />
-          </Field>
-          <View style={styles.welcomeActions}>
-            <Button onPress={startDemo} full>
-              Begin with demo data
-            </Button>
-            <CreatePathButton onPress={startCustom} />
-          </View>
-          <Text variant="caption" tone="soft" style={styles.note}>
-            The demo creates two goals and five routines. Your own path asks for one to ten goals
-            and at least four routines.
-          </Text>
-        </Panel>
 
         <View style={styles.privacyRow}>
           <Icon name="lock" size={14} color={colors.inkSoft} />
@@ -211,25 +189,24 @@ export function OnboardingScreen() {
     step === 1
       ? {
           title: 'Who walks this path?',
-          body: 'A name is optional. It only appears on your profile on this device.',
+          body: 'A name is optional.',
         }
       : step === 2
         ? {
             title: 'What are you climbing toward?',
-            body: 'Choose one to ten goals: the areas you are pursuing, such as movement or making.',
+            body: `Choose ${MIN_GOALS}–${MAX_GOALS} goals.`,
           }
         : step === 3
           ? {
               title: 'Which small steps will you keep?',
-              body: `Add at least ${MIN_ACTIVE_TASKS} active routines across your goals. Effort changes the reward, not the weekly progress.`,
+              body: `Add at least ${MIN_ACTIVE_TASKS} active routines.`,
             }
           : {
               title: 'Ready to begin?',
-              body: 'Review the week. Weekly targets can still be adjusted here; the run starts today.',
+              body: 'Check the week before it begins.',
             }
 
   const activeRoutineCount = draft.tasks.filter((task) => task.active).length
-  const totalTarget = draft.goals.reduce((total, goal) => total + goal.weeklyObjective, 0)
 
   return (
     <Screen bottomInset={false}>
@@ -244,7 +221,7 @@ export function OnboardingScreen() {
       <View style={styles.kicker}>
         <View style={[styles.kickerMark, { backgroundColor: colors.accent }]} />
         <Text variant="micro" tone="muted">
-          CREATE YOUR PATH · STEP {step} OF 4
+          CREATE YOUR PATH
         </Text>
       </View>
       <Text variant="displayMd" accessibilityRole="header" accessibilityLiveRegion="polite">{copy.title}</Text>
@@ -294,7 +271,7 @@ export function OnboardingScreen() {
 
       {step === 2 ? (
         <View style={styles.list}>
-          {draft.goals.map((goal, index) => (
+          {draft.goals.map((goal) => (
             <Panel key={goal.id}>
               <View style={styles.goalRow}>
                 <View
@@ -322,9 +299,6 @@ export function OnboardingScreen() {
                   onPress={() => removeGoal(goal)}
                 />
               </View>
-              <Text variant="caption" tone="soft">
-                Goal {index + 1} of {MAX_GOALS}
-              </Text>
             </Panel>
           ))}
           <Button
@@ -336,6 +310,9 @@ export function OnboardingScreen() {
           >
             Add goal
           </Button>
+          <Text variant="caption" tone="soft">
+            {`${draft.goals.length} / ${MAX_GOALS} goals`}
+          </Text>
           {formError ? (
             <Text variant="caption" tone="default" accessibilityRole="alert">
               {formError}
@@ -399,11 +376,7 @@ export function OnboardingScreen() {
             <Text variant="caption" tone="muted" style={styles.reviewCounts}>
               {draft.goals.length} {draft.goals.length === 1 ? 'goal' : 'goals'} ·{' '}
               {activeRoutineCount} active {activeRoutineCount === 1 ? 'routine' : 'routines'} ·{' '}
-              {totalTarget} weekly {totalTarget === 1 ? 'target' : 'targets'}
-            </Text>
-            <Text variant="bodySm" tone="muted" style={styles.reviewNote}>
-              The run starts today. Each day draws its own map; edits later only shape maps that
-              have not been drawn yet.
+              {RUN_DAYS} days
             </Text>
           </Panel>
 
@@ -488,10 +461,6 @@ export function OnboardingScreen() {
           <Button variant="secondary" onPress={applySuggestions} full>
             Use routine-based suggestions
           </Button>
-          <Text variant="caption" tone="soft">
-            Targets are suggested from the active routines under each goal. You can still adjust
-            them here.
-          </Text>
 
           {!validation.ok ? (
             <Panel>
@@ -541,25 +510,6 @@ export function OnboardingScreen() {
         onSubmit={saveTask}
       />
     </Screen>
-  )
-}
-
-function WelcomePoint({ icon, text }: { icon: 'map' | 'star' | 'crown'; text: string }) {
-  const { colors } = useTheme()
-  return (
-    <View style={styles.point}>
-      <View
-        style={[
-          styles.pointIcon,
-          { borderColor: colors.hairline, backgroundColor: colors.surface },
-        ]}
-      >
-        <Icon name={icon} size={16} color={colors.accent} />
-      </View>
-      <Text variant="bodySm" tone="muted" style={styles.pointText}>
-        {text}
-      </Text>
-    </View>
   )
 }
 
@@ -708,18 +658,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xxl - 7,
     opacity: 0.45,
   },
-  points: { gap: space.sm },
-  point: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  pointIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pointText: { flex: 1 },
-  welcomeActions: { gap: space.sm, marginTop: space.md },
+  welcomeActions: { gap: space.sm, marginTop: space.xs },
   createPath: {
     minHeight: 48,
     flexDirection: 'row',
@@ -730,7 +669,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: space.lg,
   },
-  note: { marginTop: space.sm },
   // 6px icon-text rhythm; no token covers it.
   privacyRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 0 },
   privacyText: { flex: 1 },
@@ -761,7 +699,6 @@ const styles = StyleSheet.create({
   stepper: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   routineList: { gap: 2, marginTop: space.xs },
   reviewCounts: { marginTop: space.xxs },
-  reviewNote: { marginTop: space.xs },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

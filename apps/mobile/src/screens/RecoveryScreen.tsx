@@ -91,7 +91,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
       <ScreenHead
         kicker="Local save"
         title={copy.title}
-        subtitle={<Text variant="bodyMd" tone="muted">{copy.body}</Text>}
+        subtitle={copy.body}
         aside={
           <View
             style={[
@@ -105,25 +105,6 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
       />
 
       <Panel>
-        <View
-          style={[
-            styles.warning,
-            { borderColor: colors.hairlineStrong, backgroundColor: colors.surfaceSunken },
-          ]}
-        >
-          <Icon name="lock" size={15} color={colors.accentDeep} />
-          <Text variant="bodySm" tone="muted" style={styles.warningText}>
-            Nothing has been overwritten. The blocked document stays in storage until you reset it
-            or restore a valid save.
-          </Text>
-        </View>
-
-        <Text variant="bodySm" tone="muted" style={styles.copy}>
-          Import a valid JSON export to recover without resetting first. LifeSpire validates the
-          file, shows a summary and only replaces the blocked document after you confirm. A
-          successful import also unlocks saving again.
-        </Text>
-
         <View style={styles.actions}>
           <Button onPress={() => void importBackup()} loading={busy} full>
             Import save
@@ -135,11 +116,6 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
             Reset local data
           </Button>
         </View>
-
-        <Text variant="caption" tone="soft" style={styles.note}>
-          Resetting removes the blocked save and returns to onboarding. Export the original save
-          first if you may need it later.
-        </Text>
       </Panel>
 
       <SaveImportDialog
@@ -167,14 +143,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
           </>
         }
       >
-        <Text variant="bodySm" tone="muted">
-          This cannot be undone. Export or copy the original local document first if you may need
-          it later.
-        </Text>
-        <Field
-          label="Confirmation"
-          hint="The reset button stays disabled until the word is typed exactly."
-        >
+        <Field label="Type RESET to confirm">
           <Input
             value={resetPhrase}
             onChangeText={setResetPhrase}
@@ -203,18 +172,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  warning: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 9,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: radius.sm,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-  },
-  warningText: { flex: 1 },
-  copy: { marginTop: space.sm },
-  actions: { gap: space.sm, marginTop: space.md },
-  note: { marginTop: space.sm },
+  actions: { gap: space.sm },
 })

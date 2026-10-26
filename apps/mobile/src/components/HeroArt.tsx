@@ -19,7 +19,7 @@ export function HeroArt({
   icon: IconName
   kicker: string
   title: string
-  flavor: string
+  flavor?: string
 }) {
   const { colors } = useTheme()
   return (
@@ -38,7 +38,9 @@ export function HeroArt({
       <Text style={[styles.title, { color: colors.ink }]} accessibilityRole="header">
         {title}
       </Text>
-      <Text style={[styles.flavor, { color: colors.inkMuted }]}>{flavor}</Text>
+      {flavor ? (
+        <Text style={[styles.flavor, { color: colors.inkMuted }]}>{flavor}</Text>
+      ) : null}
     </View>
   )
 }

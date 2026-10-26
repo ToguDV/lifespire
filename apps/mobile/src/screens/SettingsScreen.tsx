@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Linking, Pressable, StyleSheet, Switch, View } from 'react-native'
-import Constants from 'expo-constants'
 import { SCHEMA_VERSION, STORAGE_KEY } from '@lifespire/core'
+import type { SyncStatus } from '@lifespire/app-core/sync/syncEngine'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
 import { Button } from '../components/Button'
+import { Chip } from '../components/Chip'
+import { Dialog } from '../components/Dialog'
 import { Field, Input } from '../components/Field'
 import { Icon } from '../components/Icon'
 import { Panel, PanelHead, ScreenHead } from '../components/Panel'
 import { SaveImportDialog } from '../components/SaveImportDialog'
 import { Screen } from '../components/Screen'
 import { Text } from '../components/Text'
-import { Dialog } from '../components/Dialog'
 import { exportDocument, pickAndValidateSave } from '../lib/exportImport'
 import type { PickedImportResult } from '../lib/exportImport'
 import { devError } from '../lib/devLogger'
@@ -53,6 +54,18 @@ const THEMES = [
   { value: 'system', label: 'System' },
 ] as const
 
+const SYNC_LABEL: Record<SyncStatus, string> = {
+  disabled: 'Local only',
+  synced: 'Synced',
+  dirty: 'Saving…',
+  pushing: 'Saving…',
+  pulling: 'Checking…',
+  offline: 'Offline',
+  conflict: 'Needs review',
+  error: 'Sync error',
+  paused: 'Paused (dev clock)',
+}
+
 export function SettingsScreen() {
   const { colors } = useTheme()
   const document = useAppStore((state) => state.document)
@@ -66,6 +79,7 @@ export function SettingsScreen() {
   const [importResult, setImportResult] = useState<PickedImportResult | null>(null)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
+  const [showSaveDetails, setShowSaveDetails] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -149,14 +163,8 @@ export function SettingsScreen() {
       <ScreenHead
         kicker="Profile · Local data"
         title="Settings"
-        subtitle={
-          <Text variant="bodyMd" tone="muted">
-            Appearance, the local save, device reminders and optional sync.
-          </Text>
-        }
+        subtitle="Appearance, sync and local data."
       />
-
-      <SyncSection />
 
       <Panel>
         <PanelHead label="Appearance" />
@@ -187,26 +195,19 @@ export function SettingsScreen() {
             )
           })}
         </View>
-        <Text variant="caption" tone="soft" style={styles.note}>
-          System follows the Android light/dark preference.
-        </Text>
-      </Panel>
-
-      <Panel>
-        <PanelHead label="Feedback" />
         <SettingRow
-          title="Haptics"
-          hint="A soft tap for selections, rewards and seals."
+          title="Vibration"
           value={feedback.haptics}
           onChange={(value) => setFeedbackPrefs({ haptics: value })}
         />
       </Panel>
 
+      <SyncSection />
+
       <Panel>
-        <PanelHead label="Data" aside={<Text variant="caption" tone="soft">JSON</Text>} />
+        <PanelHead label="Data" />
         <Text variant="bodySm" tone="muted">
-          Export keeps the versioned save that web and Android share. Import validates the file and
-          previews it before replacing anything.
+          Your save stays on this device.
         </Text>
         <View style={styles.actions}>
           <Button variant="secondary" icon="archive" onPress={() => void exportSave()} loading={busy} full>
@@ -215,20 +216,39 @@ export function SettingsScreen() {
           <Button variant="secondary" icon="scroll" onPress={() => void importSave()} disabled={busy} full>
             Import save
           </Button>
+          <Button variant="danger" onPress={() => setResetOpen(true)} full>
+            Reset local data
+          </Button>
         </View>
-        <Text variant="caption" tone="soft">
-          {STORAGE_KEY} · schema v{SCHEMA_VERSION}
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Save details"
+          accessibilityState={{ expanded: showSaveDetails }}
+          onPress={() => setShowSaveDetails((value) => !value)}
+          style={[styles.disclosure, { borderColor: colors.hairline }]}
+        >
+          <Text variant="caption" tone="muted">
+            Save details
+          </Text>
+          <View style={showSaveDetails ? styles.chevronOpen : undefined}>
+            <Icon name="chevron-right" size={14} color={colors.inkMuted} />
+          </View>
+        </Pressable>
+        {showSaveDetails ? (
+          <View style={styles.details}>
+            <Text variant="caption" tone="soft">{`Storage key: ${STORAGE_KEY}`}</Text>
+            <Text variant="caption" tone="soft">{`Schema version: v${SCHEMA_VERSION}`}</Text>
+          </View>
+        ) : null}
       </Panel>
 
       <Panel>
         <PanelHead
-          label="Notifications"
+          label="Reminders"
           aside={<Text variant="caption" tone={prefs.enabled ? 'accent' : 'soft'}>{prefs.enabled ? 'On' : 'Off'}</Text>}
         />
         <SettingRow
           title="Daily reminders"
-          hint="Device-local. No server and no push service involved."
           value={prefs.enabled}
           onChange={(value) => void enableNotifications(value)}
         />
@@ -244,7 +264,7 @@ export function SettingsScreen() {
         ) : null}
         <View style={styles.notificationOptions}>
           <SettingRow
-            title="Today's map is ready"
+            title="Today’s map is ready"
             value={prefs.dailyOpen}
             onChange={(value) => void updatePrefs({ dailyOpen: value })}
           />
@@ -267,7 +287,6 @@ export function SettingsScreen() {
           />
           <SettingRow
             title="Week-end reminder"
-            hint="A single note on the last day of the run."
             value={prefs.runEnd}
             onChange={(value) => void updatePrefs({ runEnd: value })}
           />
@@ -283,32 +302,6 @@ export function SettingsScreen() {
         >
           Send a test notification
         </Button>
-        <Text variant="caption" tone="soft" style={styles.note}>
-          Notifications are scheduled on this device and respect the day you already sealed. Android
-          may deliver them a few minutes late to save battery.
-        </Text>
-      </Panel>
-
-      <Panel>
-        <PanelHead label="Local data" aside={<Text variant="caption" tone="default">Careful</Text>} />
-        <Text variant="bodySm" tone="muted">
-          Resetting removes the local save after copying it to a backup. It cannot be undone from
-          here.
-        </Text>
-        <Button variant="danger" onPress={() => setResetOpen(true)} full>
-          Reset all data
-        </Button>
-      </Panel>
-
-      <Panel>
-        <PanelHead label="About" />
-        <Text variant="bodySm" tone="muted">
-          LifeSpire for Android · version {Constants.expoConfig?.version ?? '0.1.0'} · schema v
-          {SCHEMA_VERSION}
-        </Text>
-        <Text variant="caption" tone="soft" style={styles.note}>
-          Local-first. A seven-day climb, one small promise at a time.
-        </Text>
       </Panel>
 
       {__DEV__ ? <DevSection /> : null}
@@ -326,25 +319,19 @@ export function SettingsScreen() {
       <Dialog
         visible={resetOpen}
         eyebrow="Local data"
-        title="Reset all data?"
+        title="Reset local data?"
         description="This removes the local save from this device and returns LifeSpire to onboarding."
         onClose={() => setResetOpen(false)}
         actions={
           <>
-            <Button variant="quiet" onPress={() => setResetOpen(false)}>Cancel</Button>
+            <Button variant="quiet" onPress={() => setResetOpen(false)}>Keep my data</Button>
             <Button variant="danger" disabled={resetPhrase !== 'RESET'} onPress={confirmReset}>
               Reset everything
             </Button>
           </>
         }
       >
-        <Text variant="bodySm" tone="muted">
-          The current save is copied to a backup before the key is removed.
-        </Text>
-        <Field
-          label="Confirmation"
-          hint="The reset button stays disabled until the word is typed exactly."
-        >
+        <Field label="Type RESET to confirm">
           <Input
             value={resetPhrase}
             onChangeText={setResetPhrase}
@@ -360,12 +347,10 @@ export function SettingsScreen() {
 
 function SettingRow({
   title,
-  hint,
   value,
   onChange,
 }: {
   title: string
-  hint?: string
   value: boolean
   onChange: (value: boolean) => void
 }) {
@@ -374,7 +359,6 @@ function SettingRow({
     <View style={[styles.settingRow, { borderColor: colors.hairline }]}>
       <View style={styles.settingBody}>
         <Text variant="bodySm">{title}</Text>
-        {hint ? <Text variant="caption" tone="muted">{hint}</Text> : null}
       </View>
       <Switch
         value={value}
@@ -422,18 +406,90 @@ function TimeField({
 }
 
 function SyncSection() {
-  const { colors } = useTheme()
-  const authStatus = useAuthStore((state) => state.status)
+  const syncStatus = useSyncStore((state) => state.status)
+  const serverVersion = useSyncStore((state) => state.serverVersion)
+  const lastPushedAt = useSyncStore((state) => state.lastPushedAt)
+  const syncError = useSyncStore((state) => state.lastError)
   const user = useAuthStore((state) => state.user)
+  const authStatus = useAuthStore((state) => state.status)
+  const [syncOpen, setSyncOpen] = useState(false)
+  const signedIn = authStatus === 'authenticated' && user !== null
+
+  return (
+    <>
+      <Panel>
+        <PanelHead
+          label="Sync"
+          aside={
+            signedIn ? (
+              <Text variant="caption" tone="soft">
+                {SYNC_LABEL[syncStatus]}
+              </Text>
+            ) : undefined
+          }
+        />
+        {signedIn && user ? (
+          <View style={styles.syncSummary}>
+            <Text variant="bodySm">
+              Signed in as <Text variant="bodySm" tone="accent">{user.email}</Text>
+            </Text>
+            <Text variant="caption" tone="soft">
+              Signing out keeps a copy here; offline edits sync on reconnect.
+            </Text>
+            {syncError ? (
+              <Text variant="caption" tone="default" accessibilityRole="alert">
+                {syncError}
+              </Text>
+            ) : null}
+            <View style={styles.syncActions}>
+              <Button variant="quiet" onPress={() => void useAuthStore.getState().logout()}>
+                Sign out
+              </Button>
+              <Button variant="secondary" onPress={() => setSyncOpen(true)}>
+                Manage sync
+              </Button>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.syncSummary}>
+            <Chip variant="quiet">Local only</Chip>
+            <Button variant="secondary" onPress={() => setSyncOpen(true)}>
+              Set up sync
+            </Button>
+          </View>
+        )}
+      </Panel>
+
+      <SyncDialog
+        visible={syncOpen}
+        signedIn={signedIn}
+        serverVersion={serverVersion}
+        lastPushedAt={lastPushedAt}
+        onClose={() => setSyncOpen(false)}
+      />
+    </>
+  )
+}
+
+function SyncDialog({
+  visible,
+  signedIn,
+  serverVersion,
+  lastPushedAt,
+  onClose,
+}: {
+  visible: boolean
+  signedIn: boolean
+  serverVersion: string | null
+  lastPushedAt: string | null
+  onClose: () => void
+}) {
+  const { colors } = useTheme()
   const authError = useAuthStore((state) => state.error)
   const login = useAuthStore((state) => state.login)
-  const logout = useAuthStore((state) => state.logout)
   const acceptInvite = useAuthStore((state) => state.acceptInvite)
   const resetPassword = useAuthStore((state) => state.resetPassword)
-  const syncStatus = useSyncStore((state) => state.status)
-  const syncError = useSyncStore((state) => state.lastError)
-  const lastPushedAt = useSyncStore((state) => state.lastPushedAt)
-  const serverVersion = useSyncStore((state) => state.serverVersion)
+  const logout = useAuthStore((state) => state.logout)
   const showToast = useAppStore((state) => state.showToast)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -443,12 +499,12 @@ function SyncSection() {
   const [resetToken, setResetToken] = useState('')
   const [resetNewPassword, setResetNewPassword] = useState('')
   const [showExtras, setShowExtras] = useState(false)
+  const [serverOpen, setServerOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [serverInput, setServerInput] = useState(getStoredBaseUrl() ?? '')
   const [serverNotice, setServerNotice] = useState<string | null>(null)
   const [serverError, setServerError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
-
   const effective = getSyncBaseUrl() || 'Not configured'
 
   const submitLogin = async () => {
@@ -501,31 +557,28 @@ function SyncSection() {
   }
 
   return (
-    <Panel>
-      <PanelHead
-        label="Sync"
-        aside={<Text variant="caption" tone="soft">{authStatus === 'authenticated' ? syncStatus : 'guest'}</Text>}
-      />
-      {authStatus === 'authenticated' && user ? (
+    <Dialog
+      visible={visible}
+      title="Sync"
+      description="Sign in to sync this save between your devices."
+      onClose={onClose}
+      actions={
+        <Button variant="quiet" onPress={onClose}>
+          Close
+        </Button>
+      }
+    >
+      {signedIn ? (
         <View style={styles.syncBody}>
-          <Text variant="bodySm">
-            Signed in as <Text variant="bodySm" tone="accent">{user.email}</Text>
-          </Text>
           <Text variant="caption" tone="muted">
             {serverVersion ? `Cloud v${serverVersion}` : 'No cloud save yet'}
             {lastPushedAt ? ` · last push ${new Date(lastPushedAt).toLocaleTimeString()}` : ''}
-          </Text>
-          {syncError ? <Text variant="caption" tone="default">{syncError}</Text> : null}
-          <Button variant="secondary" onPress={() => void logout()}>Sign out</Button>
-          <Text variant="caption" tone="soft">
-            Signing out keeps a per-account copy on this device. Offline edits queue and sync on
-            reconnect.
           </Text>
         </View>
       ) : (
         <View style={styles.syncBody}>
           <Text variant="bodySm" tone="muted">
-            Optional closed-beta sync. Guests keep playing locally.
+            Optional sync between your devices. Guests keep playing locally.
           </Text>
           <Field label="Email">
             <Input
@@ -537,7 +590,7 @@ function SyncSection() {
               keyboardType="email-address"
             />
           </Field>
-          <Field label="Password" hint="At least 12 characters.">
+          <Field label="Password">
             <Input
               minLength={12}
               value={password}
@@ -547,7 +600,7 @@ function SyncSection() {
               secureTextEntry
             />
           </Field>
-          <Field label="Authenticator code (admins only)">
+          <Field label="Authenticator code">
             <Input value={totp} onChangeText={setTotp} keyboardType="number-pad" maxLength={8} />
           </Field>
           <Button onPress={() => void submitLogin()} loading={busy}>
@@ -559,7 +612,7 @@ function SyncSection() {
           </Button>
           {showExtras ? (
             <View style={styles.extras}>
-              <Text variant="caption" tone="muted">Accept an invite (paste the link or token)</Text>
+              <Text variant="caption" tone="muted">Accept an invite</Text>
               <Input value={inviteToken} onChangeText={setInviteToken} placeholder="Paste invite link or token" />
               <Input value={invitePassword} onChangeText={setInvitePassword} placeholder="Choose a password" secureTextEntry />
               <Button
@@ -592,33 +645,46 @@ function SyncSection() {
         </View>
       )}
 
-      <View style={[styles.server, { borderColor: colors.hairline }]}>
-        <Text variant="caption" tone="soft">Current server: {effective}</Text>
-        <Field label="Server URL" hint="Changing the server signs you out.">
-          <Input
-            value={serverInput}
-            onChangeText={setServerInput}
-            placeholder="https://sync.example.com"
-            autoCapitalize="none"
-            autoComplete="off"
-            keyboardType="url"
-          />
-        </Field>
-        {serverError ? <Text variant="caption" tone="default">{serverError}</Text> : null}
-        {serverNotice ? <Text variant="caption" tone="accent">{serverNotice}</Text> : null}
-        <View style={styles.serverActions}>
-          <Button variant="secondary" small onPress={() => void saveServer()} loading={checking}>
-            Check and save
-          </Button>
-          <Button variant="quiet" small onPress={() => void clearServer()}>
-            Use default
-          </Button>
-        </View>
-        <Text variant="caption" tone="soft">
-          Android blocks plain HTTP outside localhost.
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Server"
+        accessibilityState={{ expanded: serverOpen }}
+        onPress={() => setServerOpen((value) => !value)}
+        style={[styles.disclosure, { borderColor: colors.hairline }]}
+      >
+        <Text variant="caption" tone="muted">
+          Server
         </Text>
-      </View>
-    </Panel>
+        <View style={serverOpen ? styles.chevronOpen : undefined}>
+          <Icon name="chevron-right" size={14} color={colors.inkMuted} />
+        </View>
+      </Pressable>
+      {serverOpen ? (
+        <View style={[styles.server, { borderColor: colors.hairline }]}>
+          <Text variant="caption" tone="soft">Current server: {effective}</Text>
+          <Field label="Server URL" hint="Changing the server signs you out.">
+            <Input
+              value={serverInput}
+              onChangeText={setServerInput}
+              placeholder="https://sync.example.com"
+              autoCapitalize="none"
+              autoComplete="off"
+              keyboardType="url"
+            />
+          </Field>
+          {serverError ? <Text variant="caption" tone="default">{serverError}</Text> : null}
+          {serverNotice ? <Text variant="caption" tone="accent">{serverNotice}</Text> : null}
+          <View style={styles.serverActions}>
+            <Button variant="secondary" small onPress={() => void saveServer()} loading={checking}>
+              Check and save
+            </Button>
+            <Button variant="quiet" small onPress={() => void clearServer()}>
+              Use default
+            </Button>
+          </View>
+        </View>
+      ) : null}
+    </Dialog>
   )
 }
 
@@ -643,14 +709,27 @@ function DevSection() {
 const styles = StyleSheet.create({
   choices: { flexDirection: 'row', gap: space.xs },
   choice: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderRadius: radius.md, minHeight: 48, paddingVertical: space.sm },
-  note: { marginTop: space.sm },
-  settingRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space.sm },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space.sm, marginTop: space.sm },
   settingBody: { flex: 1, gap: 2 },
   permissionBlock: { gap: space.xs, marginVertical: space.sm },
   notificationOptions: { marginTop: space.sm, gap: space.sm },
   actions: { gap: space.sm, marginVertical: space.sm },
+  syncSummary: { gap: space.sm },
+  syncActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm, flexWrap: 'wrap' },
   syncBody: { gap: space.sm },
   extras: { gap: space.xs, marginTop: space.xs },
-  server: { gap: space.xs, borderWidth: 1, borderRadius: radius.md, padding: space.sm, marginTop: space.md },
+  server: { gap: space.xs, borderWidth: 1, borderRadius: radius.md, padding: space.sm },
   serverActions: { flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' },
+  disclosure: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    marginTop: space.sm,
+    paddingTop: space.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  chevronOpen: { transform: [{ rotate: '90deg' }] },
+  details: { gap: 2 },
 })

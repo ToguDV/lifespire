@@ -9,7 +9,6 @@ import { AnimatedNumber } from './AnimatedNumber'
 import { Icon } from './Icon'
 import type { IconName } from './Icon'
 import { LootCard } from './LootCard'
-import { Panel } from './Panel'
 import { Text } from './Text'
 
 export function ReportSection({ children, last = false }: { children: ReactNode; last?: boolean }) {
@@ -168,18 +167,9 @@ export function ReportLootGrid({ loot, empty }: { loot: LootItem[]; empty?: Reac
   )
 }
 
-export function ReportEmptyCard({ children }: { children: ReactNode }) {
-  return (
-    <Panel pad={false} style={styles.card}>
-      <View style={styles.section}>{children}</View>
-    </Panel>
-  )
-}
-
 // Display sizes below (20/21.6/9.4/7.4) keep pixel parity with the web
 // summary card and seal; they are not part of the mobile type ramp.
 const styles = StyleSheet.create({
-  card: { overflow: 'hidden' },
   section: { padding: space.xl },
   sectionHead: {
     flexDirection: 'row',

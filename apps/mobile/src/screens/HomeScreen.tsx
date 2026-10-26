@@ -1,23 +1,16 @@
 import { StyleSheet, View } from 'react-native'
-import { RUN_DAYS, XP_PER_LEVEL, currentDay, xpIntoLevel, xpToNextLevel } from '@lifespire/core'
+import { RUN_DAYS, validateSetup } from '@lifespire/core'
 import type { Run } from '@lifespire/core'
-import {
-  formatDayKey,
-  formatShortDayKey,
-} from '@lifespire/app-core/ui/format'
+import { formatShortDayKey } from '@lifespire/app-core/ui/format'
 import { homeState, weekMarker } from '@lifespire/app-core/ui/dashboard'
-import type { HomeCta, HomePhase, WeekMarker } from '@lifespire/app-core/ui/dashboard'
+import type { HomePhase, WeekMarker } from '@lifespire/app-core/ui/dashboard'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
-import { AnimatedNumber } from '../components/AnimatedNumber'
 import { AimRow } from '../components/AimRow'
 import { Button } from '../components/Button'
-import { EmptyState } from '../components/EmptyState'
-import { Icon } from '../components/Icon'
-import { Panel, PanelHead, ScreenHead } from '../components/Panel'
-import { DayPips, Progress } from '../components/Progress'
+import { Chip } from '../components/Chip'
+import { Panel, PanelHead } from '../components/Panel'
 import { Screen } from '../components/Screen'
-import { Stat, StatStrip } from '../components/Stat'
 import { Text } from '../components/Text'
 import { useAppStore } from '../state/store'
 
@@ -32,15 +25,6 @@ const PHASE_META: Record<HomePhase, { label: string; icon: 'moon' | 'compass' | 
   'no-open-day': { label: 'Week spent', icon: 'crown' },
 }
 
-const CTA_COPY: Record<HomeCta, string> = {
-  'begin-run': 'Begin a run',
-  'open-day': "Open today's map",
-  'continue-day': 'Continue the climb',
-  'review-day': 'Read today’s summary',
-  'review-week': 'Read the week',
-  none: '',
-}
-
 export function HomeScreen() {
   const { colors } = useTheme()
   const document = useAppStore((state) => state.document)
@@ -49,18 +33,18 @@ export function HomeScreen() {
   const startRun = useAppStore((state) => state.startRun)
   const todayKey = useAppStore((state) => state.todayKey)
   const run = document.run
-  const profile = document.profile
   const today = todayKey()
   const state = homeState(run, today)
-  const current = currentDay(run)
-  const labelDay = state.today ?? current
   const meta = PHASE_META[state.phase]
-  const cta = CTA_COPY[state.cta]
+  const setupReady = validateSetup(document.goals, document.tasks).ok
+  const dayNumber = state.today ? state.today.index + 1 : 0
+  const daysMissed = run?.days.filter((day) => day.status === 'missed').length ?? 0
 
   const act = () => {
     switch (state.cta) {
       case 'begin-run':
-        startRun()
+        if (setupReady) startRun()
+        else navigate({ name: 'goals' })
         return
       case 'open-day':
         openDay()
@@ -80,145 +64,152 @@ export function HomeScreen() {
     }
   }
 
+  const copy = (() => {
+    switch (state.phase) {
+      case 'no-run':
+        return setupReady
+          ? { title: 'No run yet.', line: 'Your goals are ready.' }
+          : { title: 'The path needs goals.', line: 'A run needs one goal and four routines.' }
+      case 'day-available':
+        return { title: 'Today’s path is ready.', line: 'Open it once; the map will not change.' }
+      case 'day-in-progress':
+        return {
+          title: `Day ${dayNumber} is open.`,
+          line: state.hasSelection
+            ? 'One step is chosen.'
+            : state.availableChoices > 0
+              ? `${state.availableChoices} paths ahead.`
+              : 'No step is open.',
+        }
+      case 'day-completed':
+        return { title: 'The day is sealed.', line: 'The next path opens at midnight.' }
+      case 'day-missed':
+        return { title: 'The day passed unclaimed.', line: 'Missed days are not recovered.' }
+      case 'day-locked':
+        return { title: 'The next day is sealed.', line: 'Only today can be played.' }
+      case 'run-closed':
+        return { title: 'The week is sealed.', line: 'The totals are yours.' }
+      case 'no-open-day':
+        return { title: 'The week is spent.', line: 'Begin a new run from the week summary.' }
+    }
+  })()
+
+  const cta = (() => {
+    switch (state.cta) {
+      case 'begin-run':
+        return setupReady ? 'Begin a run' : 'Review your goals'
+      case 'open-day':
+        return 'Open today’s path'
+      case 'continue-day':
+        return 'Continue the ascent'
+      case 'review-day':
+        return state.today ? 'Read the day' : null
+      case 'review-week':
+        return 'Read the week'
+      case 'none':
+        return null
+    }
+  })()
+
+  const kicker = (() => {
+    switch (state.phase) {
+      case 'no-run':
+        return 'Camp · Before the run'
+      case 'run-closed':
+        return 'Camp · Week sealed'
+      case 'no-open-day':
+        return 'Camp · Week spent'
+      default:
+        return state.today ? `Camp · Day ${dayNumber} of ${RUN_DAYS}` : 'Camp · The week'
+    }
+  })()
+
+  const goalRows = run
+    ? run.objectives.map((objective) => ({
+        key: objective.goalId,
+        title: objective.goalTitle,
+        progress: objective.progress,
+        target: objective.target,
+        icon: document.goals.find((goal) => goal.id === objective.goalId)?.icon ?? 'banner',
+      }))
+    : document.goals
+        .filter((goal) => goal.active)
+        .map((goal) => ({
+          key: goal.id,
+          title: goal.title,
+          progress: 0,
+          target: goal.weeklyObjective,
+          icon: goal.icon,
+        }))
+
   return (
     <Screen>
-      <ScreenHead
-        kicker={`Camp · ${formatDayKey(today)}`}
-        title={profile ? `Welcome back, ${profile.name}` : 'Camp'}
-        subtitle={
-          <Text variant="bodyMd" tone="muted">
-            {meta.label}
-            {run ? (labelDay ? ` · Day ${labelDay.index + 1} of ${RUN_DAYS}` : ' · Week sealed') : ' · No run yet'}
-          </Text>
-        }
-        aside={
-          <View style={[styles.phaseChip, { borderColor: colors.hairline, backgroundColor: colors.surface }]}>
-            <Icon name={meta.icon} size={14} color={colors.accent} />
-            <Text variant="caption" tone="muted">
+      <Panel>
+        <View style={styles.hero}>
+          <View style={styles.heroHead}>
+            <View style={styles.kicker}>
+              <View style={[styles.kickerMark, { backgroundColor: colors.accent }]} />
+              <Text variant="micro" tone="muted">
+                {kicker.toUpperCase()}
+              </Text>
+            </View>
+            <Chip variant={state.phase === 'day-missed' ? 'quiet' : 'default'} icon={meta.icon}>
               {meta.label}
-            </Text>
+            </Chip>
           </View>
-        }
-      />
-
-      {run ? (
-        <>
-          <Panel>
-            <PanelHead label="The week" aside={<DayPips days={run.days} currentIndex={labelDay?.index} />} />
-            <WeekStrip run={run} todayKey={today} />
-            <Text variant="caption" tone="muted" style={styles.weekNote}>
-              {state.isWaitingForMidnight
-                ? 'The next day opens at local midnight.'
-                : state.daysAhead > 0
-                  ? `${state.daysAhead} ${state.daysAhead === 1 ? 'day' : 'days'} still ahead.`
-                  : 'The week is complete.'}
-            </Text>
-          </Panel>
-
-          <Panel>
-            <PanelHead label="Today's path" aside={<Icon name={meta.icon} size={16} color={colors.accent} />} />
-            <Text variant="headingMd">
-              {state.phase === 'day-in-progress'
-                ? state.hasSelection
-                  ? 'A step is waiting'
-                  : `${state.availableChoices} ${state.availableChoices === 1 ? 'path' : 'paths'} open`
-                : state.phase === 'day-available'
-                  ? 'The map is still folded'
-                  : state.phase === 'day-completed'
-                    ? 'The day is sealed'
-                    : state.phase === 'run-closed'
-                      ? 'The week is sealed'
-                      : meta.label}
-            </Text>
-            <Text variant="bodySm" tone="muted" style={styles.ctaCopy}>
-              {state.phase === 'day-in-progress'
-                ? 'Choose one connected node, complete it in the world, then mark it here.'
-                : state.phase === 'day-available'
-                  ? 'Open the day to draw its layers, its choices and the daily boss.'
-                  : state.phase === 'day-completed'
-                    ? 'Read what the day granted, or wait for the next map at midnight.'
-                    : state.phase === 'run-closed'
-                      ? 'The weekly bonus is already in your profile. Begin a new run when you are ready.'
-                      : 'There is no playable day right now.'}
-            </Text>
-            {cta ? (
+          <Text variant="displayMd" accessibilityRole="header">
+            {copy.title}
+          </Text>
+          <Text variant="bodyMd" tone="muted">
+            {copy.line}
+          </Text>
+          {cta ? (
+            <View style={styles.heroAction}>
               <Button onPress={act} full>
                 {cta}
               </Button>
-            ) : null}
-          </Panel>
+            </View>
+          ) : null}
+        </View>
+      </Panel>
 
-          <Panel>
-            <PanelHead label="Weekly targets" aside={<Text variant="caption" tone="soft">{run.objectives.length}</Text>} />
-            <View style={styles.aims}>
-              {run.objectives.map((objective) => {
-                const goal = document.goals.find((candidate) => candidate.id === objective.goalId)
-                return (
-                  <AimRow
-                    key={objective.goalId}
-                    icon={goal?.icon ?? 'banner'}
-                    title={objective.goalTitle}
-                    subtitle={`${objective.progress} of ${objective.target} kept`}
-                    progress={objective.progress}
-                    target={objective.target}
-                  />
-                )
-              })}
-            </View>
-          </Panel>
-        </>
-      ) : (
+      {run ? (
         <Panel>
-          <EmptyState
-            icon="tent"
-            title="No run yet"
-            action={
-              <Button onPress={() => startRun()} disabled={!profile}>
-                Begin a run
-              </Button>
-            }
-          >
-            {profile
-              ? 'Your goals and routines are ready. Begin a seven-day run to draw the first map.'
-              : 'Finish onboarding to begin.'}
-          </EmptyState>
-        </Panel>
-      )}
-
-      {profile ? (
-        <Panel>
-          <PanelHead label="The traveller" aside={<Text variant="caption" tone="soft">Level {profile.level}</Text>} />
-          <View style={styles.profileRow}>
-            <View style={[styles.avatar, { backgroundColor: colors.accentSoft, borderColor: colors.accent }]}>
-              <Text variant="headingMd" tone="deep">
-                {profile.name.slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.profileBody}>
-              <Text variant="headingSm">{profile.name}</Text>
-              <Text variant="caption" tone="muted">
-                {xpIntoLevel(profile.xp)} / {XP_PER_LEVEL} XP · {profile.loot.length} relics
-              </Text>
-              <Progress value={xpIntoLevel(profile.xp)} max={XP_PER_LEVEL} label="Experience to next level" />
-            </View>
-            <View style={styles.gold}>
-              <Icon name="coin" size={16} color={colors.accentDeep} />
-              <AnimatedNumber value={profile.gold} />
-            </View>
-          </View>
-          <StatStrip>
-            <Stat label="Level" value={profile.level} />
-            <Stat label="XP" value={profile.xp} />
-            <Stat label="Next level" value={`${xpToNextLevel(profile.xp)} XP`} />
-          </StatStrip>
+          <PanelHead label="The week" />
+          <WeekStrip run={run} todayKey={today} />
+          {daysMissed > 0 ? (
+            <Text variant="bodySm" tone="soft" style={styles.missedNote}>
+              {daysMissed === 1
+                ? '1 day was missed and is not recovered.'
+                : `${daysMissed} days were missed and are not recovered.`}
+            </Text>
+          ) : null}
         </Panel>
       ) : null}
 
-      <View style={styles.links}>
-        <Button variant="quiet" icon="banner" onPress={() => navigate({ name: 'goals' })} full>
-          Review goals and routines
-        </Button>
-      </View>
+      {goalRows.length > 0 ? (
+        <Panel>
+          <PanelHead
+            label="Weekly goals"
+            aside={
+              <Button small variant="ghost" onPress={() => navigate({ name: 'goals' })}>
+                All goals
+              </Button>
+            }
+          />
+          <View style={styles.aims}>
+            {goalRows.map((row) => (
+              <AimRow
+                key={row.key}
+                icon={row.icon}
+                title={row.title}
+                progress={row.progress}
+                target={row.target}
+              />
+            ))}
+          </View>
+        </Panel>
+      ) : null}
     </Screen>
   )
 }
@@ -285,16 +276,19 @@ function WeekStrip({ run, todayKey }: { run: Run; todayKey: string }) {
 }
 
 const styles = StyleSheet.create({
-  phaseChip: {
+  hero: { gap: space.xs },
+  heroHead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    borderWidth: 1,
-    borderRadius: radius.full,
-    paddingHorizontal: space.sm,
-    paddingVertical: 3,
+    justifyContent: 'space-between',
+    gap: space.sm,
+    marginBottom: space.xxs,
   },
+  kicker: { flexDirection: 'row', alignItems: 'center', gap: space.xs, flexShrink: 1 },
+  kickerMark: { width: 5, height: 5, borderRadius: 1, transform: [{ rotate: '45deg' }] },
+  heroAction: { marginTop: space.sm },
   weekStrip: { flexDirection: 'row', gap: space.xxs },
+  missedNote: { marginTop: space.sm },
   weekDay: {
     flex: 1,
     minHeight: 62,
@@ -305,12 +299,5 @@ const styles = StyleSheet.create({
     gap: 1,
     paddingVertical: space.xxs,
   },
-  weekNote: { marginTop: space.sm },
-  ctaCopy: { marginTop: space.xs, marginBottom: space.md },
   aims: { gap: space.sm },
-  profileRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  avatar: { width: 48, height: 48, borderRadius: radius.full, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  profileBody: { flex: 1, gap: 2 },
-  gold: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  links: { gap: space.sm },
 })

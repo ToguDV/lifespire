@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import Svg, { G, Path } from 'react-native-svg'
@@ -18,14 +19,12 @@ import {
 } from '@lifespire/app-core/ui/format'
 import { MAP_HEIGHT, MAP_WIDTH } from '@lifespire/app-core/ui/mapLayout'
 import { nodeRewardLine, nodeTitle } from '@lifespire/app-core/ui/nodeCopy'
-import { deriveMapDayState, railFoot, railLedeCopy } from '../lib/mapState'
+import { deriveMapDayState } from '../lib/mapState'
 import { playFeedback } from '../state/feedback'
 import { useTheme } from '../theme/ThemeProvider'
 import { fonts, radius, shadows, space } from '../theme/tokens'
-import { AimRow } from '../components/AimRow'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
-import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
 import type { IconName } from '../components/Icon'
 import { MapCanvas } from '../components/MapCanvas'
@@ -34,37 +33,13 @@ import { Screen } from '../components/Screen'
 import { Text } from '../components/Text'
 import { useAppStore } from '../state/store'
 
-const STATUS_COPY: Record<string, string> = {
-  available: 'Day open',
-  in_progress: 'In progress',
-  completed: 'Sealed',
-  missed: 'Missed',
-  locked: 'Ahead',
-}
-
 const LEGEND: Array<{ type: NodeType; icon?: IconName; copy: string }> = [
-  {
-    type: 'task',
-    icon: 'banner',
-    copy: 'Your goal crest · +1 toward weekly target · XP and gold by effort',
-  },
-  {
-    type: 'elite',
-    icon: 'star',
-    copy: 'Goal crest with a star · doubled reward and a loot roll',
-  },
-  { type: 'rest', copy: '+5 XP · no weekly progress' },
-  { type: 'treasure', copy: '+15 gold and a loot roll · no progress' },
-  {
-    type: 'wheel',
-    icon: 'wheel',
-    copy: 'Mystery · task, gold, XP or rest · a task grants weekly progress',
-  },
-  {
-    type: 'boss',
-    icon: 'crown',
-    copy: 'Your goal crest in the gate · closing bonus when completed',
-  },
+  { type: 'task', icon: 'banner', copy: '+1 goal · XP/gold by effort' },
+  { type: 'elite', icon: 'star', copy: '+1 goal · double reward · loot roll' },
+  { type: 'rest', copy: '+5 XP' },
+  { type: 'treasure', copy: '+15 gold · loot roll' },
+  { type: 'wheel', copy: 'task, gold, XP or rest' },
+  { type: 'boss', icon: 'crown', copy: '+1 goal · closing bonus' },
 ]
 
 /** Decorative silhouettes behind the empty frame, from the web map. */
@@ -149,7 +124,7 @@ function MapRail({
   onChoose,
   onGoals,
 }: {
-  run: Run | null
+  run: Run
   day: Day | null
   map: GameMap | null
   goals: Goal[]
@@ -157,6 +132,7 @@ function MapRail({
   onGoals: () => void
 }) {
   const { colors } = useTheme()
+  const [legendOpen, setLegendOpen] = useState(false)
   const available = map && day ? availableNodeIds(map, day) : []
   const nodes = map
     ? available
@@ -164,7 +140,14 @@ function MapRail({
         .filter((node): node is MapNode => node !== null)
     : []
   const current = map?.currentNodeId ? resolveNodeById(map, map.currentNodeId) : null
-  const lead = railLedeCopy(run, day, map)
+  const runClosed = run.status === 'closed' || !day
+  const daySealed = day?.status === 'completed' || day?.status === 'missed'
+  const dayLocked = day?.status === 'locked'
+  const noChoiceState = runClosed || daySealed || dayLocked
+  const onTrack = run.objectives.filter(
+    (objective) => objective.progress >= objective.target,
+  ).length
+  const totalGoals = run.objectives.length
   const footIcon: IconName = current ? 'check' : 'lock'
 
   return (
@@ -179,90 +162,79 @@ function MapRail({
           }
         />
         {map && nodes.length > 0 ? (
-          <>
-            <Text variant="bodySm" tone="muted" style={styles.lede}>
-              {current
-                ? 'This step is chosen. Open it to review the task and its rewards.'
-                : nodes.length > 1
-                  ? `${nodes.length} paths reach the gate; the trade-offs differ.`
-                  : 'One path reaches the gate; this layer offers no trade-off.'}
-            </Text>
-            <View style={styles.choices}>
-              {nodes.map((node, index) => (
-                <ChoiceRow
-                  key={node.id}
-                  nodeId={node.id}
-                  map={map}
-                  run={run}
-                  goals={goals}
-                  open={index === 0}
-                  onChoose={onChoose}
-                />
-              ))}
-            </View>
-          </>
-        ) : (
-          <Text variant="bodySm" tone="muted">
-            {lead}
-          </Text>
-        )}
-        <View style={styles.foot}>
-          <Icon name={footIcon} size={13} color={colors.inkSoft} />
-          <Text variant="caption" tone="soft" style={styles.footText}>
-            {railFoot(run, day, current)}
-          </Text>
-        </View>
-      </Panel>
-
-      <Panel>
-        <PanelHead
-          label="Weekly targets"
-          aside={
-            <Button small variant="ghost" onPress={onGoals}>
-              All goals
-            </Button>
-          }
-        />
-        {run && run.objectives.length > 0 ? (
-          <View style={styles.aims}>
-            {run.objectives.map((objective) => (
-              <AimRow
-                key={objective.goalId}
-                icon={goalIconFor(goals, objective.goalId) ?? 'banner'}
-                title={objective.goalTitle}
-                progress={objective.progress}
-                target={objective.target}
+          <View style={styles.choices}>
+            {nodes.map((node, index) => (
+              <ChoiceRow
+                key={node.id}
+                nodeId={node.id}
+                map={map}
+                run={run}
+                goals={goals}
+                open={index === 0}
+                onChoose={onChoose}
               />
             ))}
           </View>
         ) : (
-          <Text variant="bodySm" tone="muted">
-            No weekly goals are recorded for this run.
-          </Text>
+          <View style={styles.foot}>
+            <Icon name={footIcon} size={13} color={colors.inkSoft} />
+            <Text variant="caption" tone="soft" style={styles.footText}>
+              {noChoiceState ? 'No step can be chosen on this day.' : 'No step is open on this path.'}
+            </Text>
+          </View>
         )}
       </Panel>
 
+      {totalGoals > 0 ? (
+        <Panel>
+          <PanelHead
+            label={`${onTrack} of ${totalGoals} goals on track`}
+            aside={
+              <Button small variant="ghost" onPress={onGoals}>
+                All goals
+              </Button>
+            }
+          />
+        </Panel>
+      ) : null}
+
       <Panel>
-        <PanelHead label="Legend" />
-        <View style={styles.legend}>
-          {LEGEND.map((item, index) => (
-            <View
-              key={item.type}
-              style={[
-                styles.legendRow,
-                index > 0 ? { borderTopWidth: 1, borderColor: colors.hairline } : null,
-              ]}
-            >
-              <Icon name={item.icon ?? NODE_TYPE_ICON[item.type]} size={14} color={colors.inkMuted} />
-              <Text style={[styles.legendType, { color: colors.inkMuted }]}>
-                {NODE_TYPE_LABEL[item.type]}
-              </Text>
-              <Text variant="caption" tone="soft" style={styles.legendCopy}>
-                {item.copy}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Node key"
+          accessibilityState={{ expanded: legendOpen }}
+          accessibilityHint={legendOpen ? 'Hide the node key.' : 'Show the node key.'}
+          onPress={() => setLegendOpen((value) => !value)}
+          style={styles.legendToggle}
+        >
+          <Text variant="micro" tone="muted">
+            NODE KEY
+          </Text>
+          <View style={legendOpen ? styles.chevronOpen : undefined}>
+            <Icon name="chevron-right" size={15} color={colors.inkMuted} />
+          </View>
+        </Pressable>
+        {legendOpen ? (
+          <View style={styles.legend}>
+            {LEGEND.map((item, index) => (
+              <View
+                key={item.type}
+                style={[
+                  styles.legendRow,
+                  index > 0 ? { borderTopWidth: 1, borderColor: colors.hairline } : null,
+                ]}
+              >
+                <Icon name={item.icon ?? NODE_TYPE_ICON[item.type]} size={14} color={colors.inkMuted} />
+                <Text style={[styles.legendType, { color: colors.inkMuted }]}>
+                  {NODE_TYPE_LABEL[item.type]}
+                </Text>
+                <Text variant="caption" tone="soft" style={styles.legendCopy}>
+                  {item.copy}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </Panel>
     </>
   )
@@ -270,16 +242,10 @@ function MapRail({
 
 function EmptyMapFrame({
   icon,
-  micro,
-  title,
-  copy,
   day,
   action,
 }: {
   icon: IconName
-  micro: string
-  title: string
-  copy: string
   day: Day | null
   action: ReactNode
 }) {
@@ -289,9 +255,6 @@ function EmptyMapFrame({
       style={[styles.frame, { backgroundColor: colors.surface, borderColor: colors.hairline, ...shadows.soft }]}
     >
       <View style={styles.frameMeta} pointerEvents="none">
-        <Text variant="micro" tone="soft">
-          THE ASCENT · BEYOND THE VEIL
-        </Text>
         <Text style={[styles.frameDay, { color: colors.inkSoft }]}>
           {day ? `Day ${romanDay(day.index)}` : '—'}
         </Text>
@@ -313,9 +276,19 @@ function EmptyMapFrame({
             ))}
           </G>
         </Svg>
-        <EmptyState icon={icon} kicker={micro} title={title} action={action}>
-          {copy}
-        </EmptyState>
+        <View style={styles.emptyContent}>
+          <View style={[styles.emptyRing, { backgroundColor: colors.accentWash }]}>
+            <View
+              style={[
+                styles.emptyMedallion,
+                { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+              ]}
+            >
+              <Icon name={icon} size={26} color={colors.accentDeep} />
+            </View>
+          </View>
+          {action}
+        </View>
       </View>
       <View style={styles.compass} pointerEvents="none">
         <Icon name="compass" size={26} color={colors.inkSoft} />
@@ -345,37 +318,17 @@ export function MapScreen() {
   }
 
   if (!run) {
-    const goCamp = (
-      <Button variant="secondary" full onPress={() => navigate({ name: 'home' })}>
-        Go to camp
-      </Button>
-    )
     return (
       <Screen>
         <ScreenHead
           kicker="The run"
           title="No run yet."
+          subtitle="The map opens when day 1 begins. Start a run from camp first."
           aside={
-            <Chip variant="quiet" icon="moon">
-              Unstarted
-            </Chip>
+            <Button small variant="secondary" onPress={() => navigate({ name: 'home' })}>
+              Go to camp
+            </Button>
           }
-        />
-        <EmptyMapFrame
-          icon="moon"
-          micro="No run yet"
-          title="Nothing to climb yet."
-          copy="The map opens when day 1 begins. Start a run from camp first."
-          day={null}
-          action={goCamp}
-        />
-        <MapRail
-          run={null}
-          day={null}
-          map={null}
-          goals={goals}
-          onChoose={choose}
-          onGoals={() => navigate({ name: 'goals' })}
         />
       </Screen>
     )
@@ -392,41 +345,50 @@ export function MapScreen() {
     closedRun,
   } = deriveMapDayState(run, today)
 
-  let title = 'The Ashen Wood'
-  let chipIcon: IconName = 'lock'
-  let chipLabel = STATUS_COPY[day?.status ?? 'locked'] ?? 'Ahead'
+  // One state, one title, one line, one chip.
+  let title = 'The path is veiled.'
+  let sub = 'Open it once; it will not change.'
+  let chipIcon: IconName = 'compass'
+  let chipLabel = 'Veiled'
 
   if (closedRun) {
-    title = run.status === 'closed' ? 'The week is sealed.' : 'No day remains.'
+    title = 'The week is sealed.'
+    sub = 'Read the totals.'
     chipIcon = 'crown'
     chipLabel = 'Sealed'
   } else if (sealedDay && day) {
-    title = day.status === 'missed' ? 'This day was missed.' : 'This day is sealed.'
-    chipIcon = day.status === 'missed' ? 'moon' : 'check'
-    chipLabel = day.status === 'missed' ? 'Missed' : 'Sealed'
+    const missed = day.status === 'missed'
+    title = missed ? 'The day was missed.' : 'The day is sealed.'
+    sub = missed ? 'No path was kept.' : 'Read what it granted.'
+    chipIcon = missed ? 'moon' : 'check'
+    chipLabel = missed ? 'Missed' : 'Sealed'
   } else if (lockedDay) {
-    title = 'The next day is still sealed.'
+    title = 'The next day is sealed.'
+    sub = 'Only today can be played.'
     chipIcon = 'lock'
     chipLabel = 'Ahead'
-  } else if (!map) {
-    title = 'The path is still veiled.'
-    chipIcon = 'compass'
-    chipLabel = 'Veiled'
-  } else if (day) {
+  } else if (map && day) {
+    const availableCount = availableNodeIds(map, day).length
+    title = 'The Ashen Wood'
+    sub = map.currentNodeId
+      ? 'One step is chosen.'
+      : availableCount > 0
+        ? `${availableCount} ${availableCount === 1 ? 'path' : 'paths'} ahead.`
+        : 'No step is open.'
     chipIcon = 'check'
     chipLabel = `${resolvedCount} of ${map.layers.length + 1} resolved`
   }
 
   const kicker = run.status === 'closed'
-    ? 'Run I · The week is sealed'
+    ? 'The ascent · Week sealed'
     : day
-      ? `Run I · Day ${day.index + 1} of ${RUN_DAYS}`
-      : 'Run I · No day remains'
+      ? `The ascent · Day ${day.index + 1} of ${RUN_DAYS}`
+      : 'The ascent · No day remains'
 
   let action: ReactNode = null
   if (closedRun) {
     action = (
-      <Button variant="primary" full onPress={() => navigate({ name: 'run-summary' })}>
+      <Button variant="primary" onPress={() => navigate({ name: 'run-summary' })}>
         Read the week
       </Button>
     )
@@ -434,66 +396,31 @@ export function MapScreen() {
     action = (
       <Button
         variant="primary"
-        full
         onPress={() => navigate({ name: 'day-summary', dayId: day.id })}
       >
-        Read the day summary
+        Read the day
       </Button>
     )
   } else if (lockedDay) {
     action = (
-      <Button variant="secondary" full onPress={() => navigate({ name: 'home' })}>
+      <Button variant="secondary" onPress={() => navigate({ name: 'home' })}>
         Return to camp
       </Button>
     )
   } else if (canOpen && day) {
     action = (
-      <Button variant="primary" full onPress={() => openDay(day.id)}>
+      <Button variant="primary" onPress={() => openDay(day.id)}>
         Open today’s path
       </Button>
     )
   }
-
-  const emptyCopy = closedRun
-    ? {
-        icon: 'crown' as IconName,
-        micro: 'The week is sealed',
-        title: 'Nothing more to climb.',
-        copy: 'The path is complete. Its rewards and totals live in the run summary.',
-      }
-    : sealedDay && day
-      ? day.status === 'missed'
-        ? {
-            icon: 'moon' as IconName,
-            micro: 'The day was missed',
-            title: 'No path was kept.',
-            copy: 'The day is recorded without rewards. The run continues with the next day.',
-          }
-        : {
-            icon: 'check' as IconName,
-            micro: 'The day is sealed',
-            title: 'Nothing more to climb.',
-            copy: 'The path is complete. Its rewards and weekly progress live in the day summary.',
-          }
-      : lockedDay
-        ? {
-            icon: 'lock' as IconName,
-            micro: 'The day is ahead',
-            title: 'The next day is still sealed.',
-            copy: 'A day can be opened only on its own date. Return to camp and wait for the next sunrise.',
-          }
-        : {
-            icon: 'compass' as IconName,
-            micro: 'No path drawn yet',
-            title: 'The path is still veiled.',
-            copy: 'Opening the day draws its layers and a boss. The map is saved at once and will not change.',
-          }
 
   return (
     <Screen>
       <ScreenHead
         kicker={kicker}
         title={title}
+        subtitle={sub}
         aside={
           <Chip variant="quiet" icon={chipIcon}>
             {chipLabel}
@@ -504,14 +431,7 @@ export function MapScreen() {
       {hasMap && map && day ? (
         <MapCanvas map={map} day={day} goals={goals} run={run} onSelect={choose} />
       ) : (
-        <EmptyMapFrame
-          icon={emptyCopy.icon}
-          micro={emptyCopy.micro}
-          title={emptyCopy.title}
-          copy={emptyCopy.copy}
-          day={day}
-          action={action}
-        />
+        <EmptyMapFrame icon={chipIcon} day={day} action={action} />
       )}
 
       <MapRail
@@ -541,7 +461,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
   frameDay: {
     fontFamily: fonts.displayItalic,
@@ -567,8 +487,23 @@ const styles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 20,
   },
+  emptyContent: { alignItems: 'center', gap: 18, paddingHorizontal: 16 },
+  emptyRing: {
+    width: 76,
+    height: 76,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyMedallion: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   compass: { position: 'absolute', right: 18, bottom: 16, zIndex: 3, opacity: 0.5 },
-  lede: { marginBottom: space.sm },
   choices: { gap: space.xs },
   choice: {
     flexDirection: 'row',
@@ -601,10 +536,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.64,
     textTransform: 'uppercase',
   },
-  foot: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs, marginTop: space.sm },
+  foot: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs },
   footText: { flex: 1 },
-  aims: { gap: space.sm },
-  legend: { gap: 0 },
+  legendToggle: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+  },
+  chevronOpen: { transform: [{ rotate: '90deg' }] },
+  legend: { gap: 0, marginTop: space.xs },
   // 2px row padding and 10px legend type keep web parity; no token covers them.
   legendRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.xs, paddingVertical: 2 },
   legendType: {

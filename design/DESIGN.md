@@ -655,7 +655,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`map-rail`** — The map companion, stacked under the frame below 1200px and shown beside the map from 1200px.
 - Surface panels with 16–20px padding, rounded `{rounded.lg}`, hairline border, 12–14px gap.
-- Three sections, always present — even when the day has no playable map: Next step (choice rows, or the sealed/locked/veiled copy and the foot note), Weekly targets (`AimRow` with goal crest, pips and `3 / 5`), Legend (Task, Elite, Rest, Treasure, Wheel, Boss). The contextual day action (read the summary, return to camp, open the path) lives in the empty map frame, never in the rail.
+- Three compact sections: Next step (only choice rows when choices exist; otherwise one no-choice line), a one-line `N of M goals on track` summary with an `All goals` link, and a `Node key` disclosure (Task, Elite, Rest, Treasure, Wheel, Boss). The contextual day action (read the summary, return to camp, open the path) lives in the empty map frame, never in the rail.
 - On Android the rail is never hidden: it follows the frame in the same vertical scroll. The shipped web keeps the same stacked layout below 1200px.
 
 **Paths**
