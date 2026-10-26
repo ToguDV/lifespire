@@ -1,7 +1,8 @@
 # LifeSpire — opt-in Caddy edge proxy (see docker-compose.caddy.yml).
 # The API serves the web build itself (same origin), so Caddy only
-# terminates TLS and forwards everything to it. Static security headers are
-# set by the API; compression stays here.
+# terminates TLS and forwards everything to it. Static security headers,
+# compression and cache policy are set by the API; `encode` here is a
+# harmless backstop (it skips responses that are already encoded).
 # Replace {$DOMAIN} via environment when running compose.
 {
   email {$ACME_EMAIL:admin@example.com}

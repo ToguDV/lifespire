@@ -213,9 +213,10 @@ The API sends the edge security headers, the legacy `/api` rewrite and
 `Cache-Control: no-store` on API paths itself (independent of whether
 `WEB_DIST_DIR` is set), and compresses text responses (gzip) so mode A does
 not depend on the proxy for compression. The image runs as the unprivileged
-`node` user (uid 1000). If `WEB_DIST_DIR` is set but is not a usable build,
-the API refuses to start in production; leaving it unset/empty serves the API
-only.
+`node` user (uid 1000). In the prod compose/image, `WEB_DIST_DIR` defaults to
+`/srv/web`; set it to an empty value (`WEB_DIST_DIR=`) to serve the API only.
+If it points at something that is not a usable build, the container refuses to
+start before running migrations (fail fast).
 
 Two supported edges — pick one:
 
@@ -231,7 +232,7 @@ Run these from the repository root. The compose project directory is
 ```bash
 # first deploy
 cp apps/api/.env.example .env   # fill secrets (openssl rand -base64 48)
-docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build
+docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build --remove-orphans
 ```
 
 Migrations run automatically at container start (`prisma migrate deploy` in
@@ -265,13 +266,19 @@ docker compose --env-file .env -f infra/docker-compose.prod.yml \
 > Migration note: before the same-origin change the base prod file always
 > started Caddy. To keep that behavior after updating, redeploy with the extra
 > `-f infra/docker-compose.caddy.yml` flag (mode B above). Without it only
-> `postgres` + `api` start — that is mode A, the new default.
+> `postgres` + `api` start — that is mode A, the new default. When switching
+> from mode B to mode A, pass `--remove-orphans` (as in the mode A command) or
+> run `down` first without `-v`: otherwise the old `caddy` container keeps
+> publishing 80/443 and collides with your own proxy. `down` without `-v`
+> keeps the `pgdata` volume.
 >
 > Rollback (deploy only; no client or data action): the Postgres data stays in
-> the `pgdata` volume, untouched. Redeploy the previous image/compose and run
-> `up -d` again; if you came from the old bundled-Caddy setup, re-add the
-> overlay (or point your own proxy back at the API). Keep `--env-file .env`
-> and the overlay flag consistent when switching modes.
+> the `pgdata` volume, untouched. Check out the previous release tag (or use
+> the image tag you ran before) and `docker compose … up -d --build` again; do
+> not rebuild the current branch when rolling back. If you came from the old
+> bundled-Caddy setup, re-add the overlay (or point your own proxy back at the
+> API). Keep `--env-file .env` and the overlay flag consistent when switching
+> modes, and add `--remove-orphans` when you drop the overlay.
 
 ```bash
 # first admin (the prod image ships the compiled CLI)

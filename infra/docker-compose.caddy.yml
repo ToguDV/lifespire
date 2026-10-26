@@ -3,8 +3,9 @@
 # web build itself, so this overlay only terminates TLS and forwards
 # everything to the API; it no longer serves static files.
 #
-# Usage (DOMAIN + ACME_EMAIL come from your .env):
-#   docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.caddy.yml up -d --build
+# Usage (DOMAIN + ACME_EMAIL come from your .env, run from the repo root):
+#   docker compose --env-file .env -f infra/docker-compose.prod.yml \
+#     -f infra/docker-compose.caddy.yml up -d --build
 #
 # If you run your own proxy (Nginx Proxy Manager, nginx, Traefik, …), skip
 # this file and point it at the API instead — see docs/BACKEND.md §6.
