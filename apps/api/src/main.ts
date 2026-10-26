@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import { AppModule } from './app.module';
+import { createSpaMiddleware, resolveSpaDistDir } from './spa/spa';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -21,6 +22,19 @@ async function bootstrap(): Promise<void> {
     origin: (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(',').map((s) => s.trim()),
     credentials: true,
   });
+  // Same-origin web build: when WEB_DIST_DIR points at a usable build, the
+  // API serves it (static + SPA fallback) so no edge static server is
+  // required. API routes always win; unset WEB_DIST_DIR disables this.
+  const spaDistDir = resolveSpaDistDir(process.env.WEB_DIST_DIR);
+  const spaMiddleware = spaDistDir ? createSpaMiddleware(spaDistDir) : null;
+  if (spaMiddleware) {
+    app.use(spaMiddleware);
+    app.get(Logger).log(`Serving web build from ${spaDistDir}`);
+  } else if (process.env.WEB_DIST_DIR) {
+    app.get(Logger).warn(
+      `WEB_DIST_DIR is set but unusable (${process.env.WEB_DIST_DIR}) — serving API only`,
+    );
+  }
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );

@@ -10,7 +10,7 @@ import { SyncMetrics } from '../sync/sync-metrics';
 
 function ipOf(req: Request): string | undefined {
   // Socket IP only: X-Forwarded-For is client-controlled without trust proxy.
-  // Proxy-aware IPs (Caddy) are a follow-up with throttle keying (#56).
+  // Proxy-aware IPs (edge proxy) are a follow-up with throttle keying (#56).
   return req.ip;
 }
 

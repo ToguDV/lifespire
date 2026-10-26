@@ -15,6 +15,9 @@ const envSchema = z.object({
   ALLOW_PUBLIC_URL_FALLBACK: z.string().default('false'),
   MAX_DOCUMENT_BYTES: z.coerce.number().int().positive().default(524288),
   MAX_REQUEST_BYTES: z.coerce.number().int().positive().default(1048576),
+  // Web build served by the API itself (same-origin, no edge static server
+  // needed). Unset/empty disables the static serving; compose sets it.
+  WEB_DIST_DIR: z.string().optional(),
   // Long-poll change feed: has to stay below the desktop proxy's 35 s timeout.
   SYNC_WATCH_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30_000).default(25_000),
 });

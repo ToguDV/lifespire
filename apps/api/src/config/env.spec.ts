@@ -55,4 +55,9 @@ describe('validateEnv', () => {
     });
     expect(env.PUBLIC_WEB_URL).toBe('https://app.example.com');
   });
+
+  it('leaves WEB_DIST_DIR unset by default and accepts a value', () => {
+    expect(validateEnv({ ...base }).WEB_DIST_DIR).toBeUndefined();
+    expect(validateEnv({ ...base, WEB_DIST_DIR: '/srv/web' }).WEB_DIST_DIR).toBe('/srv/web');
+  });
 });

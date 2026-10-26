@@ -69,8 +69,8 @@ export class SyncWatchService {
   }
 
   async watch(input: SyncWatchInput): Promise<SyncWatchResult> {
-    // The route skips the global IP throttle (behind Caddy every client shares
-    // one bucket) but bounds itself per user: an immediate-answer loop cannot
+    // The route skips the global IP throttle (behind the edge proxy every
+    // client shares one bucket) but bounds itself per user: an immediate-answer loop cannot
     // turn 16 in-flight requests into hundreds of DB reads per second.
     this.checkRate(input.userId);
     await requireActiveUser(this.prisma, input.userId);

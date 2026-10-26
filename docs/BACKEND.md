@@ -42,7 +42,7 @@ packages/core/         pure domain, source of truth (CJS build at dist/cjs
                        see ADR-0003.
 packages/app-core/     shared store/persistence/sync/UI helpers
 packages/api-client/   dependency-free typed fetch client + conflict error
-infra/                 prod compose (Caddy + API + Postgres), Caddyfile,
+infra/                 prod compose (API + Postgres, opt-in Caddy overlay),
                        dev compose, backup.sh
 ```
 
@@ -189,10 +189,12 @@ behavior. The server never interprets dates — it stores the document.
   account loses sync/devices/export/me immediately; in-flight access tokens
   stop working at expiry. No per-request session lookup by design (push-path
   cost, see §9).
-- Security headers via helmet + CSP/`frame-ancestors` at Caddy; same-origin
-  contract: the web calls `/v1` directly and Caddy proxies `/v1`, `/health`
-  and `/docs` to the API (plus a legacy `/api` strip-prefix rule), so cookies
-  stay `SameSite=Lax` without a CORS wildcard.
+- Security headers via helmet on API responses plus CSP/`frame-ancestors`
+  on the served web build (sent by the API itself; defined in
+  `apps/api/src/spa/spa.ts`); same-origin contract: the web calls
+  `/v1` directly and the API serves the SPA plus `/v1`, `/health` and
+  `/docs` from one origin (plus a legacy `/api` strip-prefix rule), so
+  cookies stay `SameSite=Lax` without a CORS wildcard.
 
 ## 6. Runbook (VPS)
 
@@ -200,15 +202,53 @@ Local full stack with hot reload (single command, dev-only defaults):
 `docker compose -f infra/docker-compose.local.yml up --build`
 (web :5173, api :3000, db :5433).
 
-Same-origin contract: the web build calls `/v1` directly (same origin);
-Caddy proxies `/v1/*`, `/health/*` and `/docs*` to `api:3000`, and keeps a
-legacy `/api/*` strip-prefix rule pointing at the same backend.
+Same-origin contract: the API serves the web build itself (`WEB_DIST_DIR`,
+baked into the prod image as `/srv/web`) and answers `/v1/*`, `/health/*`
+and `/docs*` on the same origin; the web calls `/v1` directly (same
+origin) and a legacy `/api/*` strip-prefix rule points at the same backend.
+No path-based routing is needed in front of it: an edge proxy just forwards
+everything to the API.
+
+Two supported edges — pick one:
+
+**A. Your own reverse proxy (e.g. Nginx Proxy Manager).** The prod compose
+binds no host ports 80/443, so it never fights your proxy. The API port is
+published on loopback only (`127.0.0.1:3000`; override with `API_BIND` /
+`API_PORT` when the proxy runs on another host).
 
 ```bash
 # first deploy
 cp apps/api/.env.example /opt/lifespire/.env   # fill secrets (openssl rand -base64 48)
 docker compose -f infra/docker-compose.prod.yml up -d --build
 docker compose -f infra/docker-compose.prod.yml exec api npx prisma migrate deploy
+```
+
+Then create one Proxy Host (or equivalent) with:
+
+- domain → `http://api:3000` when your proxy shares the `lifespire_internal`
+  docker network (`docker network connect lifespire_internal <proxy>`), or
+  → `http://<host-ip>:3000` with `API_BIND=<host-ip>` when it runs elsewhere;
+- forward **everything** (`/`) — no per-path rules; the API routes internally;
+- HTTPS on (the PWA and the `__Secure-` session cookie require it);
+- proxy read/send timeouts ≥ 30 s: the sync watch is a 25 s long-poll
+  (`SYNC_WATCH_TIMEOUT_MS`), shorter proxy timeouts break live sync;
+- `CORS_ORIGINS`/`PUBLIC_WEB_URL` in `.env` set to the public origin.
+
+**B. Built-in Caddy (automatic HTTPS, no own proxy needed).** Adds Caddy in
+front via overlay — it terminates TLS (ACME with `DOMAIN`/`ACME_EMAIL` from
+`.env`) and forwards everything to the API:
+
+```bash
+# first deploy
+cp apps/api/.env.example /opt/lifespire/.env   # fill secrets + DOMAIN + ACME_EMAIL
+docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.caddy.yml up -d --build
+docker compose -f infra/docker-compose.prod.yml exec api npx prisma migrate deploy
+```
+
+> Migration note: before this change the base prod file always started
+> Caddy. To keep that behavior after updating, redeploy with the extra
+> `-f infra/docker-compose.caddy.yml` flag (mode B above). Without it only
+> `postgres` + `api` start — that is mode A, the new default.
 
 # first admin (on the server; the prod image has no pnpm/ts-node, the CLIs
 # run from the compiled dist — build first with pnpm --filter @lifespire/api build)
@@ -317,6 +357,6 @@ profiling are follow-ups.
 ### Throttle finding (follow-up filed)
 
 The global 120 req/min bucket is per source IP with no trust-proxy: behind
-Caddy every client shares one bucket, and even local k6 bursts must be
+the edge proxy every client shares one bucket, and even local k6 bursts must be
 paced ~60 s apart to stay under it. Per-user/per-route throttle keying needs
 a decision before any real load arrives.
