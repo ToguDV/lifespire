@@ -18,6 +18,7 @@ jobs:
     outputs:
       critical: ${{ steps.filter.outputs.critical }}
       api: ${{ steps.filter.outputs.api }}
+      docker: ${{ steps.filter.outputs.docker }}
     steps:
       - uses: actions/checkout@v7
 
@@ -51,6 +52,17 @@ jobs:
               - 'packages/**'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
+              - '.github/workflows/ci.yml'
+            docker:
+              - 'apps/api/**'
+              - 'apps/web/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'patches/**'
+              - 'scripts/**'
+              - '.dockerignore'
               - '.github/workflows/ci.yml'
 
   quality:
@@ -178,3 +190,37 @@ jobs:
 
       - name: Run API flow tests
         run: pnpm --filter @lifespire/api test:e2e
+
+  docker:
+    needs: changes
+    # Manual runs always execute; otherwise when API, web or packaging inputs changed.
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.docker == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          load: true
+          tags: lifespire-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test the image
+        run: |
+          docker run --rm -i --entrypoint sh lifespire-api:ci -s <<'EOF'
+          set -eu
+          test -f /srv/web/index.html
+          test -f dist/main.js
+          sh scripts/prisma-client-dir.sh /srv/api >/dev/null
+          node -e 'require("@prisma/client"); console.log("prisma client ok")'
+          test "$(id -u)" != "0"
+          EOF
