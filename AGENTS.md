@@ -36,13 +36,17 @@
   It is a snapshot, not a contract; `docs/ARCHITECTURE.md` remains the module
   reference.
 - **Backend and sync:** [`docs/BACKEND.md`](./docs/BACKEND.md) defines the NestJS
-  sync API (closed registration, admin invites, snapshot sync, runbook). Sync
+  sync API (closed registration, admin invites, snapshot sync). Sync
   decisions are recorded in [`docs/adr/`](./docs/adr/) (protocol, auth/admin,
   monorepo, conservative auto-merge in
   [`0004-sync-auto-merge.md`](./docs/adr/0004-sync-auto-merge.md),
   native auth in [`0005-native-auth.md`](./docs/adr/0005-native-auth.md),
   foreground change feed in
   [`0006-foreground-change-feed.md`](./docs/adr/0006-foreground-change-feed.md)).
+- **Operations:** [`docs/RUNBOOK.md`](./docs/RUNBOOK.md) is the VPS runbook
+  (same-origin contract, edge modes A/B, env and migrations, rollback, first
+  admin/reset, backups and restore drill). `docs/BACKEND.md` keeps the
+  architecture, auth, sync protocol and testing reference.
 - **Android app:** [`docs/MOBILE.md`](./docs/MOBILE.md) defines the Expo
   architecture, SQLite persistence, native auth/sync, local notifications,
   Android setup, testing and release checks. The app lives in `apps/mobile/`

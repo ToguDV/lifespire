@@ -16,7 +16,7 @@ the daily map, an unresolved evening and the end of the run. The desktop app is
 an Electron shell around the same web build, shipped as a `.deb`/AppImage,
 portable Linux build and a Windows installer; an optional closed-beta sync API
 (NestJS + Postgres) links a user's devices. See `docs/BACKEND.md`,
-`docs/MOBILE.md` and `docs/DESKTOP.md`.
+`docs/RUNBOOK.md`, `docs/MOBILE.md` and `docs/DESKTOP.md`.
 
 The node map is the heart of the app: each day you pick a path through 3–15 layers
 plus a boss, with visible trade-offs between progress, effort, and reward. The
@@ -152,6 +152,7 @@ Maps are rendered with custom SVG. No graph library, no UI kit.
 - Spec & rules: [`SPEC.md`](./SPEC.md)
 - Architecture & contracts: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
 - Sync backend: [`docs/BACKEND.md`](./docs/BACKEND.md) + [`docs/adr/`](./docs/adr/)
+- VPS runbook: [`docs/RUNBOOK.md`](./docs/RUNBOOK.md)
 - Design system: [`design/DESIGN.md`](./design/DESIGN.md) — the spec the app implements
 - UI notes: [`docs/UI.md`](./docs/UI.md)
 - PWA / offline: [`docs/PWA.md`](./docs/PWA.md)

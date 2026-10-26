@@ -47,8 +47,8 @@ Installation and service workers require **HTTPS** (or `localhost` on the same
 device). Serving this build from a public HTTPS origin is covered by the VPS
 setup in `infra/` (TLS terminated at the edge — the opt-in Caddy overlay or
 your own reverse proxy — in front of the sync API);
-see `docs/BACKEND.md` §6. For a local demo, use a trusted HTTPS tunnel or a
-local certificate; do not treat that as a production deployment.
+see [`docs/RUNBOOK.md`](./RUNBOOK.md). For a local demo, use a trusted HTTPS
+tunnel or a local certificate; do not treat that as a production deployment.
 
 ## Icons
 

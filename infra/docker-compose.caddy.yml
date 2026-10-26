@@ -8,7 +8,7 @@
 #     -f infra/docker-compose.caddy.yml up -d --build
 #
 # If you run your own proxy (Nginx Proxy Manager, nginx, Traefik, …), skip
-# this file and point it at the API instead — see docs/BACKEND.md §6.
+# this file and point it at the API instead — see docs/RUNBOOK.md §3.
 services:
   caddy:
     image: caddy:2-alpine

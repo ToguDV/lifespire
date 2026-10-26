@@ -15,8 +15,9 @@ Native, Android), `apps/api` (NestJS sync API),
 `packages/core` (dominio puro, fuente única), `packages/app-core` (store,
 persistencia, sync y helpers puros compartidos) y `packages/api-client`
 (cliente tipado). Detalle del backend en [`BACKEND.md`](./BACKEND.md), de la
-app Android en [`MOBILE.md`](./MOBILE.md), del escritorio en
-[`DESKTOP.md`](./DESKTOP.md) y decisiones en [`adr/`](./adr/).
+operación en [`RUNBOOK.md`](./RUNBOOK.md), de la app Android en
+[`MOBILE.md`](./MOBILE.md), del escritorio en [`DESKTOP.md`](./DESKTOP.md) y
+decisiones en [`adr/`](./adr/).
 
 ```text
 apps/web/src/
