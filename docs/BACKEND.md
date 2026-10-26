@@ -209,6 +209,14 @@ origin) and a legacy `/api/*` strip-prefix rule points at the same backend.
 No path-based routing is needed in front of it: an edge proxy just forwards
 everything to the API.
 
+The API sends the edge security headers, the legacy `/api` rewrite and
+`Cache-Control: no-store` on API paths itself (independent of whether
+`WEB_DIST_DIR` is set), and compresses text responses (gzip) so mode A does
+not depend on the proxy for compression. The image runs as the unprivileged
+`node` user (uid 1000). If `WEB_DIST_DIR` is set but is not a usable build,
+the API refuses to start in production; leaving it unset/empty serves the API
+only.
+
 Two supported edges — pick one:
 
 **A. Your own reverse proxy (e.g. Nginx Proxy Manager).** The prod compose
@@ -216,12 +224,18 @@ binds no host ports 80/443, so it never fights your proxy. The API port is
 published on loopback only (`127.0.0.1:3000`; override with `API_BIND` /
 `API_PORT` when the proxy runs on another host).
 
+Run these from the repository root. The compose project directory is
+`infra/`, so a root-level `.env` must be passed explicitly with
+`--env-file .env` (otherwise compose looks for `infra/.env`).
+
 ```bash
 # first deploy
-cp apps/api/.env.example /opt/lifespire/.env   # fill secrets (openssl rand -base64 48)
-docker compose -f infra/docker-compose.prod.yml up -d --build
-docker compose -f infra/docker-compose.prod.yml exec api npx prisma migrate deploy
+cp apps/api/.env.example .env   # fill secrets (openssl rand -base64 48)
+docker compose --env-file .env -f infra/docker-compose.prod.yml up -d --build
 ```
+
+Migrations run automatically at container start (`prisma migrate deploy` in
+the image `CMD`); there is no separate migration step.
 
 Then create one Proxy Host (or equivalent) with:
 
@@ -232,6 +246,9 @@ Then create one Proxy Host (or equivalent) with:
 - HTTPS on (the PWA and the `__Secure-` session cookie require it);
 - proxy read/send timeouts ≥ 30 s: the sync watch is a 25 s long-poll
   (`SYNC_WATCH_TIMEOUT_MS`), shorter proxy timeouts break live sync;
+- forward `Accept-Encoding`/`Content-Encoding` untouched (the API compresses
+  itself; disabling compression at the proxy is fine, stripping the headers
+  is not);
 - `CORS_ORIGINS`/`PUBLIC_WEB_URL` in `.env` set to the public origin.
 
 **B. Built-in Caddy (automatic HTTPS, no own proxy needed).** Adds Caddy in
@@ -240,23 +257,29 @@ front via overlay — it terminates TLS (ACME with `DOMAIN`/`ACME_EMAIL` from
 
 ```bash
 # first deploy
-cp apps/api/.env.example /opt/lifespire/.env   # fill secrets + DOMAIN + ACME_EMAIL
-docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.caddy.yml up -d --build
-docker compose -f infra/docker-compose.prod.yml exec api npx prisma migrate deploy
+cp apps/api/.env.example .env   # fill secrets + DOMAIN + ACME_EMAIL
+docker compose --env-file .env -f infra/docker-compose.prod.yml \
+  -f infra/docker-compose.caddy.yml up -d --build
 ```
 
-> Migration note: before this change the base prod file always started
-> Caddy. To keep that behavior after updating, redeploy with the extra
+> Migration note: before the same-origin change the base prod file always
+> started Caddy. To keep that behavior after updating, redeploy with the extra
 > `-f infra/docker-compose.caddy.yml` flag (mode B above). Without it only
 > `postgres` + `api` start — that is mode A, the new default.
+>
+> Rollback (deploy only; no client or data action): the Postgres data stays in
+> the `pgdata` volume, untouched. Redeploy the previous image/compose and run
+> `up -d` again; if you came from the old bundled-Caddy setup, re-add the
+> overlay (or point your own proxy back at the API). Keep `--env-file .env`
+> and the overlay flag consistent when switching modes.
 
-# first admin (on the server; the prod image has no pnpm/ts-node, the CLIs
-# run from the compiled dist — build first with pnpm --filter @lifespire/api build)
-docker compose -f infra/docker-compose.prod.yml exec api node dist/cli/admin-create.js --email admin@example.com
+```bash
+# first admin (the prod image ships the compiled CLI)
+docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-create.js --email admin@example.com
 # log in, complete TOTP setup, then create users from the admin panel/CLI
 
 # manual reset link for a user
-docker compose -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email user@example.com
+docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email user@example.com
 
 # backups (cron daily): infra/backup.sh, 30-day retention + optional restic
 ```

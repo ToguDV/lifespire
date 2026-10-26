@@ -71,7 +71,7 @@ apps/web/src/
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
 apps/api/src/      auth, users, admin, devices, sync (snapshot + watch), health,
-                   audit, prisma, cli
+                   audit, prisma, cli, http (edge), spa (same-origin web build)
 apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas,
   IPC y safeStorage), preload.ts (puente acotado), apiProxy.ts (proxy de sync
   y vault del refresh token), menu.ts y protocol.ts (resolución de assets y
