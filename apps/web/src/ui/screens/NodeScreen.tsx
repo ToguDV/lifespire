@@ -55,9 +55,6 @@ function AimProgress({ run, node }: { run: Run; node: MapNode }) {
 
   return (
     <div className="node-aim">
-      <div className="node-aim__head">
-        <strong>{node.task.goalTitle}</strong>
-      </div>
       {target > 0 ? <Pips value={before} max={target} label={`${node.task.goalTitle}: ${before} of ${target} complete`} /> : null}
       <p className="node-aim__after">
         <Icon name={met ? 'check' : 'plus'} />
@@ -249,7 +246,6 @@ export function NodeScreen() {
   // recap and the Goal block must agree with the rolled outcome.
   const settledWheel = isWheel && revealed ? rolledOutcome : null
   const weeklyProgress: 0 | 1 = settledWheel?.progress ? 1 : nodeProgress(run, node)
-  const weeklyGoalTitle = settledWheel?.task?.goalTitle ?? node.task?.goalTitle ?? null
 
   const spinWheel = () => {
     if (spinning || revealed) return
@@ -397,9 +393,7 @@ export function NodeScreen() {
                 <span className="micro">Goal</span>
                 <strong>{weeklyProgress > 0 ? '+1' : '—'}</strong>
                 <small>
-                  {weeklyProgress > 0 && weeklyGoalTitle
-                    ? `${weeklyGoalTitle} this week`
-                    : 'No weekly progress'}
+                  {weeklyProgress > 0 ? 'This week' : 'No weekly progress'}
                 </small>
               </div>
             </div>

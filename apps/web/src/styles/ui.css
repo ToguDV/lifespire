@@ -2082,3 +2082,7 @@ button.text-link {
 .legend--key .legend--detailed {
   margin-top: 4px;
 }
+
+.legend--key .legend--detailed b {
+  color: var(--ink-soft);
+}

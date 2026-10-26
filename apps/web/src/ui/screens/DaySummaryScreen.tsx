@@ -177,11 +177,6 @@ function SummaryBody({
         <section className="summary-loot" aria-labelledby="day-loot-title">
           <div className="section-block__head">
             <h2 id="day-loot-title">Found today</h2>
-            {summary.loot.length > 0 ? (
-              <span className="mini-note">
-                {summary.loot.length} {summary.loot.length === 1 ? 'relic' : 'relics'}
-              </span>
-            ) : null}
           </div>
           {summary.loot.length === 0 ? (
             <p className="panel-note">No relics today.</p>

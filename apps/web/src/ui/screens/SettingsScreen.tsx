@@ -124,7 +124,6 @@ export function SettingsScreen() {
         title="Settings"
         titleId="settings-title"
         sub="Appearance, sync and local data."
-        meta={<SyncStatus />}
       />
 
       <div className="settings-body">
@@ -201,6 +200,7 @@ export function SettingsScreen() {
                     Signed in as <strong>{user.email}</strong>
                   </p>
                 </div>
+                <SyncStatus />
               </div>
               <div className="settings-actions">
                 <Button variant="quiet" onClick={() => void submitSignOut()}>
