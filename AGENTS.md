@@ -1,5 +1,22 @@
 # LifeSpire — agent guide
 
+## Before you start (mandatory)
+
+1. **Read [`WORKFLOW.md`](./WORKFLOW.md) in full before making any change** —
+   code, tests, styles, configuration, dependencies, CI, docs or repository
+   housekeeping — at the start of every session, not only for big features. It
+   is binding; this guide only summarizes it.
+2. Run its **backward-compatibility check** (`WORKFLOW.md` §2). LifeSpire is
+   already installed and used on web, Android and desktop, with saved games and
+   synced accounts. Decide in writing whether the change is breaking (data loss,
+   corruption, silent reset, incompatible saves/exports/sync, forced reinstall or
+   any manual step).
+3. **If the change is breaking — or you are not sure — tell the user before
+   starting** and wait for explicit approval, with the proposed migration and
+   rollback. Never touch persisted data first and explain later.
+4. Develop assuming **installed clients exist**: no data loss, no corruption, no
+   lost runs, no forced re-login or data re-entry.
+
 ## Sources of truth
 
 - **Product and rules:** [`SPEC.md`](./SPEC.md) defines the scope, game rules,
@@ -8,8 +25,9 @@
 - **Vocabulary:** [`GLOSARY.md`](./GLOSARY.md) defines the user-facing terms
   (goal, routine, weekly target) and records that the code keeps the older
   "aim" names for identifiers, CSS classes, and DOM hooks.
-- **Workflow:** [`WORKFLOW.md`](./WORKFLOW.md) sets the commit format, PR
-  content, the TDD requirement, the web-first delivery order with three-client
+- **Workflow:** [`WORKFLOW.md`](./WORKFLOW.md) is the mandatory first read. It
+  sets the backward-compatibility check for installed users, the commit format,
+  PR content, the TDD requirement, the web-first delivery order with three-client
   parity (web, mobile, desktop) and its parity and code-review gates, subagent
   delegation for long tasks, and the mandatory cleanup at the end of a session.
   It is binding for agents and humans.
@@ -132,6 +150,11 @@ and `@lifespire/api-client` scope the shared packages.
 
 ## Working rules
 
+- **Backward compatibility is not optional:** installed users must never lose
+  or corrupt data, lose a run, or be forced into a manual step. Classify every
+  change with the check in `WORKFLOW.md` §2 before starting; if it is breaking
+  (or you are unsure), notify the user and wait for approval. Persisted data is
+  migrated, never discarded.
 - Domain logic (map, rewards, day cycle, run close) must be pure and testable,
   with no `Math.random`, `Date.now`, or UI/store imports.
 - Inject the date/time into all calendar-dependent logic.
@@ -146,10 +169,10 @@ and `@lifespire/api-client` scope the shared packages.
   them on the Electron desktop shell. No feature is done until web, mobile and
   desktop behave the same (except for documented platform differences). Verify
   the parity with subagents and run the final code review before opening the PR
-  (`WORKFLOW.md` §5–§7).
+  (`WORKFLOW.md` §7–§9).
 - **Long tasks:** delegate to subagents when the work spans several screens,
   whole flows (web + mobile + desktop), new test suites, or long verification
-  loops; the main agent integrates and owns the gates (`WORKFLOW.md` §8).
+  loops; the main agent integrates and owns the gates (`WORKFLOW.md` §10).
 - Changes must leave `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:e2e`,
   `pnpm test`, and `pnpm build` green (the build includes the Android bundle).
   If the change touches critical paths, add or update the corresponding E2E and
