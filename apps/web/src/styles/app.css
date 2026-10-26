@@ -2317,6 +2317,19 @@ html:not([data-theme]) .theme-glyph--sun {
   line-height: 1.1;
 }
 
+.summary-head__copy h1 {
+  margin-top: 4px;
+  font-size: 1.65rem;
+  line-height: 1.1;
+}
+
+.summary-head__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .summary-head__copy p {
   margin-top: 5px;
   color: var(--ink-soft);
@@ -2686,6 +2699,10 @@ html:not([data-theme]) .theme-glyph--sun {
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
+}
+
+.node-facts--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .node-fact {
@@ -3438,6 +3455,10 @@ body[data-screen="welcome"] .viewport {
     font-size: 2rem;
   }
 
+  .summary-head__copy h1 {
+    font-size: 2rem;
+  }
+
   .seal {
     width: 82px;
     height: 82px;
@@ -3567,7 +3588,7 @@ body[data-screen="welcome"] .viewport {
   }
 
   .aims-grid {
-    grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.9fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -3649,5 +3670,34 @@ body[data-screen="welcome"] .viewport {
 
   .screen-head h1 {
     font-size: 1.45rem;
+  }
+}
+
+/* Camp hero (copy diet): the hero panel is the screen's only header. */
+.hero-panel__kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-panel__body h1 {
+  margin-top: 5px;
+  font-size: 1.65rem;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.1;
+}
+
+.screen--camp .camp-grid {
+  padding-top: 16px;
+}
+
+@media (min-width: 960px) {
+  .hero-panel__body h1 {
+    font-size: 1.9rem;
+  }
+
+  .screen--camp .camp-grid {
+    padding-top: 24px;
   }
 }

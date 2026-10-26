@@ -3,7 +3,6 @@ import { AIM_WITHOUT_ROUTINE, createDemoSetup, validateSetup } from '../../conte
 import {
   createEmptyDraft,
   draftToSetup,
-  ONBOARDING_STEPS,
   suggestedWeeklyObjective,
   withSuggestedObjectives,
 } from '../../content/onboarding'
@@ -11,9 +10,11 @@ import {
   MAX_GOALS,
   MAX_WEEKLY_OBJECTIVE,
   MIN_ACTIVE_TASKS,
+  MIN_GOALS,
   MIN_WEEKLY_OBJECTIVE,
 } from '../../domain/balance'
 import { validateGoalInput, validateTaskInput } from '../../domain/content'
+import type { FieldErrors } from '../../domain/content'
 import { nextGoalIcon } from '../../domain/goalIcons'
 import type { Effort, Goal, Task } from '../../domain/types'
 import { getNow } from '../../state/clock'
@@ -23,9 +24,21 @@ import { EFFORT_LABEL, goalIconName } from '../lib/format'
 
 const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
+/** Field messages this screen renders inline (`field-error`), so they never repeat in the summary. */
+const FIELD_KEYS = ['title', 'weeklyObjective', 'goalId'] as const
 
 function unique(values: Array<string | undefined>): string[] {
   return [...new Set(values.filter((value): value is string => Boolean(value)))]
+}
+
+/** Keeps only the step-level messages: anything rendered next to a field is dropped. */
+function nonFieldErrors(errors: string[], fieldErrors: readonly FieldErrors[]): string[] {
+  const inline = new Set(
+    fieldErrors.flatMap((fields) =>
+      FIELD_KEYS.map((key) => fields[key]).filter((value): value is string => Boolean(value)),
+    ),
+  )
+  return errors.filter((error) => !inline.has(error))
 }
 
 export function OnboardingScreen() {
@@ -108,7 +121,7 @@ export function OnboardingScreen() {
   const beginDemo = () => {
     const at = getNow()
     const setup = createDemoSetup(at)
-    beginJourney({ ...setup, name: draft.name.trim() || setup.name }, at)
+    beginJourney(setup, at)
   }
 
   const aimsErrors = (): string[] => {
@@ -168,8 +181,21 @@ export function OnboardingScreen() {
   }
 
   const goalLabel = (index: number) => goals[index]?.title.trim() || `Goal ${index + 1}`
-  const currentErrors =
-    step === 2 ? aimsErrors() : step === 3 ? routineErrors() : step === 4 ? validateSetup(goals, tasks).errors : []
+  const stepErrors =
+    step === 2
+      ? aimsErrors()
+      : step === 3
+        ? routineErrors()
+        : step === 4
+          ? validateSetup(goals, tasks).errors
+          : []
+  const inlineFieldErrors =
+    step === 2
+      ? goals.map((goal) => validateGoalInput(goal))
+      : step === 3
+        ? tasks.map((task) => validateTaskInput(task, goals))
+        : []
+  const currentErrors = nonFieldErrors(stepErrors, inlineFieldErrors)
 
   const errorSummary =
     showErrors && currentErrors.length > 0 ? (
@@ -343,15 +369,7 @@ export function OnboardingScreen() {
             </div>
           </div>
         </div>
-        <div className="draft-card__actions draft-card__actions--split">
-          <label className="checkbox-field">
-            <input
-              type="checkbox"
-              checked={task.active}
-              onChange={(event) => updateTask(task.id, { active: event.target.checked })}
-            />
-            <span>Active in this run</span>
-          </label>
+        <div className="draft-card__actions">
           <Button variant="quiet" onClick={() => removeTask(task.id)}>
             Remove routine
           </Button>
@@ -382,21 +400,6 @@ export function OnboardingScreen() {
               small promise, gather what you find.
             </p>
 
-            <ul className="welcome-points">
-              <li>
-                <Icon name="map" />
-                <span>Each day draws its own path of layers and a boss.</span>
-              </li>
-              <li>
-                <Icon name="star" />
-                <span>Completed routines grant XP, gold and weekly progress.</span>
-              </li>
-              <li>
-                <Icon name="crown" />
-                <span>Seven days make a run; the weekly bonus lands at its close.</span>
-              </li>
-            </ul>
-
             <form
               className="welcome-form"
               onSubmit={(event) => {
@@ -404,18 +407,6 @@ export function OnboardingScreen() {
                 beginDemo()
               }}
             >
-              <div className="field">
-                <label htmlFor="traveller-name">What should we call you? (optional)</label>
-                <input
-                  className="input"
-                  id="traveller-name"
-                  type="text"
-                  placeholder="Traveller"
-                  autoComplete="nickname"
-                  value={draft.name}
-                  onChange={(event) => updateOnboardingDraft({ name: event.target.value })}
-                />
-              </div>
               <div className="welcome-actions">
                 <Button type="submit" variant="primary">
                   Begin with demo data
@@ -426,11 +417,6 @@ export function OnboardingScreen() {
                 </Button>
               </div>
             </form>
-
-            <p className="mini-note welcome-custom-note">
-              The demo creates two goals and five routines. Your own path asks for one to
-              ten goals and at least four routines.
-            </p>
 
             <p className="welcome-foot">
               <Icon name="lock" />
@@ -496,19 +482,19 @@ export function OnboardingScreen() {
   const stepCopy = {
     1: {
       title: 'Who walks this path?',
-      body: 'A name is optional. It only appears on your profile in this browser.',
+      body: 'A name is optional.',
     },
     2: {
       title: 'What are you climbing toward?',
-      body: 'Choose one to ten goals: the areas you are pursuing, such as movement or making. Each goal becomes a banner on your weekly path.',
+      body: `Choose ${MIN_GOALS}–${MAX_GOALS} goals.`,
     },
     3: {
       title: 'Which small steps will you keep?',
-      body: `Add at least ${MIN_ACTIVE_TASKS} active routines across your goals. A routine is a concrete action, such as a 30-minute walk. Effort changes the reward, not the weekly progress.`,
+      body: `Add at least ${MIN_ACTIVE_TASKS} active routines.`,
     },
     4: {
       title: 'Ready to begin?',
-      body: 'Review the week. Weekly targets can still be adjusted here; the run starts on today’s date.',
+      body: 'Check the week before it begins.',
     },
   } as const
   const copy = stepCopy[step as keyof typeof stepCopy] ?? stepCopy[1]
@@ -529,7 +515,7 @@ export function OnboardingScreen() {
 
       <div className="onboarding-shell">
         <div className="onboarding-head">
-          <span className="kicker">Create your path · Step {step} of {ONBOARDING_STEPS}</span>
+          <span className="kicker">Create your path</span>
           <h1 id="onboarding-title" ref={headingRef} tabIndex={-1}>
             {copy.title}
           </h1>
@@ -572,10 +558,6 @@ export function OnboardingScreen() {
                   value={draft.name}
                   onChange={(event) => updateOnboardingDraft({ name: event.target.value })}
                 />
-                <p className="field-hint">
-                  Leave it blank and we will call you Wayfarer. Your draft is saved in this
-                  browser as you go.
-                </p>
               </div>
               <div className="dialog__actions onboarding-actions">
                 <Button variant="quiet" onClick={() => goToStep(0)}>
@@ -717,10 +699,6 @@ export function OnboardingScreen() {
                     routines · 7 days
                   </span>
                 </div>
-                <p className="panel-note">
-                  The run starts today. Each day draws its own map; edits later only shape maps
-                  that have not been drawn yet.
-                </p>
               </div>
 
               <div className="draft-list review-goals">
@@ -755,10 +733,6 @@ export function OnboardingScreen() {
                             })
                           }
                         />
-                        <p className="field-hint">
-                          Suggested from your routines:{' '}
-                          {suggestedWeeklyObjective(goal.id, tasks)}.
-                        </p>
                       </div>
                       <ul className="review-routines">
                         {goalTasks.length === 0 ? (

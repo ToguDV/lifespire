@@ -1,10 +1,6 @@
 import { StyleSheet, View } from 'react-native'
-import { RUN_DAYS, XP_PER_LEVEL, xpIntoLevel, xpToNextLevel } from '@lifespire/core'
-import {
-  buildDayPath,
-  closingBonusCopy,
-  dayPathReward,
-} from '@lifespire/app-core/ui/daySummary'
+import { RUN_DAYS, levelForXp } from '@lifespire/core'
+import { buildDayPath, dayPathReward } from '@lifespire/app-core/ui/daySummary'
 import {
   NODE_TYPE_ICON,
   NODE_TYPE_LABEL,
@@ -16,12 +12,11 @@ import { useTheme } from '../theme/ThemeProvider'
 import { fonts, radius, space } from '../theme/tokens'
 import { AimRow } from '../components/AimRow'
 import { Button } from '../components/Button'
-import { EmptyState } from '../components/EmptyState'
+import { Chip } from '../components/Chip'
 import { Icon } from '../components/Icon'
 import { Panel, ScreenHead } from '../components/Panel'
 import { Screen } from '../components/Screen'
 import {
-  ReportEmptyCard,
   ReportLootGrid,
   ReportSeal,
   ReportSection,
@@ -42,38 +37,42 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
   if (!day) {
     return (
       <Screen>
-        <ScreenHead kicker="The day" title="Summary" />
-        <ReportEmptyCard>
-          <EmptyState icon="scroll" title="This day is gone">
-            The summary could not be found in the current run.
-          </EmptyState>
-          <Button variant="secondary" onPress={() => navigate({ name: 'home' })} full>
-            Back to camp
-          </Button>
-        </ReportEmptyCard>
+        <ScreenHead
+          kicker="Day summary"
+          title="Returning to camp."
+          subtitle="That day is not part of this run."
+          aside={
+            <Button small variant="secondary" onPress={() => navigate({ name: 'home' })}>
+              Return to camp
+            </Button>
+          }
+        />
       </Screen>
     )
   }
 
   if (!day.summary) {
+    const missed = day.status === 'missed'
     return (
       <Screen>
-        <ScreenHead kicker={formatDayKey(day.date)} title={`Day ${day.index + 1}`} />
-        <ReportEmptyCard>
-          <EmptyState
-            icon={day.status === 'missed' ? 'moon' : 'compass'}
-            title={day.status === 'missed' ? 'This day was missed' : 'This day is still open'}
-            action={
-              <Button variant="secondary" onPress={() => navigate({ name: 'map' })}>
-                Back to the map
-              </Button>
-            }
-          >
-            {day.status === 'missed'
-              ? 'The run moved on at midnight. Missed days cannot be recovered in this run.'
-              : 'Resolve the boss to seal the day and read its summary.'}
-          </EmptyState>
-        </ReportEmptyCard>
+        <ScreenHead
+          kicker={`Day ${day.index + 1} · ${missed ? 'Missed' : 'Open'}`}
+          title={missed ? 'The day passed unclaimed.' : 'The day is still open.'}
+          subtitle={
+            missed
+              ? 'No summary was sealed for this day.'
+              : 'Complete the daily boss to seal the day.'
+          }
+          aside={
+            <Button
+              small
+              variant="secondary"
+              onPress={() => navigate({ name: missed ? 'home' : 'map' })}
+            >
+              {missed ? 'Return to camp' : 'Return to map'}
+            </Button>
+          }
+        />
       </Screen>
     )
   }
@@ -81,11 +80,9 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
   const summary = day.summary
   const path = buildDayPath(day)
   const runClosed = run?.status === 'closed'
-  const bonusCopy = closingBonusCopy(
-    summary.bossCompleted,
-    summary.closingBonusXp,
-    summary.closingBonusGold,
-  )
+  const leveledUp = profile
+    ? levelForXp(profile.xp) > levelForXp(Math.max(0, profile.xp - summary.xp))
+    : false
 
   return (
     <Screen>
@@ -94,18 +91,22 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
           <View style={styles.headRow}>
             <View style={styles.headCopy}>
               <Text variant="micro" tone="muted">
-                {`DAY ${day.index + 1} OF ${RUN_DAYS} · THE PATH TAKEN`}
+                {`Day ${day.index + 1} of ${RUN_DAYS} · Sealed`}
               </Text>
               <Text variant="headingLg" accessibilityRole="header">
-                {summary.bossCompleted
-                  ? 'A quiet climb, kept to the end.'
-                  : 'A day left open at the gate.'}
+                The day is sealed.
               </Text>
-              <Text variant="bodySm" tone="muted">
-                {summary.bossCompleted
-                  ? 'The gate was kept. Rewards are sealed with the day.'
-                  : 'The gate was skipped. The day is sealed without its closing bonus.'}
-              </Text>
+              <View style={styles.chips}>
+                <Chip variant="quiet" icon="compass">
+                  {formatDayKey(day.date)}
+                </Chip>
+                <Chip
+                  variant={summary.bossCompleted ? 'accent' : 'quiet'}
+                  icon={summary.bossCompleted ? 'crown' : 'lock'}
+                >
+                  {summary.bossCompleted ? 'Boss completed' : 'Boss skipped'}
+                </Chip>
+              </View>
             </View>
             <ReportSeal
               numeral={romanDay(day.index)}
@@ -176,47 +177,11 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
               )
             })}
           </View>
-        </ReportSection>
-
-        <ReportSection>
-          <View
-            style={[
-              styles.bonus,
-              {
-                borderColor: summary.bossCompleted ? colors.accent : colors.hairline,
-                backgroundColor: summary.bossCompleted ? colors.accentWash : colors.surfaceSunken,
-                borderStyle: summary.bossCompleted ? 'solid' : 'dashed',
-              },
-            ]}
-            accessibilityLabel="Boss closing bonus"
-          >
-            <View
-              style={[
-                styles.bonusIcon,
-                {
-                  borderColor: summary.bossCompleted ? colors.accent : colors.hairlineStrong,
-                  borderStyle: summary.bossCompleted ? 'solid' : 'dashed',
-                },
-              ]}
-            >
-              <Icon
-                name={summary.bossCompleted ? 'crown' : 'lock'}
-                size={16}
-                color={summary.bossCompleted ? colors.accentDeep : colors.inkSoft}
-              />
-            </View>
-            <View style={styles.bonusBody}>
-              <Text variant="micro" tone="muted">
-                BOSS CLOSING BONUS
-              </Text>
-              <Text style={[styles.bonusStrong, { color: colors.inkStrong }]}>{bonusCopy}</Text>
-              <Text variant="bodySm" tone="soft">
-                {summary.bossCompleted
-                  ? 'Granted once when the boss is completed. It is already included in the boss reward and the day total.'
-                  : 'The boss was skipped. Skipping grants no XP, gold, loot or weekly progress.'}
-              </Text>
-            </View>
-          </View>
+          <Text variant="bodySm" tone="muted" style={styles.bonusNote}>
+            {summary.bossCompleted
+              ? `Includes boss closing bonus +${summary.closingBonusXp} XP · +${summary.closingBonusGold} gold.`
+              : 'Boss skipped: no closing bonus.'}
+          </Text>
         </ReportSection>
 
         <ReportSection>
@@ -230,11 +195,6 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
 
         {summary.objectives.length > 0 ? (
           <ReportSection>
-            <View style={styles.sectionLabel}>
-              <Text variant="micro" tone="muted">
-                WEEKLY TARGETS
-              </Text>
-            </View>
             <View style={styles.aims}>
               {summary.objectives.map((objective, index) => (
                 <View
@@ -252,10 +212,9 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
                     icon={goalIconFor(goals, objective.goalId) ?? 'banner'}
                   />
                   <Text style={[styles.aimMeta, { color: colors.inkSoft }]}>
-                    {`Before ${objective.before} / ${objective.target} → after ${objective.after} / ${objective.target}`}
                     {objective.after >= objective.target
-                      ? ' · target met'
-                      : ` · ${objective.target - objective.after} to go`}
+                      ? 'Target met'
+                      : `${objective.target - objective.after} to go`}
                   </Text>
                 </View>
               ))}
@@ -264,31 +223,24 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
         ) : null}
 
         <ReportSection>
-          <ReportSectionHead
-            title="Found today"
-            aside={
-              <Text variant="caption" tone="soft">
-                {summary.loot.length} {summary.loot.length === 1 ? 'relic' : 'relics'}
-              </Text>
-            }
-          />
+          <ReportSectionHead title="Found today" />
           <ReportLootGrid
             loot={summary.loot}
             empty={
               <Text variant="bodySm" tone="muted">
-                No relics were found. Elite, treasure and boss steps carry a loot roll.
+                No relics today.
               </Text>
             }
           />
           {summary.duplicateGold > 0 ? (
             <Text variant="bodySm" tone="soft" style={styles.lootNote}>
-              {`Duplicates converted into ${summary.duplicateGold} gold. This is already included in the gold total above.`}
+              {`Duplicates converted into ${summary.duplicateGold} gold.`}
             </Text>
           ) : null}
         </ReportSection>
 
         <ReportSection last>
-          {profile ? (
+          {leveledUp && profile ? (
             <View
               style={[
                 styles.levelUp,
@@ -297,7 +249,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
             >
               <Icon name="star" size={15} color={colors.accentDeep} />
               <Text style={[styles.levelUpText, { color: colors.accentDeep }]}>
-                {`Level ${profile.level} · ${xpIntoLevel(profile.xp)} / ${XP_PER_LEVEL} to the next · ${xpToNextLevel(profile.xp)} to go`}
+                {`Level ${profile.level} reached.`}
               </Text>
             </View>
           ) : null}
@@ -325,15 +277,6 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
               </Button>
             )}
           </View>
-
-          <View style={styles.waitNote}>
-            <Icon name={runClosed ? 'crown' : 'moon'} size={15} color={colors.inkSoft} />
-            <Text style={[styles.waitNoteText, { color: colors.inkSoft }]}>
-              {runClosed
-                ? 'Every day in this run is sealed. The weekly totals are ready to read.'
-                : 'The next path opens at midnight. Only the current day can be played, so tomorrow waits for the clock.'}
-            </Text>
-          </View>
         </ReportSection>
       </Panel>
     </Screen>
@@ -342,9 +285,9 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
 
 const styles = StyleSheet.create({
   card: { overflow: 'hidden' },
-  sectionLabel: { marginBottom: space.xs },
   headRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
   headCopy: { flex: 1, minWidth: 0, gap: space.xxs },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginTop: space.xs },
   path: { position: 'relative' },
   pathLine: {
     position: 'absolute',
@@ -394,25 +337,7 @@ const styles = StyleSheet.create({
     lineHeight: 13,
     textAlign: 'right',
   },
-  bonus: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.sm,
-    padding: space.sm,
-    borderWidth: 1,
-    borderRadius: radius.md,
-  },
-  bonusIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bonusBody: { flex: 1, minWidth: 0, gap: 3 },
-  // 16.3px keeps pixel parity with the web summary bonus line.
-  bonusStrong: { fontFamily: fonts.display, fontSize: 16.3, lineHeight: 20 },
+  bonusNote: { marginTop: space.sm },
   aims: { gap: 0 },
   aimDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -450,17 +375,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
   actions: { gap: space.sm },
-  waitNote: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: space.xs,
-    marginTop: space.sm,
-  },
-  // 13.6px keeps pixel parity with the web italic note.
-  waitNoteText: {
-    flex: 1,
-    fontFamily: fonts.displayItalic,
-    fontSize: 13.6,
-    lineHeight: 19.5,
-  },
 })

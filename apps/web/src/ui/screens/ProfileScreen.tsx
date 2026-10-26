@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { xpIntoLevel, xpToNextLevel } from '../../domain/selectors'
+import { xpIntoLevel } from '../../domain/selectors'
 import { useAppStore } from '../../state/store'
 import {
   Button,
@@ -35,8 +35,6 @@ export function ProfileScreen() {
   const conversionsGold = duplicateGoldTotal(conversions)
   const daysKept = run?.days.filter((day) => day.status === 'completed').length ?? 0
   const xpNow = profile ? xpIntoLevel(profile.xp) : 0
-  const xpLeft = profile ? xpToNextLevel(profile.xp) : 100
-  const activeFilter = filterOptions.find((option) => option.filter === filter)
 
   return (
     <section
@@ -45,14 +43,10 @@ export function ProfileScreen() {
       aria-labelledby="reliquary-title"
     >
       <ScreenHead
-        kicker={profile ? 'Profile · The Reliquary' : 'Profile'}
+        kicker="Profile"
         title="The Reliquary"
         titleId="reliquary-title"
-        sub={
-          profile
-            ? 'Tokens found along the climb. No powers, only proof.'
-            : 'Your level, gold and collection appear after onboarding.'
-        }
+        sub="Tokens found along the climb."
         meta={
           <span className="chip">
             <Icon name="gem" />
@@ -118,13 +112,6 @@ export function ProfileScreen() {
           </Panel>
         )}
 
-        <div className="collection-head">
-          <h2>Found so far</h2>
-          <span>
-            {ownedTotal} of {collection.length}
-          </span>
-        </div>
-
         <div
           className="segmented collection-filters"
           role="group"
@@ -145,11 +132,6 @@ export function ProfileScreen() {
             </button>
           ))}
         </div>
-        <p className="collection-status" aria-live="polite">
-          Showing {visible.length} {filter === 'all' ? 'relics' : `${activeFilter?.label.toLowerCase() ?? filter} relics`}
-          {' · '}
-          {ownedTotal} found
-        </p>
 
         <div className="loot-grid loot-grid--collection">
           {visible.map(({ catalog, owned }) =>
@@ -161,25 +143,13 @@ export function ProfileScreen() {
           )}
         </div>
 
-        <Panel pad className="duplicate-panel">
-          <PanelHead
-            label="Duplicate conversions"
-            aside={
-              conversions.length > 0 ? (
-                <span className="chip chip--quiet">+{conversionsGold} gold</span>
-              ) : undefined
-            }
-          />
-          {!run ? (
-            <p className="panel-note">
-              Duplicate history starts with a run. Past runs are not kept in this save.
-            </p>
-          ) : conversions.length === 0 ? (
-            <p className="panel-note">
-              No duplicate relics have been converted in this run yet. A second copy of a relic
-              becomes gold when it is found.
-            </p>
-          ) : (
+        {conversions.length > 0 ? (
+          <Panel pad className="duplicate-panel">
+            <PanelHead
+              label="Duplicate conversions"
+              aside={<span className="chip chip--quiet">+{conversionsGold} gold</span>}
+            />
+            <p className="panel-note">Duplicates become gold.</p>
             <ul className="duplicate-list">
               {conversions.map((conversion) => (
                 <li className="duplicate-row" key={conversion.eventId}>
@@ -199,17 +169,7 @@ export function ProfileScreen() {
                 </li>
               ))}
             </ul>
-          )}
-        </Panel>
-
-        {profile ? (
-          <p className="quiet-note">
-            <Icon name="star" />
-            <span>
-              Level {profile.level} · {xpNow} / 100 experience · {xpLeft} XP to level{' '}
-              {profile.level + 1}.
-            </span>
-          </p>
+          </Panel>
         ) : null}
       </div>
     </section>

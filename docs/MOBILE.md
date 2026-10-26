@@ -132,19 +132,27 @@ the rest of the app remains fully usable.
   `accentDeep`, destructive actions and warnings use stone (`surfaceSunken`,
   `hairlineStrong`, `inkStrong`). `gold` remains a wheel-sector label, not a
   palette token; `danger` is not a token.
+- Home is one hero: kicker, one phase chip, `h1`, one state line and one
+  primary CTA. The seven-day strip and the weekly-goal rows sit in their own
+  panels; the traveller/stat panel, generic week note and duplicate phase chip
+  are retired, while the dynamic missed-days warning stays. The CTA and copy
+  follow the web state table, including the goals-not-ready branch.
 - Onboarding keeps the web welcome copy and art: the copy comes first, followed
   by the stroke-only `welcome-art` plate (spire, halo, dotted path, four nodes,
-  pines and crescent) and the lock privacy line. The wizard keeps the four
-  steps, the review summary and the routine-based target suggestions. Editing a
+  pines and crescent) and the lock privacy line. The welcome no longer asks for
+  a name, lists mechanic bullets or explains the demo size; the demo uses
+  `Wayfarer` and the custom flow asks for an optional name in step 1. The
+  wizard keeps the four steps, visual stepper, review summary and routine-based
+  target suggestions, but the kicker is just `Create your path`, the step
+  bodies are one line, and the review/map explanation hints are gone. Editing a
   goal or routine inside the wizard opens a touch dialog instead of the web
-  inline fieldsets; the domain draft and validation stay shared. The screen
-  keeps a single Back in the footer, and the step chips are the compact
-  adaptation of the web step list.
+  inline fieldsets; the domain draft and validation stay shared.
 - The map mirrors the web state machine: the screen resolves the active day,
   prefers today's completed or missed day, and derives sealed/locked/hasMap/
-  canOpen so the head chip, empty copy and Next step panel all speak the same
-  state. Sealed, locked and unopened days render the empty map frame (frame
-  meta, decorative contours, `EmptyState`, compass), never a generic panel.
+  canOpen so the head title, line and chip all speak the same state. Sealed,
+  locked and unopened days render the empty map frame (day meta, decorative
+  contours, medallion, compass) with the single contextual action; the frame no
+  longer repeats the head title or explanation.
 - The map uses `react-native-svg` plus absolutely positioned `Pressable`
   nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. Every normal node is a
   54×54 dp target centred on its coordinate, whatever the visible medallion
@@ -158,12 +166,19 @@ the rest of the app remains fully usable.
   node uses its ring as the only marker: the desktop-only HERE micro label is
   not rendered on Android. Selecting a node plays the select haptic; the boss
   opening plays `bossUnlock`.
-- The rail is stacked, not docked: three panels (Next step, Weekly targets,
-  Legend) follow the frame in the single screen scroll at every Android width.
-  The old floating dock is retired. Next step holds the choice rows or the
-  sealed/locked/veiled copy and the foot note; the empty map frame carries the
-  contextual action (read the day/week, return to camp, open the path). Weekly
-  targets uses `AimRow` with the goal crest and pips; the richer legend stays.
+- The rail is stacked, not docked: Next step, a one-line weekly-goals summary
+  and a compact `Node key` disclosure follow the frame in the single screen
+  scroll at every Android width. The old floating dock is retired. Next step
+  holds only the choice rows when choices exist; otherwise it shows one
+  no-choice line. There is no lede or foot paragraph. `Node key` is a local
+  `Pressable` disclosure with the six short reward lines, and the goals summary
+  links to `All goals` only when the run has objectives.
+- Node detail keeps the type kicker, one goal/type chip, the Effort / Reward / Goal
+  facts and one flavour line. The duplicate tag row, `NodeNotes`, the closing
+  bonus box and `All weekly goals` are retired; the boss skip warning is the
+  only visible skip note and other skip buttons expose it through
+  `accessibilityHint`. The reward recap is a single `Outcome` fact plus `Done`,
+  with its confirmation note moved to the button hint.
 - The wheel shares the web spin physics (`packages/app-core/src/ui/wheel.ts`) and mirrors the
   canonical geometry in `components/wheelGeometry.ts`: 200×200 disc, ten 36°
   sectors, 16px icons at radius 62, a fixed 52px hub, a 6px hairline-strong
@@ -181,35 +196,46 @@ the rest of the app remains fully usable.
   background, canvas text) and the plain toast adds a 44 dp Dismiss;
   `IconPicker` tiles are 54 dp with a visible label and a check badge.
 - Day and run summaries are one framed card with 24 dp sections and hairline
-  dividers, not a stack of panels: a 70 dp seal, the narrative header, one
-  path list with 35 dp medallions, the three XP / Gold / Relics totals and the
-  dashed level-up strip. The weekly close adds `StatStrip` bars (0..1
-  `progress`), the per-goal bonus block plus the all-goals block, two-column
-  `LootCard`s and the Reliquary link; the profile line reads `xpIntoLevel` /
-  `xpToNextLevel`, never total XP as “XP”. The open run reuses the same card
-  with its record strip and `Open the map`, and the new-run dialog keeps the
-  retirement warning and surfaces a local error when `startNewRun` fails.
-- Profile is titled **The Reliquary** (`Profile · The Reliquary` kicker) and
-  never uses the player name as the title; the header chip shows owned relics
-  against `collection.length`. The profile strip is one panel with the 62 dp
-  level badge, name, `Wayfarer of the quiet path`, the experience bar and the
-  Gold / Relics / Days kept totals. The collection lives outside that panel
-  under `Found so far`: the shared `SegmentedControl` filters carry their
-  found counts, a polite live region announces `Showing X relics · Y found`
-  and the two-column `LootCard` grid uses the catalogue length for every
-  total. Duplicate history uses a quiet gold chip and separates the “no run”
-  and “no conversions yet” copies.
-- Settings orders Sync, Appearance, Feedback, Data, Notifications, Local data
-  and About so sync and the save are not buried; notifications stay after
-  Data because they are Android-only. Theme options are Day, Night and
-  System. Sync keeps the 12-character password guidance, field hints and
-  success/error tones, and reset is a single `Local data` dialog with the
-  typed confirmation.
+  dividers, not a stack of panels. The report header is the only screen
+  heading: the day reads `Day N of 7 · Sealed`, `The day is sealed.`, its date
+  and boss chips, and the seal; the week reads `The week · Sealed`, `The week is
+  sealed.` and the seal. The day keeps one path list, one short closing-bonus
+  line, the XP / Gold / Relics totals, one progress meta per goal (`Target met`
+  or `N to go`), `No relics today.` for empty loot and the level-up strip only
+  when a level was reached. The weekly close keeps the record strip, the totals
+  with one `Weekly bonus included` line, the goal rows, the loot grid and the
+  Reliquary link; the old bonus explainer block, guaranteed-rare copy, profile
+  line, retire note and visible wait notes are retired. The open week is the
+  header, the day pips, the goal rows and `Return to camp`. The new-run dialog
+  uses `initialWeeklyTargets` / `validateNewRunSetup`, keeps the short
+  retirement warning and one 1–7 range hint, and surfaces `startNewRun` errors
+  locally.
+- Profile is titled **The Reliquary** (`Profile` kicker) and never uses the
+  player name as the title; the header chip shows owned relics against
+  `collection.length`. The profile strip is one panel with the 62 dp level
+  badge, name, `Wayfarer of the quiet path`, the experience bar and the Gold /
+  Relics / Days kept totals. The collection has no `Found so far` or
+  `Showing …` duplicates: the shared `SegmentedControl` filters carry their
+  found counts and the two-column `LootCard` grid uses the catalogue length for
+  every total. The extra XP-to-next-level note is gone. Duplicate history is
+  rendered only when conversions exist, with one `Duplicates become gold.`
+  line.
+- Settings orders the three primary sections (Appearance, Sync, Data), then
+  the Android-only Reminders and the dev-only Development panel. Theme options
+  are Day, Night and System; Appearance also holds the vibration switch. Sync
+  shows a compact guest (`Local only` + `Set up sync`) or signed-in summary
+  (`Signed in as`, one sync status, `Sign out`, `Manage sync`); login, invite,
+  password reset and the `Server` disclosure live inside the Sync dialog, so
+  the screen no longer carries the full auth/server forms. Data has one
+  `Your save stays on this device.` line, export/import/reset actions and a
+  `Save details` disclosure for the storage key and schema. About and the long
+  theme/feedback/data notes are retired. Reset is one warning plus the typed
+  confirmation.
 - Recovery starts with the brand row and theme switch, a `Local save`
-  `ScreenHead`, and one neutral panel holding the warning note,
-  import/export/reset actions and the reset note. The second “Start over”
-  panel is retired; export still uses the Android share sheet as “Export
-  original save”.
+  `ScreenHead` with one paragraph, and one panel with import, original-save
+  export and reset actions. The warning/duplicate notes are retired; export
+  still uses the Android share sheet as “Export original save”, and the reset
+  dialog keeps one line plus the typed confirmation.
 - Data safety matches web. The import preview names the chosen JSON file on a
   valid save and warns that replacing overwrites the keys under
   `lifespire:mvp0`; a rejected file reports the reason without the name. A sync

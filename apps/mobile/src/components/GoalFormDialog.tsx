@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Switch, View } from 'react-native'
 import type { Goal, GoalInput, GoalIconId } from '@lifespire/core'
-import { MAX_GOALS, nextGoalIcon } from '@lifespire/core'
+import { nextGoalIcon } from '@lifespire/core'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
 import { Button } from './Button'
@@ -89,12 +89,10 @@ export function GoalFormDialog({
   return (
     <Dialog
       visible={visible}
-      eyebrow="The week's shape"
+      eyebrow="Goals"
       title={goal ? 'Edit goal' : 'Add a goal'}
       description={
-        goal
-          ? 'Title and category shape maps drawn from now on. The icon updates across this run; weekly targets stay fixed.'
-          : `A goal holds the routines that move it. A run can hold up to ${MAX_GOALS} active goals.`
+        goal ? 'Edits shape future maps.' : 'A goal holds the routines that move it.'
       }
       onClose={onClose}
       actions={
@@ -114,7 +112,7 @@ export function GoalFormDialog({
           <Button variant="quiet" onPress={onClose}>
             Cancel
           </Button>
-          <Button onPress={submit}>{goal ? 'Save goal' : 'Add goal'}</Button>
+          <Button onPress={submit}>Save goal</Button>
         </>
       }
     >
@@ -150,7 +148,7 @@ export function GoalFormDialog({
         <Field label="Category">
           <Input value={category} onChangeText={setCategory} placeholder="e.g. Movement" />
         </Field>
-        <Field label="Goal icon" hint="The crest marks this goal on maps and in weekly progress.">
+        <Field label="Goal icon">
           <IconPicker value={icon} onChange={setIcon} />
         </Field>
         <Field
@@ -183,12 +181,9 @@ export function GoalFormDialog({
           onPress={() => setActive((value) => !value)}
           style={[styles.switchRow, { borderColor: colors.hairline }]}
         >
-          <View style={styles.switchCopy}>
-            <Text variant="bodySm">Active in this run</Text>
-            <Text variant="caption" tone="muted">
-              Archived goals keep their history and stop appearing on new maps.
-            </Text>
-          </View>
+          <Text variant="bodySm" style={styles.switchLabel}>
+            Active
+          </Text>
           <Switch
             value={active}
             onValueChange={setActive}
@@ -223,5 +218,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: space.sm,
   },
-  switchCopy: { flex: 1, gap: 2 },
+  switchLabel: { flex: 1 },
 })

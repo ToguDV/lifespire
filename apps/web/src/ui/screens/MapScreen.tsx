@@ -8,7 +8,6 @@ import {
 import type { Day, GameMap, Goal, MapNode, NodeType, Run } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
-  AimRow,
   Button,
   DayPips,
   Icon,
@@ -23,44 +22,19 @@ import {
   NODE_TYPE_ICON,
   NODE_TYPE_LABEL,
   goalIconFor,
-  goalIconName,
   romanDay,
 } from '../lib/format'
 import { MAP_HEIGHT, MAP_WIDTH } from '../lib/mapLayout'
 import { playFeedback } from '../lib/feedback'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
-const STATUS_COPY: Record<string, string> = {
-  available: 'Day open',
-  in_progress: 'In progress',
-  completed: 'Sealed',
-  missed: 'Missed',
-  locked: 'Ahead',
-}
-
 const LEGEND: Array<{ type: NodeType; icon?: IconName; copy: string }> = [
-  {
-    type: 'task',
-    icon: 'banner',
-    copy: 'Your goal crest · +1 toward weekly target · XP and gold by effort',
-  },
-  {
-    type: 'elite',
-    icon: 'star',
-    copy: 'Goal crest with a star · doubled reward and a loot roll',
-  },
-  { type: 'rest', copy: '+5 XP · no weekly progress' },
-  { type: 'treasure', copy: '+15 gold and a loot roll · no progress' },
-  {
-    type: 'wheel',
-    icon: 'wheel',
-    copy: 'Mystery · task, gold, XP or rest · a task grants weekly progress',
-  },
-  {
-    type: 'boss',
-    icon: 'crown',
-    copy: 'Your goal crest in the gate · closing bonus when completed',
-  },
+  { type: 'task', icon: 'banner', copy: '+1 goal · XP/gold by effort' },
+  { type: 'elite', icon: 'star', copy: '+1 goal · double reward · loot roll' },
+  { type: 'rest', copy: '+5 XP' },
+  { type: 'treasure', copy: '+15 gold · loot roll' },
+  { type: 'wheel', copy: 'task, gold, XP or rest' },
+  { type: 'boss', copy: '+1 goal · closing bonus' },
 ]
 
 function ChoiceButton({
@@ -123,6 +97,11 @@ function MapRail({
   const runClosed = run.status === 'closed' || !day
   const daySealed = day?.status === 'completed' || day?.status === 'missed'
   const dayLocked = day?.status === 'locked'
+  const noChoiceState = runClosed || daySealed || dayLocked
+  const onTrack = run.objectives.filter(
+    (objective) => objective.progress >= objective.target,
+  ).length
+  const totalGoals = run.objectives.length
 
   return (
     <aside className="map-rail" aria-label="Path details">
@@ -137,106 +116,65 @@ function MapRail({
         />
 
         {nodes.length > 0 ? (
-          <>
-            <p className="map-rail__lede">
-              {current
-                ? 'This step is chosen. Open it to review the task and its rewards.'
-                : nodes.length > 1
-                  ? `${nodes.length} paths reach the gate; the trade-offs differ.`
-                  : 'One path reaches the gate; this layer offers no trade-off.'}
-            </p>
-            {nodes.map((node, index) => (
-              <ChoiceButton
-                key={node.id}
-                node={node}
-                icon={
-                  goalIconFor(goals, node.task?.goalId) ?? NODE_TYPE_ICON[node.type]
-                }
-                open={index === 0}
-                progress={nodeProgress(run, node)}
-                onChoose={onChoose}
-              />
-            ))}
-          </>
-        ) : (
-          <p className="map-rail__lede">
-            {runClosed
-              ? 'The week is sealed. Read the run summary for its path and totals.'
-              : daySealed
-                ? 'This day is sealed. Read the day summary for its rewards and weekly progress.'
-                : dayLocked
-                  ? 'This day has not begun. Only today’s day can be played.'
-                  : map
-                    ? 'No step is open on this path. The next choice appears once this milestone can resolve nodes.'
-                    : 'Open today’s path to draw the map. Once drawn, it will not change.'}
+          nodes.map((node, index) => (
+            <ChoiceButton
+              key={node.id}
+              node={node}
+              icon={goalIconFor(goals, node.task?.goalId) ?? NODE_TYPE_ICON[node.type]}
+              open={index === 0}
+              progress={nodeProgress(run, node)}
+              onChoose={onChoose}
+            />
+          ))
+        ) : noChoiceState ? (
+          <p className="map-rail__foot">
+            <Icon name={current ? 'check' : 'lock'} />
+            No step can be chosen on this day.
           </p>
-        )}
-
-        <p className="map-rail__foot">
-          <Icon name={current ? 'check' : 'lock'} />
-          {runClosed || daySealed || dayLocked
-            ? 'No step can be chosen on this day.'
-            : current
-              ? 'The chosen step stays current until the daily loop arrives.'
-              : 'Locked steps open as the path unfolds.'}
-        </p>
-      </Panel>
-
-      <Panel pad>
-        <PanelHead
-          label="Weekly goals"
-          aside={
-            <button type="button" className="text-link" onClick={onGoals}>
-              All goals
-            </button>
-          }
-        />
-        {run.objectives.length > 0 ? (
-          run.objectives.map((objective) => {
-            const goalIndex = goals.findIndex((goal) => goal.id === objective.goalId)
-            const goal = goalIndex >= 0 ? goals[goalIndex] : undefined
-            return (
-              <AimRow
-                key={objective.goalId}
-                title={objective.goalTitle}
-                progress={objective.progress}
-                target={objective.target}
-                icon={goalIconName(goal?.icon, goalIndex)}
-              />
-            )
-          })
         ) : (
-          <p className="panel-note">No weekly goals are recorded for this run.</p>
+          <p className="map-rail__lede">No step is open on this path.</p>
         )}
       </Panel>
 
-      <div className="legend legend--detailed" aria-label="Node legend">
-        {LEGEND.map((item) => (
-          <span key={item.type}>
-            <Icon name={item.icon ?? NODE_TYPE_ICON[item.type]} />
-            <b>{NODE_TYPE_LABEL[item.type]}</b>
-            <small>{item.copy}</small>
-          </span>
-        ))}
-      </div>
+      {totalGoals > 0 ? (
+        <Panel pad>
+          <PanelHead
+            label={`${onTrack} of ${totalGoals} goals on track`}
+            aside={
+              <button type="button" className="text-link" onClick={onGoals}>
+                All goals
+              </button>
+            }
+          />
+        </Panel>
+      ) : null}
+
+      <details className="legend legend--key">
+        <summary>Node key</summary>
+        <div className="legend--detailed" aria-label="Node legend">
+          {LEGEND.map((item) => (
+            <span key={item.type}>
+              <Icon name={item.icon ?? NODE_TYPE_ICON[item.type]} />
+              <b>{NODE_TYPE_LABEL[item.type]}</b>
+              <small>{item.copy}</small>
+            </span>
+          ))}
+        </div>
+      </details>
     </aside>
   )
 }
 
 interface EmptyMapProps {
   icon: IconName
-  micro: string
-  title: string
-  copy: string
   day: Day | null
   action: ReactNode
 }
 
-function EmptyMapFrame({ icon, micro, title, copy, day, action }: EmptyMapProps) {
+function EmptyMapFrame({ icon, day, action }: EmptyMapProps) {
   return (
     <div className="map-frame">
       <div className="map-frame__meta">
-        <span className="micro">The ascent · beyond the veil</span>
         <span className="map-frame__day">
           {day ? `Day ${romanDay(day.index)}` : '—'}
         </span>
@@ -263,9 +201,6 @@ function EmptyMapFrame({ icon, micro, title, copy, day, action }: EmptyMapProps)
           <span className="map-empty__medallion">
             <Icon name={icon} />
           </span>
-          <span className="micro">{micro}</span>
-          <h2>{title}</h2>
-          <p>{copy}</p>
           {action}
         </div>
       </div>
@@ -316,43 +251,36 @@ export function MapScreen() {
   const canOpen = Boolean(day) && !sealedDay && !lockedDay && !map
   const closedRun = run.status === 'closed' || !day
 
-  let title = 'The Ashen Wood'
-  let sub = ''
-  let chipIcon: IconName = 'lock'
-  let chipLabel = STATUS_COPY[day?.status ?? 'locked']
+  // One state, one title, one line, one chip.
+  let title = 'The path is veiled.'
+  let sub = 'Open it once; it will not change.'
+  let chipIcon: IconName = 'compass'
+  let chipLabel = 'Veiled'
 
   if (closedRun) {
-    title = run.status === 'closed' ? 'The week is sealed.' : 'No day remains.'
-    sub =
-      'Every day has been recorded. Read the week to see the path you kept and the totals it earned.'
+    title = 'The week is sealed.'
+    sub = 'Read the totals.'
     chipIcon = 'crown'
     chipLabel = 'Sealed'
   } else if (sealedDay && day) {
-    title = day.status === 'missed' ? 'This day was missed.' : 'This day is sealed.'
-    sub =
-      day.status === 'missed'
-        ? 'The day passed without a path. This run does not recover missed days.'
-        : 'The path is recorded. Read the day summary for its rewards and weekly progress.'
-    chipIcon = day.status === 'missed' ? 'moon' : 'check'
-    chipLabel = day.status === 'missed' ? 'Missed' : 'Sealed'
+    const missed = day.status === 'missed'
+    title = missed ? 'The day was missed.' : 'The day is sealed.'
+    sub = missed ? 'No path was kept.' : 'Read what it granted.'
+    chipIcon = missed ? 'moon' : 'check'
+    chipLabel = missed ? 'Missed' : 'Sealed'
   } else if (lockedDay) {
-    title = 'The next day is still sealed.'
-    sub = 'Only today’s day can be played. Return when the next day begins.'
+    title = 'The next day is sealed.'
+    sub = 'Only today can be played.'
     chipIcon = 'lock'
     chipLabel = 'Ahead'
-  } else if (!map) {
-    title = 'The path is still veiled.'
-    sub = 'Today’s map is drawn once and kept. Open it to see the choices.'
-    chipIcon = 'compass'
-    chipLabel = 'Veiled'
-  } else if (day) {
+  } else if (map && day) {
     const availableCount = availableNodeIds(map, day).length
     title = 'The Ashen Wood'
     sub = map.currentNodeId
-      ? 'The step is chosen. Open it to review the task and its rewards.'
+      ? 'One step is chosen.'
       : availableCount > 0
-        ? `${availableCount} ${availableCount === 1 ? 'path' : 'paths'} ahead. Choose one to continue the day.`
-        : 'No step is open on this path. The daily loop arrives in the next milestone.'
+        ? `${availableCount} ${availableCount === 1 ? 'path' : 'paths'} ahead.`
+        : 'No step is open.'
     chipIcon = 'check'
     chipLabel = `${resolvedCount} of ${map.layers.length + 1} resolved`
   }
@@ -368,7 +296,12 @@ export function MapScreen() {
   }
 
   const dayLabel = day ? `Day ${day.index + 1} of 7` : 'No day remains'
-  const kicker = run.status === 'closed' ? 'Run I · The week is sealed' : `Run I · ${dayLabel}`
+  const kicker =
+    run.status === 'closed'
+      ? 'The ascent · Week sealed'
+      : day
+        ? `The ascent · ${dayLabel}`
+        : 'The ascent · No day remains'
   const action = (() => {
     if (closedRun) {
       return (
@@ -384,7 +317,7 @@ export function MapScreen() {
           variant="primary"
           onClick={() => navigate({ name: 'day-summary', dayId: day.id })}
         >
-          Read the day summary
+          Read the day
           <Icon name="chevron-right" />
         </Button>
       )
@@ -406,46 +339,6 @@ export function MapScreen() {
       )
     }
     return null
-  })()
-
-  const emptyCopy = (() => {
-    if (closedRun) {
-      return {
-        icon: 'crown' as IconName,
-        micro: 'The week is sealed',
-        title: 'Nothing more to climb.',
-        copy: 'The path is complete. Its rewards and totals live in the run summary.',
-      }
-    }
-    if (sealedDay && day) {
-      return day.status === 'missed'
-        ? {
-            icon: 'moon' as IconName,
-            micro: 'The day was missed',
-            title: 'No path was kept.',
-            copy: 'The day is recorded without rewards. The run continues with the next day.',
-          }
-        : {
-            icon: 'check' as IconName,
-            micro: 'The day is sealed',
-            title: 'Nothing more to climb.',
-            copy: 'The path is complete. Its rewards and weekly progress live in the day summary.',
-          }
-    }
-    if (lockedDay) {
-      return {
-        icon: 'lock' as IconName,
-        micro: 'The day is ahead',
-        title: 'The next day is still sealed.',
-        copy: 'A day can be opened only on its own date. Return to camp and wait for the next sunrise.',
-      }
-    }
-    return {
-      icon: 'compass' as IconName,
-      micro: 'No path drawn yet',
-      title: 'The path is still veiled.',
-      copy: 'Opening the day draws its layers and a boss. The map is saved at once and will not change.',
-    }
   })()
 
   return (
@@ -470,9 +363,6 @@ export function MapScreen() {
         {hasMap && map && day ? (
           <div className="map-frame">
             <div className="map-frame__meta">
-              <span className="micro">
-                The ascent · {resolvedCount} of {map.layers.length + 1} resolved
-              </span>
               <span className="map-frame__day">Day {romanDay(day.index)}</span>
             </div>
             <MapGraph
@@ -484,14 +374,7 @@ export function MapScreen() {
             />
           </div>
         ) : (
-          <EmptyMapFrame
-            icon={emptyCopy.icon}
-            micro={emptyCopy.micro}
-            title={emptyCopy.title}
-            copy={emptyCopy.copy}
-            day={day}
-            action={action}
-          />
+          <EmptyMapFrame icon={chipIcon} day={day} action={action} />
         )}
 
         <MapRail

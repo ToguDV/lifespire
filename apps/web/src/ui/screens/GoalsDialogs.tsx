@@ -1,9 +1,5 @@
 import { useId, useState } from 'react'
-import {
-  MAX_GOALS,
-  MAX_WEEKLY_OBJECTIVE,
-  MIN_WEEKLY_OBJECTIVE,
-} from '../../domain/balance'
+import { MAX_WEEKLY_OBJECTIVE, MIN_WEEKLY_OBJECTIVE } from '../../domain/balance'
 import type { FieldErrors } from '../../domain/content'
 import { nextGoalIcon } from '../../domain/goalIcons'
 import type { GoalIconId } from '../../domain/goalIcons'
@@ -77,11 +73,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       open
       eyebrow="Goals"
       title={goal ? 'Edit goal' : 'Add a goal'}
-      description={
-        goal
-          ? 'Title and category shape maps drawn from now on. The icon updates across this run; weekly targets stay fixed.'
-          : `A goal holds the routines that move it. A run can hold up to ${MAX_GOALS} active goals.`
-      }
+      description={goal ? 'Edits shape future maps.' : 'A goal holds the routines that move it.'}
       onClose={onClose}
       footer={
         <>
@@ -143,13 +135,8 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
             name={`${formId}-icon`}
             value={icon}
             onChange={setIcon}
-            describedBy={
-              fieldErrors.icon ? `${formId}-icon-error` : `${formId}-icon-hint`
-            }
+            describedBy={fieldErrors.icon ? `${formId}-icon-error` : undefined}
           />
-          <p className="field-hint" id={`${formId}-icon-hint`}>
-            The crest marks this goal on maps and in weekly progress.
-          </p>
           {fieldErrors.icon ? (
             <p className="field-error" id={`${formId}-icon-error`}>
               {fieldErrors.icon}
@@ -248,7 +235,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
       open
       eyebrow="Routines"
       title={task ? 'Edit routine' : 'Add a routine'}
-      description="Edits only shape maps drawn after this change."
+      description="Edits shape future maps."
       onClose={onClose}
       footer={
         <>
@@ -413,11 +400,7 @@ export function ArchiveDialog({ kind, id, title, onClose }: ArchiveDialogProps) 
             ))}
           </ul>
         </div>
-      ) : (
-        <p className="panel-note">
-          Archived content stays in your saved file and can be restored from the goals screen.
-        </p>
-      )}
+      ) : null}
     </Dialog>
   )
 }

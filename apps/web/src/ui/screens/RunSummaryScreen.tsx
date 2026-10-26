@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { OBJECTIVE_BONUS } from '../../domain/balance'
-import { currentDay, xpIntoLevel, xpToNextLevel } from '../../domain/selectors'
+import { currentDay } from '../../domain/selectors'
 import type { Run } from '../../domain/types'
 import { useAppStore } from '../../state/store'
 import {
@@ -12,21 +11,13 @@ import {
   Icon,
   LootCard,
   Panel,
-  Progress,
   ScreenHead,
   Stat,
   StatStrip,
 } from '../components'
 import { goalIconFor, percent, romanDay } from '../lib/format'
 import { playFeedback } from '../lib/feedback'
-import {
-  allAimsBonusCopy,
-  duplicateGoldCopy,
-  guaranteedRareCopy,
-  objectiveAggregate,
-  objectiveBonusCopy,
-  weeklyBonusTotalCopy,
-} from '../lib/runSummary'
+import { objectiveAggregate, objectiveBonusCopy } from '../lib/runSummary'
 import { NewRunDialog } from './NewRunDialog'
 
 function SealedBody({
@@ -41,7 +32,6 @@ function SealedBody({
   onProfile: () => void
 }) {
   const summary = run.summary
-  const profile = useAppStore((state) => state.document.profile)
   const goals = useAppStore((state) => state.document.goals)
 
   // The weekly close shimmers once per session: seal, then the guaranteed
@@ -73,7 +63,6 @@ function SealedBody({
 
   const aggregate = objectiveAggregate(summary.objectives)
   const totals = summary.totals
-  const daysRecorded = totals.daysPlayed + totals.daysMissed
   const steps = totals.nodesCompleted + totals.nodesSkipped
 
   return (
@@ -81,16 +70,8 @@ function SealedBody({
       <Panel framed className="summary-page summary-page--run">
         <header className="summary-head">
           <div className="summary-head__copy">
-            <span className="micro">The week · Run I · Sealed</span>
-            <h2>
-              {summary.allComplete
-                ? 'Every goal kept. The spire answers.'
-                : 'A week written in small promises.'}
-            </h2>
-            <p>
-              {profile?.name ?? 'The traveller'}, every page is recorded. The totals
-              below are already part of your profile.
-            </p>
+            <span className="micro">The week · Sealed</span>
+            <h1 id="run-summary-title">The week is sealed.</h1>
           </div>
           <div className="seal" aria-label="Week seal">
             <span className="seal__inner">
@@ -104,9 +85,6 @@ function SealedBody({
         <section className="summary-run-record" aria-labelledby="run-record-title">
           <div className="section-block__head">
             <h2 id="run-record-title">The week recorded</h2>
-            <span className="mini-note">
-              {daysRecorded} of 7 days · {steps} steps
-            </span>
           </div>
           <StatStrip label="Run record">
             <Stat
@@ -125,14 +103,6 @@ function SealedBody({
               progress={percent(totals.nodesCompleted, Math.max(1, steps))}
             />
           </StatStrip>
-          <p className="panel-note summary-run-note">
-            {totals.daysMissed > 0
-              ? `${totals.daysMissed} ${totals.daysMissed === 1 ? 'day was' : 'days were'} missed. Missed days are recorded without blocking the close and are not recovered.`
-              : 'Every day reached a close. No day was missed this week.'}
-            {totals.nodesSkipped > 0
-              ? ` ${totals.nodesSkipped} ${totals.nodesSkipped === 1 ? 'step was' : 'steps were'} skipped and earned nothing.`
-              : ''}
-          </p>
         </section>
 
         <div className="summary-totals" aria-label="Run totals">
@@ -155,10 +125,8 @@ function SealedBody({
             <span>Relics</span>
           </div>
         </div>
-        <p className="panel-note summary-totals-note">
-          These totals include every node reward and the weekly bonus. The bonus was
-          granted once, when the week closed; reading this page again never adds it a
-          second time.
+        <p className="panel-note">
+          Weekly bonus included: +{summary.bonusXp} XP · +{summary.bonusGold} gold.
         </p>
 
         <section className="summary-loot summary-aims-block" aria-labelledby="run-aims-title">
@@ -170,10 +138,7 @@ function SealedBody({
             </span>
           </div>
           {aggregate.total === 0 ? (
-            <p className="panel-note">
-              No weekly goals were set for this run. The close is still valid; only the
-              recorded node rewards apply.
-            </p>
+            <p className="panel-note">No weekly goals were set for this run.</p>
           ) : (
             <ul className="summary-aims">
               {summary.objectives.map((objective, index) => (
@@ -206,68 +171,14 @@ function SealedBody({
           )}
         </section>
 
-        <section className="summary-loot summary-bonus-block" aria-labelledby="run-bonus-title">
-          <div className="section-block__head">
-            <h2 id="run-bonus-title">How the weekly bonus was earned</h2>
-            <span className="mini-note">Granted once</span>
-          </div>
-
-          <div className={`summary-bonus${aggregate.met > 0 ? '' : ' is-forfeited'}`}>
-            <span className="summary-bonus__icon">
-              <Icon name={aggregate.met > 0 ? 'check' : 'lock'} />
-            </span>
-            <div className="summary-bonus__body">
-              <span className="micro">Each goal kept</span>
-              <strong>
-                +{aggregate.bonusXp} XP · +{aggregate.bonusGold} gold
-              </strong>
-              <p>
-                {aggregate.met > 0
-                  ? `${aggregate.met} kept ${aggregate.met === 1 ? 'goal grants' : 'goals grant'} +${OBJECTIVE_BONUS.xp} XP, +${OBJECTIVE_BONUS.gold} gold and one loot roll each.`
-                  : 'No weekly goal was kept, so no per-goal bonus was granted.'}
-              </p>
-            </div>
-          </div>
-
-          <div className={`summary-bonus${summary.allComplete ? '' : ' is-forfeited'}`}>
-            <span className="summary-bonus__icon">
-              <Icon name={summary.allComplete ? 'crown' : 'lock'} />
-            </span>
-            <div className="summary-bonus__body">
-              <span className="micro">All goals kept</span>
-              <strong>{allAimsBonusCopy(summary.allComplete)}</strong>
-              <p>
-                {summary.allComplete
-                  ? 'This is the extra bonus for all goals on top of the per-goal bonuses, with one guaranteed rare from the rare pool.'
-                  : aggregate.total === 0
-                    ? 'No weekly goals were set, so the bonus for all goals was not available this week.'
-                    : `${aggregate.total - aggregate.met} of ${aggregate.total} goals still open. Keep every goal in a future run to earn this bonus.`}
-              </p>
-            </div>
-          </div>
-
-          {summary.allComplete ? (
-            <p className="summary-wait-note summary-rare-note">
-              <Icon name="gem" />
-              <span>{guaranteedRareCopy(summary.allComplete, summary.guaranteedRare)}</span>
-            </p>
-          ) : null}
-
-          <div className="level-up summary-bonus-total">
-            <Icon name="star" />
-            <span>
-              Weekly bonus total · {weeklyBonusTotalCopy(summary)}. This is the amount
-              already added to your profile.
-            </span>
-          </div>
-        </section>
-
         <section className="summary-loot" aria-labelledby="run-loot-title">
           <div className="section-block__head">
             <h2 id="run-loot-title">Relics found at the close</h2>
-            <span className="mini-note">
-              {summary.loot.length} {summary.loot.length === 1 ? 'relic' : 'relics'}
-            </span>
+            {summary.loot.length > 0 ? (
+              <span className="mini-note">
+                {summary.loot.length} {summary.loot.length === 1 ? 'relic' : 'relics'}
+              </span>
+            ) : null}
           </div>
           {summary.loot.length === 0 ? (
             <div className="loot-grid">
@@ -280,25 +191,12 @@ function SealedBody({
               ))}
             </div>
           )}
-          <p className="panel-note summary-duplicates">
-            {duplicateGoldCopy(summary.duplicateGold)}
-          </p>
-          {summary.loot.length === 0 ? (
-            <p className="panel-note">
-              Weekly loot rolls can still be earned; they are shown here only when
-              they become new relics.
+          {summary.duplicateGold > 0 ? (
+            <p className="panel-note summary-duplicates">
+              Duplicates converted into {summary.duplicateGold} gold.
             </p>
           ) : null}
         </section>
-
-        <div className="level-up summary-profile-line">
-          <Icon name="star" />
-          <span>
-            {profile?.name ?? 'The traveller'} · Level {profile?.level ?? 1} ·{' '}
-            {profile ? xpIntoLevel(profile.xp) : 0} / 100 into this level ·{' '}
-            {profile ? xpToNextLevel(profile.xp) : 100} to the next
-          </span>
-        </div>
 
         <div className="summary-actions">
           <Button variant="primary" onClick={onNewRun}>
@@ -313,14 +211,6 @@ function SealedBody({
             Return to camp
           </Button>
         </div>
-
-        <p className="summary-wait-note">
-          <Icon name="lock" />
-          <span>
-            A new run retires this week’s record but keeps your profile, level, XP,
-            gold and collection. You can review the new weekly goals before it begins.
-          </span>
-        </p>
       </Panel>
     </div>
   )
@@ -329,9 +219,6 @@ function SealedBody({
 function OpenWeek({ run, onCamp }: { run: Run; onCamp: () => void }) {
   const goals = useAppStore((state) => state.document.goals)
   const current = currentDay(run)
-  const recorded = run.days.filter(
-    (day) => day.status === 'completed' || day.status === 'missed',
-  ).length
   const met = run.objectives.filter(
     (objective) => objective.progress >= objective.target,
   ).length
@@ -341,55 +228,8 @@ function OpenWeek({ run, onCamp }: { run: Run; onCamp: () => void }) {
   return (
     <div className="summary-wrap">
       <Panel framed className="summary-page summary-page--run">
-        <header className="summary-head">
-          <div className="summary-head__copy">
-            <span className="micro">The week · Run I · In progress</span>
-            <h2>The week is still unfolding.</h2>
-            <p>
-              The weekly bonus is sealed after the seventh day. Nothing is closed or
-              granted from this page.
-            </p>
-          </div>
-          <div className="seal" aria-label="Week in progress">
-            <span className="seal__inner">
-              <Icon name="compass" />
-              <strong>{romanDay(6)}</strong>
-              <span>week</span>
-            </span>
-          </div>
-        </header>
-
         <div className="summary-run-record">
-          <StatStrip label="Week progress">
-            <Stat
-              value={`${recorded} / 7`}
-              label="Days recorded"
-              progress={percent(recorded, 7)}
-            />
-            <Stat
-              value={`${met} / ${total}`}
-              label="Goals kept"
-              progress={percent(met, Math.max(1, total))}
-            />
-            <Stat
-              value={dayLabel}
-              label="Current day"
-              progress={current ? percent(current.index + 1, 7) : 0}
-            />
-          </StatStrip>
-          <div className="summary-open-progress">
-            <Progress
-              value={recorded}
-              max={7}
-              label={`${recorded} of 7 days recorded`}
-              showLabel
-            />
-            <DayPips
-              days={run.days}
-              currentIndex={current?.index}
-              label={dayLabel}
-            />
-          </div>
+          <DayPips days={run.days} currentIndex={current?.index} label={dayLabel} />
         </div>
 
         <section className="summary-loot summary-aims-block" aria-labelledby="open-aims-title">
@@ -416,14 +256,6 @@ function OpenWeek({ run, onCamp }: { run: Run; onCamp: () => void }) {
             </ul>
           )}
         </section>
-
-        <p className="summary-wait-note">
-          <Icon name="compass" />
-          <span>
-            The final totals, bonus and loot appear only when the run closes. Return
-            to camp to continue today’s path.
-          </span>
-        </p>
 
         <div className="summary-actions">
           <Button variant="primary" onClick={onCamp}>
@@ -482,27 +314,16 @@ export function RunSummaryScreen() {
         aria-labelledby="run-summary-sealing-title"
       >
         <ScreenHead
-          kicker="The week · Run I"
+          kicker="The week"
           title="Sealing the week."
           titleId="run-summary-sealing-title"
-          sub="The weekly bonus is calculated from the recorded days and goals."
-          meta={<span className="chip chip--quiet">One moment</span>}
+          sub="The weekly bonus is being calculated."
+          meta={
+            <Button variant="secondary" size="sm" onClick={() => navigate({ name: 'home' })}>
+              Go to camp
+            </Button>
+          }
         />
-        <div className="summary-wrap">
-          <Panel framed className="summary-page">
-            <div className="empty-state">
-              <span className="empty-state__medallion">
-                <Icon name="crown" />
-              </span>
-              <span className="micro">The close</span>
-              <h2>Reading the week’s record.</h2>
-              <p>
-                The summary is being sealed. This happens once; reloading will not
-                grant the bonus again.
-              </p>
-            </div>
-          </Panel>
-        </div>
       </section>
     )
   }
@@ -515,19 +336,15 @@ export function RunSummaryScreen() {
         aria-labelledby="run-summary-open-title"
       >
         <ScreenHead
-          kicker="The week · Run I"
-          title="The week is still unfolding."
+          kicker="The week · In progress"
+          title="The week is still open."
           titleId="run-summary-open-title"
-          sub="The weekly bonus, loot and final totals are sealed after the seventh day."
-          meta={<span className="chip chip--quiet">In progress</span>}
+          sub="Final totals seal after the seventh day."
         />
         <OpenWeek run={run} onCamp={() => navigate({ name: 'home' })} />
       </section>
     )
   }
-
-  const daysRecorded =
-    run.summary.totals.daysPlayed + run.summary.totals.daysMissed
 
   return (
     <section
@@ -535,21 +352,6 @@ export function RunSummaryScreen() {
       data-screen="summary"
       aria-labelledby="run-summary-title"
     >
-      <ScreenHead
-        kicker="The week · Run I · Sealed"
-        title="The week is sealed."
-        titleId="run-summary-title"
-        sub="Each day is recorded. The rewards, the goals and the path stay with your profile."
-        meta={
-          <>
-            <span className="chip chip--quiet">{daysRecorded} of 7 days</span>
-            <span className="chip chip--accent">
-              <Icon name="crown" />
-              Run closed
-            </span>
-          </>
-        }
-      />
       <SealedBody
         run={run}
         onNewRun={() => setNewRunOpen(true)}

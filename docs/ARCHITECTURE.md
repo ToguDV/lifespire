@@ -821,17 +821,21 @@ El diseño de `design/DESIGN.md` sigue siendo la referencia. La implementación 
 bucle diario necesita mostrar más información que los estados estáticos del
 prototipo retirado:
 
-- El rail de camp (`Weekly goals`, `Run at a glance`, `The traveller`) y la tira
-  de siete días se apilan bajo el contenido principal por debajo de 1200 px y
-  960 px respectivamente. El prototipo los ocultaba en móvil; ocultarlos dejaría
-  el progreso semanal y el perfil sin acceso desde el dashboard.
-- La cabecera de camp añade fecha y estado del día, y el rail añade el panel del
-  viajero con nivel, XP, oro y progreso al siguiente nivel. Reutiliza los mismos
-  paneles, pips, chips y barras de progreso.
-- El resumen de día añade un bloque explícito de bonus de cierre (`+20 XP/+20
-  gold` o `Forfeited`), etiquetas `Completed`/`Skipped` en cada paso y la
-  progresión `before → after` de cada objetivo. El sello usa una animación
-  breve que desaparece con `prefers-reduced-motion`.
+- Home es un solo hero (kicker, chip de fase, `h1`, una línea y CTA) y el rail
+  de camp queda en `Weekly goals`; la tira de siete días mantiene su propio
+  panel. El panel del viajero, el resumen “Run at a glance”, la nota de semana y
+  el chip de fase duplicado están retirados. El perfil, el oro y el nivel siguen
+  en el chrome global y en Reliquary.
+- El resumen de día conserva un único header de reporte, una línea corta de
+  bonus de cierre (`+20 XP/+20 gold` o `no closing bonus`), las etiquetas
+  `Completed`/`Skipped` en cada paso y solo `Target met` o `N to go` por
+  objetivo. El sello usa una animación breve que desaparece con
+  `prefers-reduced-motion`; la nota de espera visible se sustituye por el hint
+  accesible del botón deshabilitado.
+- El cierre semanal conserva el header del reporte, el record strip, los totales
+  con una sola línea de bonus, los objetivos y el loot; el bloque explicativo
+  del bonus, la línea de perfil y la nota de retiro están retirados. El diálogo
+  de nueva run reutiliza `initialWeeklyTargets` / `validateNewRunSetup`.
 - Los nodos resueltos vuelven al mapa con un toast de recompensa. El boss navega
   al resumen de día; si era el día 7, el store aplica el cierre semanal en la
   misma acción, la run queda `closed` con `summary` calculado y el resumen de

@@ -115,16 +115,12 @@ export function RewardScreen() {
     )
   }
 
-  const rewardLines =
-    outcome.outcome === 'task'
-      ? [
-          `+${outcome.xp} XP`,
-          `+${outcome.gold} gold`,
-          ...(outcome.progress > 0 ? ['+1 toward weekly target'] : []),
-        ]
-      : outcome.outcome === 'gold'
-        ? [`+${outcome.gold} gold`]
-        : [`+${outcome.xp} XP`]
+  const rewardParts = [
+    ...(outcome.xp > 0 ? [`+${outcome.xp} XP`] : []),
+    ...(outcome.gold > 0 ? [`+${outcome.gold} gold`] : []),
+    ...(outcome.progress > 0 ? ['+1 goal'] : []),
+    ...(outcome.task ? [outcome.task.goalTitle] : []),
+  ]
 
   const outcomeTitle =
     outcome.outcome === 'task'
@@ -145,32 +141,20 @@ export function RewardScreen() {
             </div>
             <span className="micro">Wheel reward</span>
             <h1 id="reward-title">Your reward</h1>
-            <p className="node-flavor">The wheel has settled. Keeping the step records this.</p>
           </header>
 
           <div className="node-spread__body">
-            <div className="node-facts">
+            <div className="node-facts node-facts--single">
               <div className="node-fact">
                 <span className="micro">Outcome</span>
                 <strong>{outcomeTitle}</strong>
-                <small>{rewardLines.join(' · ')}</small>
-              </div>
-
-              <div className="node-fact">
-                <span className="micro">Weekly progress</span>
-                <strong>{outcome.progress > 0 ? '+1' : '—'}</strong>
-                <small>
-                  {outcome.progress > 0 && outcome.task
-                    ? `${outcome.task.goalTitle} this week`
-                    : 'No weekly progress'}
-                </small>
+                <small>{rewardParts.join(' · ')}</small>
               </div>
             </div>
 
-            <p className="node-skip-note" id="reward-confirm-note">
-              <Icon name="check" />
-              <span>Keeping the step records the reward above and advances the path.</span>
-            </p>
+            <span className="sr-only" id="reward-confirm-note">
+              Keeping the step records the reward and advances the path.
+            </span>
 
             <div className="node-actions" aria-busy={confirming}>
               <Button

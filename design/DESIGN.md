@@ -493,6 +493,32 @@ Fallbacks: `Iowan Old Style`, `Palatino Linotype`, Georgia for display; `Gill Sa
 - **Two faces, two jobs.** Alegreya for voice; Alegreya Sans for action and instruction.
 - **One editorial exception.** The design proposal cover used a 102px hero display; the product UI caps `{typography.display-xl}` at 84px.
 
+### Voice and copy
+
+The voice is editorial, but the interface is not a manual. Every screen states
+one state, one line and one action; mechanics live in onboarding and in
+contextual help, never in summaries, settings or empty states.
+
+1. **One header per screen.** A single `h1`, at most one support line and one
+   primary CTA. The title is never repeated inside a panel.
+2. **One fact, one place.** If the topbar, a chip or a pip already shows it, it
+   is not written again. Counters, XP, gold, levels, dates and totals belong to
+   the chrome that owns them.
+3. **Mechanics only in onboarding and contextual help.** Node types, effort,
+   loot rolls and closing bonuses are explained once (the node key, the
+   onboarding steps), never in a summary, a settings panel or an empty state.
+4. **Empty and error states:** one sentence plus one action. Do not explain the
+   system to justify the absence of data.
+5. **No internal language.** "Daily loop", "milestone", "Run I" and "node" in
+   user-facing copy are forbidden; say "step" when the player acts on it.
+6. **Numbers and rewards are facts.** They are chips, pips or facts
+   (`+20 XP · +7 gold · +1 goal`), not sentences.
+7. **Literary voice is a single line per screen**, only on Home (the hero) and
+   the node detail (the flavour line). Settings, summaries and dialogs use a
+   functional tone.
+8. **Buttons carry a concrete verb:** "Open today's path", "Read the day",
+   "Read the week", "Return to camp". Avoid "Done" except in the wheel recap.
+
 ## Layout
 
 ### Spacing System
@@ -629,7 +655,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`map-rail`** — The map companion, stacked under the frame below 1200px and shown beside the map from 1200px.
 - Surface panels with 16–20px padding, rounded `{rounded.lg}`, hairline border, 12–14px gap.
-- Three sections, always present — even when the day has no playable map: Next step (choice rows, or the sealed/locked/veiled copy and the foot note), Weekly targets (`AimRow` with goal crest, pips and `3 / 5`), Legend (Task, Elite, Rest, Treasure, Wheel, Boss). The contextual day action (read the summary, return to camp, open the path) lives in the empty map frame, never in the rail.
+- Three compact sections: Next step (only choice rows when choices exist; otherwise one no-choice line), a one-line `N of M goals on track` summary with an `All goals` link, and a `Node key` disclosure (Task, Elite, Rest, Treasure, Wheel, Boss). The contextual day action (read the summary, return to camp, open the path) lives in the empty map frame, never in the rail.
 - On Android the rail is never hidden: it follows the frame in the same vertical scroll. The shipped web keeps the same stacked layout below 1200px.
 
 **Paths**

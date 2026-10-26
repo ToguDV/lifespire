@@ -395,8 +395,6 @@ export default function App() {
             <div className="topbar__run">
               {run ? (
                 <>
-                  <span className="topbar__run-label">Run I</span>
-                  <span className="vrule" aria-hidden="true" />
                   <DayPips days={run.days} currentIndex={labelDay?.index} label={dayLabel} />
                   <span className="micro">{dayLabel}</span>
                 </>

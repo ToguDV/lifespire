@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { StyleSheet, View } from 'react-native'
-import { RUN_DAYS, XP_PER_LEVEL, xpIntoLevel, xpToNextLevel } from '@lifespire/core'
+import { RUN_DAYS, XP_PER_LEVEL, xpIntoLevel } from '@lifespire/core'
 import {
   buildCollection,
   collectionFilterOptions,
@@ -14,7 +14,6 @@ import { useTheme } from '../theme/ThemeProvider'
 import { fonts, radius, space } from '../theme/tokens'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
-import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
 import { LootCard } from '../components/LootCard'
 import { Panel, PanelHead, ScreenHead } from '../components/Panel'
@@ -47,30 +46,24 @@ export function ProfileScreen() {
           kicker="Profile"
           title="The Reliquary"
           subtitle="Your level, gold and collection appear after onboarding."
-        />
-        <EmptyState
-          icon="gem"
-          title="No profile yet"
-          action={
-            <Button onPress={() => navigate({ name: 'onboarding' })}>Begin the journey</Button>
+          aside={
+            <Button small onPress={() => navigate({ name: 'onboarding' })}>
+              Begin the journey
+            </Button>
           }
-        >
-          The catalogue below is complete from the start. Relics are revealed as they are found
-          during a run.
-        </EmptyState>
+        />
       </Screen>
     )
   }
 
   const xpNow = xpIntoLevel(profile.xp)
-  const xpLeft = xpToNextLevel(profile.xp)
 
   return (
     <Screen>
       <ScreenHead
-        kicker="Profile · The Reliquary"
+        kicker="Profile"
         title="The Reliquary"
-        subtitle="Tokens found along the climb. No powers, only proof."
+        subtitle="Tokens found along the climb."
         aside={
           <Chip icon="gem">
             {owned} of {collection.length}
@@ -101,9 +94,6 @@ export function ProfileScreen() {
             <View style={styles.xpBar}>
               <Progress value={xpNow} max={XP_PER_LEVEL} height={4} label="Experience in this level" />
             </View>
-            <Text variant="caption" tone="soft" style={styles.xpLeft}>
-              {xpLeft} XP to level {profile.level + 1}
-            </Text>
           </View>
         </View>
         <View style={[styles.stats, { borderColor: colors.hairline }]}>
@@ -115,60 +105,35 @@ export function ProfileScreen() {
         </View>
       </Panel>
 
-      <View style={styles.collectionBlock}>
-        <View style={styles.collectionHead}>
-          <Text variant="headingLg">Found so far</Text>
-          <Text variant="micro" tone="muted">
-            {owned} of {collection.length}
-          </Text>
-        </View>
-        <SegmentedControl
-          label="Filter relics by rarity"
-          value={filter}
-          onChange={setFilter}
-          options={options.map((option) => ({
-            value: option.filter,
-            label: option.label,
-            detail: `${option.owned}/${option.total}`,
-            accessibilityLabel: `${option.label}: ${option.owned} of ${option.total} found`,
-          }))}
-        />
-        <Text
-          variant="micro"
-          tone="muted"
-          accessibilityLiveRegion="polite"
-          style={styles.collectionStatus}
-        >
-          Showing {visible.length} relics · {owned} found
-        </Text>
-        <View style={styles.collection}>
-          {visible.map((entry) => (
-            <View key={entry.catalog.id} style={styles.lootCell}>
-              <LootCard entry={entry.catalog} owned={entry.owned ?? undefined} detailed />
-            </View>
-          ))}
-        </View>
+      <SegmentedControl
+        label="Filter relics by rarity"
+        value={filter}
+        onChange={setFilter}
+        options={options.map((option) => ({
+          value: option.filter,
+          label: option.label,
+          detail: `${option.owned}/${option.total}`,
+          accessibilityLabel: `${option.label}: ${option.owned} of ${option.total} found`,
+        }))}
+      />
+
+      <View style={styles.collection}>
+        {visible.map((entry) => (
+          <View key={entry.catalog.id} style={styles.lootCell}>
+            <LootCard entry={entry.catalog} owned={entry.owned ?? undefined} detailed />
+          </View>
+        ))}
       </View>
 
-      <Panel>
-        <PanelHead
-          label="Duplicate conversions"
-          aside={
-            duplicates.length > 0 ? (
-              <Chip variant="quiet">{`+${duplicateGold} gold`}</Chip>
-            ) : undefined
-          }
-        />
-        {!run ? (
+      {duplicates.length > 0 ? (
+        <Panel>
+          <PanelHead
+            label="Duplicate conversions"
+            aside={<Chip variant="quiet">{`+${duplicateGold} gold`}</Chip>}
+          />
           <Text variant="bodySm" tone="muted">
-            Duplicate history starts with a run. Past runs are not kept in this save.
+            Duplicates become gold.
           </Text>
-        ) : duplicates.length === 0 ? (
-          <Text variant="bodySm" tone="muted">
-            No duplicate relics have been converted in this run yet. A second copy of a relic
-            becomes gold when it is found.
-          </Text>
-        ) : (
           <View style={styles.duplicates}>
             {duplicates.map((conversion) => (
               <View
@@ -190,8 +155,8 @@ export function ProfileScreen() {
               </View>
             ))}
           </View>
-        )}
-      </Panel>
+        </Panel>
+      ) : null}
     </Screen>
   )
 }
@@ -241,25 +206,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   xpBar: { marginTop: 5 },
-  xpLeft: { marginTop: 6 },
   stats: {
     borderTopWidth: StyleSheet.hairlineWidth,
     marginTop: space.md,
     paddingTop: space.sm,
   },
-  collectionBlock: { gap: space.sm },
-  collectionHead: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: space.sm,
-    marginTop: space.xs,
-  },
-  collectionStatus: { paddingHorizontal: 2, paddingBottom: space.xs },
   collection: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: space.xs },
   // 47% cells match the summary loot grid; 10px gutter keeps web parity.
   lootCell: { flexBasis: '47%', flexGrow: 1, maxWidth: '48%' },
-  duplicates: { gap: space.sm },
+  duplicates: { gap: space.sm, marginTop: space.sm },
   duplicate: {
     flexDirection: 'row',
     alignItems: 'center',

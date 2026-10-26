@@ -1,5 +1,5 @@
-import type { Day, GameMap, MapNode, Run } from '@lifespire/core'
-import { deriveMapDayState, railFoot, railLedeCopy } from './mapState'
+import type { Day, GameMap, Run } from '@lifespire/core'
+import { deriveMapDayState } from './mapState'
 
 const map = { id: 'map_1' } as GameMap
 
@@ -84,41 +84,5 @@ describe('map day state', () => {
     expect(state.canOpen).toBe(true)
     expect(state.hasMap).toBe(false)
     expect(state.closedRun).toBe(false)
-  })
-})
-
-describe('map rail copy', () => {
-  const day = makeDay({ id: 'day_0', index: 0, date: '2026-10-24', status: 'in_progress', map })
-  const run = makeRun([day])
-
-  it('distinguishes no run, sealed, locked, drawn and veiled days', () => {
-    expect(railLedeCopy(null, null, null)).toContain('Start a run')
-    expect(
-      railLedeCopy(
-        makeRun(
-          [makeDay({ id: 'd', index: 0, date: '2026-10-24', status: 'completed' })],
-          'closed',
-        ),
-        day,
-        null,
-      ),
-    ).toContain('run summary')
-    expect(
-      railLedeCopy(run, makeDay({ id: 'd', index: 0, date: '2026-10-24', status: 'completed' }), null),
-    ).toContain('day summary')
-    expect(
-      railLedeCopy(run, makeDay({ id: 'd', index: 0, date: '2026-10-24', status: 'locked' }), null),
-    ).toContain('has not begun')
-    expect(railLedeCopy(run, day, map)).toContain('No step is open')
-    expect(railLedeCopy(run, day, null)).toContain('Open today’s path')
-  })
-
-  it('explains the foot state with and without a current step', () => {
-    const current = { id: 'node_1' } as MapNode
-    expect(railFoot(run, day, current)).toContain('stays current')
-    expect(railFoot(run, day, null)).toContain('Locked steps')
-    expect(railFoot(run, { ...day, status: 'completed' }, current)).toContain(
-      'No step can be chosen',
-    )
   })
 })

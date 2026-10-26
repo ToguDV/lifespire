@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { finishDesktopSignOut } from '../../sync/api'
 import { useAuthStore } from '../../sync/authStore'
 import { useSyncStore } from '../../sync/setup'
-import { Button, Panel, PanelHead } from '../components'
+import { Button } from '../components'
 
 function extractToken(raw: string): string {
   const trimmed = raw.trim()
@@ -15,7 +15,6 @@ function extractToken(raw: string): string {
 }
 
 export function SyncPanel() {
-  const status = useSyncStore((state) => state.status)
   const serverVersion = useSyncStore((state) => state.serverVersion)
   const lastAutoMergeAt = useSyncStore((state) => state.lastAutoMergeAt)
   const lastError = useSyncStore((state) => state.lastError)
@@ -98,8 +97,7 @@ export function SyncPanel() {
   }
 
   return (
-    <Panel pad>
-      <PanelHead label="Sync" aside={<span className="chip chip--quiet">{status}</span>} />
+    <>
       {signOutError ? (
         <p className="field-error" role="alert">
           {signOutError}
@@ -282,6 +280,6 @@ export function SyncPanel() {
           </p>
         </div>
       )}
-    </Panel>
+    </>
   )
 }

@@ -5,15 +5,15 @@ import { MAX_GOALS } from '@lifespire/core'
 import { EFFORT_LABEL } from '@lifespire/app-core/ui/format'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
-import { AimRow } from '../components/AimRow'
 import { Button } from '../components/Button'
+import { Chip } from '../components/Chip'
 import { Dialog } from '../components/Dialog'
 import { EffortDots } from '../components/EffortDots'
-import { EmptyState } from '../components/EmptyState'
 import { GoalFormDialog } from '../components/GoalFormDialog'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Panel, PanelHead, ScreenHead } from '../components/Panel'
+import { Pips } from '../components/Progress'
 import { Screen } from '../components/Screen'
 import { TaskFormDialog } from '../components/TaskFormDialog'
 import { Text } from '../components/Text'
@@ -23,13 +23,6 @@ interface ArchiveState {
   type: 'goal' | 'task'
   id: string
   title: string
-}
-
-interface WeekRow {
-  goalId: string
-  title: string
-  progress: number
-  target: number
 }
 
 export function GoalsScreen() {
@@ -59,33 +52,21 @@ export function GoalsScreen() {
   const archivedTasks = document.tasks.filter((task) => !task.active)
   const archivedCount = archivedGoals.length + archivedTasks.length
 
-  const weekRows: WeekRow[] = run
-    ? run.objectives.map((objective) => ({
-        goalId: objective.goalId,
-        title: objective.goalTitle,
-        progress: objective.progress,
-        target: objective.target,
-      }))
-    : activeGoals.map((goal) => ({
-        goalId: goal.id,
-        title: goal.title,
-        progress: 0,
-        target: goal.weeklyObjective,
-      }))
+  const totalTarget = run
+    ? run.objectives.reduce((total, objective) => total + objective.target, 0)
+    : activeGoals.reduce((total, goal) => total + goal.weeklyObjective, 0)
+  const totalProgress = run
+    ? run.objectives.reduce(
+        (total, objective) => total + Math.min(objective.progress, objective.target),
+        0,
+      )
+    : 0
 
-  const totalTarget = weekRows.reduce((total, row) => total + row.target, 0)
-  const totalProgress = weekRows.reduce(
-    (total, row) => total + Math.min(row.progress, row.target),
-    0,
-  )
-
-  const goalsLabel = `${activeGoals.length} active ${activeGoals.length === 1 ? 'goal' : 'goals'}`
-  const subtitle =
-    activeGoals.length === 0
-      ? 'No active goals yet. Add one to shape the next run.'
-      : run?.status === 'active'
-        ? `${goalsLabel} shape maps from now on. This week's targets stay fixed.`
-        : `${goalsLabel} · ${activeTasks.length} active routines.`
+  const kicker = run
+    ? run.status === 'active'
+      ? 'The week'
+      : 'The week · Sealed'
+    : 'Profile · Goals'
 
   const openGoalDialog = (goal: Goal | null) => {
     setGoalError(null)
@@ -158,7 +139,17 @@ export function GoalsScreen() {
 
   return (
     <Screen>
-      <ScreenHead kicker="The week's shape" title="Goals" subtitle={subtitle} />
+      <ScreenHead kicker={kicker} title="Goals" />
+
+      <View style={styles.headMeta}>
+        <Chip variant="quiet">
+          {`${activeGoals.length} ${activeGoals.length === 1 ? 'goal' : 'goals'} · ${activeTasks.length} ${activeTasks.length === 1 ? 'routine' : 'routines'}`}
+        </Chip>
+        <Text variant="micro" tone="deep">
+          {`${totalProgress} / ${totalTarget} this week`}
+        </Text>
+      </View>
+
       <View style={styles.headerActions}>
         <Button
           small
@@ -176,23 +167,36 @@ export function GoalsScreen() {
       </View>
 
       {activeGoals.length === 0 ? (
-        <EmptyState
-          icon="banner"
-          kicker="The goals"
-          title="No active goals yet."
-          action={
+        <Panel>
+          <View style={styles.empty}>
+            <View style={[styles.emptyRing, { backgroundColor: colors.accentWash }]}>
+              <View
+                style={[
+                  styles.emptyMedallion,
+                  { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+                ]}
+              >
+                <Icon name="banner" size={24} color={colors.accentDeep} />
+              </View>
+            </View>
+            <Text variant="bodySm" tone="muted">
+              No active goals yet.
+            </Text>
             <Button icon="plus" onPress={() => openGoalDialog(null)}>
               Add your first goal
             </Button>
-          }
-        >
-          Add a goal and at least four routines before the next run. Maps already drawn keep
-          their original steps.
-        </EmptyState>
+          </View>
+        </Panel>
       ) : (
         <View style={styles.goalList}>
           {activeGoals.map((goal) => {
             const routines = activeTasks.filter((task) => task.goalId === goal.id)
+            const objective = run?.objectives.find(
+              (candidate) => candidate.goalId === goal.id,
+            )
+            const progress = objective
+              ? Math.min(objective.progress, objective.target)
+              : 0
             return (
               <Panel key={goal.id}>
                 <View style={styles.goalHead}>
@@ -207,8 +211,10 @@ export function GoalsScreen() {
                   <View style={styles.goalBody}>
                     <Text variant="headingMd">{goal.title}</Text>
                     <Text variant="caption" tone="muted">
-                      {goal.category.trim() || 'General'} · weekly target {goal.weeklyObjective} ·{' '}
-                      {routines.length} {routines.length === 1 ? 'routine' : 'routines'}
+                      {goal.category.trim() || 'General'} ·{' '}
+                      {objective
+                        ? `this week ${objective.target}`
+                        : `${goal.weeklyObjective} each week next run`}
                     </Text>
                   </View>
                   <IconButton
@@ -222,6 +228,25 @@ export function GoalsScreen() {
                     onPress={() => requestArchive('goal', goal.id, goal.title)}
                   />
                 </View>
+
+                <View style={styles.goalProgress}>
+                  {objective ? (
+                    <>
+                      <Pips total={objective.target} filled={progress} />
+                      <Text variant="caption" tone="muted">
+                        {`${progress} / ${objective.target}`}
+                      </Text>
+                    </>
+                  ) : run ? (
+                    <Chip variant="quiet">Not in this run</Chip>
+                  ) : (
+                    <>
+                      <Pips total={goal.weeklyObjective} filled={0} />
+                      <Text variant="caption" tone="muted">{`0 / ${goal.weeklyObjective}`}</Text>
+                    </>
+                  )}
+                </View>
+
                 <View style={styles.routines}>
                   {routines.length === 0 ? (
                     <Text variant="caption" tone="soft">
@@ -276,42 +301,6 @@ export function GoalsScreen() {
         </View>
       )}
 
-      <Panel>
-        <PanelHead
-          label="Week at a glance"
-          aside={
-            <Text variant="micro" tone="deep">
-              {totalProgress} / {totalTarget}
-            </Text>
-          }
-        />
-        {weekRows.length === 0 ? (
-          <Text variant="bodySm" tone="muted">
-            No goals to show.
-          </Text>
-        ) : (
-          <View style={styles.weekList}>
-            {weekRows.map((row) => {
-              const goal = document.goals.find((candidate) => candidate.id === row.goalId)
-              return (
-                <AimRow
-                  key={row.goalId}
-                  icon={goal?.icon ?? 'banner'}
-                  title={row.title}
-                  progress={row.progress}
-                  target={row.target}
-                />
-              )
-            })}
-          </View>
-        )}
-        {run ? (
-          <Text variant="caption" tone="soft" style={styles.weekNote}>
-            These targets were fixed when the run began. Editing goals shapes the next run.
-          </Text>
-        ) : null}
-      </Panel>
-
       {archivedCount > 0 ? (
         <Panel>
           <Pressable
@@ -326,7 +315,7 @@ export function GoalsScreen() {
             onPress={() => setShowArchived((value) => !value)}
           >
             <PanelHead
-              label={`Archived · ${archivedCount}`}
+              label={`Archived (${archivedCount})`}
               aside={
                 <View style={styles.archivedToggle}>
                   <Text variant="caption" tone="muted">
@@ -342,8 +331,7 @@ export function GoalsScreen() {
           {showArchived ? (
             <View style={styles.archivedBody}>
               <Text variant="bodySm" tone="muted">
-                Archived content never changes a map that was already drawn. Restoring it only
-                affects future maps.
+                Restoring only affects future maps.
               </Text>
 
               {archivedGoals.length > 0 ? (
@@ -422,14 +410,6 @@ export function GoalsScreen() {
         </Panel>
       ) : null}
 
-      <View style={styles.quietNote}>
-        <Icon name="quill" size={15} color={colors.inkSoft} />
-        <Text variant="caption" tone="soft" style={styles.quietNoteText}>
-          Goals and routines can be edited at any time. A map already drawn keeps its original
-          steps and rewards.
-        </Text>
-      </View>
-
       <GoalFormDialog
         visible={goalDialog !== undefined}
         goal={goalDialog ?? null}
@@ -494,17 +474,19 @@ export function GoalsScreen() {
               {archiveError}
             </Text>
           </View>
-        ) : (
-          <Text variant="bodySm" tone="muted">
-            Archived content stays in your saved file and can be restored from the goals screen.
-          </Text>
-        )}
+        ) : null}
       </Dialog>
     </Screen>
   )
 }
 
 const styles = StyleSheet.create({
+  headMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: space.sm,
+  },
   headerActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.xs },
   goalList: { gap: space.md },
   goalHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
@@ -517,6 +499,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   goalBody: { flex: 1, minWidth: 0, gap: 2 },
+  goalProgress: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.xs },
   routines: { gap: space.xs, marginTop: space.sm },
   routine: {
     flexDirection: 'row',
@@ -534,16 +517,27 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
   },
   routineBody: { flex: 1, minWidth: 0, gap: 2 },
-  weekList: { gap: 2 },
-  weekNote: { marginTop: space.sm },
+  empty: { alignItems: 'center', gap: 9, paddingVertical: space.lg },
+  emptyRing: {
+    width: 68,
+    height: 68,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyMedallion: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   archivedToggle: { flexDirection: 'row', alignItems: 'center', gap: space.xxs },
   chevronOpen: { transform: [{ rotate: '90deg' }] },
   archivedBody: { gap: space.md },
   archivedGroup: { gap: space.sm },
   archivedRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  // 6px icon-text rhythm; no token covers it.
-  quietNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  quietNoteText: { flex: 1 },
   alert: {
     gap: space.xxs,
     borderWidth: 1,
