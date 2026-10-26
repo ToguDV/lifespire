@@ -140,7 +140,7 @@ apps/web/src/
 apps/api/      NestJS sync API (closed-beta; see docs/BACKEND.md)
 packages/core/ pure domain shared with the API (extracting; see docs/adr/0003-monorepo.md)
 packages/api-client/ typed fetch client for the sync API
-infra/         prod compose (Caddy + API + Postgres), backup script
+infra/         prod compose (API + Postgres; opt-in Caddy overlay), backup script
 ```
 
 Maps are rendered with custom SVG. No graph library, no UI kit.

@@ -21,9 +21,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Loopback-only by default: your own reverse proxy (Nginx Proxy Manager,
+    # nginx, Traefik, Cloudflare Tunnel, …) reaches the API here without
+    # this compose ever touching host ports 80/443. Override with
+    # API_BIND=0.0.0.0 (or your LAN IP) when the proxy runs on another host.
+    ports:
+      - '${API_BIND:-127.0.0.1}:${API_PORT:-3000}:3000'
     environment:
       NODE_ENV: production
       PORT: 3000
+      WEB_DIST_DIR: /srv/web
       DATABASE_URL: postgresql://${POSTGRES_USER:-lifespire}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lifespire}
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       JWT_ISSUER: ${JWT_ISSUER:-lifespire}
@@ -42,26 +49,8 @@ services:
       timeout: 5s
       retries: 3
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - api
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - ../apps/web/dist:/srv/web:ro
-    networks:
-      - internal
+networks:
+  internal:
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
-
-networks:
-  internal:

@@ -15,8 +15,9 @@ import { checkTotp, createTotpSecret, totpUri } from './totp';
 
 /**
  * `__Secure-` cookies require the Secure attribute, which browsers reject
- * over http — including http://localhost. Production serves HTTPS behind
- * Caddy, so only it uses the prefixed name; dev/test use a plain name.
+ * over http — including http://localhost. Production serves HTTPS behind the
+ * edge proxy (Caddy or the operator's own), so only it uses the prefixed
+ * name; dev/test use a plain name.
  */
 export const REFRESH_COOKIE =
   process.env.NODE_ENV === 'production' ? '__Secure-ls_rt' : 'ls_rt_dev';

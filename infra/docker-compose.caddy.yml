@@ -1,0 +1,37 @@
+# LifeSpire — opt-in Caddy edge proxy (automatic HTTPS).
+# For operators WITHOUT their own reverse proxy. The API already serves the
+# web build itself, so this overlay only terminates TLS and forwards
+# everything to the API; it no longer serves static files.
+#
+# Usage (DOMAIN + ACME_EMAIL come from your .env):
+#   docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.caddy.yml up -d --build
+#
+# If you run your own proxy (Nginx Proxy Manager, nginx, Traefik, …), skip
+# this file and point it at the API instead — see docs/BACKEND.md §6.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - '80:80'
+      - '443:443'
+    # Caddy reads {$DOMAIN} / {$ACME_EMAIL} from its own environment
+    # (interpolation happens inside the container, not in compose).
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN for the Caddy overlay}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@example.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - internal
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:

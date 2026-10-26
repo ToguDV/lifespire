@@ -67,8 +67,8 @@ export class SyncController {
    * sent here; the client pulls it through GET /v1/sync with its ETag.
    */
   @Get('watch')
-  // The shared IP bucket would count every client behind Caddy; the service
-  // enforces per-user concurrent and per-minute caps instead.
+  // The shared IP bucket would count every client behind the edge proxy; the
+  // service enforces per-user concurrent and per-minute caps instead.
   @SkipThrottle()
   async watchFeed(
     @CurrentUser() user: { sub: string },

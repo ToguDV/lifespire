@@ -1,0 +1,16 @@
+# Never bake host state or secrets into the image build context.
+node_modules
+.pnpm-store
+.pnpm-state
+dist
+dist-ssr
+dist-root-owned
+.git
+test-results
+playwright-report
+.playwright-mcp
+apps/desktop/release
+*.log
+.env
+.env.*
+!.env.example

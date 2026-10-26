@@ -45,7 +45,8 @@ the app intentionally has no custom install button.
 A phone cannot install the app from a plain `http://<LAN-IP>:4173` origin.
 Installation and service workers require **HTTPS** (or `localhost` on the same
 device). Serving this build from a public HTTPS origin is covered by the VPS
-setup in `infra/` (Caddy terminates TLS for the web build and the sync API);
+setup in `infra/` (TLS terminated at the edge — the opt-in Caddy overlay or
+your own reverse proxy — in front of the sync API);
 see `docs/BACKEND.md` §6. For a local demo, use a trusted HTTPS tunnel or a
 local certificate; do not treat that as a production deployment.
 
