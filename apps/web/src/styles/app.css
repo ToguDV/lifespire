@@ -2688,6 +2688,10 @@ html:not([data-theme]) .theme-glyph--sun {
   background: var(--surface-raised);
 }
 
+.node-facts--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .node-fact {
   display: flex;
   flex-direction: column;

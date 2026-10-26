@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BOSS_CLOSING_BONUS, WHEEL_SECTORS } from '../../domain/balance'
+import { WHEEL_SECTORS } from '../../domain/balance'
 import {
   currentDay,
   nodeProgress,
@@ -27,23 +27,21 @@ import {
   wheelSectorDegrees,
 } from '../lib/wheel'
 import { playWheelReveal, playWheelTick } from '../lib/wheelSound'
-import {
-  effortNote,
-  nodeFlavor,
-  nodeTitle,
-  nodeTypeLine,
-} from '../lib/nodeCopy'
+import { effortNote, nodeFlavor, nodeTitle } from '../lib/nodeCopy'
 
 function NodeSkipNote({ boss }: { boss: boolean }) {
+  if (boss) {
+    return (
+      <p className="node-note" id="node-skip-note">
+        <Icon name="crown" />
+        <span>Skipping closes the day without the closing bonus.</span>
+      </p>
+    )
+  }
   return (
-    <p className="node-skip-note" id="node-skip-note">
-      <Icon name="lock" />
-      <span>
-        {boss
-          ? 'Skipping the boss closes the day without the closing bonus.'
-          : 'Skipping grants no XP, gold, loot or weekly progress; it only advances the path.'}
-      </span>
-    </p>
+    <span className="sr-only" id="node-skip-note">
+      Skipping grants no rewards; it only advances the path.
+    </span>
   )
 }
 
@@ -59,83 +57,13 @@ function AimProgress({ run, node }: { run: Run; node: MapNode }) {
     <div className="node-aim">
       <div className="node-aim__head">
         <strong>{node.task.goalTitle}</strong>
-        <span>
-          {before} of {target} this week
-        </span>
       </div>
       {target > 0 ? <Pips value={before} max={target} label={`${node.task.goalTitle}: ${before} of ${target} complete`} /> : null}
       <p className="node-aim__after">
         <Icon name={met ? 'check' : 'plus'} />
-        {met
-          ? `Already met · ${before} of ${target} this week`
-          : `After this step · ${after} of ${target} this week`}
+        {met ? 'Target met' : `After this step: ${after} of ${target}`}
       </p>
     </div>
-  )
-}
-
-function NodeNotes({ node }: { node: MapNode }) {
-  if (node.type === 'rest') {
-    return (
-      <p className="node-note">
-        <Icon name="campfire" />
-        <span>
-          No task is attached. This rest grants {node.rewards.xp} XP and does not advance the
-          week.
-        </span>
-      </p>
-    )
-  }
-  if (node.type === 'treasure') {
-    return (
-      <p className="node-note">
-        <Icon name="chest" />
-        <span>
-          No task is attached. This cache grants {node.rewards.gold} gold and{' '}
-          {node.rewards.lootRolls} loot roll; weekly progress is unchanged.
-        </span>
-      </p>
-    )
-  }
-  if (node.type === 'wheel') {
-    return (
-      <p className="node-note">
-        <Icon name="wheel" />
-        <span>
-          A turn of the wheel: it may ask for a task (more likely for goals that are still
-          pending), or grant gold, XP, or a rest. The result is revealed when you keep the
-          step.
-        </span>
-      </p>
-    )
-  }
-  if (node.type === 'elite') {
-    return (
-      <p className="node-note">
-        <Icon name="elite" />
-        <span>
-          Elite rewards are doubled and include a loot roll. Weekly progress still advances by
-          one.
-        </span>
-      </p>
-    )
-  }
-  if (node.type === 'boss') {
-    return (
-      <p className="node-note">
-        <Icon name="crown" />
-        <span>
-          Completing the boss closes the day and grants the closing bonus shown below. Skipping
-          it closes the day without that bonus.
-        </span>
-      </p>
-    )
-  }
-  return (
-    <p className="node-note">
-      <Icon name="check" />
-      <span>Rewards land the moment you mark the step complete.</span>
-    </p>
   )
 }
 
@@ -406,9 +334,7 @@ export function NodeScreen() {
             <div className="node-medallion">
               <Icon name={goalCrest ?? NODE_TYPE_ICON[node.type]} />
             </div>
-            <span className="micro">
-              {isWheel ? 'Wheel node' : nodeTypeLine(node)}
-            </span>
+            <span className="micro">{NODE_TYPE_LABEL[node.type]} node</span>
             <h1 id="node-title">{nodeTitle(node)}</h1>
             <p className="node-flavor">{nodeFlavor(node)}</p>
           </header>
@@ -423,34 +349,6 @@ export function NodeScreen() {
                     ? NODE_TYPE_LABEL[node.type]
                     : `${NODE_TYPE_LABEL[node.type]} · no task`}
               </span>
-
-              {weeklyProgress > 0 ? (
-                <span className="chip">
-                  <Icon name="plus" />
-                  +1 toward weekly target
-                </span>
-              ) : (
-                <span className="chip chip--quiet">No weekly progress</span>
-              )}
-
-              {lootRolls > 0 ? (
-                <span className="chip">
-                  <Icon name="gem" />
-                  {lootRolls} loot roll
-                </span>
-              ) : null}
-
-              {node.type === 'boss' ? (
-                <span className="chip chip--quiet">
-                  <Icon name="crown" />
-                  Closing bonus
-                </span>
-              ) : null}
-
-              <span className="chip chip--quiet">
-                <Icon name="check" />
-                Chosen
-              </span>
             </div>
 
             <div className="node-facts">
@@ -464,7 +362,7 @@ export function NodeScreen() {
 
               {node.type === 'wheel' ? (
                 <div className="node-fact">
-                  <span className="micro">Outcome</span>
+                  <span className="micro">Reward</span>
                   <strong>
                     <Icon name="wheel" />
                     Surprise
@@ -473,7 +371,7 @@ export function NodeScreen() {
                 </div>
               ) : node.type === 'treasure' ? (
                 <div className="node-fact">
-                  <span className="micro">Fortune</span>
+                  <span className="micro">Reward</span>
                   <strong>
                     <Icon name="coin" />
                     +{node.rewards.gold}
@@ -482,7 +380,7 @@ export function NodeScreen() {
                 </div>
               ) : (
                 <div className="node-fact">
-                  <span className="micro">Experience</span>
+                  <span className="micro">Reward</span>
                   <strong>
                     <Icon name="star" />
                     +{node.rewards.xp}
@@ -490,6 +388,7 @@ export function NodeScreen() {
                   <small>
                     {node.rewards.gold > 0 ? `+${node.rewards.gold} gold` : 'A small recovery'}
                     {lootRolls > 0 ? ` · ${lootRolls} loot roll` : ''}
+                    {node.type === 'boss' ? ' (includes closing bonus)' : ''}
                   </small>
                 </div>
               )}
@@ -511,11 +410,16 @@ export function NodeScreen() {
               ) : (
                 <p className="node-aim-empty">
                   <Icon name="banner" />
-                  <span>
-                    This step is outside the weekly goals recorded at the start of the run.
-                  </span>
+                  <span>This step is outside this run's goals.</span>
                 </p>
               )
+            ) : null}
+
+            {isWheel && !revealed ? (
+              <p className="node-note">
+                <Icon name="wheel" />
+                <span>Spin to reveal: task, gold, XP or rest.</span>
+              </p>
             ) : null}
 
             {isWheel ? (
@@ -595,7 +499,7 @@ export function NodeScreen() {
                     <p className="wheel__result-reward">
                       {rolledOutcome.outcome === 'task'
                         ? `+${rolledOutcome.xp} XP · +${rolledOutcome.gold} gold${
-                            rolledOutcome.progress > 0 ? ' · +1 toward weekly target' : ''
+                            rolledOutcome.progress > 0 ? ' · +1 goal' : ''
                           }`
                         : rolledOutcome.outcome === 'gold'
                           ? `+${rolledOutcome.gold} gold`
@@ -607,29 +511,6 @@ export function NodeScreen() {
                 ) : null}
               </div>
             ) : null}
-
-            <NodeNotes node={node} />
-
-            {node.type === 'boss' ? (
-              <div className="node-bonus">
-                <span className="micro">Closing bonus</span>
-                <strong>
-                  +{BOSS_CLOSING_BONUS.xp} XP · +{BOSS_CLOSING_BONUS.gold} gold
-                </strong>
-                <p>
-                  Already included in the boss total above. Granted only when the boss is
-                  completed.
-                </p>
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              className="text-link node-goals-link"
-              onClick={() => navigate({ name: 'goals' })}
-            >
-              All weekly goals
-            </button>
 
             {isWheel && revealed ? null : <NodeSkipNote boss={node.type === 'boss'} />}
 
