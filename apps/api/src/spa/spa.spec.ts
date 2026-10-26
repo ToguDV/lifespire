@@ -5,10 +5,11 @@ import { tmpdir } from 'node:os';
 import { isAbsolute, join, relative } from 'node:path';
 import request from 'supertest';
 import { afterEach, describe, expect, it } from 'vitest';
+import { createEdgeMiddleware, API_BYPASS_PREFIXES } from '../http/edge';
 import {
-  API_BYPASS_PREFIXES,
   createSpaMiddleware,
   resolveSpaDistDir,
+  resolveWebBuild,
   SPA_SECURITY_HEADERS,
 } from './spa';
 
@@ -34,14 +35,14 @@ function makeDist(extraFiles: Record<string, string> = {}): string {
   return dir;
 }
 
-/** Bare app: the SPA middleware plus a downstream handler that mimics Nest (records path, 404s). */
+/** Bare app: the production middleware order (edge → optional SPA) plus a
+ * downstream handler that mimics Nest (records path, 404s). */
 function makeApp(distDir: string | null) {
   const app = express();
   const seen: string[] = [];
+  app.use(createEdgeMiddleware());
   if (distDir) {
-    const middleware = createSpaMiddleware(distDir);
-    expect(middleware).not.toBeNull();
-    app.use(middleware!);
+    app.use(createSpaMiddleware(distDir));
   }
   app.use((req, res) => {
     seen.push(req.path);
@@ -77,11 +78,30 @@ describe('resolveSpaDistDir', () => {
   });
 });
 
-describe('createSpaMiddleware', () => {
-  it('returns null when the dist directory is invalid', () => {
-    expect(createSpaMiddleware('/does/not/exist')).toBeNull();
+describe('resolveWebBuild', () => {
+  it('disables the SPA for unset, empty or whitespace values', () => {
+    expect(resolveWebBuild(undefined, 'development')).toEqual({ kind: 'disabled' });
+    expect(resolveWebBuild('', 'development')).toEqual({ kind: 'disabled' });
+    expect(resolveWebBuild('   ', 'production')).toEqual({ kind: 'disabled' });
   });
 
+  it('returns a usable build resolved to an absolute path', () => {
+    const dir = makeDist();
+    expect(resolveWebBuild(dir, 'production')).toEqual({ kind: 'ready', dir });
+  });
+
+  it('reports an unusable build in development', () => {
+    const result = resolveWebBuild('/does/not/exist', 'development');
+    expect(result.kind).toBe('invalid');
+    if (result.kind === 'invalid') expect(result.error).toContain('WEB_DIST_DIR');
+  });
+
+  it('fails fast for an unusable build in production', () => {
+    expect(() => resolveWebBuild('/does/not/exist', 'production')).toThrow(/WEB_DIST_DIR/);
+  });
+});
+
+describe('createSpaMiddleware', () => {
   it('serves an existing asset with the edge security headers', async () => {
     const dir = makeDist({ 'assets/app.css': 'body{}' });
     const { app } = makeApp(dir);
@@ -91,6 +111,7 @@ describe('createSpaMiddleware', () => {
     expect(res.headers['content-security-policy']).toBe(EXPECTED_CSP);
     expect(res.headers['referrer-policy']).toBe('no-referrer');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['x-frame-options']).toBe('DENY');
   });
 
   it('falls back to index.html for unknown SPA routes', async () => {
@@ -128,6 +149,14 @@ describe('createSpaMiddleware', () => {
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ status: 404, path: '/v1/me' });
     expect(seen).toEqual(['/v1/me']);
+  });
+
+  it('serves the SPA for the exact /api prefix (no redirect)', async () => {
+    const dir = makeDist();
+    const { app } = makeApp(dir);
+    const res = await request(app).get('/api');
+    expect(res.status).toBe(200);
+    expect(res.text).toBe(INDEX_HTML);
   });
 
   it('falls back to index.html for other legacy /api/* paths', async () => {
@@ -182,12 +211,19 @@ describe('createSpaMiddleware', () => {
     expect(res.status).toBe(200);
   });
 
-  it('never serves dotfiles; they fall back instead', async () => {
+  it('returns 404 for a missing file with an extension instead of HTML', async () => {
+    const { app, seen } = makeApp(makeDist());
+    const res = await request(app).get('/assets/gone.js');
+    expect(res.status).toBe(404);
+    expect(res.text).not.toContain('<!doctype html>');
+    expect(seen).toEqual(['/assets/gone.js']);
+  });
+
+  it('never serves dotfiles', async () => {
     const dir = makeDist({ '.secret': 'top-secret' });
     const { app } = makeApp(dir);
     const res = await request(app).get('/.secret');
-    expect(res.status).toBe(200);
-    expect(res.text).toBe(INDEX_HTML);
+    expect(res.status).toBe(404);
     expect(res.text).not.toContain('top-secret');
   });
 
@@ -196,21 +232,22 @@ describe('createSpaMiddleware', () => {
     const { app } = makeApp(dir);
     const api = await request(app).get('/v1/me');
     expect(api.headers['cache-control']).toBe('no-store');
-    // express.static sends `public, max-age=0` (always revalidate): cacheable
-    // but never stale. What matters is it never says no-store like the API.
+    // Hashed Vite assets are immutable; index.html revalidates.
+    const asset = await request(app).get('/assets/app.css');
+    expect(asset.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     const page = await request(app).get('/');
     expect(page.headers['cache-control']).not.toContain('no-store');
-    const asset = await request(app).get('/assets/app.css');
-    expect(asset.headers['cache-control']).not.toContain('no-store');
+    expect(page.headers['cache-control']).not.toContain('immutable');
+    const fallback = await request(app).get('/goals/weekly');
+    expect(fallback.headers['cache-control']).not.toContain('no-store');
   });
 
   it('keeps the exact security headers when helmet runs first', async () => {
     const dir = makeDist();
-    const middleware = createSpaMiddleware(dir);
-    expect(middleware).not.toBeNull();
     const app = express();
     app.use(helmet());
-    app.use(middleware!);
+    app.use(createEdgeMiddleware());
+    app.use(createSpaMiddleware(dir));
     app.use((_req, res) => {
       res.status(404).json({});
     });
@@ -220,6 +257,7 @@ describe('createSpaMiddleware', () => {
     expect(res.headers['content-security-policy']).toBe(EXPECTED_CSP);
     expect(res.headers['referrer-policy']).toBe('no-referrer');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['x-frame-options']).toBe('DENY');
   });
 });
 
@@ -229,6 +267,7 @@ describe('SPA_SECURITY_HEADERS', () => {
       'Content-Security-Policy': EXPECTED_CSP,
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
     });
   });
 });

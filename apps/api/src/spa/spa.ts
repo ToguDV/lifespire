@@ -1,19 +1,13 @@
 import express from 'express';
-import type { NextFunction, Request, RequestHandler, Response } from 'express';
+import type { RequestHandler, Response } from 'express';
 import { statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-
-/**
- * Paths owned by the API. Requests under these prefixes bypass the static
- * file server so Nest keeps answering (including its JSON 404s), no matter
- * what files exist in the web build.
- */
-export const API_BYPASS_PREFIXES = ['/v1', '/health', '/docs'];
+import { join, relative, resolve, sep } from 'node:path';
+import { isApiPath, requestPath } from '../http/edge';
 
 /**
  * Security headers for the served web build. This module is the source of
- * truth: whoever serves the SPA — the API itself or the operator's own
- * proxy — must send exactly these (they match the previous Caddy edge).
+ * truth for the API's own SPA responses; any other process that serves the
+ * build must send the same values.
  */
 export const SPA_SECURITY_HEADERS: Record<string, string> = {
   'Content-Security-Policy':
@@ -21,21 +15,9 @@ export const SPA_SECURITY_HEADERS: Record<string, string> = {
     "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
+  // Align with CSP frame-ancestors 'none' instead of helmet's SAMEORIGIN.
+  'X-Frame-Options': 'DENY',
 };
-
-/** Legacy `/api/*` strip-prefix rule. After stripping, normal routing applies:
- * API paths are proxied to Nest, everything else falls back to the SPA. */
-export function stripLegacyApiPrefix(path: string): string {
-  if (path === '/api') return '/';
-  if (path.startsWith('/api/')) return path.slice('/api'.length);
-  return path;
-}
-
-export function isApiPath(path: string): boolean {
-  // Swagger (non-production only) also serves /docs-json and /docs-yaml.
-  if (path === '/docs-json' || path === '/docs-yaml') return true;
-  return API_BYPASS_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
-}
 
 /**
  * Returns the directory (as an absolute path — `res.sendFile` requires one)
@@ -55,50 +37,95 @@ export function resolveSpaDistDir(candidate: string | undefined): string | null 
   }
 }
 
+export type WebBuildResolution =
+  | { kind: 'disabled' }
+  | { kind: 'ready'; dir: string }
+  | { kind: 'invalid'; error: string };
+
+/**
+ * Classifies `WEB_DIST_DIR`: unset/empty disables the SPA, a usable build is
+ * returned resolved. A configured-but-unusable directory is a deployment
+ * error: in production it fails fast instead of silently serving API-only,
+ * which would leave the public site dead behind a green health check.
+ */
+export function resolveWebBuild(
+  candidate: string | undefined,
+  nodeEnv: string,
+): WebBuildResolution {
+  const value = candidate?.trim();
+  if (!value) return { kind: 'disabled' };
+  const dir = resolveSpaDistDir(value);
+  if (dir) return { kind: 'ready', dir };
+  const error =
+    `WEB_DIST_DIR is set but unusable: ${value} ` +
+    '(expected a directory containing index.html)';
+  if (nodeEnv === 'production') throw new Error(error);
+  return { kind: 'invalid', error };
+}
+
 function applySpaHeaders(res: Response): void {
   for (const [name, value] of Object.entries(SPA_SECURITY_HEADERS)) {
     res.setHeader(name, value);
   }
 }
 
+function sendSpaIndex(res: Response, indexFile: string, next: (err?: unknown) => void): void {
+  applySpaHeaders(res);
+  // Revalidate every navigation response; the SW and the browser keep the
+  // previous HTML until the server confirms it.
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(indexFile, (err) => {
+    if (err) next(err);
+  });
+}
+
+/** Vite emits content-hashed bundles under `assets/`; safe to cache forever. */
+function isHashedAsset(distDir: string, filePath: string): boolean {
+  return relative(distDir, filePath).split(sep)[0] === 'assets';
+}
+
+/** A last segment with a dot is a file request, not a client-side route. */
+function hasFileExtension(path: string): boolean {
+  return path.slice(path.lastIndexOf('/') + 1).includes('.');
+}
+
 /**
  * Serves a Vite web build (`index.html` + assets) with an SPA fallback:
- * unknown GET routes return `index.html` so client-side routing works.
- * API paths and the legacy `/api/*` prefix are never intercepted.
- * Returns `null` when `distDir` is not a usable build (serving disabled).
+ * navigation routes return `index.html` so client-side routing works.
+ * API paths and the legacy `/api/*` prefix are never intercepted (the edge
+ * middleware rewrites the prefix before this runs). Missing files with an
+ * extension get a 404 instead of HTML, so a stale bundle cannot be parsed as
+ * a document. `distDir` must be a build validated by `resolveWebBuild`.
  */
-export function createSpaMiddleware(distDir: string): RequestHandler | null {
-  const resolved = resolveSpaDistDir(distDir);
-  if (!resolved) return null;
-  const indexFile = join(resolved, 'index.html');
-  const serve = express.static(resolved, {
+export function createSpaMiddleware(distDir: string): RequestHandler {
+  const indexFile = join(distDir, 'index.html');
+  const serve = express.static(distDir, {
     index: 'index.html',
-    setHeaders: (res) => applySpaHeaders(res),
+    setHeaders: (res, filePath) => {
+      applySpaHeaders(res);
+      if (isHashedAsset(distDir, filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    },
   });
-  return (req: Request, res: Response, next: NextFunction) => {
-    const queryIndex = req.url.indexOf('?');
-    const path = queryIndex === -1 ? req.url : req.url.slice(0, queryIndex);
-    const stripped = stripLegacyApiPrefix(path);
-    if (stripped !== path) {
-      req.url = stripped + (queryIndex === -1 ? '' : req.url.slice(queryIndex));
-    }
-    if (isApiPath(stripped)) {
-      // The previous edge set `Cache-Control: no-store` on every API path so
-      // authenticated GETs are never heuristically cached. Static assets
-      // intentionally keep no directive (content-hashed, SW-precached).
-      res.setHeader('Cache-Control', 'no-store');
+  return (req, res, next) => {
+    const path = requestPath(req.url);
+    if (isApiPath(path)) {
       next();
       return;
     }
+    // Serve the root ourselves: express.static's directory redirect uses the
+    // original URL, which would turn a rewritten legacy `/api` into `/api/`.
+    if (path === '/') {
+      sendSpaIndex(res, indexFile, next);
+      return;
+    }
     serve(req, res, () => {
-      if (req.method !== 'GET' && req.method !== 'HEAD') {
+      if ((req.method !== 'GET' && req.method !== 'HEAD') || hasFileExtension(path)) {
         next();
         return;
       }
-      applySpaHeaders(res);
-      res.sendFile(indexFile, (err) => {
-        if (err) next(err);
-      });
+      sendSpaIndex(res, indexFile, next);
     });
   };
 }
