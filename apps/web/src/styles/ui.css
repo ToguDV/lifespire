@@ -711,6 +711,30 @@ button.text-link:hover {
   flex: 1 1 auto;
 }
 
+.settings-details {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hairline);
+}
+
+.settings-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink-muted);
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-details summary:hover {
+  color: var(--ink);
+}
+
+.settings-details[open] summary {
+  margin-bottom: 8px;
+}
+
 @media (min-width: 640px) {
   .settings-actions .btn {
     flex: 0 0 auto;

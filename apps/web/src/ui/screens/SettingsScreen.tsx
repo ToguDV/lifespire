@@ -5,7 +5,8 @@ import { serializeDocument } from '../../domain/schema'
 import type { ThemePreference } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
-import { getDesktopSessionState } from '../../sync/api'
+import { finishDesktopSignOut, getDesktopSessionState } from '../../sync/api'
+import { useAuthStore } from '../../sync/authStore'
 import {
   Button,
   Dialog,
@@ -52,13 +53,9 @@ function DesktopSessionNote() {
   if (persistence !== 'memory-only') return null
 
   return (
-    <Panel pad>
-      <PanelHead label="Sync session" aside={<span className="chip chip--quiet">Not saved</span>} />
-      <p className="panel-note" role="note">
-        This system keychain is not available, so the sync session stays in memory. Sync works
-        while the app is open, but you will sign in again after restarting it.
-      </p>
-    </Panel>
+    <p className="panel-note" role="note">
+      This keychain is not available, so the session stays in memory.
+    </p>
   )
 }
 
@@ -67,13 +64,18 @@ export function SettingsScreen() {
   const setTheme = useAppStore((state) => state.setTheme)
   const resetAll = useAppStore((state) => state.resetAll)
   const showToast = useAppStore((state) => state.showToast)
-  const navigate = useAppStore((state) => state.navigate)
   const [feedback, setFeedback] = useFeedbackPrefs()
+  const authStatus = useAuthStore((state) => state.status)
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
+  const [syncOpen, setSyncOpen] = useState(false)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
   const desktop = isDesktopShell()
 
   const resetReady = isResetConfirmation(resetPhrase)
+  const signedIn = authStatus === 'authenticated' && user !== null
 
   const exportSave = () => {
     const payload = serializeDocument(gameDocument)
@@ -100,21 +102,32 @@ export function SettingsScreen() {
     resetAll()
   }
 
+  const closeSync = () => {
+    setSyncOpen(false)
+  }
+
+  const submitSignOut = async (): Promise<void> => {
+    setSignOutError(null)
+    try {
+      await finishDesktopSignOut(logout)
+    } catch (error) {
+      setSignOutError(
+        error instanceof Error ? error.message : 'Could not clear the session on this device.',
+      )
+    }
+  }
+
   return (
     <section className="screen screen--settings" data-screen="settings" aria-labelledby="settings-title">
       <ScreenHead
         kicker="Profile · Local data"
         title="Settings"
         titleId="settings-title"
-        sub="Appearance, the local save and optional device sync."
+        sub="Appearance, sync and local data."
         meta={<SyncStatus />}
       />
 
       <div className="settings-body">
-        {desktop ? <DesktopSessionNote /> : null}
-        <ServerPanel />
-        <SyncPanel />
-        {!desktop ? <AdminPanel /> : null}
         <Panel pad>
           <PanelHead label="Appearance" />
           <div className="field">
@@ -133,19 +146,10 @@ export function SettingsScreen() {
                 </button>
               ))}
             </div>
-            <p className="panel-note">
-              System follows your device preference. Day and Night stay fixed until you change
-              them.
-            </p>
           </div>
-        </Panel>
-
-        <Panel pad>
-          <PanelHead label="Feedback" aside={<span className="chip chip--quiet">Calm</span>} />
           <div className="feedback-row">
             <div className="feedback-row__body">
               <strong>Sound</strong>
-              <span>Soft chimes for steps, loot and seals. Never loops.</span>
             </div>
             <button
               type="button"
@@ -164,7 +168,6 @@ export function SettingsScreen() {
           <div className="feedback-row">
             <div className="feedback-row__body">
               <strong>Vibration</strong>
-              <span>Short taps on mobile only. Desktop never buzzes.</span>
             </div>
             <button
               type="button"
@@ -180,68 +183,73 @@ export function SettingsScreen() {
               {feedback.haptics ? 'On' : 'Off'}
             </button>
           </div>
-          <p className="panel-note">
-            Both default to on and respect reduced motion for animation. Sound and
-            vibration stay subtle by design; either can be silenced here.
-          </p>
+          <p className="panel-note">Sound and vibration are subtle by default.</p>
         </Panel>
 
         <Panel pad>
-          <PanelHead label="Data" aside={<span className="chip chip--quiet">JSON</span>} />
-          <p className="panel-note">
-            Export a readable copy of the versioned save. It includes the profile, goals,
-            routines, the current run and the collection. The development clock and this panel
-            are never included.
-          </p>
+          <PanelHead label="Sync" />
+          {signOutError ? (
+            <p className="field-error" role="alert">
+              {signOutError}
+            </p>
+          ) : null}
+          {signedIn && user ? (
+            <>
+              <div className="feedback-row">
+                <div className="feedback-row__body">
+                  <p className="panel-note">
+                    Signed in as <strong>{user.email}</strong>
+                  </p>
+                </div>
+              </div>
+              <div className="settings-actions">
+                <Button variant="quiet" onClick={() => void submitSignOut()}>
+                  Sign out
+                </Button>
+                <Button variant="secondary" onClick={() => setSyncOpen(true)}>
+                  Manage sync
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="feedback-row">
+              <span className="chip chip--quiet">Local only</span>
+              <Button variant="secondary" onClick={() => setSyncOpen(true)}>
+                Set up sync
+              </Button>
+            </div>
+          )}
+          {desktop ? <DesktopSessionNote /> : null}
+        </Panel>
+
+        <Panel pad>
+          <PanelHead label="Data" />
+          <p className="panel-note">Your save stays in this browser.</p>
           <div className="settings-actions">
             <Button variant="secondary" onClick={exportSave}>
               <Icon name="scroll" />
               Export save
             </Button>
             <SaveImport />
-          </div>
-          <p className="panel-note settings-note">
-            Import validates the file and shows a summary before replacing anything. Invalid,
-            corrupt or newer-version files are rejected and your current save stays untouched.
-          </p>
-          <dl className="settings-meta">
-            <div>
-              <dt>Storage key</dt>
-              <dd>
-                <code>{STORAGE_KEY}</code>
-              </dd>
-            </div>
-            <div>
-              <dt>Schema version</dt>
-              <dd>v{gameDocument.schemaVersion}</dd>
-            </div>
-          </dl>
-        </Panel>
-
-        <Panel pad>
-          <PanelHead label="Local data" aside={<span className="chip chip--quiet">Careful</span>} />
-          <p className="panel-note">
-            Everything is stored under <code>{STORAGE_KEY}</code> in this browser. Resetting
-            removes the profile, goals, routines, run and collection. Exporting first is the only
-            safety net; a reset cannot be undone without that file.
-          </p>
-          <div className="settings-actions">
             <Button variant="danger" onClick={() => setConfirmReset(true)}>
               Reset local data
             </Button>
           </div>
-        </Panel>
-
-        <Panel pad>
-          <PanelHead label="About" />
-          <p className="panel-note">
-            LifeSpire is a local-first seven-day run. Progress is kept in this browser and can
-            be exported above. A new run keeps your profile, level and collection.
-          </p>
-          <Button variant="quiet" onClick={() => navigate({ name: 'home' })}>
-            <Icon name="arrow-left" />
-            Return to camp
-          </Button>
+          <details className="settings-details">
+            <summary>Save details</summary>
+            <dl className="settings-meta">
+              <div>
+                <dt>Storage key</dt>
+                <dd>
+                  <code>{STORAGE_KEY}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Schema version</dt>
+                <dd>v{gameDocument.schemaVersion}</dd>
+              </div>
+            </dl>
+          </details>
         </Panel>
       </div>
 
@@ -261,11 +269,6 @@ export function SettingsScreen() {
           </>
         }
       >
-        <p className="panel-note">
-          This cannot be undone without an earlier export. Exporting in Data above is the safety
-          net. The app returns to onboarding afterwards; once a local profile exists again,
-          Settings → Import save can restore that export.
-        </p>
         <div className="reset-confirmation">
           <label className="field__label" htmlFor="reset-confirmation">
             Type {RESET_CONFIRMATION} to confirm
@@ -280,7 +283,6 @@ export function SettingsScreen() {
             autoCapitalize="characters"
             spellCheck={false}
             placeholder={RESET_CONFIRMATION}
-            aria-describedby="reset-confirmation-hint"
             onChange={(event) => setResetPhrase(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && resetReady) {
@@ -289,10 +291,31 @@ export function SettingsScreen() {
               }
             }}
           />
-          <p className="panel-note" id="reset-confirmation-hint">
-            The reset button stays disabled until the word is typed exactly.
-          </p>
         </div>
+      </Dialog>
+
+      <Dialog
+        open={syncOpen}
+        title="Sync"
+        description="Sign in to sync this save between your devices."
+        onClose={closeSync}
+        footer={
+          <Button variant="quiet" onClick={closeSync}>
+            Close
+          </Button>
+        }
+      >
+        <SyncPanel />
+        <details className="settings-details">
+          <summary>Server</summary>
+          <ServerPanel />
+        </details>
+        {!desktop && user?.role === 'ADMIN' ? (
+          <details className="settings-details">
+            <summary>Admin</summary>
+            <AdminPanel />
+          </details>
+        ) : null}
       </Dialog>
     </section>
   )

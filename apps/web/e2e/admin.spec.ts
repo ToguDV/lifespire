@@ -110,6 +110,13 @@ async function signInAs(page: Page, role: 'ADMIN' | 'USER') {
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({ timeout: 15000 })
 }
 
+/** Admin tools live in the Sync dialog behind the admin-only details block. */
+async function openAdminSection(page: Page) {
+  await page.getByRole('button', { name: 'Manage sync' }).click()
+  await page.locator('summary', { hasText: 'Admin' }).click()
+  await expect(page.locator('#admin-email')).toBeVisible({ timeout: 15000 })
+}
+
 test.describe('admin panel', () => {
   test('admin lists users and creates an invite link', async ({ browser }) => {
     const users = [adminUser('admin@example.com'), adminUser('member@example.com')]
@@ -118,6 +125,7 @@ test.describe('admin panel', () => {
       await routeAdmin(ctx, 'ADMIN', users)
       const page = await ctx.newPage()
       await signInAs(page, 'ADMIN')
+      await openAdminSection(page)
 
       await expect(page.getByText('Create an account.')).toBeVisible({ timeout: 15000 })
       await expect(page.getByText('member@example.com')).toBeVisible()

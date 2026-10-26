@@ -69,6 +69,13 @@ function currentServer(page: Page) {
   return page.locator('p', { hasText: 'Current server:' })
 }
 
+/** Sync chrome lives behind the Sync dialog; reveal the server form first. */
+async function openServerSection(page: Page) {
+  await page.getByRole('button', { name: 'Set up sync' }).click()
+  await page.locator('summary', { hasText: 'Server' }).click()
+  await expect(page.locator('#sync-server-url')).toBeVisible({ timeout: 15000 })
+}
+
 test.describe('sync server picker', () => {
   test('a custom server applies without leaving Settings', async ({ browser }) => {
     const ctx = await browser.newContext()
@@ -76,6 +83,7 @@ test.describe('sync server picker', () => {
       await routeMocks(ctx)
       const page = await ctx.newPage()
       await openSettings(page)
+      await openServerSection(page)
 
       await expect(currentServer(page)).toBeVisible()
       await page.locator('#sync-server-url').fill('http://localhost:3000')
@@ -98,6 +106,7 @@ test.describe('sync server picker', () => {
       await routeMocks(ctx)
       const page = await ctx.newPage()
       await openSettings(page)
+      await openServerSection(page)
 
       await page.locator('#sync-server-url').fill('notaurl')
       await page.locator('#sync-server-url').press('Tab')
@@ -124,6 +133,7 @@ test.describe('sync server picker', () => {
       })
       const page = await ctx.newPage()
       await openSettings(page)
+      await openServerSection(page)
 
       await page.locator('#sync-server-url').fill('https://sync.example.com')
       await page.getByRole('button', { name: 'Use this server' }).click()
