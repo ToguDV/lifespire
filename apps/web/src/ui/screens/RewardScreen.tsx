@@ -116,8 +116,8 @@ export function RewardScreen() {
   }
 
   const rewardParts = [
-    `+${outcome.xp} XP`,
-    `+${outcome.gold} gold`,
+    ...(outcome.xp > 0 ? [`+${outcome.xp} XP`] : []),
+    ...(outcome.gold > 0 ? [`+${outcome.gold} gold`] : []),
     ...(outcome.progress > 0 ? ['+1 goal'] : []),
     ...(outcome.task ? [outcome.task.goalTitle] : []),
   ]
