@@ -20,7 +20,11 @@ export function authErrorMessage(error: unknown, kind: AuthRouteKind): string {
       case 'RATE_LIMITED':
         return 'Too many attempts. Wait a minute and try again.'
       case 'VALIDATION_FAILED':
-        return 'The link or password is not valid. Paste the full link and use at least 12 characters.'
+        // The API uses this code for the password policy too, with a specific
+        // title; only the generic pipe failure needs the fallback copy.
+        return error.message && error.message !== 'Request failed'
+          ? error.message
+          : 'The link or password is not valid. Paste the full link and use at least 12 characters.'
       default:
         break
     }

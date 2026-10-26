@@ -24,6 +24,18 @@ describe('authErrorMessage', () => {
     ).toMatch(/Wait a minute/)
   })
 
+  it('surfaces the specific password-policy title from the API', () => {
+    expect(
+      authErrorMessage(
+        new ApiRequestError(422, 'Avoid common words or phrases.', 'VALIDATION_FAILED'),
+        'reset',
+      ),
+    ).toBe('Avoid common words or phrases.')
+    expect(
+      authErrorMessage(new ApiRequestError(400, 'Request failed', 'VALIDATION_FAILED'), 'reset'),
+    ).toMatch(/not valid/)
+  })
+
   it('falls back to the error message or a kind-specific sentence', () => {
     expect(authErrorMessage(new Error('Network down'), 'reset')).toBe('Network down')
     expect(authErrorMessage(null, 'invite')).toMatch(/invite/)

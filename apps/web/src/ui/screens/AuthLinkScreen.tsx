@@ -41,10 +41,12 @@ export function AuthLinkScreen({ route }: { route: AuthRoute }) {
   const passwordRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    document.title = `${reset ? 'Reset password' : 'Accept invite'} · LifeSpire`
+    document.title = done
+      ? `${done.kind === 'reset' ? 'Password updated' : 'Invite accepted'} · LifeSpire`
+      : `${reset ? 'Reset password' : 'Accept invite'} · LifeSpire`
     document.body.dataset.screen = 'auth-link'
-    passwordRef.current?.focus()
-  }, [reset])
+    if (!done) passwordRef.current?.focus()
+  }, [done, reset])
 
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
@@ -70,10 +72,12 @@ export function AuthLinkScreen({ route }: { route: AuthRoute }) {
       await waitForDesktopTransport()
       if (reset) {
         await resetPassword(cleaned, password)
-        try {
-          await finishDesktopSignOut(logout)
-        } catch {
-          // The password changed; local session cleanup is best-effort.
+        if (useAuthStore.getState().status === 'authenticated') {
+          try {
+            await finishDesktopSignOut(logout)
+          } catch {
+            // The password changed; local session cleanup is best-effort.
+          }
         }
         setPassword('')
         setConfirm('')
