@@ -2026,3 +2026,35 @@ button.text-link {
     transition: border-color var(--duration) ease, box-shadow var(--duration) ease;
   }
 }
+
+/* Compact node key (copy diet) */
+.legend--key {
+  display: block;
+  padding: 0;
+}
+
+.legend--key > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.legend--key > summary::-webkit-details-marker {
+  display: none;
+}
+
+.legend--key > summary::after {
+  content: '▾';
+  font-size: 0.7rem;
+}
+
+.legend--key[open] > summary::after {
+  content: '▴';
+}
+
+.legend--key .legend--detailed {
+  margin-top: 4px;
+}
