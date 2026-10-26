@@ -19,17 +19,22 @@ export function normalizePath(path: string): string {
 }
 
 /** Legacy `/api/*` strip-prefix rule. After stripping, normal routing applies:
- * API paths are proxied to Nest, everything else falls back to the SPA. */
+ * API paths are proxied to Nest, everything else falls back to the SPA.
+ * Express routes case-insensitively, so the prefix match must too. */
 export function stripLegacyApiPrefix(path: string): string {
-  if (path === '/api') return '/';
-  if (path.startsWith('/api/')) return path.slice('/api'.length);
+  const lower = path.toLowerCase();
+  if (lower === '/api') return '/';
+  if (lower.startsWith('/api/')) return path.slice('/api'.length);
   return path;
 }
 
 export function isApiPath(path: string): boolean {
+  const lower = path.toLowerCase();
   // Swagger (non-production only) also serves /docs-json and /docs-yaml.
-  if (path === '/docs-json' || path === '/docs-yaml') return true;
-  return API_BYPASS_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  if (lower === '/docs-json' || lower === '/docs-yaml') return true;
+  return API_BYPASS_PREFIXES.some(
+    (prefix) => lower === prefix || lower.startsWith(`${prefix}/`),
+  );
 }
 
 /**

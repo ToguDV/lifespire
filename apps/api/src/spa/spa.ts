@@ -80,13 +80,33 @@ function sendSpaIndex(res: Response, indexFile: string, next: (err?: unknown) =>
 }
 
 /** Vite emits content-hashed bundles under `assets/`; safe to cache forever. */
+const HASHED_ASSET_FILE = /-[A-Za-z0-9_-]{8,}\.[a-z0-9]+$/;
+
 function isHashedAsset(distDir: string, filePath: string): boolean {
-  return relative(distDir, filePath).split(sep)[0] === 'assets';
+  const relativePath = relative(distDir, filePath);
+  return relativePath.startsWith(`assets${sep}`) && HASHED_ASSET_FILE.test(relativePath);
 }
 
 /** A last segment with a dot is a file request, not a client-side route. */
 function hasFileExtension(path: string): boolean {
   return path.slice(path.lastIndexOf('/') + 1).includes('.');
+}
+
+/**
+ * Traversal, encoded separators and dot-directories are never client routes.
+ * `express.static` already refuses to escape the build root; returning the SPA
+ * fallback for them only masks the error.
+ */
+function isUnsafeRoute(path: string): boolean {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(path).replace(/\\/g, '/');
+  } catch {
+    return true;
+  }
+  return decoded
+    .split('/')
+    .some((segment) => segment === '.' || segment === '..' || segment.startsWith('.'));
 }
 
 /**
@@ -114,10 +134,18 @@ export function createSpaMiddleware(distDir: string): RequestHandler {
       next();
       return;
     }
+    if (isUnsafeRoute(path)) {
+      next();
+      return;
+    }
     // Serve the root ourselves: express.static's directory redirect uses the
     // original URL, which would turn a rewritten legacy `/api` into `/api/`.
     if (path === '/') {
-      sendSpaIndex(res, indexFile, next);
+      if (req.method === 'GET' || req.method === 'HEAD') {
+        sendSpaIndex(res, indexFile, next);
+      } else {
+        next();
+      }
       return;
     }
     serve(req, res, () => {

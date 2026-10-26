@@ -171,9 +171,18 @@ describe('createSpaMiddleware', () => {
   it('does not fall back for non-GET requests', async () => {
     const dir = makeDist();
     const { app, seen } = makeApp(dir);
-    const res = await request(app).post('/goals/weekly');
-    expect(res.status).toBe(404);
-    expect(seen).toEqual(['/goals/weekly']);
+    for (const method of ['post', 'put', 'delete'] as const) {
+      const res = await request(app)[method]('/');
+      expect(res.status).toBe(404);
+    }
+    expect(seen).toEqual(['/', '/', '/']);
+    seen.length = 0;
+    const legacy = await request(app).post('/api');
+    expect(legacy.status).toBe(404);
+    expect(seen).toEqual(['/']);
+    const route = await request(app).post('/goals/weekly');
+    expect(route.status).toBe(404);
+    expect(seen).toEqual(['/', '/goals/weekly']);
   });
 
   it('passes exact API prefixes and the Swagger JSON/YAML docs through', async () => {
@@ -209,6 +218,20 @@ describe('createSpaMiddleware', () => {
     const { app } = makeApp(makeDist());
     const res = await request(app).head('/goals/weekly');
     expect(res.status).toBe(200);
+    const root = await request(app).head('/');
+    expect(root.status).toBe(200);
+    const legacy = await request(app).head('/api');
+    expect(legacy.status).toBe(200);
+  });
+
+  it('returns 404 for traversal, dot-directories and encoded traversal', async () => {
+    const { app, seen } = makeApp(makeDist());
+    for (const path of ['/../etc/passwd', '/%2e%2e/%2e%2e/etc/passwd', '/.git/config']) {
+      const res = await request(app).get(path);
+      expect(res.status).toBe(404);
+      expect(res.text).not.toContain('<!doctype html>');
+    }
+    expect(seen).toHaveLength(3);
   });
 
   it('returns 404 for a missing file with an extension instead of HTML', async () => {
@@ -228,13 +251,18 @@ describe('createSpaMiddleware', () => {
   });
 
   it('sets no-store on API paths but leaves static responses cacheable', async () => {
-    const dir = makeDist({ 'assets/app.css': 'body{}' });
+    const dir = makeDist({
+      'assets/app-ABCD1234.css': 'body{}',
+      'assets/unhashed.css': 'body{}',
+    });
     const { app } = makeApp(dir);
     const api = await request(app).get('/v1/me');
     expect(api.headers['cache-control']).toBe('no-store');
-    // Hashed Vite assets are immutable; index.html revalidates.
-    const asset = await request(app).get('/assets/app.css');
+    // Hashed Vite assets are immutable; other static files revalidate.
+    const asset = await request(app).get('/assets/app-ABCD1234.css');
     expect(asset.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+    const unhashed = await request(app).get('/assets/unhashed.css');
+    expect(unhashed.headers['cache-control']).not.toContain('immutable');
     const page = await request(app).get('/');
     expect(page.headers['cache-control']).not.toContain('no-store');
     expect(page.headers['cache-control']).not.toContain('immutable');
@@ -262,7 +290,7 @@ describe('createSpaMiddleware', () => {
 });
 
 describe('SPA_SECURITY_HEADERS', () => {
-  it('matches the edge proxy contract', () => {
+  it('matches the served web build contract', () => {
     expect(SPA_SECURITY_HEADERS).toEqual({
       'Content-Security-Policy': EXPECTED_CSP,
       'Referrer-Policy': 'no-referrer',
