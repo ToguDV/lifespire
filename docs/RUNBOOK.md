@@ -97,11 +97,14 @@ docker compose --env-file .env -f infra/docker-compose.prod.yml \
 ## 4. First admin and routine operations
 
 ```bash
-# first admin (the prod image ships the compiled CLI)
+# first admin: create it without a password (status PENDING), then print a
+# one-time link to set the password
 docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-create.js --email admin@example.com
-# log in, complete TOTP setup, then create users from the admin panel/CLI
+docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email admin@example.com
+# open the app → Settings → Sync → "Forgot your password?", paste the link,
+# choose a 12+ character password, sign in and finish TOTP setup
 
-# manual reset link for a user
+# manual reset link for any user
 docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email user@example.com
 
 # backups (cron daily): infra/backup.sh, 30-day retention + optional restic

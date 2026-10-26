@@ -138,13 +138,24 @@ are needed in either mode.
 
 ### 3. First admin
 
+There is no default admin: create it on the server. Without a password the
+account starts as `PENDING`, so then generate a one-time link to set one:
+
 ```bash
 docker compose --env-file .env -f infra/docker-compose.prod.yml exec api \
   node dist/cli/admin-create.js --email you@example.com
+docker compose --env-file .env -f infra/docker-compose.prod.yml exec api \
+  node dist/cli/admin-reset-link.js --email you@example.com
 ```
 
-Open `https://your.domain`, sign in, finish TOTP setup, then invite users from
-the admin panel.
+Open the app, go to **Settings → Sync → “Forgot your password?”**, paste the
+printed link, and choose a password (12+ characters). Then sign in and finish
+TOTP setup. The link expires in 1 hour and is single-use. If the account
+already exists, skip the first command.
+
+Alternatively, set the password directly with
+`admin-create.js --email you@example.com --password '…'` (12+ characters); it
+will be left in your shell history.
 
 ### 4. Verify
 
