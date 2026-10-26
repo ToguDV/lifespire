@@ -1,8 +1,10 @@
 # LifeSpire Sync API (backend)
 
 > Status: closed-beta foundation (PR `feat/backend-sync-foundation`).
-> Scope: multi-user, closed registration, snapshot sync between a user's devices.
-> Non-goals: public signup, email delivery, realtime, social, anti-cheat.
+> Scope: multi-user, closed registration, snapshot sync between a user's devices,
+> near-real-time change feed while the app is open.
+> Non-goals: public signup, email delivery, remote push notifications (closed
+> app), social, anti-cheat.
 
 The web app stays **local-first**: without a configured server (or offline) it
 plays as a guest from `localStorage`. The server is a versioned store with
@@ -25,7 +27,8 @@ apps/api/
     users/             GET/PATCH /v1/me, export, delete
     admin/             user CRUD, invites, resets, TOTP reset, audit
     devices/           list, revoke
-    sync/              snapshot GET/PUT/DELETE, revisions
+    sync/              snapshot GET/PUT/DELETE, revisions, long-poll change
+                       feed (watch)
     health/            live/ready
     audit/             append-only admin/auth action log
     cli/               admin:create, admin:reset-link
@@ -96,6 +99,7 @@ strong `ETag`).
 | PUT | `/v1/sync` | `If-Match: "n"` + `Idempotency-Key: uuid` | `200` (+ new `ETag`) |
 | PUT | `/v1/sync` | `If-None-Match: *` + `Idempotency-Key` | `201` first upload, `412` if a save exists |
 | GET | `/v1/sync/revisions` | — | last 20 version metadata |
+| GET | `/v1/sync/watch` | `since` (version, optional) | `200` + `{version, updatedAt}` when changed or when the wait expires; `version: null` when there is no cloud save |
 | DELETE | `/v1/sync` | — | `204`, clears cloud copy |
 
 Rules:
@@ -127,6 +131,29 @@ Rules:
   Validation rejections (400/413/422-shape/422-rule) are client errors, not
   pushes, and stay out of the counters.
 - `Cache-Control: no-store` on sync; the PWA must never cache `/v1`/`/api`.
+- **Change feed (`GET /v1/sync/watch`, ADR-0006):** a version-only long-poll.
+  It returns immediately if the cloud is newer than `since`, otherwise holds up
+  to `SYNC_WATCH_TIMEOUT_MS` (25 s, max 30 s) and wakes when a push or delete
+  for the same user commits. The event carries only `{version, updatedAt}`
+  (never the document); the client then pulls with its ETag. On timeout the
+  handler re-reads the version, so an API restart or a second replica still
+  catches up within one wait. `DELETE` notifies `version: null`.
+- The notifier is in-process: one API process gets instant fanout; horizontal
+  scaling needs Postgres `LISTEN/NOTIFY` or Redis (follow-up). The watch route
+  is excluded from the global throttle (a long-poll would consume the shared
+  120/min IP bucket) and bounds itself per user instead: 16 concurrent watchers
+  and 60 opens/minute (`429 SYNC_WATCH_LIMIT`). It is authenticated, `no-store`,
+  and excluded from the pino access log. `wait` (250–30 000 ms, clamped to
+  `SYNC_WATCH_TIMEOUT_MS`) exists for tests and short-lived clients.
+- Clients stop the feed when hidden/backgrounded and pull once on resume;
+  mobile foreground changes propagate after the normal 1.5 s push debounce.
+  A 40 s client watchdog aborts a zombie long-poll (laptop sleep, NAT rebind,
+  a proxy holding the response) and rejoins the loop. Old servers without the
+  endpoint (404/405/501) make new clients fall back to the 60 s poll. Deploy the
+  API before the web, as before.
+- `version: null` means another device deleted the cloud copy. The receiving
+  client keeps its local save, drops the stale cursor/meta and recreates the
+  cloud copy on its next edit; nothing is deleted silently.
 
 ## 4. Time zones
 
@@ -204,18 +231,19 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
 
 - `pnpm --filter @lifespire/api test` — unit tests (versions, crypto,
   invites, TOTP adapter, env, structural + rule gates, metrics counters, native
-  client gate). No DB needed.
+  client gate, watch waiters/timeout/cap). No DB needed.
 - `pnpm --filter @lifespire/api-client test` covers cookie mode, native token
-  capture/rotation, refusal without a stored token and the injectable transport.
+  capture/rotation, refusal without a stored token, the injectable transport
+  and the watch cursor query.
 - `pnpm --filter @lifespire/desktop test` covers the main-process proxy
   (path/header/body/origin allowlists and sender gate), link-local blocking,
-  response-size gates, refresh-token stripping/rotation, the
-  generation/single-flight races and the safeStorage vault (including the
-  memory-only fallback and atomic persistence).
+  response-size gates, refresh-token stripping/rotation, the long-poll watch
+  timeout, the generation/single-flight races and the safeStorage vault
+  (including the memory-only fallback and atomic persistence).
 - `pnpm --filter @lifespire/mobile test` covers the local notification planner.
   The Postgres flow also exercises the `desktop` login/refresh pair and the
   browser-shaped rejection.
-- `pnpm --filter @lifespire/api test:e2e` — 13 flows against Postgres:
+- `pnpm --filter @lifespire/api test:e2e` — 14 flows against Postgres:
   (a) admin TOTP, invite lifecycle, sync create/304/no-op bump/conflict/
   replay/key-reuse/revisions, device revoke, disable, last-admin guard;
   (b) password-reset link (single-use, revokes sessions); (c) TOTP
@@ -227,7 +255,13 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
   second 204); (i) audit pagination 400 on bad page; (j) totp/enable
   throttle 429; (k) sync metrics count pushes and conflicts; (l) native
   `desktop` login/refresh plus the browser-shaped rejection; (m) logout
-  revokes the rotated family even from an older access token.
+  revokes the rotated family even from an older access token; (n) the watch
+  feed wakes on a same-user push, returns the current version on timeout, does
+  not cross users, wakes with `version: null` on delete and rejects anonymous
+  calls.
+- `apps/web/e2e/sync.spec.ts` asserts that a push from one browser context
+  reaches the other **without a reload** (watch feed + toast), alongside the
+  conflict and auto-merge flows.
 - Dev DB: `docker compose -f infra/docker-compose.dev.yml up -d`, then
   `DATABASE_URL=… pnpm --filter @lifespire/api prisma:migrate`.
 
@@ -239,8 +273,13 @@ staging DB, then run the API e2e against it (last drill: §9, 2026-10-24).
   family-level lock or state migration. The desktop proxy mitigates the local
   case by aborting in-flight refreshes before sending logout.
 - Journal/operation sync if conflicts still hurt in real use (see ADR-0001).
+- **Multi-instance change feed:** the watcher registry is in-process. Adding a
+  second API replica needs Postgres `LISTEN/NOTIFY` or Redis fanout; until
+  then, clients attached to another replica catch up on the 25 s timeout.
+- **SSE** if the client count or event types outgrow one long-poll per device.
 - Remote push (APNs/FCM/Expo Push) is intentionally out of scope; local
-  reminders need no server registration.
+  reminders need no server registration. Real-time changes only apply while
+  the app is open.
 
 ## 9. Ops evidence (2026-10-24, closes #47)
 

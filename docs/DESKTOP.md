@@ -89,8 +89,11 @@ change is needed. The Electron **main process** is the API client:
 - The renderer calls `window.lifespireDesktop.api.request({ path, method,
   headers, body })`. Main joins it with the configured server origin and calls
   `ses.fetch` from a **dedicated in-memory session** (`lifespire-api`), with a
-  10 s timeout for API calls and 6 s for health. The default session (and the
-  renderer) never sees these requests.
+  10 s timeout for API calls and 6 s for health. The long-poll change feed
+  (`GET /v1/sync/watch`) gets a 35 s timeout because the server may hold it up
+  to 30 s; it is still a normal request/response through the same proxy, so no
+  streaming IPC is involved. The web renderer stops the feed while the window is
+  hidden. The default session (and the renderer) never sees these requests.
 - Chromium stamps `Sec-Fetch-Site: none` (and potentially `Origin`/`Referer`)
   on session fetches, which would fail the native gate. A
   `webRequest.onBeforeSendHeaders` listener in that dedicated session removes
@@ -223,21 +226,24 @@ manual pass on a desktop session:
    the local stack), confirm the health check passes and save it.
 3. Sign in (with TOTP if enabled), confirm the sync panel shows the user and
    cloud version, and make an edit that pushes.
-4. In DevTools, check that `window.lifespireDesktop` has no token getter and
+4. With the desktop window open, edit the same save on web or Android and
+   confirm the desktop applies the change **without a reload** and shows the
+   "Updated from another device." notice. Repeat in the other direction.
+5. In DevTools, check that `window.lifespireDesktop` has no token getter and
    that neither `localStorage` nor `sessionStorage` contains a refresh token.
    `await window.lifespireDesktop.auth.sessionState()` reports
    `persistence: "encrypted"` and `signedIn: true`. The API log for the login
    shows `X-Client-Platform: desktop` with no `Origin`/`Sec-Fetch-Site`.
-5. Restart the app: the session restores without a new login. Sign out and
+6. Restart the app: the session restores without a new login. Sign out and
    confirm `userData/sync-session.json` is gone and the next launch starts as a
    guest.
-6. Change the server: the old credential is cleared, the panel stays on screen
+7. Change the server: the old credential is cleared, the panel stays on screen
    and signing in uses the new origin.
-7. Keychain fallback: on Linux, start with an unavailable keyring (for example
+8. Keychain fallback: on Linux, start with an unavailable keyring (for example
    `--password-store=basic` or a headless session). Settings shows the
    "Not saved" notice, sync works for that run and a restart requires signing
    in again.
-8. Negative checks: with no server saved, signing in fails with the
+9. Negative checks: with no server saved, signing in fails with the
    "choose a sync server" message; DevTools cannot fetch `/v1` or any other
    URL through `api.request` (paths outside `/v1`/`/health/live`, absolute URLs
    and bodies over 1 MB are rejected).

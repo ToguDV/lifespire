@@ -413,6 +413,28 @@ describe('api-client', () => {
     }
   });
 
+  it('long-polls the watch feed with cursor, wait and signal', async () => {
+    const seen: Array<{ url: string; signal: AbortSignal | null | undefined }> = [];
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+      seen.push({ url: String(url), signal: init?.signal });
+      return new Response(
+        JSON.stringify({ version: '9', updatedAt: '2026-10-24T00:05:00.000Z' }),
+        { status: 200 },
+      );
+    }) as typeof fetch;
+    try {
+      const api = createApiClient({ baseUrl: 'https://api.example.com' });
+      const controller = new AbortController();
+      const out = await api.watchSync('8', { signal: controller.signal, waitMs: 300 });
+      expect(out).toEqual({ version: '9', updatedAt: '2026-10-24T00:05:00.000Z' });
+      expect(seen[0]?.url).toBe('https://api.example.com/v1/sync/watch?since=8&wait=300');
+      expect(seen[0]?.signal).toBe(controller.signal);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
   it('surfaces admin 403s as ApiRequestError', async () => {
     const origFetch = globalThis.fetch;
     globalThis.fetch = (async () =>

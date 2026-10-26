@@ -353,13 +353,14 @@ export let syncApi: ApiClient = buildApiClient()
  * lifetime while every server switch repoints the underlying client, so the
  * app never needs a reload to talk to the new server.
  */
-const engineApiTarget: { current: Pick<ApiClient, 'getSync' | 'putSync'> } = {
+const engineApiTarget: { current: Pick<ApiClient, 'getSync' | 'putSync' | 'watchSync'> } = {
   current: syncApi,
 }
 
-export const engineApi: Pick<ApiClient, 'getSync' | 'putSync'> = {
+export const engineApi: Pick<ApiClient, 'getSync' | 'putSync' | 'watchSync'> = {
   getSync: (ifMatch) => engineApiTarget.current.getSync(ifMatch),
   putSync: (document, opts) => engineApiTarget.current.putSync(document, opts),
+  watchSync: (since, opts) => engineApiTarget.current.watchSync(since, opts),
 }
 
 /**

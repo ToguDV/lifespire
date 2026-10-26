@@ -22,6 +22,11 @@ import { UsersModule } from './users/users.module';
     LoggerModule.forRoot({
       pinoHttp: {
         transport: process.env.NODE_ENV === 'development' ? { target: 'pino-pretty' } : undefined,
+        // The long-poll feed is a steady 2.4 req/min per client; keep it out of
+        // the access log instead of flooding it with empty waits.
+        autoLogging: {
+          ignore: (req) => (req.url ?? '').startsWith('/v1/sync/watch'),
+        },
         redact: {
           paths: ['req.headers.authorization', 'req.headers.cookie', '*.password', '*.document', 'req.body.document'],
           censor: '[redacted]',

@@ -86,6 +86,12 @@ export const syncEngine = createSyncEngine({
     }
   },
   isOnline,
+  onRemoteApplied: () => {
+    useAppStore.getState().showToast('Updated from another device.')
+  },
+  onCloudDeleted: () => {
+    useAppStore.getState().showToast('The cloud save was deleted from another device.')
+  },
   onBeforeAutoMergePush: () => {
     try {
       documentStorage.backup()
@@ -125,16 +131,22 @@ async function doInitSync(): Promise<() => void> {
   await syncManager.switchToAccount(userId)
   syncEngineToUi()
 
-  syncEngine.startPolling()
+  syncEngine.startWatching()
 
   const handleOnline = (): void => {
     syncEngine.handleOnline()
   }
   const handleFocus = (): void => {
     void syncEngine.pullNow()
+    syncEngine.startWatching()
   }
   const handleVisibility = (): void => {
-    if (document.visibilityState === 'visible') void syncEngine.pullNow()
+    if (document.visibilityState === 'visible') {
+      void syncEngine.pullNow()
+      syncEngine.startWatching()
+    } else {
+      syncEngine.stopWatching()
+    }
   }
 
   if (typeof window !== 'undefined') {
@@ -147,7 +159,10 @@ async function doInitSync(): Promise<() => void> {
     const nextId = state.user?.id ?? null
     const prevId = (previous as { user?: { id?: string } | null }).user?.id ?? null
     if (nextId !== prevId) {
-      void syncManager.switchToAccount(nextId).then(syncEngineToUi)
+      void syncManager.switchToAccount(nextId).then(() => {
+        syncEngineToUi()
+        if (nextId) syncEngine.startWatching()
+      })
     }
   })
 
@@ -155,6 +170,7 @@ async function doInitSync(): Promise<() => void> {
     stopManager()
     unsubscribeAuth()
     stopEngineUi()
+    syncEngine.stopWatching()
     syncEngine.stopPolling()
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', handleOnline)

@@ -793,4 +793,103 @@ describe('sync API e2e (postgres)', () => {
       .expect(401);
   }, 60_000);
 
+  it('(n) long-poll watch wakes on a push and never crosses users', async () => {
+    const srv = app.getHttpServer();
+    const ip = nextIp();
+
+    async function activeUser(email: string, password: string, deviceName: string) {
+      await prisma.user.create({
+        data: {
+          email,
+          passwordHash: await hashPassword(password),
+          role: 'USER',
+          status: 'ACTIVE',
+          activatedAt: new Date(),
+        },
+      });
+      const login = await request(srv)
+        .post('/v1/auth/login')
+        .set('X-Forwarded-For', ip)
+        .send({ email, password, deviceName })
+        .expect(200);
+      return login.body.accessToken as string;
+    }
+
+    const email = `watch-${suffix}@example.com`;
+    const password = 'watch-password-123';
+    const token = await activeUser(email, password, 'watch-phone');
+
+    await request(srv)
+      .put('/v1/sync')
+      .set('Authorization', `Bearer ${token}`)
+      .set('If-None-Match', '*')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: doc() })
+      .expect(201);
+
+    // A second device waits on v1; the first device pushes v2 and wakes it.
+    const pending = request(srv)
+      .get('/v1/sync/watch?since=1')
+      .set('Authorization', `Bearer ${token}`)
+      .then((res) => res);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await request(srv)
+      .put('/v1/sync')
+      .set('Authorization', `Bearer ${token}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: { ...doc(), goals: [goal('watch-goal')] } })
+      .expect(200);
+
+    const woken = await pending;
+    expect(woken.status).toBe(200);
+    expect(woken.body.version).toBe('2');
+    expect(woken.body.updatedAt).toEqual(expect.any(String));
+
+    // Timeout returns the current version without inventing a change.
+    const timedOut = await request(srv)
+      .get('/v1/sync/watch?since=2&wait=300')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(timedOut.body.version).toBe('2');
+
+    // Another user's pushes (even up to v3) must not wake this watcher.
+    const otherToken = await activeUser(
+      `watch-other-${suffix}@example.com`,
+      password,
+      'watch-tablet',
+    );
+    await request(srv)
+      .put('/v1/sync')
+      .set('Authorization', `Bearer ${otherToken}`)
+      .set('If-None-Match', '*')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: doc() })
+      .expect(201);
+    await request(srv)
+      .put('/v1/sync')
+      .set('Authorization', `Bearer ${otherToken}`)
+      .set('If-Match', '"1"')
+      .set('Idempotency-Key', randomUUID())
+      .send({ document: { ...doc(), goals: [goal('other-goal')] } })
+      .expect(200);
+    const isolated = await request(srv)
+      .get('/v1/sync/watch?since=2&wait=300')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(isolated.body.version).toBe('2');
+
+    // Deleting the cloud save wakes watchers with a null version.
+    const deletedPending = request(srv)
+      .get('/v1/sync/watch?since=2')
+      .set('Authorization', `Bearer ${token}`)
+      .then((res) => res);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await request(srv).delete('/v1/sync').set('Authorization', `Bearer ${token}`).expect(204);
+    const deleted = await deletedPending;
+    expect(deleted.body).toEqual({ version: null, updatedAt: null });
+
+    await request(srv).get('/v1/sync/watch?since=2').expect(401);
+  }, 60_000);
+
 });

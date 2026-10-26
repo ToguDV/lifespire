@@ -52,7 +52,8 @@ apps/web/src/
     persistence.ts adaptador de storage, backup, multi-pestaña y avisos
     clock.ts       reloj inyectable + offset de desarrollo (no persistido) + zona del dispositivo
   sync/            motor de sync + estado + base por cuenta para auto-merge
-                   (ver BACKEND.md §3 y adr/0004-sync-auto-merge.md)
+                   y feed de cambios en primer plano (ver BACKEND.md §3,
+                   adr/0004-sync-auto-merge.md y adr/0006-foreground-change-feed.md)
   ui/
     App.tsx        shell, navegación y guardas de flujo
     components/    Button, Panel, Progress, Stat, Dialog, Icon, etc.
@@ -69,7 +70,8 @@ apps/web/src/
     juice.css      microinteracciones y feedback visual
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
-apps/api/src/      auth, users, admin, devices, sync, health, audit, prisma, cli
+apps/api/src/      auth, users, admin, devices, sync (snapshot + watch), health,
+                   audit, prisma, cli
 apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas,
   IPC y safeStorage), preload.ts (puente acotado), apiProxy.ts (proxy de sync
   y vault del refresh token), menu.ts y protocol.ts (resolución de assets y
@@ -934,8 +936,9 @@ prototipo retirado:
 - **Auth/sync:** `src/sync/api.ts` crea el cliente en modo `native`; el refresh
   token va a `expo-secure-store` y el acceso vive en memoria. El servidor solo
   lo devuelve con el gate de `X-Client-Platform` sin `Origin`/
-  `Sec-Fetch-Site` (ADR-0005). El motor de sync, el manager y el auto-merge son
-  los de `app-core`; NetInfo/AppState sustituyen a navigator/window.
+  `Sec-Fetch-Site` (ADR-0005). El motor de sync, el manager, el auto-merge y el
+  feed de cambios long-poll (`/v1/sync/watch`, ADR-0006) son los de `app-core`;
+  NetInfo/AppState sustituyen a navigator/window y paran el feed en background.
 - **Notificaciones:** preferencias device-local en `lifespire:notifications`
   (fuera del documento), planner puro (`day-open`, `evening`, `run-end`) y
   scheduler `expo-notifications` con canal `daily-path`. Se reprograman al
@@ -964,7 +967,8 @@ prototipo retirado:
   `lifespire-app://app` (empaquetado) o `LIFESPIRE_DEV_URL` (dev). El proxy de
   `apiProxy.ts` solo acepta `/v1/...` y `/health/live`, métodos y cabeceras en
   allowlist, cuerpos ≤ 1 MB, respuestas ≤ 5 MB, timeout de 10 s (6 s en
-  health) y `redirect: 'error'` siempre; las rutas con `..`/`%2e`/`%2f`, las
+  health y 35 s en `/v1/sync/watch`, cuyo long-poll dura hasta 30 s) y
+  `redirect: 'error'` siempre; las rutas con `..`/`%2e`/`%2f`, las
   URLs absolutas y los literales link-local (`169.254.0.0/16`,
   `::ffff:169.254.0.0/16`, `fe80::/10`, `fd00:ec2::254`) se rechazan. Los
   alias DNS no se resuelven (solo literales). Los handlers exigen que el

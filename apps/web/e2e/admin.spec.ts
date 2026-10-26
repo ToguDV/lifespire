@@ -48,6 +48,13 @@ async function routeAdmin(context: BrowserContext, role: 'ADMIN' | 'USER', users
       }),
     })
   })
+  await context.route('**/v1/sync/watch*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ version: null, updatedAt: null }),
+    })
+  })
   await context.route('**/v1/sync', async (route) => {
     await route.fulfill({
       status: 404,

@@ -74,14 +74,15 @@ function buildApiClient(): ApiClient {
 
 export let syncApi: ApiClient = buildApiClient()
 
-const engineApiTarget: { current: Pick<ApiClient, 'getSync' | 'putSync'> } = {
+const engineApiTarget: { current: Pick<ApiClient, 'getSync' | 'putSync' | 'watchSync'> } = {
   current: syncApi,
 }
 
 /** Stable reference for the sync engine while the server can be repointed. */
-export const engineApi: Pick<ApiClient, 'getSync' | 'putSync'> = {
+export const engineApi: Pick<ApiClient, 'getSync' | 'putSync' | 'watchSync'> = {
   getSync: (ifMatch) => engineApiTarget.current.getSync(ifMatch),
   putSync: (document, opts) => engineApiTarget.current.putSync(document, opts),
+  watchSync: (since, opts) => engineApiTarget.current.watchSync(since, opts),
 }
 
 /** Rebuilds the client after a server URL change; no app reload needed. */

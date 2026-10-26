@@ -63,6 +63,12 @@ export const syncEngine = createSyncEngine({
   },
   isOnline: () => online,
   useLocks: false,
+  onRemoteApplied: () => {
+    useAppStore.getState().showToast('Updated from another device.')
+  },
+  onCloudDeleted: () => {
+    useAppStore.getState().showToast('The cloud save was deleted from another device.')
+  },
   onBeforeAutoMergePush: () => {
     try {
       documentStorage.backup()
@@ -112,16 +118,23 @@ export async function initSync(): Promise<() => void> {
     })
   }
   syncEngineToUi()
-  syncEngine.startPolling()
+  syncEngine.startWatching()
 
   const netInfoUnsubscribe = NetInfo.addEventListener((state) => {
     const wasOnline = online
     online = state.isConnected !== false
     if (!wasOnline && online) syncEngine.handleOnline()
+    if (wasOnline && !online) syncEngine.stopWatching()
   })
   void NetInfo.fetch()
     .then((state) => {
+      const wasOnline = online
       online = state.isConnected !== false
+      if (!online) {
+        syncEngine.stopWatching()
+      } else if (!wasOnline) {
+        syncEngine.startWatching()
+      }
     })
     .catch((error: unknown) => {
       devWarn('sync', 'could not read the initial network state', error)
@@ -134,8 +147,9 @@ export async function initSync(): Promise<() => void> {
     if (becameActive) {
       useAppStore.getState().reconcile()
       void syncEngine.pullNow()
-      syncEngine.startPolling()
+      syncEngine.startWatching()
     } else if (next === 'background') {
+      syncEngine.stopWatching()
       syncEngine.stopPolling()
     }
   })
@@ -147,7 +161,11 @@ export async function initSync(): Promise<() => void> {
     previousUserId = nextId
     void syncManager
       .switchToAccount(nextId)
-      .then(syncEngineToUi)
+      .then(() => {
+        syncEngineToUi()
+        if (nextId) syncEngine.startWatching()
+        else syncEngine.stopWatching()
+      })
       .catch((error: unknown) => {
         devError('sync', 'account switch after an auth change failed', error, { nextId })
       })
@@ -162,6 +180,7 @@ export async function initSync(): Promise<() => void> {
     appStateSubscription.remove()
     netInfoUnsubscribe()
     stopEngineUi()
+    syncEngine.stopWatching()
     syncEngine.stopPolling()
   }
 }

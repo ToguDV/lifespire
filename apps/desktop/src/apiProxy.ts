@@ -26,9 +26,13 @@ export const API_PROXY_CHANNELS = {
 
 export const API_PROXY_TIMEOUT_MS = 10_000
 export const API_PROXY_HEALTH_TIMEOUT_MS = 6_000
+// The watch endpoint long-polls for up to 30 s server-side; leave a margin so
+// the proxy never cuts a valid wait short.
+export const API_PROXY_WATCH_TIMEOUT_MS = 35_000
 export const API_PROXY_MAX_BODY_BYTES = 1024 * 1024
 export const API_PROXY_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 export const HEALTH_PATH = '/health/live'
+export const WATCH_PATH = '/v1/sync/watch'
 
 const NATIVE_CLIENT_PLATFORM = 'desktop'
 const AUTH_TOKEN_PATHS: ReadonlySet<string> = new Set([
@@ -554,6 +558,7 @@ export interface ApiProxyDeps {
   vault: TokenVault
   timeoutMs?: number
   healthTimeoutMs?: number
+  watchTimeoutMs?: number
 }
 
 function failure(code: string, message: string): ProxyResult {
@@ -665,6 +670,7 @@ function stripRefreshToken(body: string): { body: string; token: string | null }
 export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
   const timeoutMs = deps.timeoutMs ?? API_PROXY_TIMEOUT_MS
   const healthTimeoutMs = deps.healthTimeoutMs ?? API_PROXY_HEALTH_TIMEOUT_MS
+  const watchTimeoutMs = deps.watchTimeoutMs ?? API_PROXY_WATCH_TIMEOUT_MS
   let serverOrigin: string | null = null
   let refreshToken: string | null = null
   let tokenOrigin: string | null = null
@@ -763,7 +769,7 @@ export function createApiProxy(deps: ApiProxyDeps): ApiProxy {
     const timer = setTimeout(() => {
       timedOut = true
       controller.abort()
-    }, pathname === HEALTH_PATH ? healthTimeoutMs : timeoutMs)
+    }, pathname === HEALTH_PATH ? healthTimeoutMs : pathname === WATCH_PATH ? watchTimeoutMs : timeoutMs)
     // Race the transport as well as the signal: a transport that ignores
     // AbortSignal must still not hang the main process forever.
     const timeoutRejection = new Promise<never>((_resolve, reject) => {

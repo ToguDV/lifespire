@@ -22,7 +22,9 @@
   decisions are recorded in [`docs/adr/`](./docs/adr/) (protocol, auth/admin,
   monorepo, conservative auto-merge in
   [`0004-sync-auto-merge.md`](./docs/adr/0004-sync-auto-merge.md),
-  native auth in [`0005-native-auth.md`](./docs/adr/0005-native-auth.md)).
+  native auth in [`0005-native-auth.md`](./docs/adr/0005-native-auth.md),
+  foreground change feed in
+  [`0006-foreground-change-feed.md`](./docs/adr/0006-foreground-change-feed.md)).
 - **Android app:** [`docs/MOBILE.md`](./docs/MOBILE.md) defines the Expo
   architecture, SQLite persistence, native auth/sync, local notifications,
   Android setup, testing and release checks. The app lives in `apps/mobile/`
