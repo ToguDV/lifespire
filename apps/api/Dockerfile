@@ -17,23 +17,31 @@ RUN pnpm --filter @lifespire/api build
 RUN pnpm --filter @lifespire/api --prod deploy --legacy /prod/api
 # pnpm deploy does not carry the generated Prisma client (.prisma is not part
 # of any package). Stage it; the runner restores it next to its own
-# @prisma/client (store hashes are derived, never hardcoded).
-RUN cp -r "$(dirname "$(readlink -f /app/apps/api/node_modules/@prisma/client)")/../.prisma" /tmp/dot-prisma
+# @prisma/client (the store-derived path is computed by the shared script).
+RUN cp -r "$(sh scripts/prisma-client-dir.sh /app/apps/api)" /tmp/dot-prisma
 
 FROM node:24-alpine AS runner
 ENV NODE_ENV=production
+# The image ships the web build; set WEB_DIST_DIR empty to serve the API only.
+ENV WEB_DIST_DIR=/srv/web
 WORKDIR /srv/api
-COPY --from=build /prod/api/node_modules ./node_modules
-COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/prisma ./prisma
-COPY --from=build /app/apps/api/prisma.config.ts ./
-COPY --from=build /app/apps/api/package.json ./
-COPY --from=build /app/apps/web/dist /srv/web
+COPY --chown=node:node --from=build /prod/api/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/apps/api/dist ./dist
+COPY --chown=node:node --from=build /app/apps/api/prisma ./prisma
+COPY --chown=node:node --from=build /app/apps/api/prisma.config.ts ./
+COPY --chown=node:node --from=build /app/apps/api/package.json ./
+COPY --chown=node:node --from=build /app/apps/web/dist /srv/web
+COPY --from=build /tmp/dot-prisma /tmp/dot-prisma
+COPY --chown=node:node --from=build /app/scripts/prisma-client-dir.sh ./scripts/prisma-client-dir.sh
 # Restore the generated Prisma client next to the deployed @prisma/client,
 # where it resolves it from (see build stage).
-COPY --from=build /tmp/dot-prisma /tmp/dot-prisma
-RUN DEST="$(dirname "$(readlink -f node_modules/@prisma/client)")/../.prisma" \
-  && mkdir -p "$DEST" && cp -r /tmp/dot-prisma/. "$DEST/" && rm -rf /tmp/dot-prisma
+RUN DEST="$(sh scripts/prisma-client-dir.sh /srv/api)" \
+  && mkdir -p "$DEST" \
+  && cp -r /tmp/dot-prisma/. "$DEST/" \
+  && chown -R node:node "$DEST" \
+  && rm -rf /tmp/dot-prisma
+# Unprivileged: the same process serves the public web build and opens the DB.
+USER node
 EXPOSE 3000
 # prisma is a runtime dependency, so this uses the pinned local CLI instead of
 # downloading one at boot.
