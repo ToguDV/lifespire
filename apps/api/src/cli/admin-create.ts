@@ -40,7 +40,7 @@ async function run(): Promise<void> {
     });
     console.log(`Admin ${existingAdmins === 0 ? '(first) ' : ''}created: ${user.id} ${user.email}`);
     if (!password) {
-      console.log('No password set — generate an invite link with: pnpm admin:reset-link --email ' + email);
+      console.log('No password set — generate a one-time password link with: pnpm admin:reset-link --email ' + email);
     } else {
       console.log('Next: log in and complete TOTP setup at POST /v1/auth/totp/setup.');
     }

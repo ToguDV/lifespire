@@ -105,7 +105,8 @@ docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node di
 # 12+ character password, sign in and finish TOTP setup. The reset also
 # activates a PENDING account created without --password.
 # Fresh browser without a local save: use "Already have an account? Sign in"
-# on the welcome screen, or paste the link under Settings → Sync.
+# on the welcome screen, or paste the link under Settings → Sync. After signing
+# in, begin a path and open Settings → Sync → Admin to finish TOTP setup.
 
 # manual reset link for any user (same production container/database as the API)
 docker compose --env-file .env -f infra/docker-compose.prod.yml exec api node dist/cli/admin-reset-link.js --email user@example.com
