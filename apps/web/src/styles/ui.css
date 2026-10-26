@@ -85,7 +85,7 @@ button.text-link:hover {
 }
 
 .panel-note strong {
-  color: var(--done-ink);
+  color: var(--ink);
 }
 
 .settings-note {
