@@ -1,29 +1,15 @@
 import { validateSetup } from '../../content/demo'
-import { currentDay, xpIntoLevel, xpToNextLevel } from '../../domain/selectors'
 import type { Day, Goal, LootItem, Run, RunObjective } from '../../domain/types'
 import { useAppStore } from '../../state/store'
-import {
-  AimRow,
-  Button,
-  DayPips,
-  Icon,
-  Panel,
-  PanelHead,
-  Progress,
-  ScreenHead,
-  Stat,
-  StatStrip,
-} from '../components'
+import { AimRow, Button, DayPips, Icon, Panel, PanelHead } from '../components'
 import type { IconName } from '../components'
 import { homeState, weekMarker } from '../lib/dashboard'
 import type { HomePhase } from '../lib/dashboard'
 import {
-  formatShortDayKey,
   formatShortIsoDay,
   goalIconFor,
   goalIconName,
   lootIcon,
-  percent,
   RARITY_LABEL,
 } from '../lib/format'
 
@@ -143,6 +129,8 @@ function Findings({
   findings: LootItem[]
   onReliquary: () => void
 }) {
+  if (findings.length === 0) return null
+
   return (
     <section className="section-block" aria-labelledby="finds-title">
       <div className="section-block__head">
@@ -151,28 +139,21 @@ function Findings({
           Reliquary
         </button>
       </div>
-      {findings.length === 0 ? (
-        <p className="quiet-note">
-          <Icon name="gem" />
-          <span>Nothing found yet. Relics appear as you complete elite, treasure and boss steps.</span>
-        </p>
-      ) : (
-        <div className="relic-row">
-          {findings.map((item) => (
-            <div className="relic-mini" key={item.id}>
-              <span className="relic-mini__niche">
-                <Icon name={lootIcon(item.catalogId)} />
-              </span>
-              <span className="relic-mini__body">
-                <strong>{item.name}</strong>
-                <small>
-                  {RARITY_LABEL[item.rarity]} · {formatShortIsoDay(item.obtainedAt)}
-                </small>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="relic-row">
+        {findings.map((item) => (
+          <div className="relic-mini" key={item.id}>
+            <span className="relic-mini__niche">
+              <Icon name={lootIcon(item.catalogId)} />
+            </span>
+            <span className="relic-mini__body">
+              <strong>{item.name}</strong>
+              <small>
+                {RARITY_LABEL[item.rarity]} · {formatShortIsoDay(item.obtainedAt)}
+              </small>
+            </span>
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
@@ -190,10 +171,6 @@ export function HomeScreen() {
   const home = homeState(run, today)
   const meta = PHASE_META[home.phase]
   const objectives = run?.objectives ?? []
-  const activeGoals = document.goals.filter((goal) => goal.active)
-  const aimCount = objectives.length > 0 ? objectives.length : activeGoals.length
-  const goalsMet = objectives.filter((objective) => objective.progress >= objective.target).length
-  const daysKept = run?.days.filter((item) => item.status === 'completed').length ?? 0
   const daysMissed = run?.days.filter((item) => item.status === 'missed').length ?? 0
   const findings = profile?.loot.slice(-2).reverse() ?? []
   const setupReady = validateSetup(document.goals, document.tasks).ok
@@ -201,16 +178,7 @@ export function HomeScreen() {
   if (!profile) return null
 
   const day = home.today
-  const sealedSteps = day?.map ? day.map.layers.length + 1 : null
-  const dayPips = run ? (
-    <DayPips
-      days={run.days}
-      currentIndex={
-        home.phase === 'run-closed' || home.phase === 'no-open-day' ? undefined : day?.index
-      }
-      label={day ? `Day ${day.index + 1} of 7` : 'No day today'}
-    />
-  ) : null
+  const dayNumber = day ? day.index + 1 : 0
 
   const openToday = () => {
     if (!day) return
@@ -255,7 +223,7 @@ export function HomeScreen() {
             variant="primary"
             onClick={() => navigate({ name: 'day-summary', dayId: day.id })}
           >
-            Review the day
+            Read the day
             <Icon name="chevron-right" />
           </Button>
         ) : null
@@ -267,186 +235,55 @@ export function HomeScreen() {
           </Button>
         )
       case 'none':
-        return (
-          <Button variant="secondary" disabled title="The next path opens at midnight.">
-            Wait for tomorrow
-          </Button>
-        )
+        return null
     }
   })()
 
-  const heroCopy = (() => {
+  const kicker = (() => {
     switch (home.phase) {
       case 'no-run':
-        return {
-          micro: 'The first step',
-          title: setupReady ? 'A quiet beginning.' : 'The path needs goals.',
-          copy: setupReady
-            ? 'A seven-day run turns your routines into a path. Begin when you are ready; nothing is lost by waiting.'
-            : 'A run needs at least one goal and four routines. Review your goals before the climb begins.',
-          foot: 'Seven days · One path each',
-        }
+        return 'Camp · Before the run'
+      case 'run-closed':
+        return 'Camp · Week sealed'
+      case 'no-open-day':
+        return 'Camp · Week spent'
+      default:
+        return day ? `Camp · Day ${dayNumber} of 7` : 'Camp · The week'
+    }
+  })()
+
+  const copy = (() => {
+    switch (home.phase) {
+      case 'no-run':
+        return setupReady
+          ? { title: 'No run yet.', line: 'Your goals are ready.' }
+          : { title: 'The path needs goals.', line: 'A run needs one goal and four routines.' }
       case 'day-available':
-        return {
-          micro: "Today's path",
-          title: 'The path is still veiled.',
-          copy: 'Opening the day draws its layers and a boss. The map is saved at once and will not change.',
-          foot: day ? `Day ${day.index + 1} of 7 · ${formatShortDayKey(day.date)}` : 'Today',
-        }
+        return { title: 'Today’s path is ready.', line: 'Open it once; the map will not change.' }
       case 'day-in-progress':
         return {
-          micro: "Today's path",
-          title: 'The Ashen Wood',
-          copy: home.hasSelection
-            ? 'Your step is chosen. Open the map to review it, complete it, or skip it.'
+          title: `Day ${dayNumber} is open.`,
+          line: home.hasSelection
+            ? 'One step is chosen.'
             : home.availableChoices > 0
-              ? home.availableChoices > 1
-                ? `${home.availableChoices} paths reach the gate. The trade-offs differ.`
-                : 'One path reaches the gate; this layer offers no trade-off.'
-              : 'This path has no open step. The day waits for the map to unfold.',
-          foot: day ? `Day ${day.index + 1} of 7 · ${formatShortDayKey(day.date)}` : 'Today',
+              ? `${home.availableChoices} paths ahead.`
+              : 'No step is open.',
         }
       case 'day-completed':
-        return {
-          micro: "Today's path",
-          title: 'The path behind.',
-          copy: `${sealedSteps ? `${sealedSteps} steps, one path` : 'One path, sealed'}. The rewards are recorded and already yours. The next path opens at midnight.`,
-          foot: day ? `Day ${day.index + 1} of 7 · ${formatShortDayKey(day.date)}` : 'Today',
-        }
+        return { title: 'The day is sealed.', line: 'The next path opens at midnight.' }
       case 'day-missed':
-        return {
-          micro: "Today's path",
-          title: 'The path unclaimed.',
-          copy: 'No path was kept today. The run continues, but missed days are not recovered. The next path opens at midnight.',
-          foot: day ? `Day ${day.index + 1} of 7 · ${formatShortDayKey(day.date)}` : 'Today',
-        }
+        return { title: 'The day passed unclaimed.', line: 'Missed days are not recovered.' }
       case 'day-locked':
-        return {
-          micro: "Today's path",
-          title: 'The next day is still sealed.',
-          copy: 'Only today’s day can be played. Return when the next sunrise opens the path.',
-          foot: 'The next path opens at midnight',
-        }
+        return { title: 'The next day is sealed.', line: 'Only today can be played.' }
       case 'run-closed':
-        return {
-          micro: 'The week behind',
-          title: 'A week recorded.',
-          copy: 'Every day is recorded and the totals are yours to keep. Read the week to revisit its goals, bonus and relics.',
-          foot: `${daysKept} of 7 days kept`,
-        }
+        return { title: 'The week is sealed.', line: 'The totals are yours.' }
       case 'no-open-day':
-        return {
-          micro: 'The week behind',
-          title: 'A week spent.',
-          copy: 'No day can be opened now. Read the week to revisit its goals, bonus and relics, then begin a new run.',
-          foot: `${daysKept} of 7 days kept`,
-        }
+        return { title: 'The week is spent.', line: 'Begin a new run from the week summary.' }
     }
   })()
-
-  const quietCopy = (() => {
-    switch (home.phase) {
-      case 'no-run':
-        return 'Begin a run and the first path opens today.'
-      case 'day-available':
-        return 'Only today can be played. Open the path when you are ready; it is drawn once and kept.'
-      case 'day-in-progress':
-        return 'Your chosen step stays current until you resolve it. The next path opens at midnight.'
-      case 'day-completed':
-        return 'The next path opens at midnight.'
-      case 'day-missed':
-        return 'The next path opens at midnight. Missed days are not recovered.'
-      case 'day-locked':
-        return 'The next path opens at midnight.'
-      case 'run-closed':
-        return 'The next run opens when you choose to begin again.'
-      case 'no-open-day':
-        return 'No day can be opened now. Begin a new run from the weekly summary when you are ready.'
-    }
-  })()
-
-  const weekNote = !run
-    ? 'Not begun'
-    : run.status === 'closed'
-      ? 'Sealed'
-      : home.daysAhead === 0
-        ? 'Closes today'
-        : `Closes in ${home.daysAhead} ${home.daysAhead === 1 ? 'day' : 'days'}`
-
-  const kicker =
-    home.phase === 'no-run'
-      ? 'Camp · Before the run'
-      : run?.status === 'closed'
-        ? 'Camp · The week is sealed'
-        : day
-          ? `Camp · Day ${day.index + 1} of 7`
-          : 'Camp · The week is spent'
-
-  const title = (() => {
-    switch (home.phase) {
-      case 'no-run':
-        return 'No run yet.'
-      case 'day-available':
-      case 'day-in-progress':
-        return 'The fire is lit.'
-      case 'day-completed':
-        return 'The day is sealed.'
-      case 'day-missed':
-        return 'The day passed unclaimed.'
-      case 'day-locked':
-        return 'The next day is still sealed.'
-      case 'run-closed':
-        return 'The week is sealed.'
-      case 'no-open-day':
-        return 'The week is spent.'
-    }
-  })()
-
-  const sub = (() => {
-    switch (home.phase) {
-      case 'no-run':
-        return 'Your profile is ready. Begin a seven-day run when you feel ready to climb.'
-      case 'day-available':
-        return `Day ${(day?.index ?? 0) + 1} is ready. Open today’s path to see the choices; the map is drawn once and kept.`
-      case 'day-in-progress':
-        return home.hasSelection
-          ? `Day ${(day?.index ?? 0) + 1} is underway. Continue from your chosen step.`
-          : `Day ${(day?.index ?? 0) + 1} is underway. Choose one of the paths ahead.`
-      case 'day-completed':
-        return 'The path is recorded. Review the day while the next path waits for midnight.'
-      case 'day-missed':
-        return 'No path was kept today. The run continues; missed days are not recovered.'
-      case 'day-locked':
-        return 'Only today’s day can be played. The next path opens at midnight.'
-      case 'run-closed':
-        return 'Every day is recorded; the week’s totals are yours to keep.'
-      case 'no-open-day':
-        return 'No day can be opened now. Read the week to see its record.'
-    }
-  })()
-
-  const current = currentDay(run)
-  const levelInto = xpIntoLevel(profile.xp)
-  const levelToNext = xpToNextLevel(profile.xp)
 
   return (
     <section className="screen screen--camp" data-screen="camp" aria-labelledby="camp-title">
-      <ScreenHead
-        kicker={kicker}
-        title={title}
-        titleId="camp-title"
-        sub={sub}
-        meta={
-          <>
-            {dayPips}
-            <span className={`chip ${home.phase === 'day-missed' ? 'chip--quiet' : ''}`}>
-              <Icon name={meta.icon} />
-              {meta.label}
-            </span>
-          </>
-        }
-      />
-
       <div className="camp-grid">
         <div className="camp-main">
           <article className="panel hero-panel">
@@ -472,11 +309,17 @@ export function HomeScreen() {
               </svg>
             </div>
             <div className="hero-panel__body">
-              <span className="micro">{heroCopy.micro}</span>
-              <h2>{heroCopy.title}</h2>
-              <p>{heroCopy.copy}</p>
-              <div className="hero-panel__meta">
-                {run ? (
+              <div className="hero-panel__kicker">
+                <span className="micro">{kicker}</span>
+                <span className={`chip ${home.phase === 'day-missed' ? 'chip--quiet' : ''}`}>
+                  <Icon name={meta.icon} />
+                  {meta.label}
+                </span>
+              </div>
+              <h1 id="camp-title">{copy.title}</h1>
+              <p>{copy.line}</p>
+              {run ? (
+                <div className="hero-panel__meta">
                   <span className="hero-panel__pips">
                     <DayPips
                       days={run.days}
@@ -485,18 +328,12 @@ export function HomeScreen() {
                           ? undefined
                           : day?.index
                       }
+                      label={day ? `Day ${day.index + 1} of 7` : 'No day today'}
                     />
                   </span>
-                ) : null}
-                <span>{heroCopy.foot}</span>
-              </div>
-              {heroAction}
-              {home.phase === 'day-available' || home.phase === 'day-in-progress' ? (
-                <p className="hero-panel__secondary">
-                  <Icon name="lock" />
-                  <span>Only today can be played.</span>
-                </p>
+                </div>
               ) : null}
+              {heroAction}
             </div>
           </article>
 
@@ -505,15 +342,15 @@ export function HomeScreen() {
           <section className="section-block week-block" aria-labelledby="week-title">
             <div className="section-block__head">
               <h2 id="week-title">The week</h2>
-              <span className="mini-note">{weekNote}</span>
             </div>
             {run ? (
               <>
                 <WeekStrip run={run} today={day} />
                 {daysMissed > 0 ? (
                   <p className="panel-note week-missed-note">
-                    {daysMissed} {daysMissed === 1 ? 'day was' : 'days were'} missed. Missed days
-                    are not recovered; the run continues with the next sunrise.
+                    {daysMissed === 1
+                      ? '1 day was missed and is not recovered.'
+                      : `${daysMissed} days were missed and are not recovered.`}
                   </p>
                 ) : null}
               </>
@@ -524,11 +361,6 @@ export function HomeScreen() {
               </p>
             )}
           </section>
-
-          <p className="quiet-note">
-            <Icon name={home.phase === 'run-closed' ? 'crown' : 'moon'} />
-            <span>{quietCopy}</span>
-          </p>
         </div>
 
         <aside className="camp-rail" aria-label="Run overview">
@@ -537,74 +369,6 @@ export function HomeScreen() {
             goals={document.goals}
             onViewAll={() => navigate({ name: 'goals' })}
           />
-
-          <Panel pad aria-label="Run at a glance">
-            <PanelHead label="Run at a glance" />
-            <StatStrip label="Run totals">
-              <Stat
-                value={`${daysKept} / 7`}
-                label="Days kept"
-                progress={percent(daysKept, 7)}
-              />
-              <Stat
-                value={`${goalsMet} / ${aimCount}`}
-                label="Goals met"
-                progress={percent(goalsMet, Math.max(1, aimCount))}
-              />
-              <Stat
-                value={profile.loot.length}
-                label="Relics"
-                progress={percent(profile.loot.length, 12)}
-              />
-            </StatStrip>
-          </Panel>
-
-          <Panel pad className="traveller-panel" aria-label="Traveller">
-            <PanelHead
-              label="The traveller"
-              aside={
-                <span className="traveller-links">
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => navigate({ name: 'profile' })}
-                  >
-                    Profile
-                  </button>
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => navigate({ name: 'settings' })}
-                  >
-                    Settings
-                  </button>
-                </span>
-              }
-            />
-            <StatStrip label="Profile totals">
-              <Stat value={`Lv ${profile.level}`} label="Level" />
-              <Stat value={profile.xp} label="Experience" />
-              <Stat value={profile.gold} label="Gold" />
-            </StatStrip>
-            <div className="traveller-level">
-              <Progress
-                value={levelInto}
-                max={100}
-                label={`Experience into level ${profile.level}`}
-                showLabel
-              />
-              <span className="mini-note">
-                {levelToNext} XP to level {profile.level + 1}
-              </span>
-            </div>
-          </Panel>
-
-          {current && home.phase === 'day-in-progress' ? (
-            <p className="quiet-note">
-              <Icon name="compass" />
-              <span>Return to the map to keep the path moving.</span>
-            </p>
-          ) : null}
         </aside>
       </div>
     </section>
