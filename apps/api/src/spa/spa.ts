@@ -12,7 +12,8 @@ import { isApiPath, requestPath } from '../http/edge';
 export const SPA_SECURITY_HEADERS: Record<string, string> = {
   'Content-Security-Policy':
     "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
-    "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; " +
+    "form-action 'self'",
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
   // Align with CSP frame-ancestors 'none' instead of helmet's SAMEORIGIN.
@@ -123,7 +124,10 @@ export function createSpaMiddleware(distDir: string): RequestHandler {
     index: 'index.html',
     setHeaders: (res, filePath) => {
       applySpaHeaders(res);
-      if (isHashedAsset(distDir, filePath)) {
+      if (relative(distDir, filePath) === 'theme.js') {
+        // Not content-hashed: revalidate so a theme fix reaches installed PWAs.
+        res.setHeader('Cache-Control', 'no-cache');
+      } else if (isHashedAsset(distDir, filePath)) {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       }
     },
