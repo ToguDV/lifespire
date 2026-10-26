@@ -18,13 +18,13 @@ export interface NewRunDialogProps {
 export function NewRunDialog({ onClose }: NewRunDialogProps) {
   const document = useAppStore((state) => state.document)
   const startNewRun = useAppStore((state) => state.startNewRun)
-  const profile = document.profile
   const [targets, setTargets] = useState<WeeklyTargets>(() =>
     initialWeeklyTargets(document.goals),
   )
   const [showErrors, setShowErrors] = useState(false)
   const [transitionError, setTransitionError] = useState<string | null>(null)
   const formId = useId()
+  const targetsHintId = `${formId}-targets-hint`
 
   const validation = validateNewRunSetup(document.goals, document.tasks, targets)
   const activeGoalIds = new Set(validation.activeGoals.map((goal) => goal.id))
@@ -62,7 +62,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
       open
       eyebrow="The next run"
       title="Begin a new run?"
-      description="The sealed week is retired and a fresh seven-day run begins today. Your traveller keeps everything earned."
+      description="The previous week is retired. Your profile, level, XP, gold and relics stay."
       onClose={onClose}
       footer={
         <>
@@ -95,46 +95,10 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
           </div>
         ) : null}
 
-        <div className="summary-bonus is-forfeited new-run-warning">
-          <span className="summary-bonus__icon">
-            <Icon name="lock" />
-          </span>
-          <div className="summary-bonus__body">
-            <span className="micro">What changes</span>
-            <strong>The previous week’s record is replaced.</strong>
-            <p>
-              Its days, maps and weekly summary will no longer be available. Only one
-              run can be active at a time.
-            </p>
-          </div>
-        </div>
-
-        <div className="new-run-keep" aria-label="Progress kept across runs">
-          <span className="micro">Kept</span>
-          <span className="chip">
-            <Icon name="star" />
-            Level {profile?.level ?? 1}
-          </span>
-          <span className="chip">{profile?.xp ?? 0} XP</span>
-          <span className="chip">
-            <Icon name="coin" />
-            {profile?.gold ?? 0} gold
-          </span>
-          <span className="chip">
-            <Icon name="gem" />
-            {profile?.loot.length ?? 0} relics
-          </span>
-        </div>
-        <p className="panel-note new-run-keep-note">
-          {profile?.name ?? 'Your traveller'} keeps their name, level, experience,
-          gold and collection. Only the run, its days and its weekly targets reset.
-        </p>
-
         <fieldset className="new-run-goals">
           <legend className="micro">Weekly targets for the new run</legend>
-          <p className="field-hint">
-            Review each active goal. Targets run from {MIN_WEEKLY_OBJECTIVE} to{' '}
-            {MAX_WEEKLY_OBJECTIVE} and are fixed once the run begins.
+          <p className="field-hint" id={targetsHintId}>
+            Targets run from {MIN_WEEKLY_OBJECTIVE} to {MAX_WEEKLY_OBJECTIVE}.
           </p>
           {validation.activeGoals.length === 0 ? (
             <p className="panel-note">
@@ -143,7 +107,6 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
           ) : (
             validation.activeGoals.map((goal, index) => {
               const fieldId = `${formId}-goal-${index}`
-              const hintId = `${fieldId}-hint`
               const error = showErrors ? validation.fieldErrors[goal.id] : undefined
               const routines = activeTasks.filter((task) => task.goalId === goal.id).length
               return (
@@ -171,13 +134,11 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
                       step={1}
                       value={targets[goal.id] ?? ''}
                       aria-invalid={Boolean(error)}
-                      aria-describedby={error ? `${fieldId}-error ${hintId}` : hintId}
+                      aria-describedby={
+                        error ? `${fieldId}-error ${targetsHintId}` : targetsHintId
+                      }
                       onChange={(event) => updateTarget(goal.id, event.target.value)}
                     />
-                    <p className="field-hint" id={hintId}>
-                      {goal.title} must be kept {targets[goal.id] || '—'} times this
-                      week.
-                    </p>
                     {error ? (
                       <p className="field-error" id={`${fieldId}-error`}>
                         {error}
@@ -196,15 +157,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
             A run needs at least four active routines. This setup has{' '}
             {validation.activeRoutines}.
           </p>
-        ) : (
-          <p className="summary-wait-note new-run-footnote">
-            <Icon name="compass" />
-            <span>
-              The new run starts today. Day 1 will be ready to open; days 2–7 stay
-              locked until their date.
-            </span>
-          </p>
-        )}
+        ) : null}
       </form>
     </Dialog>
   )

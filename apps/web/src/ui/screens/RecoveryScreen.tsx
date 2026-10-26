@@ -16,15 +16,15 @@ import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 const REASON_COPY: Record<string, { title: string; copy: string }> = {
   corrupt: {
     title: 'The local save is incomplete or damaged.',
-    copy: 'LifeSpire could not read the document stored in this browser. It has left the original save untouched instead of replacing it.',
+    copy: 'LifeSpire could not read the document stored in this browser.',
   },
   'future-version': {
     title: 'This save comes from a newer LifeSpire.',
-    copy: 'The stored document uses a schema version this build does not understand. It has been left untouched so a newer version can still open it.',
+    copy: 'The stored document uses a schema version this build does not understand.',
   },
   'import-error': {
     title: 'That save could not be imported.',
-    copy: 'The selected file did not pass validation. Your current local document was not changed.',
+    copy: 'The selected file did not pass validation.',
   },
 }
 
@@ -100,9 +100,7 @@ export function RecoveryScreen({ reason }: { reason: string }) {
             </span>
           </div>
           <p className="panel-note">
-            Import a valid JSON export to recover without resetting first. LifeSpire validates
-            the file, shows a summary and only replaces the blocked document after you confirm.
-            A successful import also unlocks saving again.
+            Import a valid JSON export to recover without resetting first.
           </p>
           <div className="settings-actions">
             <SaveImport label="Import save" inputLabel="Import a LifeSpire save file to recover" />
@@ -119,10 +117,6 @@ export function RecoveryScreen({ reason }: { reason: string }) {
               <span>{exportError}</span>
             </p>
           ) : null}
-          <p className="panel-note settings-note">
-            Resetting removes the blocked save and returns to onboarding. Download the original
-            save first if you may need it later.
-          </p>
         </Panel>
       </div>
 
@@ -142,10 +136,6 @@ export function RecoveryScreen({ reason }: { reason: string }) {
           </>
         }
       >
-        <p className="panel-note">
-          This cannot be undone. Export or copy the original local document first if you may
-          need it later.
-        </p>
         <div className="reset-confirmation">
           <label className="field__label" htmlFor="recovery-reset-confirmation">
             Type {RESET_CONFIRMATION} to confirm
@@ -160,7 +150,6 @@ export function RecoveryScreen({ reason }: { reason: string }) {
             autoCapitalize="characters"
             spellCheck={false}
             placeholder={RESET_CONFIRMATION}
-            aria-describedby="recovery-reset-hint"
             onChange={(event) => setResetPhrase(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && resetReady) {
@@ -169,9 +158,6 @@ export function RecoveryScreen({ reason }: { reason: string }) {
               }
             }}
           />
-          <p className="panel-note" id="recovery-reset-hint">
-            The reset button stays disabled until the word is typed exactly.
-          </p>
         </div>
       </Dialog>
     </section>
