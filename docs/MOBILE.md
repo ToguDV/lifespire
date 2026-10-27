@@ -310,8 +310,8 @@ pnpm --filter @lifespire/mobile test      # Jest + jest-expo
 pnpm --filter @lifespire/mobile build     # Metro Android bundle
 ```
 
-The shared web suite (238 tests) continues to exercise the extracted store,
-sync engine and UI helpers. Mobile Jest covers the notification planner, save
+The shared web suite continues to exercise the extracted store, sync engine and
+UI helpers. Mobile Jest covers the notification planner, save
 files, draft helpers, map layout/state, the dev logger and the account-link form
 logic (`src/lib/syncForm.test.ts`: token extraction/format, password policy and
 the actionable server codes). The CI quality job runs lint, typecheck, tests and
