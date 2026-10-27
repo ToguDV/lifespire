@@ -63,6 +63,7 @@ export function SyncDialog({ visible, onClose }: { visible: boolean; onClose: ()
   const [serverError, setServerError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
   const effective = getSyncBaseUrl() || 'Not configured'
+  const authBusy = loginBusy || inviteBusy || resetBusy
 
   const submitLogin = async () => {
     setLoginError(null)
@@ -268,7 +269,7 @@ export function SyncDialog({ visible, onClose }: { visible: boolean; onClose: ()
               {loginError ?? authError}
             </Text>
           ) : null}
-          <Button onPress={() => void submitLogin()} loading={loginBusy}>
+          <Button onPress={() => void submitLogin()} loading={loginBusy} disabled={authBusy}>
             {loginBusy ? 'Signing in…' : 'Sign in'}
           </Button>
 
@@ -327,6 +328,7 @@ export function SyncDialog({ visible, onClose }: { visible: boolean; onClose: ()
                 variant="secondary"
                 small
                 loading={inviteBusy}
+                disabled={authBusy}
                 onPress={() => void submitInvite()}
               >
                 {inviteBusy ? 'Accepting…' : 'Accept invite'}
@@ -391,6 +393,7 @@ export function SyncDialog({ visible, onClose }: { visible: boolean; onClose: ()
                 variant="secondary"
                 small
                 loading={resetBusy}
+                disabled={authBusy}
                 onPress={() => void submitReset()}
               >
                 {resetBusy ? 'Saving…' : 'Set new password'}
