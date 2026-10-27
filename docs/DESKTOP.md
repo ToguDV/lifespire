@@ -131,6 +131,7 @@ is needed. The Electron **main process** owns the node:
 ```bash
 pnpm dev            # terminal 1: Vite dev server
 pnpm dev:desktop    # terminal 2: compile the shell and open it
+pnpm try:desktop    # or both in one terminal (Ctrl+C stops both)
 
 pnpm build:desktop          # tsc only (part of `pnpm build`)
 pnpm package:desktop        # build web + shell, then package for this OS

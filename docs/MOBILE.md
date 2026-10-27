@@ -378,10 +378,18 @@ these messages and never include the redacted context.
 ## 9. Internal builds (EAS)
 
 ```bash
+pnpm package:android            # EAS preview APK -> apps/mobile/release/, no release cut
+pnpm try:android                 # dev build straight onto a USB-connected device, no APK file
 cd apps/mobile
 npx eas-cli build --platform android --profile preview   # installable APK
 npx eas-cli build --platform android --profile production # AAB
 ```
+
+`pnpm try:android` runs `expo run:android`: it compiles the dev client
+locally (needs the Android SDK) and installs/launches it on the connected
+device or emulator. Expo Go is not enough for sync testing: it does not
+bundle the `lifespire-lan` native module, so Nearby sync stays unavailable
+there.
 
 The EAS project id and signing credentials are account-owned, so they are not
 committed. `eas.json` keeps the internal APK and production AAB profiles. The
