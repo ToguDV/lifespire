@@ -43,6 +43,26 @@ test.describe('account links', () => {
     expect(new URL(page.url()).hash).toBe('')
   })
 
+  test('an expired reset link is explained next to the form', async ({ page, context }) => {
+    await context.route('**/v1/auth/reset-password', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ title: 'Reset link expired', code: 'RESET_EXPIRED' }),
+      })
+    })
+
+    await page.goto(`/reset-password#token=${TOKEN}`)
+    await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible()
+    await page.locator('#auth-link-password').fill('a-strong-password-123')
+    await page.locator('#auth-link-confirm').fill('a-strong-password-123')
+    await page.getByRole('button', { name: 'Set new password' }).click()
+
+    const form = page.locator('form').filter({ has: page.locator('#auth-link-token') })
+    await expect(form.getByRole('alert')).toHaveText(/This reset link expired/)
+    await expect(page.getByRole('heading', { name: 'Password updated' })).toHaveCount(0)
+  })
+
   test('the invite link accepts the token and signs in', async ({ page, context }) => {
     const bodies: Array<{ token?: string; password?: string }> = []
     await context.route('**/v1/auth/accept-invite', async (route) => {
@@ -130,5 +150,61 @@ test.describe('manual reset form', () => {
     await expect(resetForm.getByRole('alert')).toHaveText(/not valid on this server/)
     const loginForm = page.locator('form').filter({ has: page.locator('#sync-email') })
     await expect(loginForm.getByRole('alert')).toHaveCount(0)
+  })
+})
+
+test.describe('invite acceptance from the sync panel', () => {
+  test('confirms the invite and the signed-in account in place', async ({ page, context }) => {
+    const bodies: Array<{ token?: string; password?: string }> = []
+    await context.route('**/v1/auth/accept-invite', async (route) => {
+      bodies.push(JSON.parse(route.request().postData() ?? '{}'))
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ accessToken: 'test-token' }),
+      })
+    })
+    await context.route('**/v1/me', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'user1',
+          email: 'invited@example.com',
+          role: 'USER',
+          status: 'ACTIVE',
+          totpEnabled: false,
+          createdAt: '2026-10-24T00:00:00.000Z',
+        }),
+      })
+    })
+    await context.route('**/v1/sync/watch*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ version: null, updatedAt: null }),
+      })
+    })
+    await context.route('**/v1/sync', async (route) => {
+      await route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ title: 'No cloud save' }),
+      })
+    })
+
+    await page.goto('/')
+    await openSyncDialog(page)
+    await page.locator('#sync-invite-token').fill(`https://app.example.com/accept-invite#token=${TOKEN}`)
+    await page.locator('#sync-invite-password').fill('a-strong-password-123')
+    await page.getByRole('button', { name: 'Accept invite' }).click()
+
+    const dialog = page.getByRole('dialog')
+    await expect(
+      dialog.getByText('Invite accepted — you are signed in on this device.'),
+    ).toBeVisible()
+    await expect(dialog.getByText(/Signed in as invited@example\.com/)).toBeVisible()
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toMatchObject({ token: TOKEN, password: 'a-strong-password-123' })
   })
 })

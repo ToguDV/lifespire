@@ -38,11 +38,13 @@ export function SyncPanel() {
   const [inviteNotice, setInviteNotice] = useState<string | null>(null)
   const [resetNotice, setResetNotice] = useState<string | null>(null)
   const [signOutError, setSignOutError] = useState<string | null>(null)
+  const authBusy = loginBusy || inviteBusy || resetBusy
 
   const submitSignOut = async (): Promise<void> => {
     setSignOutError(null)
     try {
       await finishDesktopSignOut(logout)
+      setInviteNotice(null)
     } catch (error) {
       setSignOutError(
         error instanceof Error ? error.message : 'Could not clear the session on this device.',
@@ -142,6 +144,11 @@ export function SyncPanel() {
             {lastPushedAt ? ` · last push ${new Date(lastPushedAt).toLocaleTimeString()}` : null}
             {lastAutoMergeAt ? ' · edits merged automatically' : null}
           </p>
+          {inviteNotice ? (
+            <p className="panel-note" role="status">
+              {inviteNotice}
+            </p>
+          ) : null}
           {lastError ? (
             <p className="panel-note" role="alert">
               {lastError}
@@ -222,7 +229,7 @@ export function SyncPanel() {
               </p>
             ) : null}
             <div className="settings-actions">
-              <Button variant="primary" type="submit" disabled={loginBusy}>
+              <Button variant="primary" type="submit" disabled={authBusy}>
                 {loginBusy ? 'Signing in…' : 'Sign in'}
               </Button>
             </div>
@@ -282,13 +289,8 @@ export function SyncPanel() {
                 {inviteError}
               </p>
             ) : null}
-            {inviteNotice ? (
-              <p className="panel-note" role="status">
-                {inviteNotice}
-              </p>
-            ) : null}
             <div className="settings-actions">
-              <Button variant="primary" type="submit" disabled={inviteBusy}>
+              <Button variant="primary" type="submit" disabled={authBusy}>
                 {inviteBusy ? 'Accepting…' : 'Accept invite'}
               </Button>
             </div>
@@ -354,7 +356,7 @@ export function SyncPanel() {
               </p>
             ) : null}
             <div className="settings-actions">
-              <Button variant="primary" type="submit" disabled={resetBusy}>
+              <Button variant="primary" type="submit" disabled={authBusy}>
                 {resetBusy ? 'Saving…' : 'Set new password'}
               </Button>
             </div>

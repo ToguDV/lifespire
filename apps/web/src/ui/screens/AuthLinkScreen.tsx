@@ -38,15 +38,23 @@ export function AuthLinkScreen({ route }: { route: AuthRoute }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<Done | null>(null)
+  const tokenRef = useRef<HTMLInputElement>(null)
   const passwordRef = useRef<HTMLInputElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
 
   useEffect(() => {
     document.title = done
       ? `${done.kind === 'reset' ? 'Password updated' : 'Invite accepted'} · LifeSpire`
       : `${reset ? 'Reset password' : 'Accept invite'} · LifeSpire`
     document.body.dataset.screen = 'auth-link'
-    if (!done) passwordRef.current?.focus()
-  }, [done, reset])
+    if (done) {
+      headingRef.current?.focus()
+    } else if (route.token) {
+      passwordRef.current?.focus()
+    } else {
+      tokenRef.current?.focus()
+    }
+  }, [done, reset, route.token])
 
   const submit = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
@@ -122,7 +130,9 @@ export function AuthLinkScreen({ route }: { route: AuthRoute }) {
       <div className="auth-link-shell">
         <Panel pad>
           <span className="kicker">{reset ? 'Account recovery' : 'Closed beta invite'}</span>
-          <h1 id="auth-link-title">{title}</h1>
+          <h1 id="auth-link-title" ref={headingRef} tabIndex={-1}>
+            {title}
+          </h1>
 
           {done ? (
             <>
@@ -152,6 +162,7 @@ export function AuthLinkScreen({ route }: { route: AuthRoute }) {
                   {reset ? 'Reset link or token' : 'Invite link or token'}
                 </label>
                 <input
+                  ref={tokenRef}
                   id="auth-link-token"
                   className="input"
                   type="text"
