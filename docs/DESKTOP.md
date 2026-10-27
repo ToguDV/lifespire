@@ -39,6 +39,10 @@ they reach the browser.
 - The stable origin means `localStorage` keeps working with the same keys and the
   same versioned `GameDocument` as the browser build. A rename of the scheme or
   the host would orphan existing saves, so both are treated as a contract.
+- `/theme.js` is served like any other packaged asset: the web `index.html`
+  keeps its external, render-blocking `<script src="/theme.js">`, so the
+  CSP-compatible theme bootstrap is preserved under `lifespire-app://app`. The
+  shell adds no CSP of its own (see §9).
 - `registerSW.js` and `sw.js` are answered with an empty script: the service
   worker is a browser-only concern and the shell already serves assets from disk.
 - Development loads `http://localhost:5173` (override with `LIFESPIRE_DEV_URL`).
@@ -94,6 +98,19 @@ change is needed. The Electron **main process** is the API client:
   to 30 s; it is still a normal request/response through the same proxy, so no
   streaming IPC is involved. The web renderer stops the feed while the window is
   hidden. The default session (and the renderer) never sees these requests.
+- The proxy allowlist covers the whole `/v1` namespace, so the account flows
+  need no desktop-specific path: the Settings/welcome dialog posts
+  `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/reset-password`
+  through it. Reset returns no session; invite acceptance receives the native
+  grant token in main, stores it and strips it before the renderer builds its
+  `Response`.
+- Reset and invite links are ordinary web URLs
+  (`https://…/reset-password#token=…` and `https://…/accept-invite#token=…`).
+  The external-link policy (§3) opens them in the system browser, never inside
+  the shell. To finish in the app, paste the full link or its 43-character token
+  into **Settings → Sync** or the welcome **Already have an account? Sign in**
+  dialog; both use the shared `extractAuthToken` / `isAuthToken` and
+  `newPasswordProblem` helpers, so the desktop behaves like web and Android.
 - Chromium stamps `Sec-Fetch-Site: none` (and potentially `Origin`/`Referer`)
   on session fetches, which would fail the native gate. A
   `webRequest.onBeforeSendHeaders` listener in that dedicated session removes
@@ -247,6 +264,16 @@ manual pass on a desktop session:
    "choose a sync server" message; DevTools cannot fetch `/v1` or any other
    URL through `api.request` (paths outside `/v1`/`/health/live`, absolute URLs
    and bodies over 1 MB are rejected).
+
+Account-link checks: generate a reset link with
+`node apps/api/dist/cli/admin-reset-link.js --email …` on the throwaway stack,
+paste the full link into Settings → Sync (or the welcome dialog), confirm the
+local success notice and sign in with the new password; confirm
+`userData/sync-session.json` exists and that neither `localStorage` nor
+`sessionStorage` contains a refresh token. The same link opened from the shell
+must go to the system browser, not replace `lifespire-app://app`. Accepting an
+invite should switch the dialog to the signed-in account and leave sync running
+without a reload.
 
 ## 9. Known follow-ups
 

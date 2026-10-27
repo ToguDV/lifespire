@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword } from '../auth/password';
+import { passwordPolicyIssue } from '../auth/password-policy';
 
 function arg(name: string): string | undefined {
   const idx = process.argv.indexOf(`--${name}`);
@@ -25,9 +26,12 @@ async function run(): Promise<void> {
       process.exit(1);
     }
     const password = arg('password');
-    if (password && password.length < 12) {
-      console.error('Password must be at least 12 chars');
-      process.exit(1);
+    if (password) {
+      const issue = passwordPolicyIssue(password);
+      if (issue) {
+        console.error(issue);
+        process.exit(1);
+      }
     }
     const user = await prisma.user.create({
       data: {
@@ -40,7 +44,7 @@ async function run(): Promise<void> {
     });
     console.log(`Admin ${existingAdmins === 0 ? '(first) ' : ''}created: ${user.id} ${user.email}`);
     if (!password) {
-      console.log('No password set — generate an invite link with: pnpm admin:reset-link --email ' + email);
+      console.log('No password set — generate a one-time password link with: pnpm admin:reset-link --email ' + email);
     } else {
       console.log('Next: log in and complete TOTP setup at POST /v1/auth/totp/setup.');
     }

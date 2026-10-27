@@ -15,14 +15,27 @@ const DENIED_SUBSTRINGS = [
   'lifespire',
 ];
 
-// Policy is length 12..256 plus a diversity floor and a small denylist.
-// zxcvbn would be stronger; this stays dependency-free for a closed beta.
-export function isAllowedPassword(password: string): boolean {
-  if (typeof password !== 'string') return false;
-  if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
-    return false;
+/**
+ * Returns an actionable user-facing reason, or null when the password passes.
+ * Policy is length 12..256 plus a diversity floor and a small denylist.
+ * zxcvbn would be stronger; this stays dependency-free for a closed beta.
+ */
+export function passwordPolicyIssue(password: string): string | null {
+  if (typeof password !== 'string' || password.length === 0) {
+    return 'Choose a password.';
   }
-  if (new Set(password).size < MIN_PASSWORD_ALPHABET) return false;
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Use at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return `Use at most ${MAX_PASSWORD_LENGTH} characters.`;
+  }
+  if (new Set(password).size < MIN_PASSWORD_ALPHABET) {
+    return `Use at least ${MIN_PASSWORD_ALPHABET} different characters.`;
+  }
   const lowered = password.toLowerCase();
-  return !DENIED_SUBSTRINGS.some((denied) => lowered.includes(denied));
+  if (DENIED_SUBSTRINGS.some((denied) => lowered.includes(denied))) {
+    return 'Avoid common words or phrases such as "password" or "lifespire".';
+  }
+  return null;
 }

@@ -183,6 +183,11 @@ and `@lifespire/api-client` scope the shared packages.
   verify `pnpm test:e2e` (web) and the API flow when `apps/api` changes. The
   mobile notification planner, native auth grant and save import/export need
   unit coverage when touched.
+- **Real-stack verification:** green tests and mocked E2E are not enough. Build
+  and run the real stack locally (throwaway database, real API and client build
+  served as in production) and walk the affected flow yourself, including
+  failure paths and the browser/network console, before calling a change done
+  (`WORKFLOW.md` §12.1).
 - **Mandatory documentation:** whenever a `.md` file (or reference document) is
   added, moved, or deleted, update this guide (`AGENTS.md`) in the same change,
   registering it under "Sources of truth" or the relevant section. A new

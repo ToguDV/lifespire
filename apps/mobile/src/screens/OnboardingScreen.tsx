@@ -26,11 +26,13 @@ import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Panel } from '../components/Panel'
 import { Screen } from '../components/Screen'
+import { SyncDialog } from '../components/SyncDialog'
 import { TaskFormDialog } from '../components/TaskFormDialog'
 import { Text } from '../components/Text'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { upsertDraftGoal, upsertDraftTask } from '../lib/draftContent'
 import { useAppStore } from '../state/store'
+import { useAuthStore } from '../sync/auth'
 
 const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
 
@@ -44,6 +46,10 @@ export function OnboardingScreen() {
   const [goalDialog, setGoalDialog] = useState<Goal | null | undefined>(undefined)
   const [taskDialog, setTaskDialog] = useState<Task | null | undefined>(undefined)
   const [formError, setFormError] = useState<string | null>(null)
+  const [syncOpen, setSyncOpen] = useState(false)
+  const authStatus = useAuthStore((state) => state.status)
+  const user = useAuthStore((state) => state.user)
+  const accountEmail = authStatus === 'authenticated' ? (user?.email ?? null) : null
 
   const validation = useMemo(
     () => validateSetup(draft.goals, draft.tasks),
@@ -175,12 +181,16 @@ export function OnboardingScreen() {
           <CreatePathButton onPress={startCustom} />
         </View>
 
+        <WelcomeAccount email={accountEmail} onPress={() => setSyncOpen(true)} />
+
         <View style={styles.privacyRow}>
           <Icon name="lock" size={14} color={colors.inkSoft} />
           <Text variant="caption" tone="soft" style={styles.privacyText}>
             Your data stays on this device. Sync is optional.
           </Text>
         </View>
+
+        <SyncDialog visible={syncOpen} onClose={() => setSyncOpen(false)} />
       </Screen>
     )
   }
@@ -533,6 +543,31 @@ function CreatePathButton({ onPress }: { onPress: () => void }) {
   )
 }
 
+function WelcomeAccount({ email, onPress }: { email: string | null; onPress: () => void }) {
+  const { colors } = useTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={
+        email ? `Signed in as ${email}. Manage sync.` : 'Already have an account? Sign in.'
+      }
+      onPress={onPress}
+      android_ripple={{ color: colors.accentWash, borderless: true }}
+      style={({ pressed }) => [
+        styles.account,
+        { borderColor: colors.hairline, opacity: pressed ? 0.75 : 1 },
+      ]}
+    >
+      <Text variant="caption" tone="muted" style={styles.accountText} numberOfLines={1}>
+        {email ? `Signed in as ${email}` : 'Already have an account?'}
+      </Text>
+      <Text variant="button" tone="deep">
+        {email ? 'Manage sync' : 'Sign in'}
+      </Text>
+    </Pressable>
+  )
+}
+
 function WelcomeArt() {
   const { colors } = useTheme()
   return (
@@ -659,6 +694,17 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   welcomeActions: { gap: space.sm, marginTop: space.xs },
+  account: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space.sm,
+    marginTop: space.xs,
+    paddingTop: space.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  accountText: { flex: 1 },
   createPath: {
     minHeight: 48,
     flexDirection: 'row',

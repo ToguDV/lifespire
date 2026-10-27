@@ -1,18 +1,12 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { extractAuthToken, isAuthToken } from '@lifespire/app-core/sync/authLink'
+import { newPasswordProblem } from '@lifespire/app-core/sync/password'
 import { finishDesktopSignOut } from '../../sync/api'
 import { useAuthStore } from '../../sync/authStore'
 import { useSyncStore } from '../../sync/setup'
 import { Button } from '../components'
-
-function extractToken(raw: string): string {
-  const trimmed = raw.trim()
-  const fragment = trimmed.indexOf('#token=')
-  if (fragment !== -1) return trimmed.slice(fragment + '#token='.length)
-  const query = trimmed.indexOf('token=')
-  if (query !== -1) return trimmed.slice(query + 'token='.length).split('&')[0] ?? ''
-  return trimmed
-}
+import { authErrorMessage } from '../lib/authError'
 
 export function SyncPanel() {
   const serverVersion = useSyncStore((state) => state.serverVersion)
@@ -22,6 +16,7 @@ export function SyncPanel() {
   const authStatus = useAuthStore((state) => state.status)
   const user = useAuthStore((state) => state.user)
   const authError = useAuthStore((state) => state.error)
+  const clearError = useAuthStore((state) => state.clearError)
   const login = useAuthStore((state) => state.login)
   const logout = useAuthStore((state) => state.logout)
   const acceptInvite = useAuthStore((state) => state.acceptInvite)
@@ -34,14 +29,22 @@ export function SyncPanel() {
   const [invitePassword, setInvitePassword] = useState('')
   const [resetToken, setResetToken] = useState('')
   const [resetPasswordValue, setResetPasswordValue] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [loginBusy, setLoginBusy] = useState(false)
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const [resetBusy, setResetBusy] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [resetError, setResetError] = useState<string | null>(null)
+  const [inviteNotice, setInviteNotice] = useState<string | null>(null)
+  const [resetNotice, setResetNotice] = useState<string | null>(null)
   const [signOutError, setSignOutError] = useState<string | null>(null)
+  const authBusy = loginBusy || inviteBusy || resetBusy
 
   const submitSignOut = async (): Promise<void> => {
     setSignOutError(null)
     try {
       await finishDesktopSignOut(logout)
+      setInviteNotice(null)
     } catch (error) {
       setSignOutError(
         error instanceof Error ? error.message : 'Could not clear the session on this device.',
@@ -51,48 +54,78 @@ export function SyncPanel() {
 
   const submitLogin = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
-    setBusy(true)
-    setNotice(null)
-    setSignOutError(null)
+    setLoginError(null)
+    clearError()
+    if (!email.trim() || !password) {
+      setLoginError('Enter your email and password.')
+      return
+    }
+    setLoginBusy(true)
     try {
       const code = totpCode.trim()
       await login(email, password, code.length > 0 ? code : undefined)
     } catch {
-      // The error is already surfaced through the auth store.
+      // The error is already surfaced through the auth store and shown below.
     } finally {
-      setBusy(false)
+      setLoginBusy(false)
     }
   }
 
   const submitInvite = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
-    setBusy(true)
-    setNotice(null)
+    setInviteError(null)
+    setInviteNotice(null)
+    clearError()
+    const token = extractAuthToken(inviteToken)
+    if (!isAuthToken(token)) {
+      setInviteError('Paste the full invite link or its 43-character token.')
+      return
+    }
+    const passwordIssue = newPasswordProblem(invitePassword)
+    if (passwordIssue) {
+      setInviteError(passwordIssue)
+      return
+    }
+    setInviteBusy(true)
     try {
-      await acceptInvite(extractToken(inviteToken), invitePassword)
-      setNotice('Invite accepted — you are signed in on this device.')
+      await acceptInvite(token, invitePassword)
+      setInviteNotice('Invite accepted — you are signed in on this device.')
       setInviteToken('')
       setInvitePassword('')
-    } catch {
-      // The error is already surfaced through the auth store.
+    } catch (error) {
+      setInviteError(authErrorMessage(error, 'invite'))
+      clearError()
     } finally {
-      setBusy(false)
+      setInviteBusy(false)
     }
   }
 
   const submitReset = async (event: FormEvent): Promise<void> => {
     event.preventDefault()
-    setBusy(true)
-    setNotice(null)
+    setResetError(null)
+    setResetNotice(null)
+    clearError()
+    const token = extractAuthToken(resetToken)
+    if (!isAuthToken(token)) {
+      setResetError('Paste the full reset link or its 43-character token.')
+      return
+    }
+    const passwordIssue = newPasswordProblem(resetPasswordValue)
+    if (passwordIssue) {
+      setResetError(passwordIssue)
+      return
+    }
+    setResetBusy(true)
     try {
-      await resetPassword(extractToken(resetToken), resetPasswordValue)
-      setNotice('Password updated — sign in with the new password.')
+      await resetPassword(token, resetPasswordValue)
+      setResetNotice('Password updated — sign in with the new password.')
       setResetToken('')
       setResetPasswordValue('')
-    } catch {
-      // The error is already surfaced through the auth store.
+    } catch (error) {
+      setResetError(authErrorMessage(error, 'reset'))
+      clearError()
     } finally {
-      setBusy(false)
+      setResetBusy(false)
     }
   }
 
@@ -111,6 +144,11 @@ export function SyncPanel() {
             {lastPushedAt ? ` · last push ${new Date(lastPushedAt).toLocaleTimeString()}` : null}
             {lastAutoMergeAt ? ' · edits merged automatically' : null}
           </p>
+          {inviteNotice ? (
+            <p className="panel-note" role="status">
+              {inviteNotice}
+            </p>
+          ) : null}
           {lastError ? (
             <p className="panel-note" role="alert">
               {lastError}
@@ -128,7 +166,7 @@ export function SyncPanel() {
         </div>
       ) : (
         <div className="sync-panel">
-          <form className="sync-form" onSubmit={(event) => void submitLogin(event)}>
+          <form className="sync-form" onSubmit={(event) => void submitLogin(event)} noValidate>
             <p className="panel-note">
               Optional closed-beta sync between your devices. Guests keep playing locally.
             </p>
@@ -143,7 +181,11 @@ export function SyncPanel() {
                 autoComplete="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value)
+                  setLoginError(null)
+                  clearError()
+                }}
                 required
               />
             </div>
@@ -158,7 +200,11 @@ export function SyncPanel() {
                 autoComplete="current-password"
                 placeholder="Your account password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value)
+                  setLoginError(null)
+                  clearError()
+                }}
                 required
               />
             </div>
@@ -177,22 +223,22 @@ export function SyncPanel() {
                 onChange={(event) => setTotpCode(event.target.value)}
               />
             </div>
-            {authError ? (
+            {loginError ?? authError ? (
               <p className="field-error" role="alert">
-                {authError}
+                {loginError ?? authError}
               </p>
             ) : null}
-            {notice ? <p className="panel-note">{notice}</p> : null}
             <div className="settings-actions">
-              <Button variant="primary" type="submit" disabled={busy}>
-                {busy ? 'Signing in…' : 'Sign in'}
+              <Button variant="primary" type="submit" disabled={authBusy}>
+                {loginBusy ? 'Signing in…' : 'Sign in'}
               </Button>
             </div>
           </form>
-          <form className="sync-form" onSubmit={(event) => void submitInvite(event)}>
+
+          <form className="sync-form" onSubmit={(event) => void submitInvite(event)} noValidate>
             <p className="panel-note">
               <strong>Have an invite?</strong> Paste the link or token your admin sent you, then
-              choose a password (12+ characters).
+              choose a password.
             </p>
             <div className="sync-field">
               <label className="field__label" htmlFor="sync-invite-token">
@@ -203,10 +249,15 @@ export function SyncPanel() {
                 className="input"
                 type="text"
                 autoComplete="off"
+                autoCapitalize="none"
                 spellCheck={false}
-                placeholder="https://app.example.com/#token=…"
+                placeholder="https://app.example.com/accept-invite#token=…"
                 value={inviteToken}
-                onChange={(event) => setInviteToken(event.target.value)}
+                onChange={(event) => {
+                  setInviteToken(event.target.value)
+                  setInviteError(null)
+                  setInviteNotice(null)
+                }}
                 required
               />
             </div>
@@ -222,20 +273,33 @@ export function SyncPanel() {
                 minLength={12}
                 placeholder="12+ characters"
                 value={invitePassword}
-                onChange={(event) => setInvitePassword(event.target.value)}
+                onChange={(event) => {
+                  setInvitePassword(event.target.value)
+                  setInviteError(null)
+                  setInviteNotice(null)
+                }}
                 required
               />
+              <p className="field-hint">
+                12+ characters, at least 5 different; avoid common phrases.
+              </p>
             </div>
+            {inviteError ? (
+              <p className="field-error" role="alert">
+                {inviteError}
+              </p>
+            ) : null}
             <div className="settings-actions">
-              <Button variant="primary" type="submit" disabled={busy}>
-                Accept invite
+              <Button variant="primary" type="submit" disabled={authBusy}>
+                {inviteBusy ? 'Accepting…' : 'Accept invite'}
               </Button>
             </div>
           </form>
-          <form className="sync-form" onSubmit={(event) => void submitReset(event)}>
+
+          <form className="sync-form" onSubmit={(event) => void submitReset(event)} noValidate>
             <p className="panel-note">
               <strong>Forgot your password?</strong> Paste the reset link your admin sent you,
-              then choose a new password (12+ characters).
+              then choose a new password.
             </p>
             <div className="sync-field">
               <label className="field__label" htmlFor="sync-reset-token">
@@ -246,10 +310,15 @@ export function SyncPanel() {
                 className="input"
                 type="text"
                 autoComplete="off"
+                autoCapitalize="none"
                 spellCheck={false}
-                placeholder="Paste the reset link or token"
+                placeholder="https://app.example.com/reset-password#token=…"
                 value={resetToken}
-                onChange={(event) => setResetToken(event.target.value)}
+                onChange={(event) => {
+                  setResetToken(event.target.value)
+                  setResetError(null)
+                  setResetNotice(null)
+                }}
                 required
               />
             </div>
@@ -265,16 +334,34 @@ export function SyncPanel() {
                 minLength={12}
                 placeholder="12+ characters"
                 value={resetPasswordValue}
-                onChange={(event) => setResetPasswordValue(event.target.value)}
+                onChange={(event) => {
+                  setResetPasswordValue(event.target.value)
+                  setResetError(null)
+                  setResetNotice(null)
+                }}
                 required
               />
+              <p className="field-hint">
+                12+ characters, at least 5 different; avoid common phrases.
+              </p>
             </div>
+            {resetError ? (
+              <p className="field-error" role="alert">
+                {resetError}
+              </p>
+            ) : null}
+            {resetNotice ? (
+              <p className="panel-note" role="status">
+                {resetNotice}
+              </p>
+            ) : null}
             <div className="settings-actions">
-              <Button variant="primary" type="submit" disabled={busy}>
-                Set new password
+              <Button variant="primary" type="submit" disabled={authBusy}>
+                {resetBusy ? 'Saving…' : 'Set new password'}
               </Button>
             </div>
           </form>
+
           <p className="panel-note settings-note">
             No signup here — accounts are created by an admin invite.
           </p>

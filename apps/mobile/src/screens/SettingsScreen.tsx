@@ -12,6 +12,7 @@ import { Icon } from '../components/Icon'
 import { Panel, PanelHead, ScreenHead } from '../components/Panel'
 import { SaveImportDialog } from '../components/SaveImportDialog'
 import { Screen } from '../components/Screen'
+import { SyncDialog } from '../components/SyncDialog'
 import { Text } from '../components/Text'
 import { exportDocument, pickAndValidateSave } from '../lib/exportImport'
 import type { PickedImportResult } from '../lib/exportImport'
@@ -27,26 +28,8 @@ import {
   syncScheduledNotifications,
 } from '../notifications/scheduler'
 import type { NotificationPermission } from '../notifications/scheduler'
-import {
-  checkServerHealth,
-  clearStoredBaseUrl,
-  getStoredBaseUrl,
-  getSyncBaseUrl,
-  refreshSyncApi,
-  setStoredBaseUrl,
-  validateServerUrl,
-} from '../sync/api'
 import { useAuthStore } from '../sync/auth'
 import { useSyncStore } from '../sync/setup'
-
-function extractToken(raw: string): string {
-  const trimmed = raw.trim()
-  const fragment = trimmed.indexOf('#token=')
-  if (fragment !== -1) return trimmed.slice(fragment + '#token='.length)
-  const query = trimmed.indexOf('token=')
-  if (query !== -1) return trimmed.slice(query + 'token='.length).split('&')[0] ?? ''
-  return trimmed
-}
 
 const THEMES = [
   { value: 'light', label: 'Day' },
@@ -407,8 +390,6 @@ function TimeField({
 
 function SyncSection() {
   const syncStatus = useSyncStore((state) => state.status)
-  const serverVersion = useSyncStore((state) => state.serverVersion)
-  const lastPushedAt = useSyncStore((state) => state.lastPushedAt)
   const syncError = useSyncStore((state) => state.lastError)
   const user = useAuthStore((state) => state.user)
   const authStatus = useAuthStore((state) => state.status)
@@ -460,231 +441,8 @@ function SyncSection() {
         )}
       </Panel>
 
-      <SyncDialog
-        visible={syncOpen}
-        signedIn={signedIn}
-        serverVersion={serverVersion}
-        lastPushedAt={lastPushedAt}
-        onClose={() => setSyncOpen(false)}
-      />
+      <SyncDialog visible={syncOpen} onClose={() => setSyncOpen(false)} />
     </>
-  )
-}
-
-function SyncDialog({
-  visible,
-  signedIn,
-  serverVersion,
-  lastPushedAt,
-  onClose,
-}: {
-  visible: boolean
-  signedIn: boolean
-  serverVersion: string | null
-  lastPushedAt: string | null
-  onClose: () => void
-}) {
-  const { colors } = useTheme()
-  const authError = useAuthStore((state) => state.error)
-  const login = useAuthStore((state) => state.login)
-  const acceptInvite = useAuthStore((state) => state.acceptInvite)
-  const resetPassword = useAuthStore((state) => state.resetPassword)
-  const logout = useAuthStore((state) => state.logout)
-  const showToast = useAppStore((state) => state.showToast)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [totp, setTotp] = useState('')
-  const [inviteToken, setInviteToken] = useState('')
-  const [invitePassword, setInvitePassword] = useState('')
-  const [resetToken, setResetToken] = useState('')
-  const [resetNewPassword, setResetNewPassword] = useState('')
-  const [showExtras, setShowExtras] = useState(false)
-  const [serverOpen, setServerOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [serverInput, setServerInput] = useState(getStoredBaseUrl() ?? '')
-  const [serverNotice, setServerNotice] = useState<string | null>(null)
-  const [serverError, setServerError] = useState<string | null>(null)
-  const [checking, setChecking] = useState(false)
-  const effective = getSyncBaseUrl() || 'Not configured'
-
-  const submitLogin = async () => {
-    setBusy(true)
-    try {
-      await login(email, password, totp.trim() || undefined)
-      showToast('Signed in. Sync starts on this device.')
-    } catch (error) {
-      devError('auth', 'sign-in failed', error)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const saveServer = async () => {
-    setChecking(true)
-    setServerError(null)
-    setServerNotice(null)
-    try {
-      const validation = validateServerUrl(serverInput)
-      if (!validation.ok) {
-        setServerError(validation.error)
-        return
-      }
-      await checkServerHealth(validation.normalized)
-      await logout()
-      setStoredBaseUrl(validation.normalized)
-      refreshSyncApi()
-      setServerInput(validation.normalized)
-      setServerNotice(`Pointing at ${validation.normalized}. Sign in again.`)
-    } catch (error) {
-      devError('auth', 'server check or switch failed', error)
-      setServerError(error instanceof Error ? error.message : 'That server could not be reached.')
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  const clearServer = async () => {
-    try {
-      await logout()
-      clearStoredBaseUrl()
-      refreshSyncApi()
-      setServerInput('')
-      setServerNotice('Using the build default server. Sign in again.')
-    } catch (error) {
-      devError('auth', 'could not clear the server override', error)
-      setServerError('The server override could not be cleared.')
-    }
-  }
-
-  return (
-    <Dialog
-      visible={visible}
-      title="Sync"
-      description="Sign in to sync this save between your devices."
-      onClose={onClose}
-      actions={
-        <Button variant="quiet" onPress={onClose}>
-          Close
-        </Button>
-      }
-    >
-      {signedIn ? (
-        <View style={styles.syncBody}>
-          <Text variant="caption" tone="muted">
-            {serverVersion ? `Cloud v${serverVersion}` : 'No cloud save yet'}
-            {lastPushedAt ? ` · last push ${new Date(lastPushedAt).toLocaleTimeString()}` : ''}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.syncBody}>
-          <Text variant="bodySm" tone="muted">
-            Optional sync between your devices. Guests keep playing locally.
-          </Text>
-          <Field label="Email">
-            <Input
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-            />
-          </Field>
-          <Field label="Password">
-            <Input
-              minLength={12}
-              value={password}
-              onChangeText={setPassword}
-              placeholder="At least 12 characters"
-              autoComplete="current-password"
-              secureTextEntry
-            />
-          </Field>
-          <Field label="Authenticator code">
-            <Input value={totp} onChangeText={setTotp} keyboardType="number-pad" maxLength={8} />
-          </Field>
-          <Button onPress={() => void submitLogin()} loading={busy}>
-            {busy ? 'Signing in…' : 'Sign in'}
-          </Button>
-          {authError ? <Text variant="caption" tone="default">{authError}</Text> : null}
-          <Button variant="quiet" small onPress={() => setShowExtras((value) => !value)}>
-            {showExtras ? 'Hide invite and password reset' : 'Invite and password reset'}
-          </Button>
-          {showExtras ? (
-            <View style={styles.extras}>
-              <Text variant="caption" tone="muted">Accept an invite</Text>
-              <Input value={inviteToken} onChangeText={setInviteToken} placeholder="Paste invite link or token" />
-              <Input value={invitePassword} onChangeText={setInvitePassword} placeholder="Choose a password" secureTextEntry />
-              <Button
-                variant="secondary"
-                small
-                onPress={() => {
-                  void acceptInvite(extractToken(inviteToken), invitePassword).catch((error: unknown) => {
-                    devError('auth', 'invite acceptance failed', error)
-                  })
-                }}
-              >
-                Accept invite
-              </Button>
-              <Text variant="caption" tone="muted">Reset a password</Text>
-              <Input value={resetToken} onChangeText={setResetToken} placeholder="Paste reset token or link" />
-              <Input value={resetNewPassword} onChangeText={setResetNewPassword} placeholder="New password" secureTextEntry />
-              <Button
-                variant="secondary"
-                small
-                onPress={() => {
-                  void resetPassword(extractToken(resetToken), resetNewPassword).catch((error: unknown) => {
-                    devError('auth', 'password reset failed', error)
-                  })
-                }}
-              >
-                Set new password
-              </Button>
-            </View>
-          ) : null}
-        </View>
-      )}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Server"
-        accessibilityState={{ expanded: serverOpen }}
-        onPress={() => setServerOpen((value) => !value)}
-        style={[styles.disclosure, { borderColor: colors.hairline }]}
-      >
-        <Text variant="caption" tone="muted">
-          Server
-        </Text>
-        <View style={serverOpen ? styles.chevronOpen : undefined}>
-          <Icon name="chevron-right" size={14} color={colors.inkMuted} />
-        </View>
-      </Pressable>
-      {serverOpen ? (
-        <View style={[styles.server, { borderColor: colors.hairline }]}>
-          <Text variant="caption" tone="soft">Current server: {effective}</Text>
-          <Field label="Server URL" hint="Changing the server signs you out.">
-            <Input
-              value={serverInput}
-              onChangeText={setServerInput}
-              placeholder="https://sync.example.com"
-              autoCapitalize="none"
-              autoComplete="off"
-              keyboardType="url"
-            />
-          </Field>
-          {serverError ? <Text variant="caption" tone="default">{serverError}</Text> : null}
-          {serverNotice ? <Text variant="caption" tone="accent">{serverNotice}</Text> : null}
-          <View style={styles.serverActions}>
-            <Button variant="secondary" small onPress={() => void saveServer()} loading={checking}>
-              Check and save
-            </Button>
-            <Button variant="quiet" small onPress={() => void clearServer()}>
-              Use default
-            </Button>
-          </View>
-        </View>
-      ) : null}
-    </Dialog>
   )
 }
 
@@ -716,10 +474,6 @@ const styles = StyleSheet.create({
   actions: { gap: space.sm, marginVertical: space.sm },
   syncSummary: { gap: space.sm },
   syncActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm, flexWrap: 'wrap' },
-  syncBody: { gap: space.sm },
-  extras: { gap: space.xs, marginTop: space.xs },
-  server: { gap: space.xs, borderWidth: 1, borderRadius: radius.md, padding: space.sm },
-  serverActions: { flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' },
   disclosure: {
     minHeight: 48,
     flexDirection: 'row',

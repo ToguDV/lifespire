@@ -61,8 +61,9 @@ apps/web/src/
     dev/
       DevPanel.tsx panel de desarrollo; solo se importa con `import.meta.env.DEV`
     lib/           lógica de UI: mapLayout, wheel, importSave, feedback,
-                   collection, newRun, daySummary, etc.
-    screens/       una pantalla por vista
+                   collection, newRun, daySummary, authRoute, authError, etc.
+    screens/       una pantalla por vista (incl. AuthLinkScreen para los
+                   enlaces de invitación y reset)
   styles/
     tokens.css     tokens canónicos (color, tipografía, espacio, radio)
     app.css        shell y componentes
@@ -77,11 +78,13 @@ apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas,
   IPC y safeStorage), preload.ts (puente acotado), apiProxy.ts (proxy de sync
   y vault del refresh token), menu.ts y protocol.ts (resolución de assets y
   política de navegación); electron-builder.yml empaqueta el build web
-apps/mobile/src/        shell nativo, tokens, componentes, pantallas, mapa SVG,
-  notificaciones locales y adaptadores de plataforma (ver MOBILE.md)
+apps/mobile/src/        shell nativo, tokens, componentes (incl. SyncDialog),
+  pantallas, mapa SVG, notificaciones locales y adaptadores de plataforma
+  (ver MOBILE.md)
 packages/core/src/      dominio puro, fuente única (tests de dominio/contenido)
 packages/app-core/src/  store Zustand, persistencia, reloj, sync engine/manager,
   authStore factory y helpers puros de UI compartidos por web y Android
+  (sync/authLink.ts, sync/password.ts)
 packages/api-client/src/ cliente fetch tipado (cookie web / token nativo)
 ```
 
@@ -921,6 +924,22 @@ prototipo retirado:
   `localStorage` y pasa por las mismas guardas. La verificación local y el
   requisito de HTTPS para instalar en un teléfono están en
   [`PWA.md`](./PWA.md).
+
+### Cuentas y enlaces de acceso
+
+- Los enlaces de invitación y reset (`/accept-invite#token=…`,
+  `/reset-password#token=…`) se resuelven sin router en `ui/lib/authRoute.ts` y
+  `AuthLinkScreen` los abre como pantalla propia; el token vive en el fragmento
+  y nunca llega al servidor. `ui/lib/authError.ts` centraliza el copy accionable
+  de los códigos de auth, y `SyncPanel` reutiliza los formularios manuales en
+  Settings y en el onboarding.
+- `packages/app-core/src/sync/authLink.ts` extrae y valida el token que comparten
+  web y Android; `sync/password.ts` refleja en cliente la política de longitud y
+  diversidad, mientras el API sigue siendo la autoridad (incluida la denylist).
+- Android reutiliza esa validación desde `apps/mobile/src/lib/syncForm.ts` en
+  `components/SyncDialog.tsx`, el diálogo compartido por Settings y la
+  bienvenida (login, invite y reset). En web, el foco inicial de un enlace va al
+  token si falta o es inválido y a la contraseña si el enlace lo trae.
 
 ### App Android (Expo, SDK 58)
 

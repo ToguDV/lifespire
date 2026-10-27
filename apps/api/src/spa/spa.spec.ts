@@ -16,7 +16,8 @@ import {
 const INDEX_HTML = '<!doctype html><html><head></head><body>app</body></html>';
 const EXPECTED_CSP =
   "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
-  "connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+  "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; " +
+  "form-action 'self'";
 
 let tmpDirs: string[] = [];
 afterEach(() => {
@@ -132,6 +133,19 @@ describe('createSpaMiddleware', () => {
     expect(res.text).toBe(INDEX_HTML);
     expect(res.headers['referrer-policy']).toBe('no-referrer');
   });
+
+  it.each(['/reset-password', '/accept-invite'])(
+    'serves the SPA shell for the account link %s',
+    async (path) => {
+      const dir = makeDist();
+      const { app, seen } = makeApp(dir);
+      const res = await request(app).get(path);
+      expect(res.status).toBe(200);
+      expect(res.text).toBe(INDEX_HTML);
+      expect(res.headers['content-security-policy']).toBe(EXPECTED_CSP);
+      expect(seen).toEqual([]);
+    },
+  );
 
   it.each(API_BYPASS_PREFIXES)('lets the API handle %s/* (no static, no fallback)', async (prefix) => {
     const dir = makeDist();
@@ -254,6 +268,7 @@ describe('createSpaMiddleware', () => {
     const dir = makeDist({
       'assets/app-ABCD1234.css': 'body{}',
       'assets/unhashed.css': 'body{}',
+      'theme.js': '/* theme */',
     });
     const { app } = makeApp(dir);
     const api = await request(app).get('/v1/me');
@@ -263,6 +278,10 @@ describe('createSpaMiddleware', () => {
     expect(asset.headers['cache-control']).toBe('public, max-age=31536000, immutable');
     const unhashed = await request(app).get('/assets/unhashed.css');
     expect(unhashed.headers['cache-control']).not.toContain('immutable');
+    // The theme bootstrap is not hashed: installed clients must revalidate it.
+    const theme = await request(app).get('/theme.js');
+    expect(theme.status).toBe(200);
+    expect(theme.headers['cache-control']).toBe('no-cache');
     const page = await request(app).get('/');
     expect(page.headers['cache-control']).not.toContain('no-store');
     expect(page.headers['cache-control']).not.toContain('immutable');

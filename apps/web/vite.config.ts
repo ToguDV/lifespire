@@ -8,7 +8,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // External /registerSW.js: the API CSP is script-src 'self' with no
+      // inline allowance, so the PWA plugin must never inject an inline script.
+      injectRegister: 'script',
       manifest: {
         name: 'LifeSpire — A Quiet Ascent',
         short_name: 'LifeSpire',

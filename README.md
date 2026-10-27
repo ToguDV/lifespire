@@ -148,10 +148,19 @@ docker compose --env-file .env -f infra/docker-compose.prod.yml exec api \
   node dist/cli/admin-reset-link.js --email you@example.com
 ```
 
-Open the app, go to **Settings → Sync → “Forgot your password?”**, paste the
-printed link, and choose a password (12+ characters). Then sign in and finish
-TOTP setup. The link expires in 1 hour and is single-use. If the account
-already exists, skip the first command.
+Open the printed link directly: it opens the **Choose a new password** screen.
+Setting the password also activates a `PENDING` account created without
+`--password`. Then sign in (the welcome screen has **Already have an account?
+Sign in** if this browser has no local save yet) and finish TOTP setup. The
+link expires in 1 hour and is single-use. If the account already exists, skip
+the first command. If the browser has no local save, sign in from the welcome
+screen, begin a path, then open **Settings → Sync → Admin** to finish TOTP
+setup (admins must enable it before admin routes work).
+
+You can still paste the link manually under **Settings → Sync → “Forgot your
+password?”**. The token must come from the same server/database that the app
+uses; a link generated against a local database will be rejected in
+production.
 
 Alternatively, set the password directly with
 `admin-create.js --email you@example.com --password '…'` (12+ characters); it

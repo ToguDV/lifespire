@@ -169,6 +169,18 @@ describe('sanitizeProxyRequest', () => {
     )
   })
 
+  it('accepts the in-app account-link auth paths', () => {
+    for (const path of [
+      '/v1/auth/login',
+      '/v1/auth/accept-invite',
+      '/v1/auth/reset-password',
+    ]) {
+      expect(
+        sanitizeProxyRequest({ path, method: 'POST', body: '{}' }).path,
+      ).toBe(path)
+    }
+  })
+
   it('rejects absolute URLs, protocol-relative paths and traversal', () => {
     for (const path of [
       'https://evil.example.com/v1/sync',
