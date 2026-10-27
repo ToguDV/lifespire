@@ -5,7 +5,6 @@ import type {
   NearbyPeer,
   PairingPayload,
   PeerRecord,
-  PeerRequest,
 } from '@lifespire/app-core/sync/protocol'
 
 export interface LifespireLanNative {
@@ -25,7 +24,7 @@ export interface LifespireLanNative {
   setAutoSync(peerId: string, autoSync: boolean): Promise<PeerRecord>
   request(
     peerId: string,
-    request: PeerRequest,
+    request: { method: 'GET' | 'POST'; path: string; body?: string },
   ): Promise<{ status: number; body: unknown }>
   persistence(): Promise<'encrypted' | 'plaintext'>
 }

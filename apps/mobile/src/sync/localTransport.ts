@@ -95,7 +95,17 @@ export function createAndroidTransport(): LocalTransport {
       await lan.setAutoSync(peerId, autoSync)
     },
     request: async (peerId: string, request: PeerRequest): Promise<PeerResponse> => {
-      const response = (await lan.request(peerId, request)) as {
+      // The Expo Kotlin bridge (`Map<String, Any?>`) rejects explicit nulls
+      // inside nested maps with "Value is null, expected an Object". That
+      // broke every document create (`expectedHash: null`). Serialize the
+      // body to a JSON string here; the wire format over HTTPS still carries
+      // the explicit null, and Kotlin parses the string back.
+      const wire: { method: 'GET' | 'POST'; path: string; body?: string } = {
+        method: request.method,
+        path: request.path,
+      }
+      if (request.body !== undefined) wire.body = JSON.stringify(request.body)
+      const response = (await lan.request(peerId, wire)) as {
         status: number
         body: unknown
       }

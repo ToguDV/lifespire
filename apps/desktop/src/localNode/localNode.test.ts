@@ -208,6 +208,67 @@ describe('desktop local node over HTTPS', () => {
     }
   })
 
+  it('treats a missing expectedHash like an explicit null (not malformed)', async () => {
+    const { a, b, aId } = await pairNodes()
+    try {
+      await a.setDocument('{"schemaVersion":3,"marker":"A"}', 'hash-a')
+
+      // With a save present, both a missing key and an explicit null mean
+      // "no expected version" and must conflict (409), never 413 malformed.
+      const missing = await b.request(aId, {
+        method: 'POST',
+        path: '/v1/document',
+        body: {
+          documentJson: '{"schemaVersion":3,"marker":"other"}',
+          docHash: 'hash-other',
+        },
+      })
+      expect(missing.status).toBe(409)
+
+      const explicitNull = await b.request(aId, {
+        method: 'POST',
+        path: '/v1/document',
+        body: {
+          documentJson: '{"schemaVersion":3,"marker":"other"}',
+          expectedHash: null,
+          docHash: 'hash-other',
+        },
+      })
+      expect(explicitNull.status).toBe(409)
+
+      // Sanity: the correct hash is still accepted.
+      const matching = await b.request(aId, {
+        method: 'POST',
+        path: '/v1/document',
+        body: {
+          documentJson: '{"schemaVersion":3,"marker":"B"}',
+          expectedHash: 'hash-a',
+          docHash: 'hash-b',
+        },
+      })
+      expect(matching.status).toBe(202)
+    } finally {
+      await a.stop()
+      await b.stop()
+    }
+  })
+
+  it('rejects a null JSON body as malformed instead of a server error', async () => {
+    const { a, b, aId } = await pairNodes()
+    try {
+      await a.setDocument('{"schemaVersion":3,"marker":"A"}', 'hash-a')
+      const response = await b.request(aId, {
+        method: 'POST',
+        path: '/v1/document',
+        body: null,
+      })
+      expect(response.status).toBe(400)
+    } finally {
+      await a.stop()
+      await b.stop()
+    }
+  })
+
   it('rejects a wrong token and a wrong certificate pin', async () => {
     const { a, b, aId, pairing } = await pairNodes()
     try {
