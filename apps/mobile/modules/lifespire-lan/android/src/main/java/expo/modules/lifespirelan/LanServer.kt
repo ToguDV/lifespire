@@ -326,7 +326,9 @@ class LanServer(
       )
     val documentJson = body.optString("documentJson", "")
     val docHash = body.optString("docHash", "")
-    val expectedHash = if (body.isNull("expectedHash")) null else body.optString("expectedHash", "")
+    // A missing key means "no expected version", same as an explicit null.
+    // `isNull` is true for JSONObject.NULL but not for a missing key, so check both.
+    val expectedHash = if (!body.has("expectedHash") || body.isNull("expectedHash")) null else body.optString("expectedHash", "")
     if (documentJson.isEmpty() || docHash.isEmpty()) {
       return json(
         Response.Status.BAD_REQUEST,

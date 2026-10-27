@@ -203,7 +203,15 @@ class LanManager(
     if (host == null || port == null) throw IllegalStateException("The other device is not nearby.")
     val method = (request["method"] as? String ?: "GET").uppercase()
     val path = request["path"] as? String ?: throw IllegalArgumentException("Invalid path.")
-    val body = request["body"]?.let { JSONObject(it as Map<*, *>).toString() }
+    // The JS adapter sends the body as a JSON string so no null ever crosses
+    // the Expo bridge (nested nulls fail with "Value is null, expected an
+    // Object"). Accept a legacy Map as well for robustness.
+    val body = when (val raw = request["body"]) {
+      null -> null
+      is String -> raw.ifEmpty { null }
+      is Map<*, *> -> JSONObject(raw as Map<*, *>).toString()
+      else -> raw.toString()
+    }
     val response = client.request(
       host = host,
       port = port,

@@ -348,12 +348,19 @@ export function createLocalServer(deps: {
           documentJson?: unknown
           expectedHash?: unknown
           docHash?: unknown
+        } | null
+        if (!payload || typeof payload !== 'object') {
+          json(res, 400, { message: 'Invalid document payload.' })
+          return
         }
+        // `expectedHash` is null on create; older clients may omit the key.
+        // Treat a missing key the same as an explicit null.
+        const expectedHash = payload.expectedHash ?? null
         if (
           typeof payload.documentJson !== 'string' ||
           Buffer.byteLength(payload.documentJson) > DOCUMENT_LIMIT_BYTES ||
           typeof payload.docHash !== 'string' ||
-          (payload.expectedHash !== null && typeof payload.expectedHash !== 'string')
+          (expectedHash !== null && typeof expectedHash !== 'string')
         ) {
           json(res, 413, { message: 'Document too large or malformed.' })
           return
@@ -365,11 +372,11 @@ export function createLocalServer(deps: {
           return
         }
         const current = currentMirror()
-        if (current && payload.expectedHash !== current.docHash) {
+        if (current && expectedHash !== current.docHash) {
           json(res, 409, { docHash: current.docHash, updatedAt: current.updatedAt })
           return
         }
-        if (!current && payload.expectedHash !== null) {
+        if (!current && expectedHash !== null) {
           json(res, 409, { docHash: null, updatedAt: null })
           return
         }
