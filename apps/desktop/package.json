@@ -1,8 +1,8 @@
 {
   "name": "@lifespire/desktop",
   "private": true,
-  "version": "0.2.0",
-  "description": "LifeSpire desktop — Electron shell for the local-first web app.",
+  "version": "0.3.0",
+  "description": "LifeSpire desktop \u2014 Electron shell for the local-first web app.",
   "author": "LifeSpire contributors",
   "desktopName": "lifespire.desktop",
   "homepage": "https://github.com/ToguDV/lifespire",
