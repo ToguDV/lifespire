@@ -25,7 +25,6 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@lifespire/api-client": "workspace:*",
     "@lifespire/core": "workspace:*",
     "zustand": "^5.0.15"
   },

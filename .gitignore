@@ -34,8 +34,6 @@ test-results
 .env.*
 !.env.example
 !.env.dev.example
-apps/api/dist
-apps/api/coverage
 apps/desktop/release
 packages/*/dist
 packages/*/coverage

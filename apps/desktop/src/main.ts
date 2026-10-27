@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import {
@@ -14,15 +13,9 @@ import {
   shell,
   type IpcMainInvokeEvent,
 } from 'electron'
-import {
-  API_PROXY_CHANNELS,
-  createApiProxy,
-  createTokenVault,
-  createVaultFile,
-  installFetchMetadataStrip,
-  isTrustedIpcSender,
-  type FetchMetadataSession,
-} from './apiProxy'
+import { registerLocalSyncIpc } from './localNode/ipc'
+import { createLocalNode } from './localNode/node'
+import { isTrustedIpcSender } from './localNode/trust'
 import { buildMenu } from './menu'
 import {
   APP_SCHEME,
@@ -39,6 +32,10 @@ const DEV_URL = process.env.LIFESPIRE_DEV_URL ?? 'http://localhost:5173'
 const BACKGROUND = '#f1f0ea'
 
 app.setName(APP_NAME)
+
+// Throwaway data directory for local verification and automated smoke runs.
+const userDataOverride = process.env.LIFESPIRE_USER_DATA
+if (userDataOverride) app.setPath('userData', userDataOverride)
 
 // `standard` + `secure` give the renderer a stable origin, so the existing
 // localStorage save keeps working; `supportFetchAPI` lets the app and the fonts
@@ -95,42 +92,31 @@ function registerAppProtocol(): void {
 }
 
 /**
- * Sync runs in the main process: the renderer asks for a path, main calls the
- * configured server from the dedicated `lifespire-api` session, and the
- * refresh token never crosses the bridge. `safeStorage` persists it when the
- * OS keychain is available.
+ * The LAN node runs in the main process: it owns the device certificate, the
+ * peer tokens and the HTTPS/UDP sockets. The renderer only sends the current
+ * document mirror and receives discovered peers and incoming saves.
  */
-function registerApiProxy(): void {
-  const vaultPath = path.join(app.getPath('userData'), 'sync-session.json')
-  const file = createVaultFile(vaultPath, fs)
+function registerLocalSync(): void {
+  const usesPlainTextBackend = (): boolean => {
+    if (process.platform !== 'linux') return false
+    try {
+      return safeStorage.getSelectedStorageBackend() === 'basic_text'
+    } catch {
+      return true
+    }
+  }
 
-  // The proxy gets its own in-memory session: the renderer cannot reach it, so
-  // stripping Chromium's Fetch Metadata here never weakens the browser gate.
-  const apiSession = session.fromPartition('lifespire-api')
-  installFetchMetadataStrip(apiSession as unknown as FetchMetadataSession)
-
-  const proxy = createApiProxy({
-    // Session.fetch is a method: bind it so it always uses this partition.
-    fetch: apiSession.fetch.bind(apiSession) as typeof fetch,
-    vault: createTokenVault({
-      file,
-      crypto: {
-        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
-        usesPlainTextBackend: () => {
-          if (process.platform !== 'linux') return false
-          try {
-            return safeStorage.getSelectedStorageBackend() === 'basic_text'
-          } catch {
-            return true
-          }
-        },
-        encryptString: (value) => safeStorage.encryptString(value),
-        decryptString: (buffer) => safeStorage.decryptString(buffer),
-      },
-    }),
+  const node = createLocalNode({
+    dataDir: app.getPath('userData'),
+    secrets: {
+      available: safeStorage.isEncryptionAvailable() && !usesPlainTextBackend(),
+      encrypt: (value) => safeStorage.encryptString(value).toString('base64'),
+      decrypt: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
+    },
   })
 
-  const guard = (event: IpcMainInvokeEvent): void => {
+  const guard = (raw: unknown): void => {
+    const event = raw as IpcMainInvokeEvent
     const window = mainWindow
     const frame = event.senderFrame
     const trusted = isTrustedIpcSender(
@@ -144,21 +130,20 @@ function registerApiProxy(): void {
     if (!trusted) throw new Error('Untrusted IPC sender')
   }
 
-  ipcMain.handle(API_PROXY_CHANNELS.request, (event, payload: unknown) => {
-    guard(event)
-    return proxy.request(payload)
+  const dispose = registerLocalSyncIpc({
+    ipcMain,
+    node,
+    guard,
+    send: (channel, payload) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(channel, payload)
+      }
+    },
   })
-  ipcMain.handle(API_PROXY_CHANNELS.setServer, (event, origin: unknown) => {
-    guard(event)
-    return proxy.setServer(origin)
-  })
-  ipcMain.handle(API_PROXY_CHANNELS.sessionState, (event) => {
-    guard(event)
-    return proxy.sessionState()
-  })
-  ipcMain.handle(API_PROXY_CHANNELS.signOut, (event) => {
-    guard(event)
-    return proxy.signOut()
+
+  app.on('before-quit', () => {
+    dispose()
+    void node.stop()
   })
 }
 
@@ -313,7 +298,7 @@ if (!app.requestSingleInstanceLock()) {
     Menu.setApplicationMenu(buildMenu(app.isPackaged))
     registerDownloads()
     restrictPermissions()
-    registerApiProxy()
+    registerLocalSync()
     createWindow()
 
     app.on('activate', () => {

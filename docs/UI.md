@@ -48,7 +48,9 @@ art stay hidden. Owned cards reuse `LootCard` with a `detailed` variant for the
 description and found date. The filter state is local to the screen and is never
 persisted.
 
-Settings extends the same panels and tokens with the data controls. Export
+Settings extends the same panels and tokens with the Nearby devices panel (the
+device card, the QR/code pairing dialog, paired/nearby lists, auto-sync switches
+and the conflict entry point) and the data controls. Export
 downloads the versioned JSON document; import uses a visually hidden file input
 inside a `btn` label, so the 44 px target, focus ring and keyboard activation are
 preserved. The preview is a `Dialog` with a definition list, and the destructive

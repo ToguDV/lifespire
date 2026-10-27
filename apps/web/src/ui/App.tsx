@@ -5,7 +5,6 @@ import type { View } from '../domain/types'
 import { msUntilNextLocalMidnight } from '../state/clock'
 import { useAppStore } from '../state/store'
 import { initSync } from '../sync/setup'
-import { parseAuthRoute } from './lib/authRoute'
 import {
   AnimatedNumber,
   ConflictDialog,
@@ -20,7 +19,6 @@ import {
   Toast,
 } from './components'
 import type { IconName } from './components'
-import { AuthLinkScreen } from './screens/AuthLinkScreen'
 import { DaySummaryScreen } from './screens/DaySummaryScreen'
 import { GoalsScreen } from './screens/GoalsScreen'
 import { HomeScreen } from './screens/HomeScreen'
@@ -90,7 +88,6 @@ const VIEW_TITLES: Record<string, string> = {
   reliquary: 'Reliquary · LifeSpire',
   settings: 'Settings · LifeSpire',
   recovery: 'Recovery · LifeSpire',
-  'auth-link': 'Account · LifeSpire',
 }
 
 export default function App() {
@@ -106,13 +103,6 @@ export default function App() {
   const clearRewardToast = useAppStore((state) => state.clearRewardToast)
 
   const [devOpen, setDevOpen] = useState(false)
-  // Read once: account links are handled outside the game view state, before
-  // hydration and even when the local save is blocked.
-  const [authRoute] = useState(() =>
-    typeof window === 'undefined'
-      ? null
-      : parseAuthRoute(window.location.pathname, window.location.hash, window.location.search),
-  )
   const mainRef = useRef<HTMLElement>(null)
   const lastViewKey = useRef<string | null>(null)
 
@@ -236,7 +226,7 @@ export default function App() {
     }
   }, [])
 
-  const screenName = authRoute ? 'auth-link' : screenNameFor(guardedView)
+  const screenName = screenNameFor(guardedView)
 
   useLayoutEffect(() => {
     window.document.body.dataset.screen = screenName
@@ -266,8 +256,6 @@ export default function App() {
       clearRewardToast()
     }
   }, [guardedView.name, rewardToast, clearRewardToast])
-
-  if (authRoute) return <AuthLinkScreen route={authRoute} />
 
   if (!hydrated) return null
 

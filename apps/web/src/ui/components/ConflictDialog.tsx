@@ -5,7 +5,7 @@ import { dayKey } from '../../domain/dates'
 import { serializeDocument } from '../../domain/schema'
 import { getNow } from '../../state/clock'
 import { documentStorage } from '../../state/persistence'
-import { useSyncStore, syncEngine } from '../../sync/setup'
+import { useSyncStore, localSync } from '../../sync/setup'
 import { Button, Dialog } from './index'
 
 function formatWhen(iso: string | null): string {
@@ -17,7 +17,7 @@ function formatWhen(iso: string | null): string {
   }
 }
 
-function downloadRemote(document: GameDocument, filename: string): void {
+function download(document: GameDocument, filename: string): void {
   const payload = serializeDocument(document)
   const blob = new Blob([payload], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -30,7 +30,15 @@ function downloadRemote(document: GameDocument, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-function ConflictCopy({ title, document, updatedAt }: { title: string; document: GameDocument; updatedAt: string | null }) {
+function ConflictCopy({
+  title,
+  document,
+  updatedAt,
+}: {
+  title: string
+  document: GameDocument
+  updatedAt: string | null
+}) {
   const summary = summarizeDocument(document)
   return (
     <div className="conflict-side">
@@ -60,30 +68,32 @@ function ConflictCopy({ title, document, updatedAt }: { title: string; document:
 }
 
 export function ConflictDialog() {
-  const conflict = useSyncStore((state) => state.conflict)
-  const [busy, setBusy] = useState<'mine' | 'cloud' | null>(null)
+  const conflicts = useSyncStore((state) => state.conflicts)
+  const active = conflicts[0]
+  const [busy, setBusy] = useState<'mine' | 'peer' | null>(null)
 
-  if (!conflict) return null
+  if (!active) return null
+  const { conflict, peerId, peerName } = active
 
   const closeWithoutResolving = (): void => {
-    syncEngine.discardConflict()
+    localSync.discardConflict(peerId)
   }
 
   const keepMine = async (): Promise<void> => {
     setBusy('mine')
     try {
       documentStorage.backup()
-      await syncEngine.resolveKeepMine()
+      await localSync.resolveKeepMine(peerId)
     } finally {
       setBusy(null)
     }
   }
 
-  const keepCloud = (): void => {
-    setBusy('cloud')
+  const keepPeer = (): void => {
+    setBusy('peer')
     try {
       documentStorage.backup()
-      syncEngine.resolveKeepCloud()
+      localSync.resolveKeepPeer(peerId)
     } finally {
       setBusy(null)
     }
@@ -93,38 +103,29 @@ export function ConflictDialog() {
     documentStorage.backup()
     const stamp = dayKey(getNow())
     try {
-      const payload = serializeDocument(conflict.local)
-      const blob = new Blob([payload], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const anchor = window.document.createElement('a')
-      anchor.href = url
-      anchor.download = `lifespire-this-device-${stamp}.json`
-      window.document.body.append(anchor)
-      anchor.click()
-      anchor.remove()
-      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+      download(conflict.local, `lifespire-this-device-${stamp}.json`)
     } catch {
-      // Best-effort; the cloud copy remains untouched.
+      // Best-effort; the other copy is still available.
     }
-    downloadRemote(conflict.remote, `lifespire-cloud-${stamp}.json`)
+    download(conflict.remote, `lifespire-${peerName.replace(/\s+/g, '-')}-${stamp}.json`)
   }
 
   return (
     <Dialog
       open
       title="Sync conflict"
-      eyebrow="Two versions"
-      description="This device and the cloud disagree in ways that can't be merged safely, so pick which copy keeps going. Small independent edits merge on their own; these didn't. Both copies are kept safe first."
+      eyebrow={`This device · ${peerName}`}
+      description={`This device and ${peerName} changed the same things in different ways, so pick which copy keeps going. Small independent edits merge on their own; these did not. Both copies are kept safe first.`}
       onClose={closeWithoutResolving}
       footer={
         <>
           <Button variant="quiet" onClick={exportBoth}>
             Export both
           </Button>
-          <Button variant="secondary" onClick={keepCloud} disabled={busy !== null}>
-            {busy === 'cloud' ? 'Keeping…' : 'Keep cloud'}
+          <Button variant="secondary" onClick={keepPeer} disabled={busy !== null}>
+            {busy === 'peer' ? 'Keeping…' : `Keep ${peerName}`}
           </Button>
-          <Button variant="primary" onClick={keepMine} disabled={busy !== null}>
+          <Button variant="primary" onClick={() => void keepMine()} disabled={busy !== null}>
             {busy === 'mine' ? 'Keeping…' : 'Keep this device'}
           </Button>
         </>
@@ -132,7 +133,7 @@ export function ConflictDialog() {
     >
       <div className="conflict-grid">
         <ConflictCopy title="This device" document={conflict.local} updatedAt={null} />
-        <ConflictCopy title="Cloud" document={conflict.remote} updatedAt={conflict.remoteUpdatedAt} />
+        <ConflictCopy title={peerName} document={conflict.remote} updatedAt={conflict.remoteUpdatedAt} />
       </div>
       {conflict.conflicts.length > 0 ? (
         <ul className="panel-note conflict-reasons">
@@ -142,8 +143,8 @@ export function ConflictDialog() {
         </ul>
       ) : null}
       <p className="panel-note">
-        Keep this device uploads it over the cloud version. Keep cloud replaces this device
-        (a backup is saved first). Export both downloads each copy before you decide.
+        Keep this device sends it to {peerName}. Keep {peerName} replaces this device (a backup is
+        saved first). Export both downloads each copy before you decide.
       </p>
     </Dialog>
   )

@@ -69,6 +69,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-sharing',
     [
+      'expo-camera',
+      {
+        cameraPermission: 'LifeSpire uses the camera only to scan a nearby-device pairing QR.',
+      },
+    ],
+    [
       'expo-notifications',
       {
         icon: './assets/notification-icon.png',
@@ -78,7 +84,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   extra: {
-    syncBaseUrl: process.env.EXPO_PUBLIC_SYNC_BASE_URL ?? '',
     // EAS cannot write into a dynamic config, so the linked project id lives
     // here. The release workflow verifies it before building the APK.
     eas: { projectId: '78e76175-b9df-48b5-8623-ddb81b5dee18' },

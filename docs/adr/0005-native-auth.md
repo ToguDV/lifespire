@@ -1,5 +1,7 @@
 # ADR-0005 — Native refresh grant and secure token storage
 
+> Superseded by ADR-0007: there are no accounts or refresh tokens.
+
 > Date: 2026-10-24. Status: accepted. Complements ADR-0002 (auth/admin).
 
 ## Context

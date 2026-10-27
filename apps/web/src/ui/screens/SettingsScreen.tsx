@@ -1,29 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { dayKey } from '../../domain/dates'
 import { STORAGE_KEY } from '../../domain/balance'
 import { serializeDocument } from '../../domain/schema'
 import type { ThemePreference } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
-import { finishDesktopSignOut, getDesktopSessionState } from '../../sync/api'
-import { useAuthStore } from '../../sync/authStore'
+import { localSync, useSyncStore } from '../../sync/setup'
 import {
   Button,
+  DevicesPanel,
   Dialog,
   Icon,
   Panel,
   PanelHead,
   SaveImport,
   ScreenHead,
-  SyncStatus,
 } from '../components'
-import { SyncPanel } from '../components/SyncPanel'
-import { ServerPanel } from '../components/ServerPanel'
-import { AdminPanel } from '../components/AdminPanel'
 import { useFeedbackPrefs } from '../lib/feedback'
 import { saveFileName } from '../lib/importSave'
-import { isDesktopShell } from '../lib/platform'
-import type { DesktopSessionPersistence } from '../lib/platform'
 import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
 const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
@@ -32,50 +26,19 @@ const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: 'System' },
 ]
 
-/**
- * safeStorage is memory-only when the OS keychain is unavailable (or Linux
- * falls back to `basic_text`). The session still works until the app closes;
- * say so instead of pretending it was saved.
- */
-function DesktopSessionNote() {
-  const [persistence, setPersistence] = useState<DesktopSessionPersistence | null>(null)
-
-  useEffect(() => {
-    let active = true
-    void getDesktopSessionState().then((state) => {
-      if (active) setPersistence(state?.persistence ?? null)
-    })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  if (persistence !== 'memory-only') return null
-
-  return (
-    <p className="panel-note" role="note">
-      This keychain is not available, so the session stays in memory.
-    </p>
-  )
-}
-
 export function SettingsScreen() {
   const gameDocument = useAppStore((state) => state.document)
   const setTheme = useAppStore((state) => state.setTheme)
   const resetAll = useAppStore((state) => state.resetAll)
   const showToast = useAppStore((state) => state.showToast)
+  const peers = useSyncStore((state) => state.peers)
   const [feedback, setFeedback] = useFeedbackPrefs()
-  const authStatus = useAuthStore((state) => state.status)
-  const user = useAuthStore((state) => state.user)
-  const logout = useAuthStore((state) => state.logout)
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
-  const [syncOpen, setSyncOpen] = useState(false)
-  const [signOutError, setSignOutError] = useState<string | null>(null)
-  const desktop = isDesktopShell()
+  const [resetUnpair, setResetUnpair] = useState(false)
 
+  const peerIds = Object.keys(peers)
   const resetReady = isResetConfirmation(resetPhrase)
-  const signedIn = authStatus === 'authenticated' && user !== null
 
   const exportSave = () => {
     const payload = serializeDocument(gameDocument)
@@ -94,27 +57,19 @@ export function SettingsScreen() {
   const closeReset = () => {
     setConfirmReset(false)
     setResetPhrase('')
+    setResetUnpair(false)
   }
 
   const confirmResetNow = () => {
     if (!resetReady) return
     closeReset()
-    resetAll()
-  }
-
-  const closeSync = () => {
-    setSyncOpen(false)
-  }
-
-  const submitSignOut = async (): Promise<void> => {
-    setSignOutError(null)
-    try {
-      await finishDesktopSignOut(logout)
-    } catch (error) {
-      setSignOutError(
-        error instanceof Error ? error.message : 'Could not clear the session on this device.',
-      )
+    if (resetUnpair) {
+      void Promise.all(peerIds.map((peerId) => localSync.forget(peerId))).finally(() => {
+        resetAll()
+      })
+      return
     }
+    resetAll()
   }
 
   return (
@@ -123,7 +78,7 @@ export function SettingsScreen() {
         kicker="Profile · Local data"
         title="Settings"
         titleId="settings-title"
-        sub="Appearance, sync and local data."
+        sub="Appearance, nearby sync and local data."
       />
 
       <div className="settings-body">
@@ -185,46 +140,11 @@ export function SettingsScreen() {
           <p className="panel-note">Sound and vibration are subtle by default.</p>
         </Panel>
 
-        <Panel pad>
-          <PanelHead label="Sync" />
-          {signOutError ? (
-            <p className="field-error" role="alert">
-              {signOutError}
-            </p>
-          ) : null}
-          {signedIn && user ? (
-            <>
-              <div className="feedback-row">
-                <div className="feedback-row__body">
-                  <p className="panel-note">
-                    Signed in as <strong>{user.email}</strong>
-                  </p>
-                </div>
-                <SyncStatus />
-              </div>
-              <div className="settings-actions">
-                <Button variant="quiet" onClick={() => void submitSignOut()}>
-                  Sign out
-                </Button>
-                <Button variant="secondary" onClick={() => setSyncOpen(true)}>
-                  Manage sync
-                </Button>
-              </div>
-            </>
-          ) : (
-            <div className="feedback-row">
-              <span className="chip chip--quiet">Local only</span>
-              <Button variant="secondary" onClick={() => setSyncOpen(true)}>
-                Set up sync
-              </Button>
-            </div>
-          )}
-          {desktop ? <DesktopSessionNote /> : null}
-        </Panel>
+        <DevicesPanel />
 
         <Panel pad>
           <PanelHead label="Data" />
-          <p className="panel-note">Your save stays in this browser.</p>
+          <p className="panel-note">Your save stays on this device. Export it for a backup.</p>
           <div className="settings-actions">
             <Button variant="secondary" onClick={exportSave}>
               <Icon name="scroll" />
@@ -256,7 +176,7 @@ export function SettingsScreen() {
       <Dialog
         open={confirmReset}
         title="Reset local data?"
-        description="This removes the profile, goals, routines, run and collection from this browser."
+        description="This removes the profile, goals, routines, run and collection from this device."
         onClose={closeReset}
         footer={
           <>
@@ -292,32 +212,25 @@ export function SettingsScreen() {
             }}
           />
         </div>
-      </Dialog>
-
-      <Dialog
-        open={syncOpen}
-        title="Sync"
-        description="Sign in to sync this save between your devices."
-        onClose={closeSync}
-        footer={
-          <Button variant="quiet" onClick={closeSync}>
-            Close
-          </Button>
-        }
-      >
-        <SyncPanel />
-        <details className="settings-details">
-          <summary>Server</summary>
-          <ServerPanel />
-        </details>
-        {!desktop && user?.role === 'ADMIN' ? (
-          <details className="settings-details">
-            <summary>Admin</summary>
-            <AdminPanel />
-          </details>
+        {peerIds.length > 0 ? (
+          <div className="reset-confirmation">
+            <label className="field__label" htmlFor="reset-unpair">
+              <input
+                id="reset-unpair"
+                type="checkbox"
+                checked={resetUnpair}
+                onChange={(event) => setResetUnpair(event.target.checked)}
+              />{' '}
+              Reset this device only (forget paired devices first)
+            </label>
+            <p className="field-hint">
+              {resetUnpair
+                ? 'Your paired devices keep their own saves; nothing is sent to them.'
+                : 'The reset will sync to paired devices the next time they connect.'}
+            </p>
+          </div>
         ) : null}
       </Dialog>
     </section>
   )
 }
-

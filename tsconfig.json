@@ -12,12 +12,6 @@
     },
     {
       "path": "./packages/app-core"
-    },
-    {
-      "path": "./packages/api-client"
-    },
-    {
-      "path": "./apps/api"
     }
   ]
 }

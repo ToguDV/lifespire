@@ -1,40 +1,57 @@
+import { create } from 'zustand'
 import { parseDocument } from '@lifespire/core'
 import { getDevOffsetDays, getNow } from '@lifespire/app-core/state/clock'
-import { createSyncEngine } from '@lifespire/app-core/sync/syncEngine'
-import type { SyncEngineState } from '@lifespire/app-core/sync/syncEngine'
-import { createSyncManager } from '@lifespire/app-core/sync/manager'
+import { createLocalSyncEngine } from '@lifespire/app-core/sync/localEngine'
+import type { LocalSyncState } from '@lifespire/app-core/sync/localEngine'
+import { sanitizeName } from '@lifespire/app-core/sync/protocol'
+import { DEVICE_NAME_KEY, DISCOVERABLE_KEY } from '@lifespire/app-core/sync/storageKeys'
+import * as Device from 'expo-device'
 import NetInfo from '@react-native-community/netinfo'
-import { AppState } from 'react-native'
-import { create } from 'zustand'
-import { documentStorage, kv } from '../platform/storage'
-import { devError, devWarn } from '../lib/devLogger'
+import { AppState, Platform } from 'react-native'
+import { documentStorage, kv, localSyncMigration } from '../platform/storage'
+import { devWarn } from '../lib/devLogger'
 import { useAppStore } from '../state/store'
-import { engineApi } from './api'
-import { useAuthStore } from './auth'
-import { loadRefreshToken, setRefreshToken } from './tokenStore'
+import { androidTransport } from './localTransport'
 
-interface SyncUiState extends SyncEngineState {
-  initialized: boolean
-}
-
-export const useSyncStore = create<SyncUiState>(() => ({
-  status: 'disabled',
-  userId: null,
-  serverVersion: null,
-  updatedAt: null,
-  conflict: null,
-  lastError: null,
-  lastPushedAt: null,
-  lastAutoMergeAt: null,
+export const useSyncStore = create<LocalSyncState>(() => ({
   initialized: false,
+  available: true,
+  phase: 'off',
+  device: null,
+  discoverable: true,
+  nearby: [],
+  peers: {},
+  conflicts: [],
+  pairing: null,
+  lastError: null,
 }))
 
-let online = true
+function defaultDeviceName(): string {
+  const model = Device.modelName?.trim() || 'device'
+  return sanitizeName(`${Platform.OS} ${model}`, 'Android device')
+}
 
-export const syncEngine = createSyncEngine({
+function storedDeviceName(): string {
+  try {
+    return kv.getItem(DEVICE_NAME_KEY)?.trim() || defaultDeviceName()
+  } catch {
+    return defaultDeviceName()
+  }
+}
+
+function readDiscoverable(): boolean {
+  try {
+    return kv.getItem(DISCOVERABLE_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+let suppressDirty = false
+
+export const localSync = createLocalSyncEngine({
+  transport: androidTransport,
   storage: kv,
-  api: engineApi,
-  userId: null,
   getLocalDocument: () => useAppStore.getState().document,
   applyRemoteDocument: (document) => {
     const parsed = parseDocument(document)
@@ -44,101 +61,69 @@ export const syncEngine = createSyncEngine({
       })
       return
     }
-    syncManager.suppressRemoteApply(() => {
-      useAppStore.setState({ document: parsed.value })
-    })
+    suppressDirty = true
     try {
+      useAppStore.setState({ document: parsed.value })
       useAppStore.getState().reconcile(getNow())
     } catch (error) {
       devWarn('sync', 'reconcile after a remote apply failed', error)
+    } finally {
+      queueMicrotask(() => {
+        suppressDirty = false
+      })
     }
   },
+  deviceName: storedDeviceName(),
+  initialDiscoverable: readDiscoverable(),
   getDevOffset: () => {
     try {
       return getDevOffsetDays()
-    } catch (error) {
-      devWarn('sync', 'could not read the development clock offset', error)
+    } catch {
       return 0
     }
   },
-  isOnline: () => online,
-  useLocks: false,
-  onRemoteApplied: () => {
-    useAppStore.getState().showToast('Updated from another device.')
-  },
-  onCloudDeleted: () => {
-    useAppStore.getState().showToast('The cloud save was deleted from another device.')
-  },
-  onBeforeAutoMergePush: () => {
+  onBackup: () => {
     try {
       documentStorage.backup()
     } catch (error) {
       devWarn('sync', 'pre-merge backup failed', error)
     }
   },
+  onRemoteApplied: (peerName) => {
+    useAppStore.getState().showToast(`Updated from ${peerName}.`)
+  },
 })
 
-export const syncManager = createSyncManager({
-  storage: kv,
-  auth: useAuthStore as never,
-  appStore: useAppStore as never,
-  documentStorage,
-  engine: syncEngine,
-})
+export const syncEngine = localSync
 
 function syncEngineToUi(): void {
-  const state = syncEngine.getState()
-  useSyncStore.setState({ ...state, initialized: true })
+  useSyncStore.setState(localSync.getState())
 }
 
-/**
- * Starts auth restore, per-account storage switching, sync polling and the
- * foreground/network hooks. Returns an idempotent cleanup.
- */
-export async function initSync(): Promise<() => void> {
-  await loadRefreshToken()
-
-  const stopEngineUi = syncEngine.subscribe(syncEngineToUi)
-  syncEngineToUi()
-  const stopManager = syncManager.start()
-
+export async function setDiscoverable(discoverable: boolean): Promise<void> {
   try {
-    await useAuthStore.getState().restore()
-  } catch (error) {
-    devError('auth', 'session restore failed; continuing as guest', error)
+    kv.setItem(DISCOVERABLE_KEY, discoverable ? '1' : '0')
+  } catch {
+    // Best-effort preference.
   }
-  const restoredUser = useAuthStore.getState().user
-  if (!restoredUser) setRefreshToken(null)
-  const userId = restoredUser?.id ?? null
-  try {
-    await syncManager.switchToAccount(userId)
-  } catch (error) {
-    devError('sync', 'account switch failed; the local save is still usable', error, {
-      signedIn: userId !== null,
-    })
-  }
-  syncEngineToUi()
-  syncEngine.startWatching()
+  await localSync.setDiscoverable(discoverable)
+}
 
-  const netInfoUnsubscribe = NetInfo.addEventListener((state) => {
-    const wasOnline = online
-    online = state.isConnected !== false
-    if (!wasOnline && online) syncEngine.handleOnline()
-    if (wasOnline && !online) syncEngine.stopWatching()
+let initPromise: Promise<() => void> | null = null
+let initRefs = 0
+
+async function doInitSync(): Promise<() => void> {
+  const stopEngineUi = localSync.subscribe(syncEngineToUi)
+  syncEngineToUi()
+
+  const stopDocument = useAppStore.subscribe((state, previous) => {
+    if (suppressDirty) return
+    if (state.document === (previous as { document?: unknown }).document) return
+    localSync.handleDocumentChange()
   })
-  void NetInfo.fetch()
-    .then((state) => {
-      const wasOnline = online
-      online = state.isConnected !== false
-      if (!online) {
-        syncEngine.stopWatching()
-      } else if (!wasOnline) {
-        syncEngine.startWatching()
-      }
-    })
-    .catch((error: unknown) => {
-      devWarn('sync', 'could not read the initial network state', error)
-    })
+
+  await localSync.start()
+  syncEngineToUi()
 
   let appState = AppState.currentState ?? 'active'
   const appStateSubscription = AppState.addEventListener('change', (next) => {
@@ -146,41 +131,49 @@ export async function initSync(): Promise<() => void> {
     appState = next
     if (becameActive) {
       useAppStore.getState().reconcile()
-      void syncEngine.pullNow()
-      syncEngine.startWatching()
+      void localSync.resume().then(() => localSync.refresh())
     } else if (next === 'background') {
-      syncEngine.stopWatching()
-      syncEngine.stopPolling()
+      void localSync.pause()
     }
   })
 
-  let previousUserId = useAuthStore.getState().user?.id ?? null
-  const unsubscribeAuth = useAuthStore.subscribe((state) => {
-    const nextId = state.user?.id ?? null
-    if (nextId === previousUserId) return
-    previousUserId = nextId
-    void syncManager
-      .switchToAccount(nextId)
-      .then(() => {
-        syncEngineToUi()
-        if (nextId) syncEngine.startWatching()
-        else syncEngine.stopWatching()
-      })
-      .catch((error: unknown) => {
-        devError('sync', 'account switch after an auth change failed', error, { nextId })
-      })
+  const netInfoUnsubscribe = NetInfo.addEventListener((state) => {
+    if (state.isConnected !== false) void localSync.refresh()
   })
 
   let stopped = false
   return () => {
     if (stopped) return
     stopped = true
-    stopManager()
-    unsubscribeAuth()
+    stopDocument()
+    stopEngineUi()
     appStateSubscription.remove()
     netInfoUnsubscribe()
-    stopEngineUi()
-    syncEngine.stopWatching()
-    syncEngine.stopPolling()
+    void localSync.stop()
   }
+}
+
+export async function initSync(): Promise<() => void> {
+  initRefs += 1
+  if (!initPromise) {
+    initPromise = doInitSync().catch(() => () => undefined)
+  }
+  const stop = await initPromise
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    initRefs = Math.max(0, initRefs - 1)
+    if (initRefs === 0) {
+      initPromise = null
+      stop()
+    }
+  }
+}
+
+export const migrationNotice = localSyncMigration
+
+export function resetSyncForTests(): void {
+  initPromise = null
+  initRefs = 0
 }

@@ -1,5 +1,7 @@
 # ADR-0002 — Closed registration with admin invites + mandatory admin TOTP
 
+> Superseded by ADR-0007: accounts, invites, passwords and admin are retired.
+
 > Date: 2026-10-24. Status: accepted. Context: private hosting, no email
 > provider, several admins.
 
