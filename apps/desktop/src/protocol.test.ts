@@ -29,6 +29,12 @@ describe('resolveAssetPath', () => {
     )
   })
 
+  it('serves the external theme bootstrap from the packaged build', () => {
+    expect(resolveAssetPath(ROOT, `${APP_ORIGIN}/theme.js`)).toBe(
+      path.join(ROOT, 'theme.js'),
+    )
+  })
+
   it('ignores query strings and fragments', () => {
     expect(resolveAssetPath(ROOT, `${APP_ORIGIN}/index.html?theme=dark#top`)).toBe(
       path.join(ROOT, 'index.html'),
