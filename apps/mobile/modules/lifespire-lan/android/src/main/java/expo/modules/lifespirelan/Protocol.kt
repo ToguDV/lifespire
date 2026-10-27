@@ -187,6 +187,15 @@ fun StoredPeer.toPublicMap(): Map<String, Any?> = mapOf(
   "lastSyncAt" to lastSyncAt,
 )
 
+fun PeerRecord.toPublicMap(): Map<String, Any?> = mapOf(
+  "peerId" to peerId,
+  "name" to name,
+  "fingerprint" to fingerprint,
+  "autoSync" to autoSync,
+  "pairedAt" to pairedAt,
+  "lastSyncAt" to lastSyncAt,
+)
+
 fun PairingPayload.toMap(): Map<String, Any?> = mapOf(
   "v" to v,
   "kind" to kind,
