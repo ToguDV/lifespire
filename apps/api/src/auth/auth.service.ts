@@ -351,15 +351,17 @@ export class AuthService {
       throw new ApiError({ status: 400, code: 'RESET_EXPIRED', title: 'Reset link expired' });
     }
     const passwordHash = await hashPassword(input.password);
-    const claimed = await this.prisma.accountToken.updateMany({
-      where: { id: record.id, usedAt: null },
-      data: { usedAt: new Date() },
-    });
-    if (claimed.count === 0) {
-      throw new ApiError({ status: 400, code: 'RESET_USED', title: 'Reset link already used' });
-    }
     let activated = false;
     await this.prisma.$transaction(async (tx) => {
+      // Claim inside the transaction so a failed reset (disabled account,
+      // concurrent use) rolls the claim back and the link stays usable.
+      const claimed = await tx.accountToken.updateMany({
+        where: { id: record.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count === 0) {
+        throw new ApiError({ status: 400, code: 'RESET_USED', title: 'Reset link already used' });
+      }
       // Re-read inside the transaction: an admin may have disabled the account
       // between issuing the link and consuming it, and a reset must not
       // reactivate a DISABLED user.
@@ -370,15 +372,41 @@ export class AuthService {
       if (!user) {
         throw new ApiError({ status: 400, code: 'RESET_INVALID', title: 'Invalid reset link' });
       }
-      activated = user.status === 'PENDING';
-      await tx.user.update({
-        where: { id: record.userId },
-        data: {
-          passwordHash,
-          // The documented first-admin bootstrap creates a PENDING account and
-          // then issues a reset link; consuming it is the activation step.
-          ...(activated ? { status: 'ACTIVE', activatedAt: new Date() } : {}),
+      if (user.status === 'DISABLED') {
+        throw new ApiError({ status: 403, code: 'USER_DISABLED', title: 'Account is disabled' });
+      }
+      if (user.status === 'PENDING') {
+        // The documented first-admin bootstrap creates a PENDING account and
+        // then issues a reset link; consuming it is the activation step.
+        const activation = await tx.user.updateMany({
+          where: { id: record.userId, status: 'PENDING' },
+          data: { status: 'ACTIVE', activatedAt: new Date() },
+        });
+        activated = activation.count > 0;
+      }
+      const updated = await tx.user.updateMany({
+        where: { id: record.userId, status: { not: 'DISABLED' } },
+        data: { passwordHash },
+      });
+      if (updated.count === 0) {
+        // A concurrent admin disable won the race; keep the password and claim
+        // untouched.
+        throw new ApiError({ status: 403, code: 'USER_DISABLED', title: 'Account is disabled' });
+      }
+      // A reset revokes every other outstanding credential: pending invites
+      // must not stay redeemable, older reset links die, and live sessions end.
+      await tx.accountToken.updateMany({
+        where: { userId: record.userId, type: 'INVITE', usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      await tx.accountToken.updateMany({
+        where: {
+          userId: record.userId,
+          type: 'PASSWORD_RESET',
+          usedAt: null,
+          id: { not: record.id },
         },
+        data: { usedAt: new Date() },
       });
       await tx.refreshSession.updateMany({
         where: { userId: record.userId, revokedAt: null },

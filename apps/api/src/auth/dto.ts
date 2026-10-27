@@ -1,4 +1,4 @@
-import { IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Length, Matches, MaxLength } from 'class-validator';
 import { INVITE_TOKEN_PATTERN } from './invite-token';
 
 export class LoginDto {
@@ -25,7 +25,7 @@ export class AcceptInviteDto {
   token!: string;
 
   @IsString()
-  @Length(12, 256)
+  @MaxLength(256)
   password!: string;
 
   @IsString()
@@ -52,7 +52,7 @@ export class ResetPasswordDto {
   token!: string;
 
   @IsString()
-  @Length(12, 256)
+  @MaxLength(256)
   password!: string;
 }
 
@@ -62,7 +62,7 @@ export class ChangePasswordDto {
   currentPassword!: string;
 
   @IsString()
-  @Length(12, 256)
+  @MaxLength(256)
   newPassword!: string;
 }
 

@@ -3,6 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { hashPassword } from '../auth/password';
+import { passwordPolicyIssue } from '../auth/password-policy';
 
 function arg(name: string): string | undefined {
   const idx = process.argv.indexOf(`--${name}`);
@@ -25,9 +26,12 @@ async function run(): Promise<void> {
       process.exit(1);
     }
     const password = arg('password');
-    if (password && password.length < 12) {
-      console.error('Password must be at least 12 chars');
-      process.exit(1);
+    if (password) {
+      const issue = passwordPolicyIssue(password);
+      if (issue) {
+        console.error(issue);
+        process.exit(1);
+      }
     }
     const user = await prisma.user.create({
       data: {

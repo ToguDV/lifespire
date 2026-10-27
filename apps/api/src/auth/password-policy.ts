@@ -39,7 +39,3 @@ export function passwordPolicyIssue(password: string): string | null {
   }
   return null;
 }
-
-export function isAllowedPassword(password: string): boolean {
-  return passwordPolicyIssue(password) === null;
-}

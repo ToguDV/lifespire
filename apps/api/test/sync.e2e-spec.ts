@@ -319,6 +319,48 @@ describe('sync API e2e (postgres)', () => {
       .send({ token: resetToken, password: 'reset-again-pw-123' })
       .expect(400);
     expect(reuse.body.code).toBe('RESET_USED');
+
+    // A disabled account cannot reset its password; the rejected reset must
+    // leave both the password and the link untouched.
+    const disabledIp = nextIp();
+    await request(app.getHttpServer())
+      .patch(`/v1/admin/users/${created.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'DISABLED' })
+      .expect(200);
+    const disabledLinkRes = await request(app.getHttpServer())
+      .post(`/v1/admin/users/${created.id}/reset-link`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(201);
+    const disabledResetToken = inviteTokenOf(disabledLinkRes.body.resetLink as string);
+    const blocked = await request(app.getHttpServer())
+      .post('/v1/auth/reset-password')
+      .set('X-Forwarded-For', disabledIp)
+      .send({ token: disabledResetToken, password: 'disabled-reset-pw-123' })
+      .expect(403);
+    expect(blocked.body.code).toBe('USER_DISABLED');
+    const untouched = await prisma.accountToken.findUnique({
+      where: { tokenHash: sha256Hex(disabledResetToken) },
+      select: { usedAt: true },
+    });
+    expect(untouched?.usedAt).toBeNull();
+
+    await request(app.getHttpServer())
+      .patch(`/v1/admin/users/${created.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'ACTIVE' })
+      .expect(200);
+    // The previous password still works: the blocked reset changed nothing.
+    await request(app.getHttpServer())
+      .post('/v1/auth/login')
+      .set('X-Forwarded-For', disabledIp)
+      .send({ email, password: newPw, deviceName: 'phone-b' })
+      .expect(200);
+    await request(app.getHttpServer())
+      .post('/v1/auth/login')
+      .set('X-Forwarded-For', disabledIp)
+      .send({ email, password: 'disabled-reset-pw-123', deviceName: 'phone-b' })
+      .expect(401);
   }, 60_000);
 
   it('(b2) reset activates a PENDING account and explains weak passwords', async () => {
@@ -326,12 +368,27 @@ describe('sync API e2e (postgres)', () => {
     const email = `pending-user-${suffix}@example.com`;
     const created = await adminCreateUser(email, 'USER');
     expect(created.inviteLink).toContain('/accept-invite#token=');
+    const inviteToken = inviteTokenOf(created.inviteLink);
 
     const linkRes = await request(app.getHttpServer())
       .post(`/v1/admin/users/${created.id}/reset-link`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(201);
     const resetToken = inviteTokenOf(linkRes.body.resetLink as string);
+
+    // The DTO only caps the length, so the service returns the specific policy
+    // title instead of a generic 400.
+    const short = await request(app.getHttpServer())
+      .post('/v1/auth/reset-password')
+      .set('X-Forwarded-For', ip)
+      .send({ token: resetToken, password: 'short-pw-11' })
+      .expect(422);
+    expect(short.body.title).toMatch(/at least 12/);
+    const pendingAfterShort = await prisma.user.findUnique({
+      where: { id: created.id },
+      select: { status: true },
+    });
+    expect(pendingAfterShort?.status).toBe('PENDING');
 
     // A weak password fails before the token is claimed, with an actionable title.
     const weak = await request(app.getHttpServer())
@@ -340,6 +397,11 @@ describe('sync API e2e (postgres)', () => {
       .send({ token: resetToken, password: 'my-lifespire-2026' })
       .expect(422);
     expect(weak.body.title).toMatch(/common words/i);
+    const pendingAfterWeak = await prisma.user.findUnique({
+      where: { id: created.id },
+      select: { status: true },
+    });
+    expect(pendingAfterWeak?.status).toBe('PENDING');
 
     // The same still-valid link sets the password and activates the account.
     await request(app.getHttpServer())
@@ -354,6 +416,14 @@ describe('sync API e2e (postgres)', () => {
       .send({ email, password: 'pending-admin-pw-123', deviceName: 'pending-device' })
       .expect(200);
     expect(login.body.user.status).toBe('ACTIVE');
+
+    // The reset revokes the original invite: it must not stay redeemable.
+    const inviteReuse = await request(app.getHttpServer())
+      .post('/v1/auth/accept-invite')
+      .set('X-Forwarded-For', ip)
+      .send({ token: inviteToken, password: 'pending-admin-pw-456', deviceName: 'pending-device-2' })
+      .expect(400);
+    expect(inviteReuse.body.code).toBe('INVITE_USED');
 
     const reuse = await request(app.getHttpServer())
       .post('/v1/auth/reset-password')
