@@ -115,6 +115,9 @@ Conventional-Commits style, matching the squashed commit intent.
   - `pnpm typecheck:e2e` — pass/fail
   - `pnpm test` — pass/fail (note any new/updated tests)
   - `pnpm build` — pass/fail
+  - Real-stack verification (§12.1) — environment, commands, flows, DB/state
+    checks and console/network observations; state explicitly what was covered
+    only by mocks or not exercised locally.
   - Manual checks performed (screen sizes, theme, offline, etc.)
   - Desktop shell check — the flow verified by running it through the Electron
     shell (packaged build or `pnpm dev:desktop`) when the change is user-facing.
@@ -294,6 +297,43 @@ branch before opening the PR. Never open a PR with red checks.
 > rebuild (`sudo chown -R "$(id -u):$(id -g)" apps/api/dist` or
 > `sudo rm -rf apps/api/dist`). Never run builds as root.
 
+### 12.1 Real-stack verification (mandatory)
+
+Green unit tests, mocked E2E and a passing build are **regression checks, not
+acceptance evidence**. Mocks cannot catch a stale build, a service-worker cache,
+a token generated against another database, a missing migration, a real
+401/404, a CSP violation or a specific server error hidden by a generic client
+message. Before reporting a behavior change as done, exercise the affected flow
+yourself against the real stack:
+
+- Build the artifacts from the branch and run the real stack: the database with
+  migrations, the API, and the client build served the way production serves it
+  (for web, use the API with `WEB_DIST_DIR` instead of Vite dev when the change
+  affects serving, auth, CSP, PWA or deployment).
+- Use a throwaway database/environment. Never test against production or real
+  user data. Drop the database and stop the services when finished (§13).
+- Run the exact commands the documentation tells the user to run (for example
+  the container CLI that creates the first admin and prints the reset link) and
+  open the link the system actually generates, not a hand-written URL.
+- Walk the complete flow, including failure paths: happy path,
+  invalid/expired/used token, wrong password, reload, deep link, installed
+  PWA/service-worker update and the relevant error states. Where state changes,
+  check the persisted result (DB row/status transition, storage key), not only
+  the screen.
+- Watch the browser/network console: CSP violations, unexpected 401/404/500,
+  mixed content and failed requests. A correct-looking screen with a console
+  error is not done.
+- Record the evidence in the PR: environment, commands, flows, DB/state checks,
+  console/network observations and screenshots for UI changes. If a flow cannot
+  be exercised locally, state exactly what was not verified and why, and ask the
+  user before calling it done. "The tests pass" or "the mocks cover it" is never
+  enough.
+
+This applies to any change that affects a user flow, auth, sync, persistence,
+migrations, build/serving, CSP, PWA, configuration, or documentation that tells
+someone to run a command. Small mechanical changes (typos, formatting, one-line
+style fixes) may be verified by the main agent without the full stack.
+
 ## 13. Agent cleanup (mandatory before finishing)
 
 When an agent finishes a session, it **must leave the environment clean**:
@@ -323,10 +363,12 @@ When an agent finishes a session, it **must leave the environment clean**:
 7. Verify three-client parity (§8) with subagents and close the divergences.
 8. Run the final code review (§9) and fix the load-bearing findings.
 9. Run all quality gates, including `pnpm typecheck:e2e` (E2E too when critical
-   paths changed).
+   paths changed), and the real-stack verification (§12.1) for every affected
+   flow. A mock-only pass does not close this step.
 10. **Register any new/moved/deleted `.md` file in `AGENTS.md`** (Fuentes de
     verdad) in the same change. A doc without a reference there is incomplete.
 11. Push the branch and open the single PR of the session (no approval required
     to open).
-12. Clean up: stop servers, remove artifacts, verify `git status`.
+12. Clean up: stop servers, drop throwaway databases, remove artifacts, verify
+    `git status`.
 13. Report branch + PR URL; await user review/merge.
