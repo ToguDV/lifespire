@@ -91,6 +91,28 @@ alive with the app closed would need remote push, which is out of scope. The
 conservative 3-way merge and the keep-mine / keep-cloud dialog are shared with
 web. Guest saves are adopted by a fresh account exactly like on web.
 
+### 4.1 Account entry and account links
+
+- The welcome screen (onboarding step 0) has one quiet
+  **Already have an account? Sign in** row. It opens the same `SyncDialog` as
+  Settings → Sync, so a fresh install without a local profile can sign in,
+  accept an admin invite or set a new password before starting a run. Once
+  signed in, the row and the dialog show the account email; the dialog can sign
+  out again without leaving onboarding.
+- `src/components/SyncDialog.tsx` is shared by Settings and the welcome. Its
+  invite/reset forms reuse `extractAuthToken` / `isAuthToken` from
+  `packages/app-core/src/sync/authLink.ts` and `newPasswordProblem` from
+  `packages/app-core/src/sync/password.ts`, so link parsing and the password
+  policy match web. Each form keeps its own error and success notice and its
+  own busy state; a reset never forces a logout (the form is guest-only), and
+  an accepted invite leaves the auth store signed in so the following
+  pull/guest adoption can run.
+- Android has no universal/App Links for `/reset-password` or
+  `/accept-invite`: an `https://…` link opens the browser, not LifeSpire. The
+  link or its 43-character token can be pasted into the dialog opened from the
+  welcome or Settings, which is the supported native path. Adding App Links
+  would change the Android manifest and is out of scope.
+
 ## 5. Local notifications
 
 Three optional reminders, stored per device (not in `GameDocument`, so they are
@@ -146,7 +168,9 @@ the rest of the app remains fully usable.
   target suggestions, but the kicker is just `Create your path`, the step
   bodies are one line, and the review/map explanation hints are gone. Editing a
   goal or routine inside the wizard opens a touch dialog instead of the web
-  inline fieldsets; the domain draft and validation stay shared.
+  inline fieldsets; the domain draft and validation stay shared. The welcome
+  also carries the quiet account row described in §4.1, so an existing account
+  is reachable before the first local profile exists.
 - The map mirrors the web state machine: the screen resolves the active day,
   prefers today's completed or missed day, and derives sealed/locked/hasMap/
   canOpen so the head title, line and chip all speak the same state. Sealed,
@@ -287,21 +311,27 @@ pnpm --filter @lifespire/mobile build     # Metro Android bundle
 ```
 
 The shared web suite (238 tests) continues to exercise the extracted store,
-sync engine and UI helpers. Mobile Jest covers the notification planner. The
-CI quality job runs lint, typecheck, tests and build for every workspace,
-including the Android JS bundle.
+sync engine and UI helpers. Mobile Jest covers the notification planner, save
+files, draft helpers, map layout/state, the dev logger and the account-link form
+logic (`src/lib/syncForm.test.ts`: token extraction/format, password policy and
+the actionable server codes). The CI quality job runs lint, typecheck, tests and
+build for every workspace, including the Android JS bundle.
 
 Manual Android checklist before a release:
 
 1. Fresh install → demo onboarding → open day 1 → resolve a task, a wheel and
    the boss → read day and run summaries.
-2. Force-stop during a day, reopen, confirm the map, path and rewards survive.
-3. Export on web, import on Android; export on Android, import on web.
-4. Sign in, play one day on Android and one on web, verify sync and the
+2. From the welcome screen, open **Already have an account? Sign in**, sign in,
+   accept an invite and paste a reset link; confirm each form shows its own
+   error/success notice, that an accepted invite shows the account email, and
+   that the app returns to the local-or-cloud save correctly.
+3. Force-stop during a day, reopen, confirm the map, path and rewards survive.
+4. Export on web, import on Android; export on Android, import on web.
+5. Sign in, play one day on Android and one on web, verify sync and the
    conflict dialog with airplane mode.
-5. Enable notifications, grant permission, verify the test notification, set a
+6. Enable notifications, grant permission, verify the test notification, set a
    near-future time and confirm tap-to-map. Disable and confirm cancellation.
-6. Light/dark/system themes, 360 dp width, TalkBack and large font scale.
+7. Light/dark/system themes, 360 dp width, TalkBack and large font scale.
 
 ### 8.1 Development diagnostics
 
@@ -363,6 +393,8 @@ tagging; the release workflow verifies all three.
 
 - Physical-device verification and screenshots (this repository's CI has no
   Android emulator).
+- Android App Links for reset/invite (`https://…` links currently open the
+  browser; manual paste is the supported path, see §4.1).
 - iOS build and APNs grant verification (the code path exists but is untested).
 - Push notifications, if a server-side reason appears; local reminders cover
   the product need today.
