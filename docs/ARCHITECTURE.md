@@ -10,13 +10,13 @@ Fuentes: [`SPEC.md`](../SPEC.md) y [`design/DESIGN.md`](../design/DESIGN.md)
 ## 1. Estructura
 
 Monorepo pnpm (`pnpm-workspace.yaml`): `apps/web` (Vite + React),
-`apps/desktop` (shell Electron sobre el build web), `apps/mobile` (Expo + React
-Native, Android), `apps/api` (NestJS sync API),
-`packages/core` (dominio puro, fuente única), `packages/app-core` (store,
-persistencia, sync y helpers puros compartidos) y `packages/api-client`
-(cliente tipado). Detalle del backend en [`BACKEND.md`](./BACKEND.md), de la
-operación en [`RUNBOOK.md`](./RUNBOOK.md), de la app Android en
-[`MOBILE.md`](./MOBILE.md), del escritorio en [`DESKTOP.md`](./DESKTOP.md) y
+`apps/desktop` (shell Electron sobre el build web y nodo LAN en el proceso
+main), `apps/mobile` (Expo + React Native, Android, con el módulo nativo LAN),
+`packages/core` (dominio puro, fuente única) y `packages/app-core` (store,
+persistencia, motor de sync y helpers puros compartidos). No hay API ni
+cuentas. El protocolo LAN está en
+[`adr/0007-local-lan-sync.md`](./adr/0007-local-lan-sync.md); la app Android en
+[`MOBILE.md`](./MOBILE.md), el escritorio en [`DESKTOP.md`](./DESKTOP.md) y las
 decisiones en [`adr/`](./adr/).
 
 ```text
@@ -52,18 +52,17 @@ apps/web/src/
     store.ts       Zustand + persist, acciones de aplicación
     persistence.ts adaptador de storage, backup, multi-pestaña y avisos
     clock.ts       reloj inyectable + offset de desarrollo (no persistido) + zona del dispositivo
-  sync/            motor de sync + estado + base por cuenta para auto-merge
-                   y feed de cambios en primer plano (ver BACKEND.md §3,
-                   adr/0004-sync-auto-merge.md y adr/0006-foreground-change-feed.md)
+  sync/            transporte local (puente Electron o stub de navegador) y
+                   setup del motor; el motor real vive en packages/app-core
+                   (ver adr/0004-sync-auto-merge.md y adr/0007-local-lan-sync.md)
   ui/
     App.tsx        shell, navegación y guardas de flujo
     components/    Button, Panel, Progress, Stat, Dialog, Icon, etc.
     dev/
       DevPanel.tsx panel de desarrollo; solo se importa con `import.meta.env.DEV`
     lib/           lógica de UI: mapLayout, wheel, importSave, feedback,
-                   collection, newRun, daySummary, authRoute, authError, etc.
-    screens/       una pantalla por vista (incl. AuthLinkScreen para los
-                   enlaces de invitación y reset)
+                   collection, newRun, daySummary, etc.
+    screens/       una pantalla por vista (Settings incluye Nearby devices)
   styles/
     tokens.css     tokens canónicos (color, tipografía, espacio, radio)
     app.css        shell y componentes
@@ -72,20 +71,22 @@ apps/web/src/
     juice.css      microinteracciones y feedback visual
     dev.css        estilos del panel de desarrollo; solo se carga en DEV
   main.tsx
-apps/api/src/      auth, users, admin, devices, sync (snapshot + watch), health,
-                   audit, prisma, cli, http (edge), spa (same-origin web build)
 apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas,
-  IPC y safeStorage), preload.ts (puente acotado), apiProxy.ts (proxy de sync
-  y vault del refresh token), menu.ts y protocol.ts (resolución de assets y
-  política de navegación); electron-builder.yml empaqueta el build web
-apps/mobile/src/        shell nativo, tokens, componentes (incl. SyncDialog),
+  IPC y safeStorage), preload.ts (puente acotado), localNode/ (identidad,
+  descubrimiento UDP, servidor HTTPS, cliente pinneado, inbox y registro de
+  peers), menu.ts y protocol.ts; electron-builder.yml empaqueta el build web
+apps/mobile/src/        shell nativo, tokens, componentes (incl. DevicesSection),
   pantallas, mapa SVG, notificaciones locales y adaptadores de plataforma
-  (ver MOBILE.md)
+  (ver MOBILE.md); modules/lifespire-lan/ es el nodo Kotlin (UDP, TLS,
+  identidad, peers, inbox)
+apps/mobile/modules/lifespire-lan/
+  android/         módulo Expo: LifespireLanModule, LanManager, LanServer,
+                   LanDiscovery, PinnedClient, IdentityStore, PeerStore, inbox
+  index.ts         requireNativeModule + eventos
 packages/core/src/      dominio puro, fuente única (tests de dominio/contenido)
-packages/app-core/src/  store Zustand, persistencia, reloj, sync engine/manager,
-  authStore factory y helpers puros de UI compartidos por web y Android
-  (sync/authLink.ts, sync/password.ts)
-packages/api-client/src/ cliente fetch tipado (cookie web / token nativo)
+packages/app-core/src/  store Zustand, persistencia, reloj, protocolo y motor de
+  sync LAN (localEngine, peerEngine, peer registry, migración), checksum y
+  helpers puros de UI compartidos por web y Android
 ```
 
 Los tests viven junto al módulo (`*.test.ts` en web/core, `*.test.ts(x)` con
@@ -685,11 +686,13 @@ generateMap(input: {
   hidratación de Zustand es síncrona, como en web, así que la app no muestra un
   save vacío mientras lee.
 - El controlador es el mismo (`createDocumentStorage`); el aviso
-  `storageWarning`, el backup, las guardas de versión futura y las claves por
-  cuenta se comparten. La sincronización multi-pestaña no aplica (instancia
+  `storageWarning`, el backup, las guardas de versión futura y la migración al
+  save único se comparten. La sincronización multi-pestaña no aplica (instancia
   única); `AppState` y NetInfo sustituyen a los eventos de ventana/red.
-- El refresh token no se guarda aquí: vive en `expo-secure-store`. El save
-  exportado es el mismo JSON legible y el import usa las mismas validaciones.
+- Los tokens de peer, el certificado y su contraseña no se guardan aquí: viven
+  en el módulo Kotlin (`EncryptedSharedPreferences`/Keystore y PKCS#12
+  app-private). El save exportado es el mismo JSON legible y el import usa las
+  mismas validaciones.
 
 ### Multi-pestaña
 
@@ -925,21 +928,38 @@ prototipo retirado:
   requisito de HTTPS para instalar en un teléfono están en
   [`PWA.md`](./PWA.md).
 
-### Cuentas y enlaces de acceso
+### Sync local (LAN)
 
-- Los enlaces de invitación y reset (`/accept-invite#token=…`,
-  `/reset-password#token=…`) se resuelven sin router en `ui/lib/authRoute.ts` y
-  `AuthLinkScreen` los abre como pantalla propia; el token vive en el fragmento
-  y nunca llega al servidor. `ui/lib/authError.ts` centraliza el copy accionable
-  de los códigos de auth, y `SyncPanel` reutiliza los formularios manuales en
-  Settings y en el onboarding.
-- `packages/app-core/src/sync/authLink.ts` extrae y valida el token que comparten
-  web y Android; `sync/password.ts` refleja en cliente la política de longitud y
-  diversidad, mientras el API sigue siendo la autoridad (incluida la denylist).
-- Android reutiliza esa validación desde `apps/mobile/src/lib/syncForm.ts` en
-  `components/SyncDialog.tsx`, el diálogo compartido por Settings y la
-  bienvenida (login, invite y reset). En web, el foco inicial de un enlace va al
-  token si falta o es inválido y a la contraseña si el enlace lo trae.
+- No hay cuentas, enlaces de acceso ni API. El save canónico es
+  `lifespire:mvp0`; al arrancar, `migrateLegacySave` promueve el save de la
+  cuenta activa (si existe) y deja las claves antiguas como backups. No se borra
+  nada y el esquema `GameDocument` no cambia.
+- `packages/app-core/src/sync/protocol.ts` fija el paquete UDP, el payload de
+  pairing, los tipos de peer y el transporte. `peerEngine.ts` es el motor por
+  peer (pull/push/CAS/auto-merge/conflicto) y `localEngine.ts` coordina el
+  registro, el descubrimiento, la inbox, el pairing y la UI.
+- `storageKeys.ts` añade `lifespire:peer:<id>:base|meta`; la base del
+  merge es por peer (ADR-0004) y se refresca solo tras un documento validado.
+- **Web navegador:** `apps/web/src/sync/localTransport.ts` devuelve
+  `available: false` y Settings explica que la función requiere Android o
+  escritorio. El build web sigue siendo local-first y conserva export/import.
+- **Electron:** `apps/desktop/src/localNode/` implementa el nodo en el proceso
+  main (certificado autofirmado con `selfsigned`, UDP con `dgram`, HTTPS con
+  `https`, cliente TLS con fingerprint pinneado, inbox en disco y registro de
+  peers cifrado con `safeStorage`). El preload expone solo `localSync`; cada
+  handler valida el remitente con `localNode/trust.ts`.
+- **Android:** `modules/lifespire-lan/` implementa el mismo protocolo en Kotlin
+  (UDP, `SSLServerSocket`/NanoHTTPD, OkHttp con pinning, `HeldCertificate`,
+  Keystore, peers e inbox). `src/sync/localTransport.ts` adapta el módulo a la
+  interfaz compartida; `AppState` pausa/reanuda el nodo en background.
+- **Emparejamiento:** QR con huella + secreto de un solo uso; código de 8
+  caracteres como fallback. La app muestra el QR con `qrcode.react` (web/
+  escritorio) y `react-native-qrcode-svg` + `expo-camera` (Android).
+- **Sync automático:** ON por peer tras emparejar, con un interruptor global
+  "Nearby sync" y "Sync now". El iniciador mantiene una cola global, reintenta
+  el CAS hasta 3 veces y abre el diálogo keep-mine/keep-peer si el merge no es
+  seguro. Un reset/import se propaga; el diálogo permite "reset solo este
+  dispositivo" desemparejando primero.
 
 ### App Android (Expo, SDK 58)
 
@@ -957,12 +977,15 @@ prototipo retirado:
   pinta aristas en `react-native-svg`; los nodos son `Pressable` posicionados
   por porcentaje. La rueda usa `WHEEL_SECTORS`, `nextWheelRotation` y la
   misma semilla determinista.
-- **Auth/sync:** `src/sync/api.ts` crea el cliente en modo `native`; el refresh
-  token va a `expo-secure-store` y el acceso vive en memoria. El servidor solo
-  lo devuelve con el gate de `X-Client-Platform` sin `Origin`/
-  `Sec-Fetch-Site` (ADR-0005). El motor de sync, el manager, el auto-merge y el
-  feed de cambios long-poll (`/v1/sync/watch`, ADR-0006) son los de `app-core`;
-  NetInfo/AppState sustituyen a navigator/window y paran el feed en background.
+- **Sync LAN:** `modules/lifespire-lan/` es un módulo Expo local en Kotlin: UDP
+  (`LanDiscovery`), servidor HTTPS con certificado autofirmado (`LanServer`),
+  cliente con pinning (`PinnedClient`), identidad en PKCS#12 + Keystore
+  (`IdentityStore`), registro de peers con tokens cifrados (`PeerStore`) e
+  inbox duradera (`LanInbox`). `src/sync/setup.ts` usa el mismo
+  `createLocalSyncEngine` que web; `AppState` pausa el nodo al pasar a
+  background y lo reanuda al volver, y NetInfo refresca el descubrimiento.
+  `src/components/DevicesSection.tsx` es la UI de dispositivos, QR/código,
+  auto-sync y conflictos.
 - **Notificaciones:** preferencias device-local en `lifespire:notifications`
   (fuera del documento), planner puro (`day-open`, `evening`, `run-end`) y
   scheduler `expo-notifications` con canal `daily-path`. Se reprograman al
@@ -985,18 +1008,11 @@ prototipo retirado:
 - **PWA:** `registerSW.js` y `sw.js` responden con un script vacío; el shell ya
   sirve los assets desde disco y no debe montar un segundo caché.
 - **Seguridad:** `contextIsolation`, `sandbox`, sin `nodeIntegration`. El
-  preload expone `{ isDesktop, platform }` y el mínimo de sync
-  (`api.request`, `sync.setServer`, `auth.sessionState`, `auth.signOut`), nunca
-  tokens. Cada handler IPC valida `event.senderFrame.url` contra
-  `lifespire-app://app` (empaquetado) o `LIFESPIRE_DEV_URL` (dev). El proxy de
-  `apiProxy.ts` solo acepta `/v1/...` y `/health/live`, métodos y cabeceras en
-  allowlist, cuerpos ≤ 1 MB, respuestas ≤ 5 MB, timeout de 10 s (6 s en
-  health y 35 s en `/v1/sync/watch`, cuyo long-poll dura hasta 30 s) y
-  `redirect: 'error'` siempre; las rutas con `..`/`%2e`/`%2f`, las
-  URLs absolutas y los literales link-local (`169.254.0.0/16`,
-  `::ffff:169.254.0.0/16`, `fe80::/10`, `fd00:ec2::254`) se rechazan. Los
-  alias DNS no se resuelven (solo literales). Los handlers exigen que el
-  remitente sea el `mainFrame` del `webContents` de la ventana principal.
+  preload expone `{ isDesktop, platform, localSync }`; nunca claves, tokens ni
+  el objeto `ipcRenderer`. Cada handler IPC valida `event.senderFrame.url`
+  contra `lifespire-app://app` (empaquetado) o `LIFESPIRE_DEV_URL` (dev). El
+  nodo LAN escucha solo tráfico privado, exige el bearer token del peer, valida
+  el tamaño y el esquema del documento y rechaza orígenes públicos.
   `window.open` se deniega, los enlaces `http(s)` externos abren en el
   navegador, `will-navigate` y `will-redirect` solo permiten el origen propio,
   los permisos de Chromium se deniegan y `<webview>` queda bloqueado.
@@ -1004,26 +1020,15 @@ prototipo retirado:
   `showSaveDialogSync`), import por input de fichero con los mismos gates. La
   política multi-pestaña se reduce al single-instance lock. El save sigue
   siendo el mismo `GameDocument` en `localStorage`.
-- **Sync:** el renderer no llama al API. Envía `{ path, method, headers, body }`
-  por IPC y el proceso main hace `ses.fetch` desde una sesión dedicada
-  (`lifespire-api`, en memoria) contra el origen configurado con
-  `X-Client-Platform: desktop` (grant nativo de ADR-0005). El listener
-  `webRequest.onBeforeSendHeaders` de esa sesión elimina `Sec-Fetch-Site`,
-  `Origin` y `Referer`; la sesión por defecto y el renderer no la pueden usar,
-  así que el gate web no se debilita y no hace falta tocar CORS ni cookies.
-  Main captura el `refreshToken` de login/accept-invite/refresh, lo elimina de
-  la respuesta antes de devolverla, lo inyecta en el body del refresh y lo
-  rota con un contador de generación que aborta peticiones en vuelo al cerrar
-  sesión o cambiar de servidor. Se cifra con `safeStorage` en
-  `userData/sync-session.json` de forma atómica, asociado al origen; `logout`/
-  `logout-all` 2xx, el cierre de sesión local, un refresh rechazado y el cambio
-  de servidor lo borran. Si el unlink falla, se escribe un tombstone `{}`; si
-  también falla, el error llega a Settings y el vault queda bloqueado. Si
-  `safeStorage` no está disponible o Linux usa
-  `basic_text`, la sesión queda solo en memoria y Settings muestra el aviso
-  "Not saved". Base URL vacía en escritorio es "sync no configurado", nunca
-  same-origin; `/health/live` es la única ruta que puede apuntar a un origen
-  candidato antes de guardarlo, y los orígenes link-local/metadata se rechazan.
+- **Sync LAN:** el renderer no abre sockets. Envía el mirror del documento y
+  las operaciones de alto nivel por IPC; el proceso main posee el certificado,
+  los tokens, el servidor HTTPS y el descubrimiento UDP. El nodo entrega los
+  documentos entrantes a una inbox durable y responde `202`; el renderer los
+  valida con `parseDocument`, los aplica y hace `ack`. La identidad y el
+  registro de peers se cifran con `safeStorage`; si no está disponible (o
+  Linux usa `basic_text`), se guardan con permisos `0600` y Settings muestra el
+  aviso. El servidor solo acepta direcciones privadas y exige el bearer token
+  de un peer emparejado.
 - **CI:** `.github/workflows/release.yml` solo corre en tags `v*`, valida la
   versión contra los manifiestos, empaqueta en runners Linux/Windows, compila
   el APK en EAS y publica todo (más `SHA256SUMS.txt`) en la GitHub Release.
@@ -1037,11 +1042,12 @@ suite de web a través de los shims. Ver [`MOBILE.md`](./MOBILE.md) §8.
 El shell de escritorio añade `apps/desktop/src/protocol.test.ts` (Vitest) para
 la resolución URL→fichero, el rechazo de rutas que escapan del build, la
 allow-list de navegación, los enlaces externos y los scripts del service worker,
-y `apps/desktop/src/apiProxy.test.ts` para las allowlists del proxy, el límite
-de body, el remitente IPC, el stripping/rotación del refresh token, la limpieza
-en logout/cambio de servidor y el fallback sin cifrado. La rama de escritorio
-del cliente web se cubre con el puente mockeado en `apps/web/src/sync/api.test.ts`
-y el gate `desktop` en `native-client.spec.ts` y el e2e de Postgres. Ver
+y `apps/desktop/src/localNode/localNode.test.ts` para identidad/fingerprint,
+registro de peers, inbox, descubrimiento, pairing QR/código, HTTPS, CAS y
+pinning (certificado/token incorrectos rechazados). La rama de escritorio del
+cliente web se cubre con el puente mockeado en `apps/web/e2e/devices.spec.ts` y
+el adaptador `apps/web/src/sync/localTransport.ts`. El motor compartido se cubre
+en `packages/app-core/src/sync/{peerEngine,migration,protocol}.test.ts`. Ver
 [`DESKTOP.md`](./DESKTOP.md) §8.
 
 - `rng`/`generator`: determinismo, golden seed, 1.000 mapas, invariantes y edge

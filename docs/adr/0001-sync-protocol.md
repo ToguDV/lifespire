@@ -1,5 +1,7 @@
 # ADR-0001 — Snapshot sync with explicit conflicts
 
+> Superseded for transport by ADR-0007 (local LAN sync); the snapshot/CAS ideas are reused locally.
+
 > Date: 2026-10-24. Status: accepted. Context: multi-device sync for one
 > `GameDocument` per user.
 

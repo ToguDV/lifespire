@@ -17,7 +17,7 @@ exceptions, no "small change" shortcut, and no improvising around a rule.
 ## 2. Backward compatibility check (before anything else)
 
 LifeSpire is **already installed and used by real people** on web (PWA/installed
-app), Android and desktop, including synced accounts. Their saves, runs and
+app), Android and desktop, including paired nearby devices. Their saves, runs and
 history are real data. Every change is therefore a change to a live product: it
 must never overwrite, corrupt, reset or make inaccessible what an existing
 installation already has.
@@ -38,8 +38,9 @@ document, it can:
 - remove, rename or reinterpret a persisted field, enum value or storage key, or
   change its meaning without a migration;
 - change the export/import format so previously exported files no longer import;
-- break the sync protocol for a client that has not been updated yet (push/pull
-  must stay safe: ADR-0001, ADR-0004, ADR-0006);
+- break the LAN sync protocol for an installed app that has not been updated
+  yet (pairing, discovery, CAS and the durable inbox must stay compatible:
+  ADR-0004, ADR-0007);
 - require a manual step to keep working (reinstall, wipe data, sign in again,
   clear cache, re-enter anything);
 - break an existing storage key, deep link, service-worker cache contract or the
@@ -181,7 +182,7 @@ order:
    unchanged, so there is no separate UI to port; confirm the change works under
    the packaged `lifespire-app://app` origin and account for the shell-specific
    differences in `docs/DESKTOP.md`: native save dialog for export, no service
-   worker, sync through the main-process API proxy, no desktop notifications,
+   worker, the local sync node in the main process, no desktop notifications,
    and the desktop menu/clipboard roles. If a change requires desktop-specific
    code in `apps/desktop/src`, treat it as a port with its own tests.
 5. **Verify parity across web, mobile and desktop** (§8) and only then run the
@@ -190,10 +191,16 @@ order:
 Three-client parity is mandatory for anything that changes behavior or UI.
 Changes with no plausible equivalent on a given client (native Android
 notifications and haptics, desktop installers and native dialogs,
-PWA/service-worker work, the sync API, tooling, docs) are exempt **for that
-client only**: state the reason in the PR under "Out of scope / follow-ups", and
-still check that no shared package (`packages/core`, `packages/app-core`)
-changes behavior without every client being considered.
+PWA/service-worker work, tooling, docs) are exempt **for that client only**:
+state the reason in the PR under "Out of scope / follow-ups", and still check
+that no shared package (`packages/core`, `packages/app-core`) changes behavior
+without every client being considered.
+
+**Documented platform limitation:** LAN sync needs a listening socket and a
+pinned self-signed certificate. Browsers have neither, so the **web build in a
+browser is local-only** and uses export/import; the **Electron desktop shell**
+and the **Android app** are the two sync peers. This is not a divergence to
+"fix" by adding a server, and ADR-0007 records why.
 
 ## 8. Parity verification (subagent-orchestrated)
 
@@ -228,8 +235,8 @@ covering:
   `docs/MOBILE.md` and `docs/DESKTOP.md`;
 - consistency across web, mobile, desktop and shared packages (naming, state,
   tokens);
-- the desktop shell contract: custom origin and persistence keys, API proxy
-  allowlists, native save dialog, and no service worker or notifications;
+- the desktop shell contract: custom origin and persistence keys, local-node
+  IPC allowlists, native save dialog, and no service worker or notifications;
 - bugs, edge cases, and regressions, including the date-injection rule for
   calendar-dependent logic;
 - persistence and sync: schema versioning, migrations, and the conservative
@@ -261,21 +268,26 @@ verification loops:
 
 ## 11. Sync awareness (mandatory for every feature)
 
-Every feature must keep sync working. The app is local-first with per-account
-cloud sync (see `docs/BACKEND.md` and ADR-0001/ADR-0004):
+Every feature must keep local sync working. The app is local-first; the
+Electron desktop shell and the Android app sync over the LAN (ADR-0007), and the
+browser stays local-only:
 
 - Any change to the `GameDocument` shape, domain rules, or the store must
-  consider the sync path: schema versioning/migrations, server rule validation
-  (the API enforces `parseDocument`), and the conservative 3-way auto-merge
+  consider the sync path: schema versioning/migrations, `parseDocument` on both
+  peers, the durable inbox, and the conservative 3-way auto-merge
   (`tryAutoMerge` in `packages/core` merges only disjoint edits).
 - New resolvable state (counters, collections, run progress) must define how
   concurrent edits merge: disjoint-wins, additive counters, or explicit
   conflict. Never rely on silent last-write-wins.
 - If the change touches a sync-critical path (domain/state/content/shell,
-  API, shared packages, E2E config), update `apps/web/e2e/sync.spec.ts` and
-  verify `pnpm test:e2e`.
-- Never persist an unvalidated document as the merge base; the `:base` key
-  refreshes automatically on successful push/pull.
+  `packages/app-core/src/sync`, the desktop local node, the Android LAN module,
+  E2E config), update the desktop node tests, the app-core engine tests and
+  `apps/web/e2e/devices.spec.ts`; run `pnpm test:e2e` and, when Kotlin changed,
+  the native compile.
+- Never persist an unvalidated document as the merge base; the per-peer
+  `:base` key refreshes automatically after a validated push/pull/merge.
+- Pairing tokens and private keys stay in the native vault; never put them in
+  `localStorage`, `GameDocument` or a log line.
 
 ## 12. Quality gates (must be green before opening a PR)
 
@@ -291,30 +303,24 @@ pnpm build
 application `tsc -b` build does not include. If any gate fails, fix it on the
 branch before opening the PR. Never open a PR with red checks.
 
-> Troubleshooting: if `pnpm build` fails in `@lifespire/api` with `EACCES`
-> on `apps/api/dist`, that directory is root-owned from a previous privileged
-> build. It is gitignored build output — fix ownership or delete it, then
-> rebuild (`sudo chown -R "$(id -u):$(id -g)" apps/api/dist` or
-> `sudo rm -rf apps/api/dist`). Never run builds as root.
-
 ### 12.1 Real-stack verification (mandatory)
 
 Green unit tests, mocked E2E and a passing build are **regression checks, not
 acceptance evidence**. Mocks cannot catch a stale build, a service-worker cache,
 a token generated against another database, a missing migration, a real
-401/404, a CSP violation or a specific server error hidden by a generic client
+401/404, a CSP violation or a native bridge error hidden by a generic client
 message. Before reporting a behavior change as done, exercise the affected flow
 yourself against the real stack:
 
-- Build the artifacts from the branch and run the real stack: the database with
-  migrations, the API, and the client build served the way production serves it
-  (for web, use the API with `WEB_DIST_DIR` instead of Vite dev when the change
-  affects serving, auth, CSP, PWA or deployment).
-- Use a throwaway database/environment. Never test against production or real
-  user data. Drop the database and stop the services when finished (§13).
-- Run the exact commands the documentation tells the user to run (for example
-  the container CLI that creates the first admin and prints the reset link) and
-  open the link the system actually generates, not a hand-written URL.
+- Build the artifacts from the branch and run the real stack: the desktop node
+  and/or the EAS/dev-client Android build on a real Wi-Fi, plus the web build
+  served the way production serves it when the change affects serving, CSP, PWA
+  or deployment.
+- Use a throwaway data directory (`--user-data-dir`) and test devices/emulators,
+  never real user data. Stop the nodes when finished (§13).
+- Run the exact commands the documentation tells the user to run and walk the
+  real pairing/QR flow; do not substitute a hand-written URL for the code the
+  app generates.
 - Walk the complete flow, including failure paths: happy path,
   invalid/expired/used token, wrong password, reload, deep link, installed
   PWA/service-worker update and the relevant error states. Where state changes,
@@ -338,8 +344,9 @@ style fixes) may be verified by the main agent without the full stack.
 
 When an agent finishes a session, it **must leave the environment clean**:
 
-- **No running servers.** Stop any dev server (`pnpm dev`, `vite`, preview) and
-  any background processes started during the session.
+- **No running nodes or dev servers.** Stop any dev server (`pnpm dev`, `vite`,
+  preview), the Electron node, the Android emulator and any background processes
+  started during the session.
 - **No leftover artifacts.** Remove temporary files, screenshots not meant to be
   committed, logs, and scratch files. Only commit intended changes.
 - **No stray branches checked out.** Leave the repo on `main` (or on the session
@@ -369,6 +376,6 @@ When an agent finishes a session, it **must leave the environment clean**:
     verdad) in the same change. A doc without a reference there is incomplete.
 11. Push the branch and open the single PR of the session (no approval required
     to open).
-12. Clean up: stop servers, drop throwaway databases, remove artifacts, verify
+12. Clean up: stop servers/nodes, remove throwaway data directories and artifacts, verify
     `git status`.
 13. Report branch + PR URL; await user review/merge.

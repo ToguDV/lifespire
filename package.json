@@ -5,10 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @lifespire/web dev",
-    "dev:api": "pnpm --filter @lifespire/api start:dev",
     "build": "pnpm -r build",
     "build:web": "pnpm --filter @lifespire/web build",
-    "build:api": "pnpm --filter @lifespire/api build",
     "build:desktop": "pnpm --filter @lifespire/desktop build",
     "package:desktop": "pnpm --filter @lifespire/desktop package",
     "lint": "pnpm -r lint",
@@ -16,7 +14,6 @@
     "typecheck:e2e": "pnpm --filter @lifespire/web typecheck:e2e",
     "test": "pnpm -r test",
     "test:web": "pnpm --filter @lifespire/web test",
-    "test:api": "pnpm --filter @lifespire/api test",
     "test:e2e": "pnpm --filter @lifespire/web test:e2e",
     "preview": "pnpm --filter @lifespire/web preview",
     "dev:mobile": "pnpm --filter @lifespire/mobile start",

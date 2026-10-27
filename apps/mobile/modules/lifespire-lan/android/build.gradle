@@ -1,0 +1,29 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.lifespirelan'
+version = '0.1.0'
+
+expoModule {
+  v2 true
+}
+
+android {
+  namespace "expo.modules.lifespirelan"
+
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation "com.squareup.okhttp3:okhttp:4.12.0"
+  implementation "com.squareup.okhttp3:okhttp-tls:4.12.0"
+  implementation "org.nanohttpd:nanohttpd:2.3.1"
+  implementation "androidx.security:security-crypto:1.1.0-alpha06"
+  testImplementation "junit:junit:4.13.2"
+}

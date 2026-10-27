@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Linking, Pressable, StyleSheet, Switch, View } from 'react-native'
 import { SCHEMA_VERSION, STORAGE_KEY } from '@lifespire/core'
-import type { SyncStatus } from '@lifespire/app-core/sync/syncEngine'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
 import { Button } from '../components/Button'
-import { Chip } from '../components/Chip'
 import { Dialog } from '../components/Dialog'
 import { Field, Input } from '../components/Field'
 import { Icon } from '../components/Icon'
 import { Panel, PanelHead, ScreenHead } from '../components/Panel'
 import { SaveImportDialog } from '../components/SaveImportDialog'
 import { Screen } from '../components/Screen'
-import { SyncDialog } from '../components/SyncDialog'
 import { Text } from '../components/Text'
 import { exportDocument, pickAndValidateSave } from '../lib/exportImport'
 import type { PickedImportResult } from '../lib/exportImport'
@@ -28,26 +25,14 @@ import {
   syncScheduledNotifications,
 } from '../notifications/scheduler'
 import type { NotificationPermission } from '../notifications/scheduler'
-import { useAuthStore } from '../sync/auth'
-import { useSyncStore } from '../sync/setup'
+import { DevicesSection } from '../components/DevicesSection'
+import { localSync, useSyncStore } from '../sync/setup'
 
 const THEMES = [
   { value: 'light', label: 'Day' },
   { value: 'dark', label: 'Night' },
   { value: 'system', label: 'System' },
 ] as const
-
-const SYNC_LABEL: Record<SyncStatus, string> = {
-  disabled: 'Local only',
-  synced: 'Synced',
-  dirty: 'Saving…',
-  pushing: 'Saving…',
-  pulling: 'Checking…',
-  offline: 'Offline',
-  conflict: 'Needs review',
-  error: 'Sync error',
-  paused: 'Paused (dev clock)',
-}
 
 export function SettingsScreen() {
   const { colors } = useTheme()
@@ -58,10 +43,13 @@ export function SettingsScreen() {
   const showToast = useAppStore((state) => state.showToast)
   const feedback = useFeedbackPrefs()
   const prefs = useNotificationPrefs()
+  const peers = useSyncStore((state) => state.peers)
+  const peerIds = Object.keys(peers)
   const [permission, setPermission] = useState<NotificationPermission | 'loading'>('loading')
   const [importResult, setImportResult] = useState<PickedImportResult | null>(null)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetPhrase, setResetPhrase] = useState('')
+  const [resetUnpair, setResetUnpair] = useState(false)
   const [showSaveDetails, setShowSaveDetails] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -101,11 +89,22 @@ export function SettingsScreen() {
     }
   }
 
-  const confirmReset = () => {
-    if (resetPhrase !== 'RESET') return
-    resetAll()
+  const closeReset = () => {
     setResetOpen(false)
     setResetPhrase('')
+    setResetUnpair(false)
+  }
+
+  const confirmReset = () => {
+    if (resetPhrase !== 'RESET') return
+    closeReset()
+    if (resetUnpair && peerIds.length > 0) {
+      void Promise.all(peerIds.map((peerId) => localSync.forget(peerId)))
+        .catch(() => undefined)
+        .finally(() => resetAll())
+      return
+    }
+    resetAll()
   }
 
   const enableNotifications = async (enabled: boolean) => {
@@ -146,7 +145,7 @@ export function SettingsScreen() {
       <ScreenHead
         kicker="Profile · Local data"
         title="Settings"
-        subtitle="Appearance, sync and local data."
+        subtitle="Appearance, nearby sync and local data."
       />
 
       <Panel>
@@ -185,7 +184,7 @@ export function SettingsScreen() {
         />
       </Panel>
 
-      <SyncSection />
+      <DevicesSection />
 
       <Panel>
         <PanelHead label="Data" />
@@ -304,10 +303,10 @@ export function SettingsScreen() {
         eyebrow="Local data"
         title="Reset local data?"
         description="This removes the local save from this device and returns LifeSpire to onboarding."
-        onClose={() => setResetOpen(false)}
+        onClose={closeReset}
         actions={
           <>
-            <Button variant="quiet" onPress={() => setResetOpen(false)}>Keep my data</Button>
+            <Button variant="quiet" onPress={closeReset}>Keep my data</Button>
             <Button variant="danger" disabled={resetPhrase !== 'RESET'} onPress={confirmReset}>
               Reset everything
             </Button>
@@ -323,6 +322,23 @@ export function SettingsScreen() {
             placeholder="RESET"
           />
         </Field>
+        {peerIds.length > 0 ? (
+          <View style={styles.resetUnpair}>
+            <View style={styles.settingBody}>
+              <Text variant="bodySm">Reset this device only</Text>
+              <Text variant="caption" tone="soft">
+                {resetUnpair
+                  ? 'Paired devices keep their own saves; nothing is sent to them.'
+                  : 'The reset will sync to paired devices the next time they connect.'}
+              </Text>
+            </View>
+            <Switch
+              value={resetUnpair}
+              onValueChange={setResetUnpair}
+              accessibilityLabel="Reset this device only"
+            />
+          </View>
+        ) : null}
       </Dialog>
     </Screen>
   )
@@ -388,64 +404,6 @@ function TimeField({
   )
 }
 
-function SyncSection() {
-  const syncStatus = useSyncStore((state) => state.status)
-  const syncError = useSyncStore((state) => state.lastError)
-  const user = useAuthStore((state) => state.user)
-  const authStatus = useAuthStore((state) => state.status)
-  const [syncOpen, setSyncOpen] = useState(false)
-  const signedIn = authStatus === 'authenticated' && user !== null
-
-  return (
-    <>
-      <Panel>
-        <PanelHead
-          label="Sync"
-          aside={
-            signedIn ? (
-              <Text variant="caption" tone="soft">
-                {SYNC_LABEL[syncStatus]}
-              </Text>
-            ) : undefined
-          }
-        />
-        {signedIn && user ? (
-          <View style={styles.syncSummary}>
-            <Text variant="bodySm">
-              Signed in as <Text variant="bodySm" tone="accent">{user.email}</Text>
-            </Text>
-            <Text variant="caption" tone="soft">
-              Signing out keeps a copy here; offline edits sync on reconnect.
-            </Text>
-            {syncError ? (
-              <Text variant="caption" tone="default" accessibilityRole="alert">
-                {syncError}
-              </Text>
-            ) : null}
-            <View style={styles.syncActions}>
-              <Button variant="quiet" onPress={() => void useAuthStore.getState().logout()}>
-                Sign out
-              </Button>
-              <Button variant="secondary" onPress={() => setSyncOpen(true)}>
-                Manage sync
-              </Button>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.syncSummary}>
-            <Chip variant="quiet">Local only</Chip>
-            <Button variant="secondary" onPress={() => setSyncOpen(true)}>
-              Set up sync
-            </Button>
-          </View>
-        )}
-      </Panel>
-
-      <SyncDialog visible={syncOpen} onClose={() => setSyncOpen(false)} />
-    </>
-  )
-}
-
 function DevSection() {
   const devAdvanceDay = useAppStore((state) => state.devAdvanceDay)
   const devRestartRun = useAppStore((state) => state.devRestartRun)
@@ -469,11 +427,10 @@ const styles = StyleSheet.create({
   choice: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderRadius: radius.md, minHeight: 48, paddingVertical: space.sm },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: space.sm, marginTop: space.sm },
   settingBody: { flex: 1, gap: 2 },
+  resetUnpair: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.sm },
   permissionBlock: { gap: space.xs, marginVertical: space.sm },
   notificationOptions: { marginTop: space.sm, gap: space.sm },
   actions: { gap: space.sm, marginVertical: space.sm },
-  syncSummary: { gap: space.sm },
-  syncActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: space.sm, flexWrap: 'wrap' },
   disclosure: {
     minHeight: 48,
     flexDirection: 'row',

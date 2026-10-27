@@ -17,8 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       critical: ${{ steps.filter.outputs.critical }}
-      api: ${{ steps.filter.outputs.api }}
-      docker: ${{ steps.filter.outputs.docker }}
+      mobile-native: ${{ steps.filter.outputs.mobile-native }}
     steps:
       - uses: actions/checkout@v7
 
@@ -34,11 +33,12 @@ jobs:
               - 'apps/web/src/main.tsx'
               - 'apps/web/src/ui/**'
               - 'apps/web/src/styles/**'
+              - 'apps/web/src/sync/**'
               - 'apps/web/e2e/**'
               - 'apps/web/playwright.config.ts'
               - 'apps/web/package.json'
               - 'apps/mobile/**'
-              - 'apps/api/**'
+              - 'apps/desktop/**'
               - 'packages/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
@@ -47,29 +47,16 @@ jobs:
               - 'apps/web/vite.config.ts'
               - 'apps/web/index.html'
               - '.github/workflows/ci.yml'
-            api:
-              - 'apps/api/**'
-              - 'packages/**'
+            mobile-native:
+              - 'apps/mobile/**'
+              - 'packages/app-core/**'
+              - 'packages/core/**'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
-              - '.github/workflows/ci.yml'
-            docker:
-              - 'apps/api/**'
-              - 'apps/web/**'
-              - 'packages/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'patches/**'
-              - 'scripts/**'
-              - '.dockerignore'
               - '.github/workflows/ci.yml'
 
   quality:
     runs-on: ubuntu-latest
-    env:
-      # Dummy URL: prisma generate resolves config without connecting.
-      DATABASE_URL: postgresql://lifespire:lifespire@localhost:5433/lifespire
     steps:
       - uses: actions/checkout@v7
 
@@ -86,35 +73,8 @@ jobs:
       - name: Check core parity
         run: bash scripts/check-core-parity.sh
 
-      - name: Validate compose health dependencies
-        run: |
-          docker compose --env-file apps/api/.env.example \
-            -f infra/docker-compose.prod.yml config --format json > "$RUNNER_TEMP/compose.json"
-          node - "$RUNNER_TEMP/compose.json" <<'NODE'
-          const fs = require('node:fs');
-          const config = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          const services = config.services ?? {};
-          const problems = [];
-          for (const [name, service] of Object.entries(services)) {
-            for (const [dependency, spec] of Object.entries(service.depends_on ?? {})) {
-              const condition = typeof spec === 'string' ? undefined : spec?.condition;
-              if (condition === 'service_healthy' && !services[dependency]?.healthcheck) {
-                problems.push(`${name} waits for ${dependency} (service_healthy) but ${dependency} has no healthcheck`);
-              }
-            }
-          }
-          if (problems.length > 0) {
-            console.error(problems.join('\n'));
-            process.exit(1);
-          }
-          console.log('Compose health dependencies OK');
-          NODE
-
       - name: Approve native builds
         run: pnpm approve-builds --all
-
-      - name: Prisma generate
-        run: pnpm --filter @lifespire/api prisma:generate
 
       - name: Lint
         run: pnpm lint
@@ -164,32 +124,12 @@ jobs:
           path: apps/web/playwright-report/
           retention-days: 7
 
-  api-e2e:
+  mobile-native:
     needs: changes
-    # Manual runs always execute; otherwise only when the API or shared packages changed.
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
+    # The LAN node is Kotlin; Metro alone cannot catch a native compile error.
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.mobile-native == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: lifespire
-          POSTGRES_PASSWORD: lifespire
-          POSTGRES_DB: lifespire_test
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      DATABASE_URL: postgresql://lifespire:lifespire@localhost:5433/lifespire_test
-      JWT_SECRET: ci-secret-0123456789abcdef-ci-secret
-      TOTP_ENCRYPTION_KEY: ci-totp-key-0123456789abcdef-ci-test
-      PUBLIC_WEB_URL: http://localhost:5173
-      CORS_ORIGINS: http://localhost:5173
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -200,52 +140,19 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Approve native builds
-        run: pnpm approve-builds --all
+      - name: Prebuild Android project
+        run: pnpm --filter @lifespire/mobile exec expo prebuild --platform android --no-install
 
-      - name: Prisma generate
-        run: pnpm --filter @lifespire/api prisma:generate
-
-      - name: Migrate test database
-        run: pnpm --filter @lifespire/api prisma:deploy
-
-      - name: Run API flow tests
-        run: pnpm --filter @lifespire/api test:e2e
-
-  docker:
-    needs: changes
-    # Manual runs always execute; otherwise when API, web or packaging inputs changed.
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.docker == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build production image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: false
-          load: true
-          tags: lifespire-api:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Smoke-test the image
-        run: |
-          docker run --rm -i --entrypoint sh lifespire-api:ci -s <<'EOF'
-          set -eu
-          test -f /srv/web/index.html
-          test -f dist/main.js
-          sh scripts/prisma-client-dir.sh /srv/api >/dev/null
-          node -e 'require("@prisma/client"); console.log("prisma client ok")'
-          test "$(id -u)" != "0"
-          if WEB_DIST_DIR=/nope sh docker-entrypoint.sh 2>/dev/null; then exit 1; fi
-          EOF
+      - name: Compile the Android app and the LAN module
+        working-directory: apps/mobile/android
+        run: ./gradlew :app:assembleDebug --no-daemon

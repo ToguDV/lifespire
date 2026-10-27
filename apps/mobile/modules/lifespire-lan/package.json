@@ -1,0 +1,7 @@
+{
+  "name": "lifespire-lan",
+  "version": "0.1.0",
+  "description": "Local LAN sync node for the LifeSpire Android app",
+  "main": "index.ts",
+  "private": true
+}

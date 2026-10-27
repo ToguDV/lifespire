@@ -1,45 +1,39 @@
 import { create } from 'zustand'
-import { parseDocument } from '../domain/schema'
+import { parseDocument } from '@lifespire/core'
+import { defaultDeviceName } from '@lifespire/app-core/sync/protocol'
+import { createLocalSyncEngine } from '@lifespire/app-core/sync/localEngine'
+import type { LocalSyncState } from '@lifespire/app-core/sync/localEngine'
+import { DISCOVERABLE_KEY, DEVICE_NAME_KEY } from '@lifespire/app-core/sync/storageKeys'
 import { getDevOffsetDays, getNow } from '../state/clock'
-import { documentStorage } from '../state/persistence'
+import { documentStorage, localSyncMigration } from '../state/persistence'
 import { useAppStore } from '../state/store'
-import { engineApi } from './api'
-import { useAuthStore } from './authStore'
-import { createSyncEngine } from './syncEngine'
-import type { SyncEngineState } from './syncEngine'
-import { createSyncManager } from './manager'
+import { localTransport } from './localTransport'
 
-interface SyncUiState extends SyncEngineState {
-  initialized: boolean
+type SyncUiState = LocalSyncState
+
+const EMPTY: LocalSyncState = {
+  initialized: false,
+  available: true,
+  phase: 'off',
+  device: null,
+  discoverable: false,
+  nearby: [],
+  peers: {},
+  conflicts: [],
+  pairing: null,
+  lastError: null,
 }
 
 export const useSyncStore = create<SyncUiState>(() => ({
-  status: 'disabled',
-  userId: null,
-  serverVersion: null,
-  updatedAt: null,
-  conflict: null,
-  lastError: null,
-  lastPushedAt: null,
-  lastAutoMergeAt: null,
+  ...EMPTY,
   initialized: false,
 }))
 
-/**
- * Re-entrant init: React StrictMode mounts, unmounts and remounts before the
- * first async init settles. A plain `started` flag discards the run that did
- * the work while the surviving run early-returns with no subscriptions.
- * Refcounting keeps one shared init alive until every holder releases it.
- */
-let initPromise: Promise<() => void> | null = null
-let initRefs = 0
-
-function isOnline(): boolean {
-  if (typeof navigator === 'undefined') return true
-  return navigator.onLine !== false
-}
-
-function memoryLike(): { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void } {
+function memoryLike(): {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+} {
   const values = new Map<string, string>()
   return {
     getItem: (key) => values.get(key) ?? null,
@@ -52,7 +46,11 @@ function memoryLike(): { getItem(k: string): string | null; setItem(k: string, v
   }
 }
 
-function browserStorage(): { getItem(k: string): string | null; setItem(k: string, v: string): void; removeItem(k: string): void } {
+function browserStorage(): {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+} {
   try {
     if (typeof localStorage !== 'undefined') return localStorage
   } catch {
@@ -61,23 +59,56 @@ function browserStorage(): { getItem(k: string): string | null; setItem(k: strin
   return memoryLike()
 }
 
-export const syncEngine = createSyncEngine({
+function readDeviceName(): string {
+  try {
+    const stored = localStorage.getItem(DEVICE_NAME_KEY)
+    if (stored && stored.trim()) return stored.trim().slice(0, 120)
+  } catch {
+    // Storage may be unavailable.
+  }
+  const desktop =
+    typeof window !== 'undefined' && window.lifespireDesktop?.isDesktop === true
+  const platform =
+    typeof navigator === 'undefined'
+      ? 'device'
+      : typeof window !== 'undefined' && window.lifespireDesktop?.platform
+        ? window.lifespireDesktop.platform
+        : navigator.userAgent
+  return defaultDeviceName(
+    desktop ? `Desktop ${platform}` : `Web ${platform}`,
+    'LifeSpire device',
+  )
+}
+
+function readDiscoverable(): boolean {
+  try {
+    return localStorage.getItem(DISCOVERABLE_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+let suppressDirty = false
+
+export const localSync = createLocalSyncEngine({
+  transport: localTransport,
   storage: browserStorage(),
-  api: engineApi,
-  userId: null,
   getLocalDocument: () => useAppStore.getState().document,
   applyRemoteDocument: (document) => {
     const parsed = parseDocument(document)
     if (!parsed.ok) return
-    syncManager.suppressRemoteApply(() => {
-      useAppStore.setState({ document: parsed.value })
-    })
+    suppressDirty = true
     try {
+      useAppStore.setState({ document: parsed.value })
       useAppStore.getState().reconcile(getNow())
-    } catch {
-      // Reconcile is best-effort after a remote apply.
+    } finally {
+      queueMicrotask(() => {
+        suppressDirty = false
+      })
     }
   },
+  deviceName: readDeviceName(),
+  initialDiscoverable: readDiscoverable(),
   getDevOffset: () => {
     try {
       return getDevOffsetDays()
@@ -85,98 +116,67 @@ export const syncEngine = createSyncEngine({
       return 0
     }
   },
-  isOnline,
-  onRemoteApplied: () => {
-    useAppStore.getState().showToast('Updated from another device.')
-  },
-  onCloudDeleted: () => {
-    useAppStore.getState().showToast('The cloud save was deleted from another device.')
-  },
-  onBeforeAutoMergePush: () => {
+  onBackup: () => {
     try {
       documentStorage.backup()
     } catch {
       // Backup is best-effort; the merge itself is already validated.
     }
   },
+  onRemoteApplied: (peerName) => {
+    useAppStore.getState().showToast(`Updated from ${peerName}.`)
+  },
 })
 
-export const syncManager = createSyncManager({
-  storage: browserStorage(),
-  auth: useAuthStore as never,
-  appStore: useAppStore as never,
-  documentStorage,
-  engine: syncEngine,
-})
+/** Kept for callers that used the old engine name (conflict dialog/tests). */
+export const syncEngine = localSync
 
 function syncEngineToUi(): void {
-  const state = syncEngine.getState()
+  const state = localSync.getState()
   useSyncStore.setState({ ...state, initialized: true })
 }
 
+let initPromise: Promise<() => void> | null = null
+let initRefs = 0
+
 async function doInitSync(): Promise<() => void> {
-  const stopEngineUi = syncEngine.subscribe(syncEngineToUi)
+  const stopEngineUi = localSync.subscribe(syncEngineToUi)
   syncEngineToUi()
 
-  // Subscribe before the first switch so edits made while restore/pull is in
-  // flight (e.g. demo onboarding right after reload) are not missed.
-  const stopManager = syncManager.start()
+  const stopDocument = useAppStore.subscribe((state, previous) => {
+    if (suppressDirty) return
+    if (state.document === (previous as { document?: unknown }).document) return
+    localSync.handleDocumentChange()
+  })
 
-  try {
-    await useAuthStore.getState().restore()
-  } catch {
-    // Guest mode when the backend is unreachable.
-  }
-  const userId = useAuthStore.getState().user?.id ?? null
-  await syncManager.switchToAccount(userId)
+  await localSync.start()
   syncEngineToUi()
 
-  syncEngine.startWatching()
-
-  const handleOnline = (): void => {
-    syncEngine.handleOnline()
+  const refresh = (): void => {
+    void localSync.refresh()
   }
-  const handleFocus = (): void => {
-    void syncEngine.pullNow()
-    syncEngine.startWatching()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', refresh)
+    window.addEventListener('focus', refresh)
   }
   const handleVisibility = (): void => {
-    if (document.visibilityState === 'visible') {
-      void syncEngine.pullNow()
-      syncEngine.startWatching()
-    } else {
-      syncEngine.stopWatching()
-    }
+    if (document.visibilityState === 'visible') refresh()
   }
-
-  if (typeof window !== 'undefined') {
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('focus', handleFocus)
+  if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', handleVisibility)
   }
 
-  const unsubscribeAuth = useAuthStore.subscribe((state, previous) => {
-    const nextId = state.user?.id ?? null
-    const prevId = (previous as { user?: { id?: string } | null }).user?.id ?? null
-    if (nextId !== prevId) {
-      void syncManager.switchToAccount(nextId).then(() => {
-        syncEngineToUi()
-        if (nextId) syncEngine.startWatching()
-      })
-    }
-  })
-
   return () => {
-    stopManager()
-    unsubscribeAuth()
+    stopDocument()
     stopEngineUi()
-    syncEngine.stopWatching()
-    syncEngine.stopPolling()
     if (typeof window !== 'undefined') {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('online', refresh)
+      window.removeEventListener('focus', refresh)
+    }
+    if (typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', handleVisibility)
     }
+    void localSync.stop()
   }
 }
 
@@ -198,6 +198,27 @@ export async function initSync(): Promise<() => void> {
   }
 }
 
+export async function setDiscoverable(discoverable: boolean): Promise<void> {
+  try {
+    localStorage.setItem(DISCOVERABLE_KEY, discoverable ? '1' : '0')
+  } catch {
+    // Best-effort preference.
+  }
+  await localSync.setDiscoverable(discoverable)
+}
+
+export function setDeviceName(name: string): void {
+  const clean = name.trim().slice(0, 120)
+  if (!clean) return
+  try {
+    localStorage.setItem(DEVICE_NAME_KEY, clean)
+  } catch {
+    // Best-effort preference; the running node keeps its current name.
+  }
+}
+
+export const migrationNotice = localSyncMigration
+
 export function resetSyncForTests(): void {
   initPromise = null
   initRefs = 0
@@ -205,8 +226,7 @@ export function resetSyncForTests(): void {
 
 if (typeof window !== 'undefined') {
   ;(window as unknown as { __lifespireSync?: unknown }).__lifespireSync = {
-    engine: syncEngine,
-    manager: syncManager,
-    stores: { auth: useAuthStore, sync: useSyncStore, app: useAppStore },
+    engine: localSync,
+    stores: { sync: useSyncStore, app: useAppStore },
   }
 }

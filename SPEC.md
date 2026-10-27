@@ -39,11 +39,12 @@ Concrete criteria:
   installers for Linux (`.deb`, AppImage, `tar.gz`) and Windows (NSIS `.exe`,
   portable zip). See `docs/DESKTOP.md`.
 - Native Android app (Expo/React Native) with the same daily loop, goals,
-  collection, save format, import/export and optional account sync.
-- A single local profile. Optional closed-beta sync: multi-user NestJS API
-  with closed registration (admin invites) and snapshot sync between a user's
-  devices; the app stays local-first and playable as a guest without a server.
-  See `docs/BACKEND.md`.
+  collection, save format, import/export and optional nearby sync.
+- A single local profile. Optional serverless nearby sync between the user's
+  Android and desktop apps over the local network: UDP discovery, self-signed
+  HTTPS with certificate pinning, QR/code pairing and conservative auto-merge.
+  No accounts, passwords, email or cloud copy. The browser stays local-only and
+  uses export/import. See `docs/adr/0007-local-lan-sync.md`.
 - Onboarding with two options: demo data or create your own goals/routines.
 - 1–10 goals, each with its routines/tasks and a weekly objective.
 - A 7-day run with one map per day.
@@ -63,8 +64,8 @@ Concrete criteria:
 
 ### Outside scope
 
-- Remote push notifications (accounts/sync exist as a closed-beta API; public
-  signup, password recovery by email, and APNs/FCM push are still out).
+- Remote push notifications (APNs/FCM), public signup and password recovery:
+  there are no accounts or servers.
 - A verified iOS release, an in-app admin panel, and native sound feedback.
   The iOS code path exists but is not part of this release.
 - Combat, cards, deckbuilding, relics with effects, shop, or economy.
@@ -250,8 +251,9 @@ The demo is considered complete when it can be run without failures:
     near-future reminder, tap it and land on the map; seal the day and confirm
     its reminder is cancelled. Disable reminders and confirm everything is
     cancelled, including after a force-stop.
-14. Sign in on Android, play one day on Android and one on web, and verify
-    snapshot sync plus the keep-mine/keep-cloud conflict path offline.
+14. Pair the Android app and the desktop app on the same Wi-Fi, play one day on
+    each while the other is closed, then sync and verify the conservative merge
+    plus the keep-mine/keep-peer conflict path.
 15. Run the tests for generation, rewards, weekly close, and the Android
     notification planner.
 16. Install the desktop build on Linux (`.deb`) and Windows (`.exe`), finish
@@ -267,8 +269,8 @@ Each milestone must leave something playable or demonstrable:
 - **M2 — Loop:** complete/skip, rewards, weekly progress, and day summary.
 - **M3 — Run:** onboarding, goals/routines CRUD, weekly summary, new run, PWA, responsive layout, and export/import.
 - **M4 — Playtest:** test with 3–5 people, adjust node count, rewards, and onboarding friction.
-- **M5 — Android:** Expo shell, shared store/sync extraction, native auth,
-  full screen parity, local notifications, save interchange and release
+- **M5 — Android:** Expo shell, shared store/sync extraction, the local LAN
+  node, full screen parity, local notifications, save interchange and release
   checklist.
 
 ## 12. Risks and open decisions
@@ -296,7 +298,6 @@ Open decisions with a default proposal:
 Remote push notifications, shop and gold sinks, relics/cards with effects,
 social features and rankings, calendar or health integrations, missed-day
 recovery mode, adaptive content, and an iOS release. Device-local Android
-reminders are in scope; sync between a user's devices exists as a closed-beta
-API (`docs/BACKEND.md`), including near-real-time updates while the app is open
-(ADR-0006). Public signup, email delivery and remote push to a closed app are
-not part of the current scope.
+reminders are in scope; serverless nearby sync between Android and desktop
+exists (ADR-0007). Public signup, email delivery, a cloud copy and remote push
+to a closed app are not part of the current scope.

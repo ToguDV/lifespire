@@ -3,9 +3,10 @@
 > Status: first Android release candidate. Expo SDK 58, React Native 0.88,
 > local-first with the same versioned `GameDocument` as web.
 >
-> Scope: full daily-loop and account parity, plus **local** notifications.
-> Push notifications, an iOS release and an in-app admin panel are out of
-> scope. See [`SPEC.md`](../SPEC.md).
+> Scope: full daily-loop parity, the local LAN sync node and **local**
+> notifications. Push notifications, an iOS release and any cloud/account
+> feature are out of scope. See [`SPEC.md`](../SPEC.md) and
+> [`adr/0007-local-lan-sync.md`](./adr/0007-local-lan-sync.md).
 
 ## 1. Layout and shared code
 
@@ -21,11 +22,13 @@ apps/mobile/
     screens/           one screen per web view
     notifications/     prefs, pure planner, expo-notifications adapter
     platform/          SQLite KV storage and JSON file import/export
-    sync/              native auth, SecureStore token, sync engine wiring
+    sync/              LAN transport adapter and local-engine setup
     state/             app store singleton and haptics feedback
-packages/app-core/     store, persistence, sync factory, pure UI helpers
-packages/core/         pure domain (unchanged, shared with web and API)
-packages/api-client/   typed client (cookie web / native token mode)
+  modules/lifespire-lan/
+    android/           Kotlin Expo module: UDP, HTTPS, pinning, identity, peers, inbox
+    index.ts           requireNativeModule + event emitter
+packages/app-core/     store, persistence, LAN engine/protocol, pure UI helpers
+packages/core/         pure domain (unchanged, shared with web and desktop)
 ```
 
 Web keeps thin re-export shims (`apps/web/src/state/*`, `sync/*`, `ui/lib/*`)
@@ -35,18 +38,19 @@ mobile shell only reimplements rendering and platform adapters.
 ## 2. Setup
 
 Requirements: Node 24 (`.nvmrc`), pnpm 11, and Android Studio/SDK for a native
-build. Expo Go is enough for UI work and local notifications; use a development
-build (`pnpm --filter @lifespire/mobile android:native`) for release checks.
+build. Expo Go is enough for UI work and local notifications, but **it does not
+include the LAN Kotlin module**: use a development build
+(`pnpm --filter @lifespire/mobile android:native`) or EAS for pairing, discovery
+and sync.
 
 ```bash
 pnpm install --frozen-lockfile
-EXPO_PUBLIC_SYNC_BASE_URL=https://sync.example.com pnpm dev:mobile
+pnpm dev:mobile
 ```
 
-The sync URL is baked into `extra.syncBaseUrl` at bundle time and can be
-overridden per device from **Settings → Sync → Server**. The override is stored
-in the SQLite KV store; changing it signs the device out and rebuilds the API
-client without a reload.
+There is no server URL to configure. The app starts the LAN node only when the
+platform build includes it; Settings → Nearby devices shows the device, QR,
+paired peers and the Nearby sync switch.
 
 ## 3. Persistence and compatibility
 
@@ -54,64 +58,69 @@ The app store hydrates **synchronously** from `expo-sqlite/kv-store`
 (`getItemSync`/`setItemSync`), behind the same `DocumentStorageController`
 contract used by web. Keys match the web scheme:
 
-- `lifespire:mvp0` guest save, `lifespire:mvp0:u:<userId>` per account;
-- `:backup`, `:meta`, `:base` companions for recovery, versions and auto-merge;
-- `lifespire:mvp0:session` stores only id/email/role, never tokens;
-- `lifespire:sync-base-url`, `lifespire:feedback-prefs`,
-  `lifespire:notifications` are device-local preferences.
+- `lifespire:mvp0` is the single canonical save (a legacy account save is
+  promoted into it on first launch; the old keys stay as backups);
+- `lifespire:mvp0:backup` and `:local-sync-migrated` for recovery and the
+  one-time promotion marker;
+- `lifespire:peer:<id>:base|meta` hold the per-peer merge base (outside
+  `GameDocument`);
+- `lifespire:device-name`, `lifespire:discoverable`,
+  `lifespire:feedback-prefs`, `lifespire:notifications` are device-local
+  preferences; peer tokens and the certificate password live in the Kotlin
+  vault, never in SQLite KV.
 
 Export uses `serializeDocument` and the Android share sheet
 (`lifespire-<date>.json`). Import uses the document picker, a 2 MB gate,
 `readSaveFile` validation and the same preview dialog as web. The schema is
 unchanged (`schemaVersion 3`), so a web export opens on Android and vice versa.
 
-## 4. Native auth and sync
+## 4. Local LAN sync
 
-The web refresh token is an HttpOnly cookie. React Native cannot rely on a
-persistent browser cookie jar, so native clients use an explicit grant:
+The Android app is a peer, not a client of a server. The node lives in
+`modules/lifespire-lan/` (Kotlin):
 
-- the API returns `refreshToken` only when the request carries
-  `X-Client-Platform: android|ios` **and** has no browser `Origin` /
-  `Sec-Fetch-Site` headers (see
-  [`adr/0005-native-auth.md`](./adr/0005-native-auth.md));
-- the app stores that token in `expo-secure-store` and sends it in the body of
-  `POST /v1/auth/refresh`;
-- rotation, reuse detection, device revocation and password-reset revocation
-  are unchanged;
-- the access token stays in memory; the session marker in SQLite only restores
-  the account identity.
+- **Identity:** an RSA key pair and a self-signed X.509 certificate generated
+  with OkHttp `HeldCertificate`; the PKCS#12 and its password live in
+  app-private storage/`EncryptedSharedPreferences`. The fingerprint is the
+  SHA-256 of the certificate DER (base64url). A reinstall changes it, so peers
+  must re-pair.
+- **Discovery:** UDP on `47823`, broadcast plus multicast fallback, with a
+  `WifiManager.MulticastLock`. The node probes on start, announces every 10 s
+  and expires peers after 30 s. It runs only while the app is in the foreground;
+  `AppState` pauses the node on background and `src/sync/setup.ts` resumes it.
+- **Transport:** `LanServer` is a NanoHTTPD HTTPS server with the self-signed
+  certificate; `PinnedClient` uses OkHttp with a custom trust manager that
+  checks the expected fingerprint before the request is sent. Peers exchange a
+  per-direction 32-byte bearer token; tokens and private keys never cross into
+  JavaScript.
+- **Pairing:** the host shows a QR (payload with device id, fingerprint, host,
+  port, one-time secret and expiry) and an 8-character code. The joining app
+  scans with `expo-camera` or enters the code; the host validates the secret in
+  `POST /v1/pair`, stores the client token/fingerprint and returns its own.
+  The QR path is the MITM-resistant one; the code is a documented fallback.
+- **Documents:** the JS layer owns the `GameDocument`. It sends a mirror
+  (`documentJson` + checksum) to the node; incoming documents are written to a
+  durable inbox before the server answers `202`, then validated with
+  `parseDocument`, applied and acked. A crash between both steps re-delivers on
+  the next start.
+- **Engine:** `packages/app-core/src/sync/localEngine.ts` coordinates discovery,
+  pairing, the per-peer `peerEngine` (pull/push, CAS, `tryAutoMerge`, conflict)
+  and the shared keep-mine/keep-peer dialog. Auto-sync is ON after pairing and
+  can be disabled per device; the global Nearby sync switch stops advertising
+  and syncing.
+- **Constraints:** no background service, no remote wipe, and no cloud backup.
+  Both apps must be open on the same Wi-Fi; guest Wi-Fi/AP isolation, VPNs and
+  firewalls can block discovery, so the manual link/code pairing is the
+  fallback. A reset/import is a document change and propagates; the reset dialog
+  offers "reset this device only" by forgetting paired devices first.
 
-Sync uses the same engine: initial pull, debounced push (1.5 s), an
-authenticated long-poll change feed while the app is in the foreground
-(`GET /v1/sync/watch`, ADR-0006), an immediate pull when the app becomes active,
-and NetInfo to flip between offline and online. The feed stops on background and
-older servers without the endpoint fall back to the 60-second poll. A remote
-apply shows a discreet "Updated from another device." toast; keeping the feed
-alive with the app closed would need remote push, which is out of scope. The
-conservative 3-way merge and the keep-mine / keep-cloud dialog are shared with
-web. Guest saves are adopted by a fresh account exactly like on web.
+### 4.1 Compatibility
 
-### 4.1 Account entry and account links
-
-- The welcome screen (onboarding step 0) has one quiet
-  **Already have an account? Sign in** row. It opens the same `SyncDialog` as
-  Settings → Sync, so a fresh install without a local profile can sign in,
-  accept an admin invite or set a new password before starting a run. Once
-  signed in, the row and the dialog show the account email; the dialog can sign
-  out again without leaving onboarding.
-- `src/components/SyncDialog.tsx` is shared by Settings and the welcome. Its
-  invite/reset forms reuse `extractAuthToken` / `isAuthToken` from
-  `packages/app-core/src/sync/authLink.ts` and `newPasswordProblem` from
-  `packages/app-core/src/sync/password.ts`, so link parsing and the password
-  policy match web. Each form keeps its own error and success notice and its
-  own busy state; a reset never forces a logout (the form is guest-only), and
-  an accepted invite leaves the auth store signed in so the following
-  pull/guest adoption can run.
-- Android has no universal/App Links for `/reset-password` or
-  `/accept-invite`: an `https://…` link opens the browser, not LifeSpire. The
-  link or its 43-character token can be pasted into the dialog opened from the
-  welcome or Settings, which is the supported native path. Adding App Links
-  would change the Android manifest and is out of scope.
+The Android app keeps reading the same `GameDocument` and export/import format
+as web and desktop. On first launch after the server removal,
+`migrateLegacySave` promotes the active legacy account save to `lifespire:mvp0`
+and keeps the old keys as backups. There is no account, password, invite or
+server URL to configure.
 
 ## 5. Local notifications
 
@@ -168,9 +177,8 @@ the rest of the app remains fully usable.
   target suggestions, but the kicker is just `Create your path`, the step
   bodies are one line, and the review/map explanation hints are gone. Editing a
   goal or routine inside the wizard opens a touch dialog instead of the web
-  inline fieldsets; the domain draft and validation stay shared. The welcome
-  also carries the quiet account row described in §4.1, so an existing account
-  is reachable before the first local profile exists.
+  inline fieldsets; the domain draft and validation stay shared. There is no
+  account row: the local profile is the only identity.
 - The map mirrors the web state machine: the screen resolves the active day,
   prefers today's completed or missed day, and derives sealed/locked/hasMap/
   canOpen so the head title, line and chip all speak the same state. Sealed,
@@ -244,13 +252,13 @@ the rest of the app remains fully usable.
   every total. The extra XP-to-next-level note is gone. Duplicate history is
   rendered only when conversions exist, with one `Duplicates become gold.`
   line.
-- Settings orders the three primary sections (Appearance, Sync, Data), then
+- Settings orders the three primary sections (Appearance, Nearby devices, Data), then
   the Android-only Reminders and the dev-only Development panel. Theme options
-  are Day, Night and System; Appearance also holds the vibration switch. Sync
-  shows a compact guest (`Local only` + `Set up sync`) or signed-in summary
-  (`Signed in as`, one sync status, `Sign out`, `Manage sync`); login, invite,
-  password reset and the `Server` disclosure live inside the Sync dialog, so
-  the screen no longer carries the full auth/server forms. Data has one
+  are Day, Night and System; Appearance also holds the vibration switch.
+  Nearby devices shows the local device/fingerprint, the QR/code pairing entry
+  points, paired and nearby lists, per-peer auto-sync switches and the conflict
+  entry point. There is no login, invite, password reset or server form. Data
+  has one
   `Your save stays on this device.` line, export/import/reset actions and a
   `Save details` disclosure for the storage key and schema. About and the long
   theme/feedback/data notes are retired. Reset is one warning plus the typed
@@ -264,8 +272,8 @@ the rest of the app remains fully usable.
   valid save and warns that replacing overwrites the keys under
   `lifespire:mvp0`; a rejected file reports the reason without the name. A sync
   conflict shows both copies (profile, progress, run and saved time), lists up
-  to five merge reasons and can share this device and the cloud copy as two
-  separate `lifespire-this-device-<date>.json` / `lifespire-cloud-<date>.json`
+  to five merge reasons and can share this device and the peer copy as two
+  separate `lifespire-this-device-<date>.json` / `lifespire-<peer>-<date>.json`
   files. A local backup is written before keeping either side, and “Export
   both” also keeps the conflict open until the player decides.
 - Navigation reuses the store's transient `view`/`history` (no router);
@@ -310,25 +318,25 @@ pnpm --filter @lifespire/mobile test      # Jest + jest-expo
 pnpm --filter @lifespire/mobile build     # Metro Android bundle
 ```
 
-The shared web suite continues to exercise the extracted store, sync engine and
-UI helpers. Mobile Jest covers the notification planner, save
-files, draft helpers, map layout/state, the dev logger and the account-link form
-logic (`src/lib/syncForm.test.ts`: token extraction/format, password policy and
-the actionable server codes). The CI quality job runs lint, typecheck, tests and
+The shared web suite continues to exercise the extracted store and UI helpers;
+`packages/app-core` covers the LAN engine, migration and protocol. Mobile Jest
+covers the notification planner, save files, draft helpers, map layout/state,
+the dev logger and the LAN transport adapter. The Kotlin module is compiled by
+the `mobile-native` CI job. The CI quality job runs lint, typecheck, tests and
 build for every workspace, including the Android JS bundle.
 
 Manual Android checklist before a release:
 
 1. Fresh install → demo onboarding → open day 1 → resolve a task, a wheel and
    the boss → read day and run summaries.
-2. From the welcome screen, open **Already have an account? Sign in**, sign in,
-   accept an invite and paste a reset link; confirm each form shows its own
-   error/success notice, that an accepted invite shows the account email, and
-   that the app returns to the local-or-cloud save correctly.
+2. Pair Android with the desktop app (scan the QR or enter the code) and with
+   another Android device; confirm both sides show the peer, the fingerprint
+   matches, auto-sync works and "Forget" stops it.
 3. Force-stop during a day, reopen, confirm the map, path and rewards survive.
 4. Export on web, import on Android; export on Android, import on web.
-5. Sign in, play one day on Android and one on web, verify sync and the
-   conflict dialog with airplane mode.
+5. Play one day on Android and one on the paired desktop/Android while the
+   other app is closed; sync and verify the merge and the keep-mine/keep-peer
+   conflict dialog (including airplane mode).
 6. Enable notifications, grant permission, verify the test notification, set a
    near-future time and confirm tap-to-map. Disable and confirm cancellation.
 7. Light/dark/system themes, 360 dp width, TalkBack and large font scale.
@@ -344,10 +352,10 @@ the app entry point. It is a no-op when `__DEV__` is false:
 - `devError(scope, message, error?, context?)` and `devWarn(...)` prefix
   messages with `[LifeSpire][scope]`;
 - context keys matching token/password/secret/authorization/cookie/document/save
-  become `[redacted]`, and long strings are truncated. Saves and refresh
-  tokens are never printed;
-- best-effort catches (sync, auth restore, notifications, SecureStore, file
-  export/import, haptics) now log once instead of failing silently. The UI
+  become `[redacted]`, and long strings are truncated. Saves, peer tokens and
+  the certificate password are never printed;
+- best-effort catches (sync, notifications, SecureStore, file export/import,
+  haptics) now log once instead of failing silently. The UI
   still shows its normal toast/panel error.
 
 Where to read the output:
@@ -412,16 +420,19 @@ tagging; the release workflow verifies all three.
   its `patchedDependencies` entry once a released `expo-notifications` uses
   `requireOptionalNativeModule`.
 - Optional sound pack for feedback parity with web.
-- API e2e flow for the native refresh grant (unit + client coverage exists
-  today; the flow needs Postgres).
+- Background sync via a foreground service (currently foreground-only).
+- A remote wipe/backup path for a lost device (there is no cloud copy).
 
 ## 11. Troubleshooting
 
-- **Cleartext HTTP blocked**: Android rejects plain HTTP outside localhost.
-  Use HTTPS or a debug build with cleartext enabled for a LAN API.
-- **No token after login**: the API only returns a native refresh token when
-  the browser `Origin`/`Sec-Fetch-Site` headers are absent. Check the app is
-  using the Shared/Expo fetch, not a browser WebView.
+- **No nearby devices**: confirm both apps are open on the same Wi-Fi, Nearby
+  sync is on and the network is not a guest/isolated SSID; a VPN or firewall can
+  also block UDP. Use the QR/link or the 8-character code as the fallback.
+- **Pairing rejected or a peer stays away**: the code expires in 5 minutes; a
+  reinstall changes the certificate fingerprint, so forget and pair again.
+- **Sync fails with 401/409**: the peer token was rotated by a re-pair, or the
+  other device changed while you were sending. Forget/re-pair; a 409 is retried
+  automatically up to 3 times before the conflict dialog.
 - **Notifications never fire**: confirm the channel exists, the permission is
   granted, reminders are enabled and the run has an unsealed day. The test
   notification bypasses the planner.

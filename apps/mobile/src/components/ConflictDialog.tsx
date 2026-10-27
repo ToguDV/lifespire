@@ -84,17 +84,19 @@ function MetaRow({ label, value }: { label: string; value: string }) {
 
 export function ConflictDialog() {
   const { colors } = useTheme()
-  const conflict = useSyncStore((state) => state.conflict)
+  const conflicts = useSyncStore((state) => state.conflicts)
+  const active = conflicts[0]
   const showToast = useAppStore((state) => state.showToast)
   const [busy, setBusy] = useState<'mine' | 'cloud' | 'export' | null>(null)
   const [resolveError, setResolveError] = useState<string | null>(null)
 
-  if (!conflict) return null
+  if (!active) return null
+  const { conflict, peerId, peerName } = active
 
   const closeWithoutResolving = () => {
     if (busy) return
     setResolveError(null)
-    syncEngine.discardConflict()
+    syncEngine.discardConflict(peerId)
   }
 
   const keepMine = async () => {
@@ -102,9 +104,9 @@ export function ConflictDialog() {
     setResolveError(null)
     try {
       backupLocally('keeping this device')
-      await syncEngine.resolveKeepMine()
+      await syncEngine.resolveKeepMine(peerId)
       const next = useSyncStore.getState()
-      if (next.conflict) {
+      if (next.conflicts.length > 0) {
         setResolveError(
           next.lastError ?? 'This device copy could not be uploaded. Try again.',
         )
@@ -122,15 +124,15 @@ export function ConflictDialog() {
     setBusy('cloud')
     setResolveError(null)
     try {
-      backupLocally('keeping the cloud copy')
-      syncEngine.resolveKeepCloud()
+      backupLocally('keeping the other copy')
+      syncEngine.resolveKeepPeer(peerId)
       const next = useSyncStore.getState()
-      if (next.conflict) {
-        setResolveError('The cloud copy could not be applied. Your device copy is still safe.')
+      if (next.conflicts.length > 0) {
+        setResolveError('The other copy could not be applied. Your device copy is still safe.')
       }
     } catch (error) {
       setResolveError(
-        error instanceof Error ? error.message : 'The cloud copy could not be applied.',
+        error instanceof Error ? error.message : 'The other copy could not be applied.',
       )
     } finally {
       setBusy(null)
@@ -144,7 +146,7 @@ export function ConflictDialog() {
       const stamp = dayKey(getNow())
       const copies: Array<[string, GameDocument]> = [
         [`lifespire-this-device-${stamp}.json`, conflict.local],
-        [`lifespire-cloud-${stamp}.json`, conflict.remote],
+        [`lifespire-${peerName.replace(/\s+/g, '-')}-${stamp}.json`, conflict.remote],
       ]
       let failed = 0
       for (const [filename, document] of copies) {
@@ -170,9 +172,9 @@ export function ConflictDialog() {
   return (
     <Dialog
       visible
-      eyebrow="Two versions"
+      eyebrow={`This device · ${peerName}`}
       title="Sync conflict"
-      description="This device and the cloud disagree in ways that can't be merged safely, so pick which copy keeps going. Small independent edits merge on their own; these didn't. Both copies are kept safe first."
+      description={`This device and ${peerName} disagree in ways that can't be merged safely, so pick which copy keeps going. Small independent edits merge on their own; these didn't. Both copies are kept safe first.`}
       onClose={closeWithoutResolving}
       dismissable={!busy}
       actions={
@@ -189,7 +191,7 @@ export function ConflictDialog() {
             onPress={() => void keepCloud()}
             disabled={busy !== null}
           >
-            {busy === 'cloud' ? 'Keeping…' : 'Keep cloud'}
+            {busy === 'cloud' ? 'Keeping…' : `Keep ${peerName}`}
           </Button>
           <Button onPress={() => void keepMine()} disabled={busy !== null}>
             {busy === 'mine' ? 'Keeping…' : 'Keep this device'}
@@ -200,7 +202,7 @@ export function ConflictDialog() {
       <View style={styles.copies}>
         <ConflictCopy title="This device" document={conflict.local} saved="this device" />
         <ConflictCopy
-          title="Cloud"
+          title={peerName}
           document={conflict.remote}
           saved={formatWhen(conflict.remoteUpdatedAt)}
         />
@@ -227,8 +229,8 @@ export function ConflictDialog() {
         </View>
       ) : null}
       <Text variant="caption" tone="soft">
-        Keep this device uploads it over the cloud version. Keep cloud replaces this device
-        (a backup is saved first). Export both shares each copy before you decide.
+        Keep this device sends it to {peerName}. Keep {peerName} replaces this device (a
+        backup is saved first). Export both shares each copy before you decide.
       </Text>
     </Dialog>
   )

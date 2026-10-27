@@ -3,7 +3,7 @@
 Vocabulary of the product. It fixes what a word means in the interface and
 where the code still uses an older name.
 
-Last updated: 2026-10-21.
+Last updated: 2026-10-27.
 
 ## 1. User-facing terms
 
@@ -19,6 +19,10 @@ Last updated: 2026-10-21.
 | **Path** | The sequence of nodes chosen up to the boss. | The climbed path |
 | **Boss** | The final node of the day; completing it closes the day with a bonus. | The daily boss |
 | **Reel / Reliquary** | The collection of relics (loot) found during runs. | The reliquary |
+| **Nearby device** | Another Android or desktop app on the same local network that can sync with this one. | Pair my phone |
+| **Pairing** | The one-time exchange of a QR/code and a certificate fingerprint that makes two devices trust each other. | Show my code |
+| **Auto-sync** | A paired device's permission to sync automatically while both apps are open on the same network. | Sync automatically |
+| **Discoverable** | Whether this device advertises itself over UDP so other devices can find it. | Nearby sync off |
 
 Relationship in one sentence: a **goal** holds **routines**, and completing
 routines moves the goal toward its **weekly target**.

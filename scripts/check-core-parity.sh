@@ -3,8 +3,7 @@
 # Since #46 the single source of truth lives in packages/core/src; the web copies
 # were replaced by one-line `export * from '@lifespire/core/...'` shims so all
 # existing `../domain/*` and `../content/*` imports keep working.
-# This script asserts the shim list (no duplicated implementations) and checks
-# the API consumes the core build output (#49: no SERVER_SCHEMA_VERSION hardcode).
+# This script asserts the shim list (no duplicated implementations).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -65,20 +64,5 @@ for dir in "apps/web/src/domain" "apps/web/src/content"; do
     fi
   done < <(find "$ROOT/$dir" -type f \( -name '*.ts' -o -name '*.json' \) | sort)
 done
-
-core_version=$(grep -Eo 'export const SCHEMA_VERSION = [0-9]+' "$ROOT/packages/core/src/domain/balance.ts" | grep -Eo '[0-9]+')
-
-# The API must not hardcode the schema version: it imports SCHEMA_VERSION from
-# the core build output (#49). structuralCheck keeps the cheap shape gate, and
-# SyncService.put enforces full game-rule validation (422 SYNC_RULE_VIOLATION).
-if grep -Eq 'const SERVER_SCHEMA_VERSION' "$ROOT/apps/api/src/sync/sync.service.ts"; then
-  echo "FAIL: sync.service.ts still hardcodes SERVER_SCHEMA_VERSION (import SCHEMA_VERSION from @lifespire/core)" >&2
-  fail=1
-elif grep -Eq "from '@lifespire/core'" "$ROOT/apps/api/src/sync/sync.service.ts"; then
-  echo "OK: sync.service.ts imports SCHEMA_VERSION from @lifespire/core (core v$core_version)"
-else
-  echo "FAIL: sync.service.ts does not import from @lifespire/core" >&2
-  fail=1
-fi
 
 exit "$fail"

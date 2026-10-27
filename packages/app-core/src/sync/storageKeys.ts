@@ -6,10 +6,16 @@ export const GUEST_BACKUP_KEY = STORAGE_BACKUP_KEY
 export const GUEST_META_KEY = `${STORAGE_KEY}:meta`
 /** Last authenticated user (id/email/role only, never the token). */
 export const SESSION_KEY = `${STORAGE_KEY}:session`
-/** Device-chosen sync server URL override (unset = build default / same origin). */
-export const SYNC_BASE_URL_KEY = 'lifespire:sync-base-url'
-/** Last guest raw kept aside when an account is adopted. */
+/** Last guest raw kept aside when an account is adopted (legacy migration). */
 export const GUEST_COPY_KEY = `${STORAGE_KEY}:guest-copy`
+/** One-time marker written after promoting the active legacy save. */
+export const LOCAL_SYNC_MIGRATION_KEY = `${STORAGE_KEY}:local-sync-migrated`
+/** Device display name used by discovery and the pairing QR. */
+export const DEVICE_NAME_KEY = 'lifespire:device-name'
+/** Whether the device advertises itself on the LAN (string "1"/"0"). */
+export const DISCOVERABLE_KEY = 'lifespire:discoverable'
+/** Tests only: last migration report, useful for assertions. */
+export const LOCAL_SYNC_MIGRATION_REPORT_KEY = `${STORAGE_KEY}:local-sync-migration-report`
 
 function assertSafeUserId(userId: string): void {
   if (!userId || !/^[A-Za-z0-9_-]+$/.test(userId)) {
@@ -39,6 +45,35 @@ export function accountMetaKey(userId: string): string {
 export function accountBaseKey(userId: string): string {
   assertSafeUserId(userId)
   return `${accountStorageKey(userId)}:base`
+}
+
+/** Last-synced copy shared with a paired peer; the 3-way merge base. */
+export function peerBaseKey(peerId: string): string {
+  assertSafeUserId(peerId)
+  return `${STORAGE_KEY}:peer:${peerId}:base`
+}
+
+/** Hash/updatedAt cursor for a paired peer. */
+export function peerMetaKey(peerId: string): string {
+  assertSafeUserId(peerId)
+  return `${STORAGE_KEY}:peer:${peerId}:meta`
+}
+
+/** All legacy per-account save keys currently present in web storage. */
+export function listLegacyAccountKeys(): string[] {
+  const prefix = `${STORAGE_KEY}:u:`
+  const keys: string[] = []
+  try {
+    if (typeof localStorage !== 'undefined' && typeof localStorage.key === 'function') {
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index)
+        if (key && key.startsWith(prefix) && !/:(backup|meta|base)$/.test(key)) keys.push(key)
+      }
+    }
+  } catch {
+    // Storage may be unavailable; callers fall back to the session key.
+  }
+  return keys
 }
 
 /** Backup key derived from any save key (`<save>:backup`). */

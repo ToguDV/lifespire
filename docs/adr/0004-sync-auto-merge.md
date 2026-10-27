@@ -1,5 +1,7 @@
 # ADR-0004 — Conservative client-side auto-merge
 
+> Amended by ADR-0007: the base is per paired peer; the merge itself is unchanged.
+
 > Date: 2026-10-24. Status: accepted. Amends ADR-0001 (snapshot sync with
 > explicit conflicts) without changing the wire protocol.
 

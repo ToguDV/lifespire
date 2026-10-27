@@ -1,5 +1,7 @@
 # ADR-0006 — Foreground change feed via authenticated long-poll
 
+> Superseded by ADR-0007: discovery replaces the server change feed.
+
 > Date: 2026-10-25. Status: accepted. Complements ADR-0001 (snapshot sync) and
 > ADR-0004 (client-side auto-merge) without changing their wire semantics.
 

@@ -32,9 +32,6 @@ jobs:
   quality:
     needs: verify
     runs-on: ubuntu-latest
-    env:
-      # Dummy URL: prisma generate resolves config without connecting.
-      DATABASE_URL: postgresql://lifespire:lifespire@localhost:5433/lifespire
     steps:
       - uses: actions/checkout@v7
 
@@ -53,9 +50,6 @@ jobs:
 
       - name: Approve native builds
         run: pnpm approve-builds --all
-
-      - name: Prisma generate
-        run: pnpm --filter @lifespire/api prisma:generate
 
       - name: Lint
         run: pnpm lint
@@ -232,7 +226,7 @@ jobs:
             echo "- Linux: install the \`.deb\` with \`sudo apt install ./LifeSpire-*.deb\`, or \`chmod +x\` the AppImage and run it."
             echo "- Windows: run the installer or unpack the portable zip. Installers are **unsigned**, so SmartScreen may warn (More info → Run anyway)."
             echo "- Android: sideload the APK when it is attached."
-            echo "- The desktop save stays on this device (local-first, same \`GameDocument\` as web/Android); export and import live in Settings."
+            echo "- Saves stay on each device. Pair Android and desktop over the local network in Settings → Nearby devices; export and import also live in Settings."
             echo "- Verify downloads against \`SHA256SUMS.txt\`."
           } > release-notes.md
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then

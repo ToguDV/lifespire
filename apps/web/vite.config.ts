@@ -54,15 +54,6 @@ export default defineConfig({
         // keep them out of the glob so every precache URL appears once.
         globPatterns: ['**/*.{js,css,html,svg,woff2}', 'icons/apple-touch-icon.png'],
         navigateFallback: 'index.html',
-        // The sync API is never cached: snapshots ride ETag/Idempotency-Key
-        // and must always hit the network (ADR-0001).
-        navigateFallbackDenylist: [/^\/v1(\/|$)/, /^\/api(\/|$)/],
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.startsWith('/v1/') || url.pathname.startsWith('/api/'),
-            handler: 'NetworkOnly',
-          },
-        ],
         cleanupOutdatedCaches: true,
       },
       devOptions: {

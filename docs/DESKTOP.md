@@ -12,10 +12,10 @@
 apps/desktop/
   src/main.ts             app lifecycle, window, custom protocol, downloads, guards,
                           IPC registration and safeStorage wiring
-  src/preload.ts          narrow contextBridge (`window.lifespireDesktop`)
-  src/apiProxy.ts         Electron-free API proxy: path/origin/header policy,
-                          refresh-token capture/rotation and the token vault
-  src/apiProxy.test.ts    Vitest coverage for the proxy, vault and IPC sender gate
+  src/preload.ts          narrow contextBridge (`window.lifespireDesktop.localSync`)
+  src/localNode/          identity/certificate, UDP discovery, HTTPS server,
+                          pinned client, durable inbox, peer registry and IPC
+  src/localNode/*.test.ts Vitest coverage for the node, TLS, pairing and inbox
   src/menu.ts             desktop menu (clipboard roles; devtools only in dev)
   src/protocol.ts         pure URL ↔ file mapping and navigation policy
   src/protocol.test.ts    Vitest coverage for the resolve/navigation rules
@@ -52,18 +52,18 @@ they reach the browser.
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`; the
   renderer never sees Node or Electron APIs.
-- The preload exposes `{ isDesktop: true, platform }` plus the minimum sync
-  surface: `api.request`, `sync.setServer`, `auth.sessionState` and
-  `auth.signOut`. There is no token getter; the refresh token never crosses the
-  bridge.
+- The preload exposes `{ isDesktop: true, platform, localSync }` and nothing
+  else. There is no token, key or certificate getter; they never cross the
+  bridge. `localSync` is a narrow set of high-level operations (`start`,
+  `stop`, `pair`, `listPeers`, `request`, ...), not a raw socket or fetch.
 - Every IPC handler validates `event.senderFrame.url` against the packaged
   `lifespire-app://app` origin, or `LIFESPIRE_DEV_URL` while unpackaged, and
   throws for any other frame.
-- The API proxy is the only path to the network: `/v1/...` and `/health/live`
-  only (no absolute URLs, protocol-relative paths, dot segments or encoded
-  separators), allowlisted methods and headers, a 1 MB body cap (matching the
-  API), a 10 s timeout and `redirect: 'error'`. Authorization, content type, conditional
-  request headers and `Idempotency-Key` are the only headers forwarded.
+- The LAN node is the only path to the network: it accepts only private source
+  addresses, requires the peer bearer token, caps the document at 512 KB and the
+  request at 2 MB, and validates that `documentJson` is JSON before queueing it.
+  The pinned client checks the peer certificate fingerprint before writing any
+  header, token or document.
 - `window.open` is denied, external `http(s)` links open in the system browser,
   and both `will-navigate` and `will-redirect` only allow in-app navigations.
 - Every Chromium permission request and permission check is denied; the app
@@ -85,99 +85,46 @@ they reach the browser.
 - The multi-tab policy collapses to the single-instance lock. Native
   notifications are out of scope, so there is no permission prompt.
 
-## 5. Sync
+## 5. Local LAN sync
 
-The renderer origin stays `lifespire-app://app`; no CORS entry or cookie
-change is needed. The Electron **main process** is the API client:
+The renderer origin stays `lifespire-app://app`; no CORS entry or cookie change
+is needed. The Electron **main process** owns the node:
 
-- The renderer calls `window.lifespireDesktop.api.request({ path, method,
-  headers, body })`. Main joins it with the configured server origin and calls
-  `ses.fetch` from a **dedicated in-memory session** (`lifespire-api`), with a
-  10 s timeout for API calls and 6 s for health. The long-poll change feed
-  (`GET /v1/sync/watch`) gets a 35 s timeout because the server may hold it up
-  to 30 s; it is still a normal request/response through the same proxy, so no
-  streaming IPC is involved. The web renderer stops the feed while the window is
-  hidden. The default session (and the renderer) never sees these requests.
-- The proxy allowlist covers the whole `/v1` namespace, so the account flows
-  need no desktop-specific path: the Settings/welcome dialog posts
-  `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/reset-password`
-  through it. Reset returns no session; invite acceptance receives the native
-  grant token in main, stores it and strips it before the renderer builds its
-  `Response`.
-- Reset and invite links are ordinary web URLs
-  (`https://…/reset-password#token=…` and `https://…/accept-invite#token=…`).
-  The external-link policy (§3) opens them in the system browser, never inside
-  the shell. To finish in the app, paste the full link or its 43-character token
-  into **Settings → Sync** or the welcome **Already have an account? Sign in**
-  dialog; both use the shared `extractAuthToken` / `isAuthToken` and
-  `newPasswordProblem` helpers, so the desktop behaves like web and Android.
-- Chromium stamps `Sec-Fetch-Site: none` (and potentially `Origin`/`Referer`)
-  on session fetches, which would fail the native gate. A
-  `webRequest.onBeforeSendHeaders` listener in that dedicated session removes
-  the three headers before sending. Because no renderer traffic can enter the
-  partition, this cannot weaken the web gate; the smoke check below verifies
-  the wire headers.
-- Link-local and cloud-metadata IP literals (`169.254.0.0/16`,
-  `::ffff:169.254.0.0/16`, `fe80::/10`, `fd00:ec2::254`) are always rejected.
-  Private LAN ranges stay allowed because self-hosting a server on the local
-  network is a supported use case. DNS aliases (`metadata.google.internal`,
-  `*.nip.io`) are **not** resolved or blocked; only literal addresses are
-  covered.
-- API responses are capped at 5 MB (declared `Content-Length` and streamed
-  body); an oversized response cancels the transfer and fails with
-  `RESPONSE_TOO_LARGE`. Every request, including `/health/live`, uses
-  `redirect: 'error'`; a redirect during the health probe surfaces
-  "No LifeSpire server at that address: it redirects elsewhere — use the
-  final https:// address." instead of being followed.
-- `/v1/auth/login`, `/v1/auth/accept-invite` and `/v1/auth/refresh` are sent
-  with `X-Client-Platform: desktop`. With no `Origin`/`Sec-Fetch-Site`, the API
-  accepts the native grant (ADR-0005) and returns the refresh token to main.
-  Main stores the rotated token and **strips it from the response** before the
-  renderer builds its `Response`.
-- On refresh, main injects the stored token into the JSON body; the renderer
-  never needs to know it. The access token stays in renderer memory exactly as
-  on web. Web/mobile/desktop serialize concurrent 401s into a single refresh,
-  and a sign-out or server switch aborts any in-flight proxy request via a
-  generation counter, so a late rotation can never revive a closed session or
-  land under another origin.
-- If a 2xx login/refresh does not include a `refreshToken`, the proxy fails
-  with a clear "update the sync server" error instead of showing a session
-  that could never be renewed.
-- `GET /health/live` is the only request that may name another origin: the
-  Settings panel probes a candidate server *before* saving it, authenticated
-  paths always require the configured origin.
-- The configured origin is pushed by the renderer on boot and after every
-  server switch (`sync.setServer`). Settings validates the candidate with main
-  **before** persisting the URL or repointing the client, so a rejected origin
-  leaves the UI and main on the same server. An empty base URL means "sync not
-  configured" with a clear error; the desktop never falls back to same-origin.
-
-Persistence:
-
-- The token is written to `userData/sync-session.json` as
-  `{ version, origin, token }`, with `token` encrypted by Electron
-  `safeStorage` (OS keychain) and base64-encoded. It is keyed to the server
-  origin, so a different server never reuses it.
-- Every rotation writes the new token atomically (temp file + rename,
-  `0600`). Successful `logout`/`logout-all`, local sign-out, a rejected
-  refresh and a server change delete it; boot with no server or with another
-  origin removes a stale credential. Write/delete failures surface instead of
-  leaving a phantom session. Server-side, `logout` revokes the whole refresh
-  family, so even an access token that predates the last rotation closes
-  every sibling rotation.
-- If `safeStorage.isEncryptionAvailable()` is false, or Linux selects the
-  `basic_text` backend (no keyring), the token stays **in main-process memory
-  only**. Sync works for the running session, Settings shows a "Not saved"
-  notice, and restarting the app requires a new sign-in. Any pre-existing
-  encrypted file is deleted on boot and on memory-only save, so a later
-  keyring-enabled run cannot restore the previous account. If unlink fails,
-  the file is atomically overwritten with a `{}` tombstone (and `load` rejects
-  empty/tombstone files); only when both delete and tombstone fail does the
-  error reach Settings, where sign-out also awaits the local result instead of
-  pretending the session was cleared.
-- The save itself is unchanged: the same `GameDocument` in `localStorage`, no
-  token in renderer storage, no migration. Export/import remains the offline
-  way to move a save.
+- **Identity:** `localNode/identity.ts` generates a self-signed certificate with
+  `selfsigned` (RSA 2048, CN = deviceId, 10 years) and persists the PEM key/cert
+  in `userData/identity.json`, encrypted with `safeStorage` when available. If
+  the keychain is unavailable (or Linux uses `basic_text`), the file is written
+  with `0600` and Settings shows the plaintext warning. The fingerprint is the
+  SHA-256 of the DER (base64url).
+- **Discovery:** `localNode/discovery.ts` uses `dgram` on UDP `47823`; it probes
+  on start, announces every 10 s, expires peers after 30 s and broadcasts to
+  every IPv4 interface plus `255.255.255.255`/loopback, with a multicast
+  fallback. It runs only while the app is running and Nearby sync is on.
+- **Server:** `localNode/server.ts` is an `https` server with the identity
+  certificate. Routes are `/health`, `/v1/pair`, `/v1/info`, `/v1/document`
+  (GET/POST) and `/v1/unpair`; `/v1/pair` is the only unauthenticated write and
+  is guarded by the one-time secret/code plus a per-IP rate limit. Private
+  source addresses only.
+- **Client:** `localNode/client.ts` is a minimal HTTP/1.1 client over
+  `tls.connect`; it verifies the expected certificate fingerprint on
+  `secureConnect`, **before** writing anything, then sends the bearer token.
+  The pairing request uses the fingerprint from the QR; normal requests use the
+  stored peer fingerprint.
+- **Peers and tokens:** `localNode/peerStore.ts` stores name, fingerprint,
+  certificate, bearer token, auto-sync policy and last address. The whole file
+  is encrypted with `safeStorage` when available. Tokens are never exposed to
+  the renderer.
+- **Documents:** the renderer sends `documentJson` + checksum through IPC and
+  main keeps a mirror for peer pulls. An incoming POST is written to a durable
+  inbox (`inbox/`) and answered `202`; the renderer applies/validates it and
+  calls `ack`, which updates the mirror. A crash between both steps
+  re-delivers on the next start.
+- **IPC:** `localNode/ipc.ts` validates the sender and forwards only the typed
+  operations. Events (`peers`, `paired`, `incoming`, `error`) go to the main
+  window's `webContents`; the preload exposes them as unsubscribe functions.
+- **Save:** unchanged. The same `GameDocument` in `localStorage`, one canonical
+  key `lifespire:mvp0`; the migration promotes a legacy account save before the
+  store hydrates. Export/import remains the offline path.
 
 ## 6. Commands
 
@@ -227,9 +174,9 @@ download the next release manually.
 ## 8. Verification
 
 `pnpm --filter @lifespire/desktop test` covers URL resolution, path-traversal
-rejection, the navigation allow-list, the external-link policy, the API proxy
-(path/header/body/origin allowlists, sender validation, token stripping,
-rotation, logout/server-switch cleanup and the memory-only fallback).
+rejection, the navigation allow-list, the external-link policy, and the local
+node (identity/fingerprint, peer registry, inbox, discovery packet/broadcast,
+pairing QR/code, HTTPS, CAS, wrong token and wrong certificate pin).
 
 CI has no display and does not open the Electron window, so sync still needs a
 manual pass on a desktop session:
@@ -238,42 +185,28 @@ manual pass on a desktop session:
    `pnpm --filter @lifespire/desktop exec electron-builder --dir`; launch
    `apps/desktop/release/linux-unpacked/lifespire` (or `pnpm dev` +
    `pnpm dev:desktop`). Confirm the welcome screen, self-hosted fonts,
-   `localStorage` writes and `window.lifespireDesktop`, with no console errors.
-2. Settings → Sync server: enter the API origin (`http://localhost:3000` for
-   the local stack), confirm the health check passes and save it.
-3. Sign in (with TOTP if enabled), confirm the sync panel shows the user and
-   cloud version, and make an edit that pushes.
-4. With the desktop window open, edit the same save on web or Android and
-   confirm the desktop applies the change **without a reload** and shows the
-   "Updated from another device." notice. Repeat in the other direction.
-5. In DevTools, check that `window.lifespireDesktop` has no token getter and
-   that neither `localStorage` nor `sessionStorage` contains a refresh token.
-   `await window.lifespireDesktop.auth.sessionState()` reports
-   `persistence: "encrypted"` and `signedIn: true`. The API log for the login
-   shows `X-Client-Platform: desktop` with no `Origin`/`Sec-Fetch-Site`.
-6. Restart the app: the session restores without a new login. Sign out and
-   confirm `userData/sync-session.json` is gone and the next launch starts as a
-   guest.
-7. Change the server: the old credential is cleared, the panel stays on screen
-   and signing in uses the new origin.
-8. Keychain fallback: on Linux, start with an unavailable keyring (for example
-   `--password-store=basic` or a headless session). Settings shows the
-   "Not saved" notice, sync works for that run and a restart requires signing
-   in again.
-9. Negative checks: with no server saved, signing in fails with the
-   "choose a sync server" message; DevTools cannot fetch `/v1` or any other
-   URL through `api.request` (paths outside `/v1`/`/health/live`, absolute URLs
-   and bodies over 1 MB are rejected).
-
-Account-link checks: generate a reset link with
-`node apps/api/dist/cli/admin-reset-link.js --email …` on the throwaway stack,
-paste the full link into Settings → Sync (or the welcome dialog), confirm the
-local success notice and sign in with the new password; confirm
-`userData/sync-session.json` exists and that neither `localStorage` nor
-`sessionStorage` contains a refresh token. The same link opened from the shell
-must go to the system browser, not replace `lifespire-app://app`. Accepting an
-invite should switch the dialog to the signed-in account and leave sync running
-without a reload.
+   `localStorage` writes and `window.lifespireDesktop.localSync`, with no
+   console errors.
+2. Pair with an Android device on the same Wi-Fi: Settings → Nearby devices →
+   Show my code, scan the QR (or enter the 8-character code), confirm both
+   sides show the peer and the fingerprint.
+3. Make an edit on Android and on desktop while the other app is closed; open
+   both, sync, and confirm the conservative merge and the keep-mine/keep-peer
+   dialog.
+4. In DevTools, check that `window.lifespireDesktop` exposes no token/key/cert
+   getter and that neither `localStorage` nor `sessionStorage` contains a peer
+   token or a private key. `await
+   window.lifespireDesktop.localSync.persistence()` reports `encrypted` (or
+   `plaintext` with the warning).
+5. Restart the app: the pairing survives and auto-sync resumes when the peer is
+   nearby. "Forget" removes it on both sides after the next connection.
+6. Negative checks: a wrong token returns 401, a wrong certificate pin is
+   rejected before the request, a wrong pairing code is rejected, and a
+   document over 512 KB is rejected. The server is unreachable from a public
+   address (private-source check).
+7. Keychain fallback: on Linux, start with an unavailable keyring (for example
+   `--password-store=basic`). Settings shows the plaintext warning; pairing still
+   works and the tokens stay in the `0600` file.
 
 ## 9. Known follow-ups
 

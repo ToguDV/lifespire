@@ -8,9 +8,9 @@
    is binding; this guide only summarizes it.
 2. Run its **backward-compatibility check** (`WORKFLOW.md` §2). LifeSpire is
    already installed and used on web, Android and desktop, with saved games and
-   synced accounts. Decide in writing whether the change is breaking (data loss,
-   corruption, silent reset, incompatible saves/exports/sync, forced reinstall or
-   any manual step).
+   paired nearby devices. Decide in writing whether the change is breaking (data
+   loss, corruption, silent reset, incompatible saves/exports/sync, forced
+   reinstall or any manual step).
 3. **If the change is breaking — or you are not sure — tell the user before
    starting** and wait for explicit approval, with the proposed migration and
    rollback. Never touch persisted data first and explain later.
@@ -35,26 +35,22 @@
   records the 2026-10-23 review, prioritized findings, and remediation roadmap.
   It is a snapshot, not a contract; `docs/ARCHITECTURE.md` remains the module
   reference.
-- **Backend and sync:** [`docs/BACKEND.md`](./docs/BACKEND.md) defines the NestJS
-  sync API (closed registration, admin invites, snapshot sync). Sync
-  decisions are recorded in [`docs/adr/`](./docs/adr/) (protocol, auth/admin,
-  monorepo, conservative auto-merge in
-  [`0004-sync-auto-merge.md`](./docs/adr/0004-sync-auto-merge.md),
-  native auth in [`0005-native-auth.md`](./docs/adr/0005-native-auth.md),
-  foreground change feed in
-  [`0006-foreground-change-feed.md`](./docs/adr/0006-foreground-change-feed.md)).
-- **Operations:** [`docs/RUNBOOK.md`](./docs/RUNBOOK.md) is the VPS runbook
-  (same-origin contract, edge modes A/B, env and migrations, rollback, first
-  admin/reset, backups and restore drill). `docs/BACKEND.md` keeps the
-  architecture, auth, sync protocol and testing reference.
+- **Local sync:** [`docs/adr/0007-local-lan-sync.md`](./docs/adr/0007-local-lan-sync.md)
+  defines the serverless LAN protocol: UDP discovery, per-device self-signed
+  HTTPS with certificate pinning, one-time QR/code pairing, per-direction
+  bearer tokens, the durable inbox, and the per-peer conservative **auto-merge**
+  from [`0004-sync-auto-merge.md`](./docs/adr/0004-sync-auto-merge.md). ADR-0001,
+  ADR-0002, ADR-0005 and ADR-0006 are superseded; there is no API, account,
+  password or cloud copy. The browser is local-only and uses export/import.
 - **Android app:** [`docs/MOBILE.md`](./docs/MOBILE.md) defines the Expo
-  architecture, SQLite persistence, native auth/sync, local notifications,
-  Android setup, testing and release checks. The app lives in `apps/mobile/`
-  and shares `packages/core` + `packages/app-core` with web.
+  architecture, SQLite persistence, the local LAN node, local notifications,
+  Android setup, testing and release checks. The app lives in `apps/mobile/`,
+  owns `modules/lifespire-lan/` and shares `packages/core` +
+  `packages/app-core` with web.
 - **Desktop app:** [`docs/DESKTOP.md`](./docs/DESKTOP.md) defines the Electron
   shell in `apps/desktop/` (custom `lifespire-app://app` origin over the web
   build, security model, native save dialog, packaging and the tag-driven
-  release workflow), including the unsigned-installer and desktop-sync limits.
+  release workflow), including the unsigned-installer and local-node limits.
 - **Visual design:** the shipped application is the **accepted** visual
   reference, together with the design-system specification. Specifically:
   - [`design/DESIGN.md`](./design/DESIGN.md): design system (color, typography,
@@ -94,11 +90,9 @@ or content from the original game are reused.
   not reuse branches across sessions. The user reviews and approves the merge.
   See [`WORKFLOW.md`](./WORKFLOW.md) for details.
 - Do not rewrite `main` history or force-push.
-- Sync backend: closed-beta NestJS API in `apps/api/` (multi-user, closed
-  registration, admin invites, snapshot sync). The web stays local-first:
-  guest play without a server, per-account sync when signed in. The Android
-  app is local-first too and adds device-local reminders. See
-  [`docs/BACKEND.md`](./docs/BACKEND.md) and
+- Sync is serverless and local-first: the Electron main process and the
+  Android native module own the LAN node; the browser is local-only. There are
+  no accounts, passwords or cloud copies. See ADR-0007 and
   [`docs/MOBILE.md`](./docs/MOBILE.md).
 
 ## Architecture
@@ -112,7 +106,6 @@ domain, state, or navigation.
 ```bash
 pnpm install --frozen-lockfile
 pnpm dev          # web (apps/web)
-pnpm dev:api      # sync API (apps/api, needs DATABASE_URL)
 pnpm dev:mobile   # Android app (apps/mobile, Expo)
 pnpm dev:desktop  # Electron shell (apps/desktop); run `pnpm dev` alongside it
 pnpm lint         # all workspaces
@@ -128,22 +121,23 @@ pnpm package:desktop  # web + shell + OS installers (electron-builder)
 pnpm preview      # serve the web build (PWA/offline)
 ```
 
-Per-workspace: `pnpm --filter @lifespire/api test:e2e` runs the API flow
-against Postgres (see `docs/BACKEND.md` §7); `pnpm --filter @lifespire/core`
-and `@lifespire/api-client` scope the shared packages.
+Per-workspace: `pnpm --filter @lifespire/core` and `@lifespire/app-core`
+scope the shared packages; `pnpm --filter @lifespire/desktop test` runs the
+local node suite.
 
 ## E2E tests and CI
 
 - E2E tests live in [`apps/web/e2e/`](./apps/web/e2e) and are configured in
-  [`apps/web/playwright.config.ts`](./apps/web/playwright.config.ts). API flow
-  tests live in [`apps/api/test/`](./apps/api/test) and need Postgres.
+  [`apps/web/playwright.config.ts`](./apps/web/playwright.config.ts). The local
+  node suite lives in `apps/desktop/src/localNode/`; the Android node is
+  compiled by the `mobile-native` job.
 - The [`ci.yml`](./.github/workflows/ci.yml) workflow always runs lint,
   typecheck, E2E typecheck, tests, and build across all workspaces, including
   the Android Jest suite, the Metro bundle and the Electron shell. The `e2e` job
   only runs when critical paths change (web domain/state/content/shell/screens,
-  mobile, API, shared packages, E2E config, lockfile) or manually via
-  `workflow_dispatch`. The `api-e2e` job runs the API flow against a Postgres
-  service under the same gate.
+  mobile, shared packages, E2E config, lockfile) or manually via
+  `workflow_dispatch`. A separate `mobile-native` job runs `expo prebuild` and
+  compiles the Android app (including the LAN Kotlin module).
 - [`release.yml`](./.github/workflows/release.yml) runs only on `v*` tags:
   verify the tag against the manifests, run the quality gates, package the
   Electron installers on Linux/Windows, build the Android APK on EAS cloud
@@ -180,14 +174,15 @@ and `@lifespire/api-client` scope the shared packages.
 - Changes must leave `pnpm lint`, `pnpm typecheck`, `pnpm typecheck:e2e`,
   `pnpm test`, and `pnpm build` green (the build includes the Android bundle).
   If the change touches critical paths, add or update the corresponding E2E and
-  verify `pnpm test:e2e` (web) and the API flow when `apps/api` changes. The
-  mobile notification planner, native auth grant and save import/export need
-  unit coverage when touched.
+  verify `pnpm test:e2e` (web), the desktop node tests and the Android native
+  compile when those areas change. The mobile notification planner, the LAN
+  pairing/transport adapter and save import/export need unit coverage when
+  touched.
 - **Real-stack verification:** green tests and mocked E2E are not enough. Build
-  and run the real stack locally (throwaway database, real API and client build
-  served as in production) and walk the affected flow yourself, including
-  failure paths and the browser/network console, before calling a change done
-  (`WORKFLOW.md` §12.1).
+  and run the real stack locally (the real desktop node against the Android
+  app on the same Wi-Fi, or two desktop instances) and walk the affected flow
+  yourself, including failure paths and the browser/network console, before
+  calling a change done (`WORKFLOW.md` §12.1).
 - **Mandatory documentation:** whenever a `.md` file (or reference document) is
   added, moved, or deleted, update this guide (`AGENTS.md`) in the same change,
   registering it under "Sources of truth" or the relevant section. A new
