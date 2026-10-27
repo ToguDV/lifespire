@@ -85,6 +85,11 @@ jobs:
       - name: Typecheck E2E
         run: pnpm typecheck:e2e
 
+      - name: Build core for native tests
+        # The Android Jest suite resolves @lifespire/core through its CJS
+        # build output (used to be built as a side effect of the API hooks).
+        run: pnpm --filter @lifespire/core build
+
       - name: Test
         run: pnpm test
 
@@ -146,6 +151,11 @@ jobs:
           java-version: '17'
 
       - uses: android-actions/setup-android@v3
+        with:
+          # The action default ("tools platform-tools") no longer installs:
+          # the "tools" package was removed from sdkmanager. Expo SDK 58 /
+          # React Native 0.88 compile against API 35.
+          packages: platform-tools "platforms;android-35" "build-tools;35.0.0"
 
       - name: Install
         run: pnpm install --frozen-lockfile

@@ -60,6 +60,11 @@ jobs:
       - name: Typecheck E2E
         run: pnpm typecheck:e2e
 
+      - name: Build core for native tests
+        # The Android Jest suite resolves @lifespire/core through its CJS
+        # build output (used to be built as a side effect of the API hooks).
+        run: pnpm --filter @lifespire/core build
+
       - name: Test
         run: pnpm test
 
