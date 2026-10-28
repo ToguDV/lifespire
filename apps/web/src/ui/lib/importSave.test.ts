@@ -266,8 +266,9 @@ describe('import preview', () => {
     expect(invalid.ok).toBe(false)
     if (invalid.ok) return
     expect(invalid.reason).toBe('invalid')
-    expect(invalid.message).toContain('not a valid LifeSpire save')
-    expect(invalid.message).toContain('layers[0]')
+    expect(invalid.message).toBe(
+      'That file is not a valid LifeSpire save. Choose the JSON file created by Export.',
+    )
   })
 
   it('loads a literal v1 save without migrating or regenerating its map', () => {
@@ -305,14 +306,17 @@ describe('import preview', () => {
     expect(malformed.ok).toBe(false)
     if (malformed.ok) return
     expect(malformed.reason).toBe('invalid')
-    expect(malformed.message).toContain('not a valid LifeSpire save')
-    expect(malformed.message).toContain('valid JSON')
+    expect(malformed.message).toBe(
+      'That file is not a valid LifeSpire save. Choose the JSON file created by Export.',
+    )
 
     const missing = readSaveFile(JSON.stringify({ schemaVersion: 1 }))
     expect(missing.ok).toBe(false)
     if (missing.ok) return
     expect(missing.reason).toBe('invalid')
-    expect(missing.message).toContain('profile')
+    expect(missing.message).toBe(
+      'That file is not a valid LifeSpire save. Choose the JSON file created by Export.',
+    )
 
     const future = readSaveFile(JSON.stringify({ schemaVersion: SCHEMA_VERSION + 1 }))
     expect(future.ok).toBe(false)

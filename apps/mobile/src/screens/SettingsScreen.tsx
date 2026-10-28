@@ -69,7 +69,7 @@ export function SettingsScreen() {
       showToast('Save shared as a JSON file.')
     } catch (error) {
       devError('files', 'save export failed', error)
-      showToast(error instanceof Error ? error.message : 'Could not export the save.')
+      showToast('Could not export the save on this device.')
     } finally {
       setBusy(false)
     }
@@ -83,7 +83,7 @@ export function SettingsScreen() {
       setImportResult(result)
     } catch (error) {
       devError('files', 'save import failed', error)
-      showToast(error instanceof Error ? error.message : 'Could not read that file.')
+      showToast('Could not read that file on this device.')
     } finally {
       setBusy(false)
     }

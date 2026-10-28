@@ -40,9 +40,11 @@ function CrashScreen({ error, onReset }: { error: Error; onReset: () => void }) 
           Your save is safe. Try again; if this keeps happening, export the save from Settings on
           another device.
         </Text>
-        <Text variant="caption" tone="default" style={styles.copy}>
-          {error.message}
-        </Text>
+        {__DEV__ ? (
+          <Text variant="caption" tone="default" style={styles.copy}>
+            {error.message}
+          </Text>
+        ) : null}
         <Button onPress={onReset}>Try again</Button>
       </Panel>
     </View>

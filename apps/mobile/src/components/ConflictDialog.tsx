@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native'
 import { dayKey } from '@lifespire/core'
 import type { GameDocument } from '@lifespire/core'
 import { getNow } from '@lifespire/app-core/state/clock'
+import { toUserSyncError } from '@lifespire/app-core/sync/errors'
 import { summarizeDocument } from '@lifespire/app-core/ui/importSave'
 import { Button } from './Button'
 import { Dialog } from './Dialog'
@@ -108,12 +109,16 @@ export function ConflictDialog() {
       const next = useSyncStore.getState()
       if (next.conflicts.length > 0) {
         setResolveError(
-          next.lastError ?? 'This device copy could not be uploaded. Try again.',
+          toUserSyncError(
+            next.lastError,
+            'This device copy could not be uploaded. Try again.',
+          ),
         )
       }
     } catch (error) {
+      devWarn('sync', 'conflict resolution failed', error)
       setResolveError(
-        error instanceof Error ? error.message : 'This device copy could not be uploaded.',
+        toUserSyncError(error, 'This device copy could not be uploaded. Try again.'),
       )
     } finally {
       setBusy(null)
@@ -131,9 +136,8 @@ export function ConflictDialog() {
         setResolveError('The other copy could not be applied. Your device copy is still safe.')
       }
     } catch (error) {
-      setResolveError(
-        error instanceof Error ? error.message : 'The other copy could not be applied.',
-      )
+      devWarn('sync', 'conflict resolution failed', error)
+      setResolveError(toUserSyncError(error, 'The other copy could not be applied.'))
     } finally {
       setBusy(null)
     }
