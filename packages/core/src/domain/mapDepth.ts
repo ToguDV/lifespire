@@ -10,7 +10,7 @@ import {
 } from './balance.js'
 
 export interface DecisionLayerInput {
-  /** Active goals that own at least one active routine. */
+  /** Active goals that own at least one active trial. */
   goalsWithActiveRoutines: number
   /** Sum of `weeklyObjective` across those goals. */
   weeklyTargetSum: number
@@ -21,14 +21,14 @@ function clamp(min: number, max: number, value: number): number {
 }
 
 /**
- * The map grows with the goals that have at least one active routine and with
+ * The map grows with the goals that have at least one active trial and with
  * the weekly targets those goals ask for. With `g` active goals and total
  * weekly target `s` the depth is
  * `clamp(3, 15, g + offset(g) + floor(max(0, s) / 7))`, where
  * `offset(g) = clamp(2, 5, 2 + floor(max(0, g - 2) / 2))`. The goal term alone
  * gives 1 → 3, 2 → 4, 3 → 5, 4 → 7, 5 → 8, 6 → 10, 7 → 11, 8 → 13, 9 → 14 and
  * 10 → 15 layers. Every seven weekly targets add one layer, capped at 15.
- * Routines only affect layer width, never depth by themselves.
+ * Trials only affect layer width, never depth by themselves.
  */
 export function resolveDecisionLayerCount(input: DecisionLayerInput): number {
   const goals = clamp(MIN_GOALS, MAX_GOALS, input.goalsWithActiveRoutines)

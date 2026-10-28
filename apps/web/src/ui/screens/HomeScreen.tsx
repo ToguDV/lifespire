@@ -269,7 +269,7 @@ export function HomeScreen() {
       case 'no-run':
         return setupReady
           ? { title: 'No run yet.', line: 'Your goals are ready.' }
-          : { title: 'The path needs goals.', line: 'A run needs one goal and four routines.' }
+          : { title: 'The path needs goals.', line: 'A run needs one goal and four trials.' }
       case 'day-available':
         return { title: 'Today’s path is ready.', line: 'Open it once; the map will not change.' }
       case 'day-in-progress':

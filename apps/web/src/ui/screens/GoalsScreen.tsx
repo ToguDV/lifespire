@@ -90,7 +90,7 @@ export function GoalsScreen() {
         meta={
           <>
             <span className="chip chip--quiet">
-              {activeGoals.length} goals · {activeTasks.length} routines
+              {activeGoals.length} goals · {activeTasks.length} trials
             </span>
             <span className="micro" style={{ color: 'var(--accent-deep)' }}>
               {totalProgress} / {totalTarget} this week
@@ -106,7 +106,7 @@ export function GoalsScreen() {
                 }
               >
                 <Icon name="plus" />
-                Add routine
+                Add trial
               </Button>
               <Button variant="secondary" size="sm" onClick={() => openGoalDialog(null)}>
                 <Icon name="plus" />
@@ -191,7 +191,7 @@ export function GoalsScreen() {
                   <div className="routine-list">
                     {goalTasks.length === 0 ? (
                       <p className="panel-note routine-list__empty">
-                        No active routines under this goal yet.
+                        No active trials under this goal yet.
                       </p>
                     ) : (
                       goalTasks.map((task) => (
@@ -204,12 +204,12 @@ export function GoalsScreen() {
                           <div className="routine__actions">
                             <IconButton
                               icon="edit"
-                              label={`Edit routine ${task.title}`}
+                              label={`Edit trial ${task.title}`}
                               onClick={() => openTaskDialog(task, goal.id)}
                             />
                             <IconButton
                               icon="archive"
-                              label={`Archive routine ${task.title}`}
+                              label={`Archive trial ${task.title}`}
                               onClick={() => requestArchive('task', task.id, task.title)}
                             />
                           </div>
@@ -223,7 +223,7 @@ export function GoalsScreen() {
                         onClick={() => openTaskDialog(null, goal.id)}
                       >
                         <Icon name="plus" />
-                        Add routine to this goal
+                        Add trial to this goal
                       </Button>
                     </div>
                   </div>
@@ -270,14 +270,14 @@ export function GoalsScreen() {
 
                 {archivedTasks.length > 0 ? (
                   <div className="archived-group">
-                    <h3 className="micro">Routines</h3>
+                    <h3 className="micro">Trials</h3>
                     {archivedTasks.map((task) => {
                       const goal = document.goals.find((candidate) => candidate.id === task.goalId)
                       const goalActive = Boolean(goal?.active)
                       return (
                         <div className="archived-row" key={task.id}>
                           <span className="archived-row__body">
-                            <strong>{task.title || 'Untitled routine'}</strong>
+                            <strong>{task.title || 'Untitled trial'}</strong>
                             <small>
                               {EFFORT_LABEL[task.effort]} effort ·{' '}
                               {goal?.title ?? 'Goal no longer present'}
@@ -291,10 +291,10 @@ export function GoalsScreen() {
                             title={
                               goalActive
                                 ? undefined
-                                : 'Restore its goal before restoring this routine.'
+                                : 'Restore its goal before restoring this trial.'
                             }
                           >
-                            Restore routine
+                            Restore trial
                           </Button>
                         </div>
                       )

@@ -1,8 +1,8 @@
 # LifeSpire
 
-**Turn your goals and routines into a daily node map.**
+**Turn your goals and trials into a daily node map.**
 
-LifeSpire turns a person's goals and routines into a daily node map inspired by
+LifeSpire turns a person's goals and trials into a daily node map inspired by
 *Slay the Spire*. Each day you choose a path; each node is a real-world action
 (a task, a rest, a treasure, a wheel, or the daily boss). A **run** lasts 7 days
 with weekly objectives — the more you complete, the more gold, XP, and loot you
@@ -22,8 +22,8 @@ LAN node. See `docs/adr/0007-local-lan-sync.md`, `docs/MOBILE.md` and
 
 The node map is the heart of the app: each day you pick a path through 3–15 layers
 plus a boss, with visible trade-offs between progress, effort, and reward. The
-depth follows the goals that have active routines and their weekly targets,
-while the width follows your routines.
+depth follows the goals that have active trials and their weekly targets,
+while the width follows your trials.
 
 ---
 
@@ -56,7 +56,7 @@ an EAS build for Nearby devices: Expo Go does not include the LAN Kotlin
 module. `docs/MOBILE.md` covers the SDK, local notifications and the release
 checklist. For desktop, `docs/DESKTOP.md` covers the packaged builds and the
 tag-driven release workflow. On first launch you can load **demo data** and
-start a run in one click, or create your own goals and routines.
+start a run in one click, or create your own goals and trials.
 
 Nearby sync needs both apps open on the same Wi-Fi. On the desktop, Settings →
 Nearby devices → **Show my code**; on Android, scan the QR or enter the code.
@@ -83,9 +83,9 @@ pnpm preview    # serve the build (test PWA / offline)
 
 ## How it works
 
-1. **Onboarding** — pick demo data or create 1–10 goals with their routines.
+1. **Onboarding** — pick demo data or create 1–10 goals with their trials.
 2. **Each day** — open the day's map (3–15 decision layers + a boss, 3–5 nodes
-   per layer; depth follows the goals with active routines and their weekly
+   per layer; depth follows the goals with active trials and their weekly
    targets), pick a node, complete the real-world action, mark it done.
 3. **Rewards** — XP, gold, and loot are granted instantly. Tasks also add
    progress to their goal's weekly objective.
@@ -102,8 +102,8 @@ immediately but give no progress, elites pay double in exchange for more effort.
 
 **In scope**
 
-- Onboarding with demo or custom data; 1–10 goals with routines
-- 7-day runs with deterministic maps (3–15 layers + boss, driven by the goals with active routines)
+- Onboarding with demo or custom data; 1–10 goals with trials
+- 7-day runs with deterministic maps (3–15 layers + boss, driven by the goals with active trials)
 - Node types: task, elite, rest, treasure, wheel, boss
 - Instant rewards (XP, gold, loot), weekly progress, day & run summaries
 - New run keeping profile, gold, XP, and collection

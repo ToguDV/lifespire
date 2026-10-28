@@ -319,7 +319,7 @@ describe('openDay', () => {
     )
   })
 
-  it('refuses to open a day without an active run or active routines', () => {
+  it('refuses to open a day without an active run or active trials', () => {
     const empty = createEmptyDocument()
     expect(() => openDay(empty, { now })).toThrow(/no active run/i)
 
@@ -329,7 +329,7 @@ describe('openDay', () => {
 
     const routineLess = makeDocument()
     routineLess.tasks = []
-    expect(() => openDay(routineLess, { now })).toThrow(/active routine/i)
+    expect(() => openDay(routineLess, { now })).toThrow(/active trial/i)
   })
 
   it('produces a document that round-trips through the schema', () => {

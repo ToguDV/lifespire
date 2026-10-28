@@ -47,7 +47,7 @@ export interface MapValidationFailure {
 
 export type MapValidation = MapValidationSuccess | MapValidationFailure
 
-/** A missing routine pool is a setup problem, not an unrecoverable crash. */
+/** A missing trial pool is a setup problem, not an unrecoverable crash. */
 export class MapGenerationError extends Error {
   constructor(message: string) {
     super(message)
@@ -80,7 +80,7 @@ function snapshotOf(choice: TaskChoice): TaskSnapshot {
 }
 
 /**
- * Builds the active routine pool. Active routines whose goal is missing or
+ * Builds the active trial pool. Active trials whose goal is missing or
  * inactive are ignored, and duplicate ids are collapsed defensively.
  */
 export interface TaskChoice {
@@ -135,7 +135,7 @@ function drawTask(
   }
 
   // Pools smaller than the map force reuse, but reuse inside one layer is the
-  // last resort (only possible with a single active routine).
+  // last resort (only possible with a single active trial).
   const unusedInLayer = pool.filter((choice) => !usedInLayer.has(choice.task.id))
   if (unusedInLayer.length > 0) {
     return rng.pick(preferPending(unusedInLayer))
@@ -176,7 +176,7 @@ function chooseBoss(
   })
 
   const best = ranked[0]?.score
-  if (!best) throw new MapGenerationError('A map needs at least one active routine.')
+  if (!best) throw new MapGenerationError('A map needs at least one active trial.')
   const tied = ranked.filter(
     (entry) =>
       entry.score[0] === best[0] && entry.score[1] === best[1] && entry.score[2] === best[2],
@@ -292,13 +292,13 @@ export function generateMap(input: GenerateMapInput): GameMap {
   const objectivesByGoal = new Map(input.objectives.map((objective) => [objective.goalId, objective] as const))
   if (pool.length === 0) {
     throw new MapGenerationError(
-      'A map needs at least one active routine. Add a routine to an active goal and try again.',
+      'A map needs at least one active trial. Add a trial to an active goal and try again.',
     )
   }
 
   const seed = `${input.runSeed}:day:${input.dayIndex}:g${input.generatorVersion}`
   const rng = createRng(seed)
-  // The pool only holds active routines under active goals, so its distinct
+  // The pool only holds active trials under active goals, so its distinct
   // goal ids are exactly the goals that deserve map depth. Empty goals do not.
   const activeGoalIds = new Set(pool.map((choice) => choice.task.goalId))
   const weeklyTargetSum = input.goals.reduce(
@@ -314,7 +314,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
   })
 
   // A layer can only hold as many task-bearing nodes as there are distinct
-  // routines, plus one rest or treasure. The size drifts by at most one node
+  // trials, plus one rest or treasure. The size drifts by at most one node
   // between neighbouring layers, so every node can always reach its
   // neighbours on the next layer.
   const maxLayerSize =
@@ -349,13 +349,13 @@ export function generateMap(input: GenerateMapInput): GameMap {
 
   const specialLayers = new Set<number>()
   if (pool.length === 1) {
-    // One routine per layer: the second node must be a rest or treasure.
+    // One trial per layer: the second node must be a rest or treasure.
     for (const layerIndex of range(layerCount)) {
       if (!eliteLayers.has(layerIndex)) specialLayers.add(layerIndex)
     }
   } else {
     // A layer wider than the pool needs a rest or treasure, otherwise it would
-    // have to repeat a routine inside the same layer.
+    // have to repeat a trial inside the same layer.
     for (const layerIndex of range(layerCount)) {
       const size = layerSizes[layerIndex] ?? MIN_LAYER_NODES
       if (size > pool.length) specialLayers.add(layerIndex)
@@ -508,7 +508,7 @@ function validateSnapshot(
 /**
  * Checks every structural invariant that can be derived from a map alone.
  * Cross-layer task repetition is intentionally not an error: small pools must
- * be able to reuse routines between layers. Within a layer, repetition is only
+ * be able to reuse trials between layers. Within a layer, repetition is only
  * tolerated for a single-routine pool (see the generator's defensive fallback).
  */
 export function validateMap(map: GameMap): MapValidation {

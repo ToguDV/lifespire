@@ -46,7 +46,7 @@ apps/web/src/
   content/         shims de una línea sobre @lifespire/core (catálogos y
                    factories; la implementación vive en packages/core)
     loot.ts        catálogo de 12 objetos
-    demo.ts        factory determinista de demo (2 goals, 5 routines)
+    demo.ts        factory determinista de demo (2 goals, 5 trials)
     onboarding.ts  pasos del asistente y sugerencia de weekly targets
   state/
     store.ts       Zustand + persist, acciones de aplicación
@@ -510,7 +510,7 @@ generateMap(input: {
   desempate determinista por seed.
 - Si el pool tiene <4 tareas activas, el generador debe seguir produciendo un mapa
   válido repitiendo tareas entre capas (nunca dentro de la misma capa). La
-  validación de onboarding exige ≥4 routines, pero el generador es defensivo.
+  validación de onboarding exige ≥4 trials, pero el generador es defensivo.
   Con una sola rutina activa las capas se fuerzan a 2 nodos; si una capa lleva
   elite (para cumplir 1–2 elites por mapa) esa única rutina se repite dentro de
   la capa. Es la única excepción posible: con una sola rutina no se puede tener

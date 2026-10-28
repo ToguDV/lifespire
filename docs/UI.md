@@ -12,7 +12,7 @@ system.
 | Canonical tokens | `apps/web/src/styles/tokens.css` (font URLs point to `/fonts/`) |
 | Shell and component styles | `apps/web/src/styles/app.css` |
 | Dialogs, toast, empty states, dev panel, recovery, settings | `apps/web/src/styles/ui.css` |
-| Onboarding and goal/routine editors | `apps/web/src/styles/m3.css` |
+| Onboarding and goal/trial editors | `apps/web/src/styles/m3.css` |
 | Alegreya + Alegreya Sans WOFF2 | `public/fonts/*.woff2` |
 | Icon adapter (`IconName` → Lucide) | `apps/web/src/ui/components/Icon.tsx`, `iconMap.ts`; `apps/mobile/src/components/Icon.tsx`, `iconMap.ts` |
 | Android tokens and components | `apps/mobile/src/theme/tokens.ts`, `apps/mobile/src/components/` |
@@ -107,7 +107,7 @@ Every component emits the ported classes (`btn`, `panel`, `chip`, `pips`,
 `screen-head`, etc.), so custom CSS is only needed for new UI states.
 
 `AimRow` keeps the old "aim" name on purpose: the interface says **goal**,
-**routine** and **weekly target**, while identifiers, CSS classes and DOM
+**trial** and **weekly target**, while identifiers, CSS classes and DOM
 hooks keep the "aim" family. See [`../GLOSARY.md`](../GLOSARY.md).
 
 ## Accessibility

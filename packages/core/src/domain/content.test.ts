@@ -52,7 +52,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 
 function fourTasks(goalId = 'goal_1'): Task[] {
   return [1, 2, 3, 4].map((index) =>
-    makeTask({ id: `task_${index}`, goalId, title: `Routine ${index}` }),
+    makeTask({ id: `task_${index}`, goalId, title: `Trial ${index}` }),
   )
 }
 
@@ -91,7 +91,7 @@ describe('validateGoalInput', () => {
 })
 
 describe('validateTaskInput', () => {
-  it('accepts a titled routine under an active goal', () => {
+  it('accepts a titled trial under an active goal', () => {
     expect(validateTaskInput(makeTask(), [makeGoal()])).toEqual({})
   })
 
@@ -165,7 +165,7 @@ describe('validateContentConstraints', () => {
     ).toContain(CONTENT_MESSAGES.fewRoutines)
   })
 
-  it('rejects active routines pointing at an inactive goal', () => {
+  it('rejects active trials pointing at an inactive goal', () => {
     const document = demoDocument()
     const goal = document.goals[0]
     if (!goal) throw new Error('expected a demo goal')
@@ -178,7 +178,7 @@ describe('validateContentConstraints', () => {
     )
   })
 
-  it('counts only active routines under active goals', () => {
+  it('counts only active trials under active goals', () => {
     const goals = [makeGoal(), makeGoal({ id: 'goal_2' })]
     const tasks = [
       ...fourTasks(),

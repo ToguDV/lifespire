@@ -315,13 +315,13 @@ describe('starting a run', () => {
     expect(store.getState().toast).toBe('Finish onboarding before you begin a run.')
   })
 
-  it('rejects a new run with too few routines', () => {
+  it('rejects a new run with too few trials', () => {
     const { store, base } = makeHarness()
     store.getState().completeOnboarding(createDemoSetup(base), base)
     const goals = store.getState().document.goals
     store.getState().startRun({ goals, tasks: [] }, base)
     expect(store.getState().document.run).toBeNull()
-    expect(store.getState().toast).toBe('Add at least 4 routines to light the week.')
+    expect(store.getState().toast).toBe('Add at least 4 trials to light the week.')
   })
 
   it('does not replace an active run', () => {
@@ -594,7 +594,7 @@ describe('import, recovery and reset', () => {
     expect(memory.getItem(STORAGE_KEY)).toBe(rawBefore)
   })
 
-  it('rejects an active run with fewer than four routines', () => {
+  it('rejects an active run with fewer than four trials', () => {
     const { store, memory, base } = makeHarness()
     const setup = createDemoSetup(base)
     const before = store.getState().document
@@ -624,7 +624,7 @@ describe('import, recovery and reset', () => {
 
       expect(store.getState().importDocument(document)).toBe(false)
       expect(store.getState().toast).toBe(
-        'Keep at least 4 active routines while the run is underway.',
+        'Keep at least 4 active trials while the run is underway.',
       )
       expect(store.getState().document).toBe(before)
       expect(memory.getItem(STORAGE_KEY)).toBe(rawBefore)
@@ -1285,7 +1285,7 @@ describe('starting a new run from the store', () => {
 
     store.getState().startNewRun(base)
     expect(store.getState().toast).toBe(
-      'Add at least 4 routines to light the week.',
+      'Add at least 4 trials to light the week.',
     )
     expect(store.getState().document).toBe(closed)
     expect(store.getState().document.run?.id).toBe(closedRunId)
@@ -1393,7 +1393,7 @@ describe('atomic onboarding journey', () => {
     expect(store.getState().document.profile).toBeNull()
     expect(store.getState().document.run).toBeNull()
     expect(store.getState().document.onboardingDraft).toEqual(draft)
-    expect(store.getState().toast).toBe('Add at least 4 routines to light the week.')
+    expect(store.getState().toast).toBe('Add at least 4 trials to light the week.')
   })
 
   it('rejects more than ten goals and an out-of-range weekly objective', () => {
@@ -1453,7 +1453,7 @@ describe('atomic onboarding journey', () => {
   })
 })
 
-describe('goals and routines CRUD', () => {
+describe('goals and trials CRUD', () => {
   it('creates, edits and archives a goal with injected id and clock', () => {
     const { store, memory, base } = makeHarness()
     store.getState().completeOnboarding(createDemoSetup(base), base)
@@ -1551,7 +1551,7 @@ describe('goals and routines CRUD', () => {
     ).toBe('heart')
   })
 
-  it('creates, edits, archives and restores a routine', () => {
+  it('creates, edits, archives and restores a trial', () => {
     const { store, memory, base } = makeHarness()
     const setup = createDemoSetup(base)
     store.getState().completeOnboarding(setup, base)
@@ -1564,7 +1564,7 @@ describe('goals and routines CRUD', () => {
     )
     expect(created.ok).toBe(true)
     const task = store.getState().document.tasks.find((item) => item.title === 'Tend the fire')
-    if (!task) throw new Error('expected the created routine')
+    if (!task) throw new Error('expected the created trial')
     expect(task.id.startsWith('task_')).toBe(true)
     expect(task.createdAt).toBe(base.toISOString())
 
@@ -1637,7 +1637,7 @@ describe('goals and routines CRUD', () => {
       base,
     )
     expect(emptyTask.ok).toBe(false)
-    expect(emptyTask.fieldErrors.title).toBe('Give this routine a title.')
+    expect(emptyTask.fieldErrors.title).toBe('Give this trial a title.')
 
     expect(store.getState().archiveGoal(goal.id, base).ok).toBe(true)
     const archivedGoal = store.getState().document.goals.find((item) => item.id === goal.id)
@@ -1647,11 +1647,11 @@ describe('goals and routines CRUD', () => {
           { goalId: archivedGoal.id, title: 'Walk', effort: 'light', active: true },
           base,
         ).fieldErrors.goalId,
-      ).toBe('Choose an active goal for this routine.')
+      ).toBe('Choose an active goal for this trial.')
     }
   })
 
-  it('cascades routine archiving when a goal is archived without a run', () => {
+  it('cascades trial archiving when a goal is archived without a run', () => {
     const { store, base } = makeHarness()
     const setup = createDemoSetup(base)
     store.getState().completeOnboarding(setup, base)
@@ -1683,7 +1683,7 @@ describe('content constraints during an active run', () => {
     const tasks = [1, 2, 3, 4].map((index) => ({
       id: `task_${index}`,
       goalId: goal.id,
-      title: `Routine ${index}`,
+      title: `Trial ${index}`,
       effort: 'light' as const,
       active: true,
       createdAt: base.toISOString(),
@@ -1697,7 +1697,7 @@ describe('content constraints during an active run', () => {
     expect(store.getState().document.goals[0]?.active).toBe(true)
   })
 
-  it('blocks dropping below four active routines', () => {
+  it('blocks dropping below four active trials', () => {
     const { store, base } = makeHarness()
     onboardAndStart(store, base)
     const tasks = store.getState().document.tasks
@@ -1707,14 +1707,14 @@ describe('content constraints during an active run', () => {
     const result = store.getState().archiveTask(tasks[1]!.id, base)
     expect(result.ok).toBe(false)
     expect(result.errors).toContain(
-      'Keep at least 4 active routines while the run is underway.',
+      'Keep at least 4 active trials while the run is underway.',
     )
     expect(
       store.getState().document.tasks.find((task) => task.id === tasks[1]!.id)?.active,
     ).toBe(true)
   })
 
-  it('blocks archiving a goal that would leave fewer than four routines', () => {
+  it('blocks archiving a goal that would leave fewer than four trials', () => {
     const { store, base } = makeHarness()
     onboardAndStart(store, base)
     const goal = store.getState().document.goals[0]
@@ -1727,7 +1727,7 @@ describe('content constraints during an active run', () => {
     const result = store.getState().archiveGoal(goal.id, base)
     expect(result.ok).toBe(false)
     expect(result.errors).toContain(
-      'Keep at least 4 active routines while the run is underway.',
+      'Keep at least 4 active trials while the run is underway.',
     )
     expect(store.getState().document.goals.find((item) => item.id === goal.id)?.active).toBe(
       true,
@@ -1765,7 +1765,7 @@ describe('content constraints during an active run', () => {
     )
   })
 
-  it('blocks archiving the last active routine of an active goal', () => {
+  it('blocks archiving the last active trial of an active goal', () => {
     const { store, base } = makeHarness()
     const goals: Goal[] = [
       {
@@ -1815,7 +1815,7 @@ describe('content constraints during an active run', () => {
 
     expect(result.ok).toBe(false)
     expect(result.errors).toContain(
-      'Keep at least one active routine under every active goal while the run is underway.',
+      'Keep at least one active trial under every active goal while the run is underway.',
     )
     expect(store.getState().document).toBe(before)
     expect(
@@ -1831,7 +1831,7 @@ describe('map snapshots and run objectives', () => {
     store.getState().openDay(undefined, base)
 
     const archived = store.getState().document.tasks[0]
-    if (!archived) throw new Error('expected a demo routine')
+    if (!archived) throw new Error('expected a demo trial')
     expect(store.getState().archiveTask(archived.id, base).ok).toBe(true)
 
     store.getState().devAdvanceDay()
@@ -1868,7 +1868,7 @@ describe('map snapshots and run objectives', () => {
     if (!map || !node || !snapshotTaskId) throw new Error('expected an open task node')
     const snapshot = structuredClone(map)
     const task = store.getState().document.tasks.find((item) => item.id === snapshotTaskId)
-    if (!task) throw new Error('expected the routine in the document')
+    if (!task) throw new Error('expected the trial in the document')
 
     expect(
       store.getState().saveTask(
@@ -1885,7 +1885,7 @@ describe('map snapshots and run objectives', () => {
     expect(store.getState().archiveTask(task.id, base).ok).toBe(true)
 
     const goal = store.getState().document.goals.find((item) => item.id === task.goalId)
-    if (!goal) throw new Error('expected the routine goal')
+    if (!goal) throw new Error('expected the trial goal')
     expect(
       store.getState().saveGoal(
         {

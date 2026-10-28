@@ -139,7 +139,7 @@ export function OnboardingScreen() {
     const errors: string[] = []
     const activeTasks = tasks.filter((task) => task.active)
     if (activeTasks.length < MIN_ACTIVE_TASKS) {
-      errors.push(`Add at least ${MIN_ACTIVE_TASKS} routines to light the week.`)
+      errors.push(`Add at least ${MIN_ACTIVE_TASKS} trials to light the week.`)
     }
     for (const goal of goals) {
       if (goal.active && !activeTasks.some((task) => task.goalId === goal.id)) {
@@ -287,10 +287,10 @@ export function OnboardingScreen() {
     const goalErrorId = `task-${task.id}-goal-error`
 
     return (
-      <fieldset className="draft-card draft-card--routine" key={task.id} aria-label="Routine">
+      <fieldset className="draft-card draft-card--routine" key={task.id} aria-label="Trial">
         <div className="field-grid field-grid--routine">
           <div className="field">
-            <label htmlFor={`task-${task.id}-title`}>Routine title</label>
+            <label htmlFor={`task-${task.id}-title`}>Trial title</label>
             <input
               className="input"
               id={`task-${task.id}-title`}
@@ -355,7 +355,7 @@ export function OnboardingScreen() {
         </div>
         <div className="draft-card__actions">
           <Button variant="quiet" onClick={() => removeTask(task.id)}>
-            Remove routine
+            Remove trial
           </Button>
         </div>
       </fieldset>
@@ -403,14 +403,14 @@ export function OnboardingScreen() {
         {renderGoalFields(goal)}
         <div className="quest-card__routines">
           {goalTasks.length === 0 ? (
-            <p className="panel-note">No routines yet — add the first small step.</p>
+            <p className="panel-note">No trials yet — add the first small step.</p>
           ) : (
             goalTasks.map((task) => renderTaskFields(task, true))
           )}
           <div>
             <Button variant="secondary" size="sm" onClick={() => addTask(goal.id)}>
               <Icon name="plus" />
-              Add routine
+              Add trial
             </Button>
           </div>
         </div>
@@ -436,7 +436,7 @@ export function OnboardingScreen() {
               A day is a <em>path</em>.
             </h1>
             <p>
-              Turn the routines that matter into a seven-day climb. Choose a route, keep a
+              Turn the trials that matter into a seven-day climb. Choose a route, keep a
               small promise, gather what you find.
             </p>
 
@@ -470,8 +470,8 @@ export function OnboardingScreen() {
                 <span className="tutorial-card__icon">
                   <Icon name="check" />
                 </span>
-                <strong>2 · Train tiny routines</strong>
-                <p>Small steps you can keep daily. Four routines light the week.</p>
+                <strong>2 · Train tiny trials</strong>
+                <p>Small steps you can keep daily. Four trials light the week.</p>
               </div>
               <div className="tutorial-card">
                 <span className="tutorial-card__icon">
@@ -551,8 +551,8 @@ export function OnboardingScreen() {
     },
     2: {
       title: 'Chapter II — Forge quests & training',
-      body: `One screen, no going back: name a quest, add its small routines, set the weekly target. Need ${MIN_ACTIVE_TASKS}+ routines to begin.`,
-      tip: 'Tip: one quest with 4 tiny routines beats four vague quests.',
+      body: `One screen, no going back: name a quest, add its small trials, set the weekly target. Need ${MIN_ACTIVE_TASKS}+ trials to begin.`,
+      tip: 'Tip: one quest with 4 tiny trials beats four vague quests.',
     },
     3: {
       title: 'Chapter III — Review the week',
@@ -651,7 +651,7 @@ export function OnboardingScreen() {
               <div className="draft-list">
                 {goals.length === 0 ? (
                   <p className="panel-note">
-                    No quests yet. Add the first one — a goal with one tiny routine is enough to
+                    No quests yet. Add the first one — a goal with one tiny trial is enough to
                     start.
                   </p>
                 ) : (
@@ -698,7 +698,7 @@ export function OnboardingScreen() {
                   <h2>{draft.name.trim() || 'Wayfarer'}</h2>
                   <span className="mini-note">
                     {goals.length} quests · {tasks.filter((task) => task.active).length} active
-                    routines · 7 days
+                    trials · 7 days
                   </span>
                 </div>
                 <p className="panel-note">
@@ -745,12 +745,12 @@ export function OnboardingScreen() {
                       </div>
                       <ul className="review-routines">
                         {goalTasks.length === 0 ? (
-                          <li className="panel-note">No routines under this quest.</li>
+                          <li className="panel-note">No trials under this quest.</li>
                         ) : (
                           goalTasks.map((task) => (
                             <li key={task.id}>
                               <span>
-                                <strong>{task.title || 'Untitled routine'}</strong>
+                                <strong>{task.title || 'Untitled trial'}</strong>
                                 <small>{EFFORT_LABEL[task.effort]} effort</small>
                               </span>
                               <span className={task.active ? 'chip chip--accent' : 'chip chip--quiet'}>
@@ -767,7 +767,7 @@ export function OnboardingScreen() {
 
               <div className="onboarding-inline-actions">
                 <Button variant="secondary" onClick={applySuggestions}>
-                  Use routine-based suggestions
+                  Use trial-based suggestions
                 </Button>
               </div>
 

@@ -6,13 +6,13 @@
 
 ## 1. Summary
 
-LifeSpire turns a person's goals and routines into a daily node map inspired by *Slay the Spire*. Each day the user chooses a path; each node represents a real-world action: a task, a rest, a treasure, a wheel, or the daily boss. A **run** lasts 7 days and has weekly objectives; the more the user completes, the more gold, XP, and loot they earn.
+LifeSpire turns a person's goals and trials into a daily node map inspired by *Slay the Spire*. Each day the user chooses a path; each node represents a real-world action: a task, a rest, a treasure, a wheel, or the daily boss. A **run** lasts 7 days and has weekly objectives; the more the user completes, the more gold, XP, and loot they earn.
 
 This document defines the current scope: a local-first vertical slice to validate the core loop on web and Android. It does not cover the full product vision.
 
 ## 2. Hypothesis and success criteria
 
-**Hypothesis:** choosing a path with clear trade-offs and receiving visible rewards for real actions makes the user more likely to follow through on their routines and return the next day.
+**Hypothesis:** choosing a path with clear trade-offs and receiving visible rewards for real actions makes the user more likely to follow through on their trials and return the next day.
 
 The POC must validate:
 
@@ -45,10 +45,10 @@ Concrete criteria:
   HTTPS with certificate pinning, QR/code pairing and conservative auto-merge.
   No accounts, passwords, email or cloud copy. The browser stays local-only and
   uses export/import. See `docs/adr/0007-local-lan-sync.md`.
-- Onboarding with two options: demo data or create your own goals/routines.
-- 1–10 goals, each with its routines/tasks and a weekly objective.
+- Onboarding with two options: demo data or create your own goals/trials.
+- 1–10 goals, each with its trials/tasks and a weekly objective.
 - A 7-day run with one map per day.
-- Maps with 3–15 decision layers + a final boss, with 3–5 nodes per layer. Depth follows the goals that have at least one active routine and their weekly targets; routines shape layer width.
+- Maps with 3–15 decision layers + a final boss, with 3–5 nodes per layer. Depth follows the goals that have at least one active trial and their weekly targets; trials shape layer width.
 - Node types: task, elite, rest, treasure, wheel, and boss.
 - Path selection, completing or skipping nodes, instant rewards.
 - XP, simple leveling, gold, and collectible loot with no gameplay effects.
@@ -82,7 +82,7 @@ Concrete criteria:
 | Concept | Definition |
 |---|---|
 | **Goal** | The outcome the user is pursuing, for example "get fit". |
-| **Routine / task** | A concrete, repeatable action, for example "work out for 30 minutes". |
+| **Trial / task** | A concrete, repeatable action, for example "work out for 30 minutes". |
 | **Weekly target** (weekly objective in the domain model) | The number of times a goal must be completed during the run. |
 | **Run** | A 7-day window starting from its creation. |
 | **Day** | A map with a path that is resolved once. |
@@ -91,19 +91,19 @@ Concrete criteria:
 | **Daily boss** | The final node; completing it closes the day with a bonus. |
 
 User-facing wording follows [`GLOSARY.md`](./GLOSARY.md): the interface says
-goal, routine, and weekly target, while the code keeps the older "aim" names
-for identifiers and styles.
+goal, trial, and weekly target, while the code keeps the older "aim" names
+and the `task`/`routine` identifiers and styles.
 
 Core rules:
 
-1. A run requires between 1 and 10 goals and at least 4 active routines. Weekly objectives are derived from each goal's frequency and can be adjusted before starting.
+1. A run requires between 1 and 10 goals and at least 4 active trials. Weekly objectives are derived from each goal's frequency and can be adjusted before starting.
 2. Only the current day can be played. If it is not resolved before midnight, it is marked as **missed** and the run continues. For the POC there is no recovery of missed days.
 3. The map is generated when the day is opened and then locked. There are no rerolls.
 4. In each layer, exactly one node connected to the current node is chosen. The chosen node remains the current node until it is completed or skipped; the user can close the app and return the same day.
 5. Completing grants rewards and, if it is a task, adds progress to its goal. Skipping grants 0, carries no penalty, and allows the user to advance. The user cannot go back.
 6. Resolving the boss ends the day and shows the summary. If the boss is skipped, the day ends without the closing bonus.
 7. On day 7, the run close is calculated: objectives met, weekly bonus, loot, and totals. A new run can then be started.
-8. Editing goals or routines during the run applies from the next day, or today after a day reset: maps already drawn keep their steps and rewards. New goals join the weekly panel, edited titles/targets update it, and archived goals leave it. The goal icon is the exception; it is resolved when the map renders, so changing it updates the crest on the current map too. The player may reset today at will (with confirmation); its map, XP, gold, loot and progress are taken back.
+8. Editing goals or trials during the run applies from the next day, or today after a day reset: maps already drawn keep their steps and rewards. New goals join the weekly panel, edited titles/targets update it, and archived goals leave it. The goal icon is the exception; it is resolved when the map renders, so changing it updates the crest on the current map too. The player may reset today at will (with confirmation); its map, XP, gold, loot and progress are taken back.
 9. The daily cutoff is local midnight. The POC trusts the device clock.
 10. The app does not verify tasks: the user marks them as completed. This is acceptable for a personal app at this stage.
 
@@ -112,13 +112,13 @@ Core rules:
 The map is displayed bottom-up, as in *Slay the Spire*:
 
 - An automatic start node.
-- 3–15 decision layers with 3–5 nodes each. Depth grows with the goals that have at least one active routine and with their weekly targets: `layers = clamp(3, 15, goals + offset + floor(weeklyTargetSum / 7))`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))` and `weeklyTargetSum` only counts those goals. The goal term alone gives 1 → 3, 2 → 4, 3 → 5, 4 → 7, 5 → 8, 6 → 10, 7 → 11, 8 → 13, 9 → 14, and 10 → 15; every seven weekly targets add one layer, capped at 15.
+- 3–15 decision layers with 3–5 nodes each. Depth grows with the goals that have at least one active trial and with their weekly targets: `layers = clamp(3, 15, goals + offset + floor(weeklyTargetSum / 7))`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))` and `weeklyTargetSum` only counts those goals. The goal term alone gives 1 → 3, 2 → 4, 3 → 5, 4 → 7, 5 → 8, 6 → 10, 7 → 11, 8 → 13, 9 → 14, and 10 → 15; every seven weekly targets add one layer, capped at 15.
 - A single boss node at the end.
 - In total, 4–16 nodes are resolved per day: 3–15 choices + boss.
 
 Generation rules:
 
-- Depth and width have separate inputs: goals with at least one active routine set the depth base (`goals + offset`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`) and their weekly targets add one layer per seven points, capped at 15 layers; the active routine pool sets layer width (`max(3, min(5, pool + 1))`). One map is generated per day when the day is opened. Changing goals or routines only affects future maps; the current map never changes its steps or rewards. The goal crest is resolved at render, so icon edits also appear on the current map.
+- Depth and width have separate inputs: goals with at least one active trial set the depth base (`goals + offset`, where `offset = clamp(2, 5, 2 + floor(max(0, goals − 2) / 2))`) and their weekly targets add one layer per seven points, capped at 15 layers; the active trial pool sets layer width (`max(3, min(5, pool + 1))`). One map is generated per day when the day is opened. Changing goals or trials only affects future maps; the current map never changes its steps or rewards. The goal crest is resolved at render, so icon edits also appear on the current map.
 - Every node must be reachable from the start and must have a path to the boss.
 - Each layer offers at least 3 options.
 - Each node connects to 1–2 nodes in the next layer; multiple paths are allowed to converge.
@@ -132,14 +132,14 @@ Generation rules:
 - Repeated tasks within the same day are avoided when the pool allows it.
 - The boss is preferably chosen from a goal with pending progress and high effort.
 - The seed is derived from `runId + day index`, so reloading does not change the map.
-- If there are not enough routines to fill all nodes, tasks may be repeated in different layers, never in the same layer.
+- If there are not enough trials to fill all nodes, tasks may be repeated in different layers, never in the same layer.
 
 Node types:
 
 | Type | Action | Weekly progress | Reward |
 |---|---|---|---|
-| Task | Normal routine | +1 | XP and gold based on effort |
-| Elite | Difficult routine | +1 | Double reward and a loot roll |
+| Task | Normal trial | +1 | XP and gold based on effort |
+| Elite | Difficult trial | +1 | Double reward and a loot roll |
 | Rest | Break, no task | — | Small XP |
 | Treasure | Direct reward | — | Gold and a loot roll |
 | Wheel | Mystery: task, gold, XP or rest | 0 or +1 | Surprise outcome (task rewards apply if a task is drawn) |
@@ -170,14 +170,14 @@ Effort multiplier: light `×1`, medium `×1.5`, high `×2`.
 
 Minimum screens:
 
-1. **Onboarding:** quest-style tutorial (origin, quests, training, eve), optional name, choose demo or create goals/routines with descriptions, confirm weekly objectives.
+1. **Onboarding:** quest-style tutorial (origin, quests, review), optional name, choose demo or create goals/trials with descriptions, confirm weekly objectives.
 2. **Home / Run:** current day, map access, objective progress, gold, XP, level, and a confirmed "Reset today" that replays the day without its rewards.
 3. **Map:** main screen; traveled path, available nodes, locked nodes, weekly objectives panel, first-day coach hints, and the same confirmed "Reset today".
 4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons. The wheel spins on the node, then the reward recap opens on its own.
 5. **Reward recap (wheel):** outcome summary with a "Done" button that records it; no way back, so no task is skipped by accident.
 6. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
 7. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
-8. **Goals and routines:** minimal CRUD for goals (with optional description), tasks, effort, weekly frequency, and the goal icon that marks its map nodes.
+8. **Goals and trials:** minimal CRUD for goals (with optional description), trials, effort, weekly frequency, and the goal icon that marks its map nodes.
 9. **Profile / collection:** level, XP, gold, and loot obtained.
 10. **Settings:** export/import JSON, reset, and dev panel.
 
@@ -235,7 +235,7 @@ Persistence: a single versioned JSON document in `localStorage`, with export/imp
 The demo is considered complete when it can be run without failures:
 
 1. Open the app from scratch, complete onboarding with demo data, and start a run.
-2. See a map with 3–15 layers + boss (depth follows the goals with active routines and their weekly targets), 3–5 nodes per layer, at least three possible first choices, a forced lane crossing on every route, and all nodes reachable. Nodes that carry a routine show their goal's icon.
+2. See a map with 3–15 layers + boss (depth follows the goals with active trials and their weekly targets), 3–5 nodes per layer, at least three possible first choices, a forced lane crossing on every route, and all nodes reachable. Nodes that carry a trial show their goal's icon.
 3. Choose a task, complete it, and see XP, gold, and weekly progress update.
 4. Reload the page and confirm that the map, path, and rewards are preserved.
 5. Skip a node and confirm that it advances without a reward.
@@ -267,7 +267,7 @@ Each milestone must leave something playable or demonstrable:
 - **M0 — Base:** domain types, store, persistence, demo data, visual tokens, and dev panel.
 - **M1 — Map:** deterministic generator with tests, SVG rendering, path selection, and node detail.
 - **M2 — Loop:** complete/skip, rewards, weekly progress, and day summary.
-- **M3 — Run:** onboarding, goals/routines CRUD, weekly summary, new run, PWA, responsive layout, and export/import.
+- **M3 — Run:** onboarding, goals/trials CRUD, weekly summary, new run, PWA, responsive layout, and export/import.
 - **M4 — Playtest:** test with 3–5 people, adjust node count, rewards, and onboarding friction.
 - **M5 — Android:** Expo shell, shared store/sync extraction, the local LAN
   node, full screen parity, local notifications, save interchange and release
@@ -279,7 +279,7 @@ Each milestone must leave something playable or demonstrable:
 |---|---|
 | The map feels decorative | Visible trade-offs between progress, effort, and reward; validate with testers. |
 | Scope creep toward a full RPG | No cards, combat, shop, or relics with effects in the POC. |
-| Heavy onboarding | Demo data and a minimum of 4 routines. |
+| Heavy onboarding | Demo data and a minimum of 4 trials. |
 | A real week takes too long to provide feedback | Dev panel to simulate days and a 3-day test. |
 | Local data loss | Export/import, versioned schema, and controlled reset. |
 | Excessive resemblance to Slay the Spire | Mechanical inspiration only; original visual identity and content. |

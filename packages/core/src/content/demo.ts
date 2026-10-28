@@ -8,7 +8,7 @@ import type { Goal, OnboardingSetup, Task } from '../domain/types.js'
 
 export const DEMO_NAME = 'Wren'
 
-export const AIM_WITHOUT_ROUTINE = 'Every active goal needs at least one active routine.'
+export const AIM_WITHOUT_ROUTINE = 'Every active goal needs at least one active trial.'
 
 export interface SetupValidation {
   ok: boolean
@@ -35,7 +35,7 @@ export function validateSetup(
     errors.push(`A run can hold at most ${MAX_GOALS} goals.`)
   }
   if (activeTasks.length < MIN_ACTIVE_TASKS) {
-    errors.push(`Add at least ${MIN_ACTIVE_TASKS} routines to light the week.`)
+    errors.push(`Add at least ${MIN_ACTIVE_TASKS} trials to light the week.`)
   }
 
   for (const goal of activeGoals) {
@@ -58,10 +58,10 @@ export function validateSetup(
 
   for (const task of activeTasks) {
     if (!task.title.trim()) {
-      errors.push('Give every routine a name.')
+      errors.push('Give every trial a name.')
     }
     if (!activeGoalIds.has(task.goalId)) {
-      errors.push('Every routine needs a goal in this run.')
+      errors.push('Every trial needs a goal in this run.')
     }
   }
 
@@ -74,7 +74,7 @@ export function validateSetup(
   return { ok: uniqueErrors.length === 0, errors: uniqueErrors }
 }
 
-/** Deterministic demo onboarding payload: 2 goals, 5 active routines. */
+/** Deterministic demo onboarding payload: 2 goals, 5 active trials. */
 export function createDemoSetup(now: Date): OnboardingSetup {
   const createdAt = now.toISOString()
 

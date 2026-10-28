@@ -600,7 +600,7 @@ describe('startNewRun', () => {
     const invalid = { ...document, tasks: [] }
     expect(() =>
       startNewRun(invalid, { runId: 'run_x', now: end }),
-    ).toThrow(/at least 4 routines/i)
+    ).toThrow(/at least 4 trials/i)
     expect(invalid.run).toBe(run)
     expect(invalid.tasks).toEqual([])
 

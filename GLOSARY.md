@@ -9,10 +9,10 @@ Last updated: 2026-10-27.
 
 | Term | Meaning | Example |
 |---|---|---|
-| **Goal** | An area of life the user is pursuing during a run. It owns routines and a weekly target. | "Wayfarer", "Craft" |
-| **Routine** | A concrete, repeatable action that belongs to a goal. Routines are what appear on the map. | "Walk the north trail" |
-| **Weekly target** | How many routines of that goal the user wants to finish during the 7-day run (1–7). | 4 |
-| **Effort** | How hard a routine is: light, medium or heavy. It scales the reward, never the weekly progress. | heavy |
+| **Goal** | An area of life the user is pursuing during a run. It owns trials and a weekly target. | "Wayfarer", "Craft" |
+| **Trial** | A concrete, repeatable action that belongs to a goal. Trials are what appear on the map. | "Walk the north trail" |
+| **Weekly target** | How many trials of that goal the user wants to finish during the 7-day run (1–7). | 4 |
+| **Effort** | How hard a trial is: light, medium or heavy. It scales the reward, never the weekly progress. | heavy |
 | **Run** | A 7-day window with its own weekly targets. | Run I |
 | **Day** | One map, resolved once. | Day 3 |
 | **Node** | A stop on the map: task, elite, rest, treasure or boss. | Task node |
@@ -24,8 +24,8 @@ Last updated: 2026-10-27.
 | **Auto-sync** | A paired device's permission to sync automatically while both apps are open on the same network. | Sync automatically |
 | **Discoverable** | Whether this device advertises itself over UDP so other devices can find it. | Nearby sync off |
 
-Relationship in one sentence: a **goal** holds **routines**, and completing
-routines moves the goal toward its **weekly target**.
+Relationship in one sentence: a **goal** holds **trials**, and completing
+trials moves the goal toward its **weekly target**.
 
 ## 2. Renamed terms
 
@@ -45,18 +45,20 @@ The rename is **only** in the user-facing copy. Code identifiers, CSS classes
 and DOM hooks keep the old name on purpose, to avoid a risky rename of
 persisted structures and styles.
 
-Kept as "aim" in code:
+Kept as "aim" / "routine" in code:
 
 - `AimRow` component and its `aim-row`, `aim-group`, `summary-aim`,
   `node-aim` CSS classes.
 - `screen--aims`, `data-screen="aims"`, `aria-labelledby="aims-title"`.
 - `CONTENT_MESSAGES.aimWithoutRoutine` and `AIM_WITHOUT_ROUTINE`.
-- `allAimsBonusCopy`.
+- `allAimsBonusCopy`, `goalHasActiveRoutine`, `routineErrors`.
+- `draft-card--routine`, `field-grid--routine`, `review-routines`,
+  `routine-list`, `routine__body`, `routine__actions` CSS classes.
 - Domain types and fields: `Goal`, `Task`, `goalId`, `weeklyObjective`.
 
 Rules for future work:
 
-- New or edited **copy** uses Goal, Routine and Weekly target.
+- New or edited **copy** uses Goal, Trial and Weekly target.
 - New or edited **identifiers** may keep the "aim" family for consistency
   with the surrounding code; renaming them is out of scope unless it is a
   dedicated, tested refactor.
