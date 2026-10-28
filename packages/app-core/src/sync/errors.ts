@@ -6,6 +6,8 @@
  * the conflict dialog could be ported without changing their semantics.
  */
 
+import { readErrorMessage, stripTechnical } from '../ui/userError'
+
 export class SyncConflictError extends Error {
   readonly currentVersion: string
   readonly currentUpdatedAt: string
@@ -56,12 +58,6 @@ function readCode(error: unknown, depth = 0): string | null {
   return readCode((error as { cause?: unknown }).cause, depth + 1)
 }
 
-function readMessage(error: unknown): string {
-  if (error instanceof Error) return error.message
-  if (typeof error === 'string') return error
-  return ''
-}
-
 /**
  * True when the failure means the peer is unreachable on the network (gone,
  * wrong Wi-Fi, blocked port). Callers use this to report `offline` instead of
@@ -70,7 +66,7 @@ function readMessage(error: unknown): string {
 export function isNetworkUnreachable(error: unknown): boolean {
   const code = readCode(error)
   if (code && NETWORK_CODES.has(code)) return true
-  return NETWORK_MESSAGE_PATTERN.test(readMessage(error))
+  return NETWORK_MESSAGE_PATTERN.test(readErrorMessage(error))
 }
 
 const FRIENDLY_PREFIXES = [
@@ -89,18 +85,6 @@ const FRIENDLY_PREFIXES = [
   'No ',
 ]
 
-function stripTechnical(message: string): string {
-  return message
-    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?\b/g, '')
-    .replace(/\[[0-9a-fA-F:.]+](?::\d{1,5})?/g, '')
-    .replace(/lifespire:[^\s)'"`]*/gi, '')
-    .replace(/^(Error:\s*|connect\s+)/i, '')
-    .replace(/(^|\s):\d{1,5}\b/g, '$1')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/\s+([.,;:!?])/g, '$1')
-    .trim()
-}
-
 /**
  * User-facing sync failure text. Raw transport errors (Node errnos with
  * IPs/ports, IPC channel names) never reach the screen: network failures get
@@ -112,7 +96,7 @@ export function toUserSyncError(error: unknown, fallback: string): string {
   if (isNetworkUnreachable(error)) {
     return "Couldn't reach the other device. Make sure both apps are open on the same Wi-Fi."
   }
-  const message = readMessage(error).trim()
+  const message = readErrorMessage(error).trim()
   if (!message) return fallback
   if (FRIENDLY_PREFIXES.some((prefix) => message.startsWith(prefix))) return message
   const cleaned = stripTechnical(message)

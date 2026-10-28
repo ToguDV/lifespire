@@ -53,7 +53,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
       setImportResult(result)
     } catch (error) {
       devError('files', 'recovery import failed', error)
-      showToast(error instanceof Error ? error.message : 'Could not read that file.')
+      showToast('Could not read that file on this device.')
     } finally {
       setBusy(false)
     }
@@ -67,7 +67,7 @@ export function RecoveryScreen({ reason }: { reason: RecoveryReason }) {
     }
     void exportRaw(raw).catch((error: unknown) => {
       devError('files', 'raw save export failed', error)
-      showToast(error instanceof Error ? error.message : 'Could not share the raw save.')
+      showToast('Could not share the raw save from this device.')
     })
   }
 

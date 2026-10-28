@@ -71,13 +71,20 @@ export function summarizeDocument(document: GameDocument): ImportSummary {
 export function readSaveFile(text: string): ImportResult {
   const parsed = parseDocument(text)
   if (!parsed.ok) {
+    // The validator detail (field paths, expected types) is for debugging,
+    // not for the import dialog: keep one actionable message per reason.
+    if (parsed.reason === 'future-version') {
+      return {
+        ok: false,
+        reason: parsed.reason,
+        message: `${parsed.error} Update LifeSpire or use a save from version ${SCHEMA_VERSION}.`,
+      }
+    }
     return {
       ok: false,
       reason: parsed.reason,
       message:
-        parsed.reason === 'future-version'
-          ? `${parsed.error} Update LifeSpire or use a save from version ${SCHEMA_VERSION}.`
-          : `That file is not a valid LifeSpire save. ${parsed.error}`,
+        'That file is not a valid LifeSpire save. Choose the JSON file created by Export.',
     }
   }
 

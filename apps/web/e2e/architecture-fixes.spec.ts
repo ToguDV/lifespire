@@ -123,4 +123,30 @@ test.describe('architecture fixes', () => {
     await expect(page.getByRole('heading', { name: 'Restore this save?' })).toHaveCount(0)
     expect(await readRawSave(page)).toBe(before)
   })
+
+  test('a corrupt import shows one actionable message without validator detail', async ({
+    page,
+  }) => {
+    await startDemoRun(page)
+
+    await page.getByRole('button', { name: 'Settings', exact: true }).first().click()
+    await expect(page.locator('section[data-screen="settings"]')).toBeVisible()
+
+    const before = await readRawSave(page)
+
+    await page
+      .getByLabel('Import a LifeSpire save file')
+      .setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{broken') })
+
+    const error = page.getByRole('alert').filter({ hasText: /not a valid LifeSpire save/i })
+    await expect(error).toBeVisible()
+    await expect(error).toContainText(
+      'That file is not a valid LifeSpire save. Choose the JSON file created by Export.',
+    )
+    // No validator paths leak into the dialog.
+    await expect(error).not.toContainText(/layers\[0\]/)
+
+    await expect(page.getByRole('heading', { name: 'Restore this save?' })).toHaveCount(0)
+    expect(await readRawSave(page)).toBe(before)
+  })
 })
