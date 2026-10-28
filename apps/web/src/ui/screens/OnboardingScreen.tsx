@@ -210,7 +210,7 @@ export function OnboardingScreen() {
 
     return (
       <div className="quest-card__fields" key={goal.id}>
-        <div className="field-grid">
+        <div className="field-grid field-grid--quest">
           <div className="field">
             <label htmlFor={`goal-${goal.id}-category`}>Category</label>
             <input
@@ -374,7 +374,7 @@ export function OnboardingScreen() {
           </span>
           <div className="quest-card__titlewrap">
             <input
-              className="quest-card__title"
+              className="input quest-card__title"
               type="text"
               value={goal.title}
               placeholder={`Quest ${index + 1} — e.g. Move under open sky`}

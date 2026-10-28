@@ -599,6 +599,10 @@
     width: 100%;
   }
 
+  .field-grid--quest {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 200px);
+  }
+
   .onboarding-panel {
     padding: 22px;
   }
@@ -863,15 +867,6 @@
   flex: 1;
   min-width: 0;
   width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--ink-strong);
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 600;
 }
 
 .quest-card__titlewrap {
@@ -879,19 +874,6 @@
   flex: 1;
   flex-direction: column;
   min-width: 0;
-}
-
-.quest-card__title::placeholder {
-  color: var(--ink-soft);
-  font-family: var(--font-ui);
-  font-size: 0.85rem;
-  font-weight: 400;
-}
-
-.quest-card__title:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .quest-card__routines {
