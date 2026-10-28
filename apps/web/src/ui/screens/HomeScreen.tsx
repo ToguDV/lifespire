@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { validateSetup } from '../../content/demo'
 import type { Day, Goal, LootItem, Run, RunObjective } from '../../domain/types'
 import { useAppStore } from '../../state/store'
-import { AimRow, Button, DayPips, Dialog, Icon, Panel, PanelHead } from '../components'
+import { AimRow, Button, DayPips, Dialog, Icon, Panel, PanelHead, TutorialDialog } from '../components'
+import { markTutorialSeen, useSeenTutorialCards } from '../lib/tutorial'
 import type { IconName } from '../components'
 import { homeState, weekMarker } from '../lib/dashboard'
 import type { HomePhase } from '../lib/dashboard'
@@ -167,6 +168,7 @@ export function HomeScreen() {
   const resetCurrentDay = useAppStore((state) => state.resetCurrentDay)
   const todayKey = useAppStore((state) => state.todayKey)
   const [confirmResetDay, setConfirmResetDay] = useState(false)
+  const seenTutorial = useSeenTutorialCards()
 
   const run = document.run
   const profile = document.profile
@@ -187,6 +189,8 @@ export function HomeScreen() {
     day?.date === today &&
     (day.status === 'available' || day.status === 'in_progress' || day.status === 'completed') &&
     (day.map !== null || day.path.length > 0 || day.rewards.length > 0)
+  const showCampTutorial =
+    run?.status === 'active' && day?.date === today && !seenTutorial.has('camp')
 
   const openToday = () => {
     if (!day) return
@@ -349,6 +353,20 @@ export function HomeScreen() {
                     Reset today
                   </Button>
                 </p>
+              ) : null}
+              {showCampTutorial ? (
+                <TutorialDialog
+                  card="camp"
+                  icon="tent"
+                  title="The camp is your base"
+                  body="Each morning a new path opens on the map. Complete nodes, gather loot, and seal the boss before midnight."
+                  primaryLabel="See the map"
+                  onPrimary={() => {
+                    markTutorialSeen('camp')
+                    navigate({ name: 'map' })
+                  }}
+                  onHide={() => markTutorialSeen('camp')}
+                />
               ) : null}
             </div>
           </article>

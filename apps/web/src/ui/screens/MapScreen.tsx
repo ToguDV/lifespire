@@ -17,7 +17,9 @@ import {
   Panel,
   PanelHead,
   ScreenHead,
+  TutorialDialog,
 } from '../components'
+import { markTutorialSeen, useSeenTutorialCards } from '../lib/tutorial'
 import type { IconName } from '../components'
 import {
   EFFORT_LABEL,
@@ -221,13 +223,7 @@ export function MapScreen() {
   const selectNode = useAppStore((state) => state.selectNode)
   const todayKey = useAppStore((state) => state.todayKey)
   const [confirmResetDay, setConfirmResetDay] = useState(false)
-  const [coachDismissed, setCoachDismissed] = useState(() => {
-    try {
-      return window.sessionStorage.getItem('lifespire:coach-day1') === 'done'
-    } catch {
-      return false
-    }
-  })
+  const seenTutorial = useSeenTutorialCards()
 
   if (!run) {
     return (
@@ -352,21 +348,15 @@ export function MapScreen() {
     return null
   })()
 
-  const showCoach =
-    !coachDismissed && day?.index === 0 && day.path.length === 0 && hasMap
+  const showMapTutorial =
+    !seenTutorial.has('map') && (canOpen || (hasMap && day && day.path.length === 0))
+  const showSealedTutorial =
+    !seenTutorial.has('sealed') && sealedDay && day?.status === 'completed' && day.rewards.length > 0
   const canResetDay =
     run.status === 'active' &&
     day?.date === today &&
     (day.status === 'available' || day.status === 'in_progress' || day.status === 'completed') &&
     (day.map !== null || day.path.length > 0 || day.rewards.length > 0)
-  const dismissCoach = () => {
-    setCoachDismissed(true)
-    try {
-      window.sessionStorage.setItem('lifespire:coach-day1', 'done')
-    } catch {
-      /* session-only hint; ignore storage failures */
-    }
-  }
 
   return (
     <section className="screen screen--map" data-screen="map" aria-labelledby="map-title">
@@ -392,19 +382,43 @@ export function MapScreen() {
         }
       />
 
-      {showCoach ? (
-        <Panel pad>
-          <PanelHead label="Tutorial · Your first climb" />
-          <p className="panel-note">
-            1. Choose a glowing node. 2. Do it in real life and mark Complete. 3. Reach the boss
-            to seal the day. Resetting today takes back its rewards.
-          </p>
-          <p style={{ marginTop: 8 }}>
-            <Button variant="secondary" size="sm" onClick={dismissCoach}>
-              Got it — hide tutorial
-            </Button>
-          </p>
-        </Panel>
+      {showMapTutorial && day ? (
+        <TutorialDialog
+          card="map"
+          icon="map"
+          title="Pick a glowing path"
+          body={
+            canOpen
+              ? 'Open today’s path first — the map locks once drawn, so choose calmly.'
+              : 'Tap a glowing node to preview it. Tasks move a quest forward; treasures pay at once; elites pay double.'
+          }
+          primaryLabel={canOpen ? 'Open today’s path' : 'Got it'}
+          onPrimary={() => {
+            if (canOpen) {
+              markTutorialSeen('map')
+              openDay(day.id)
+            } else {
+              markTutorialSeen('map')
+            }
+          }}
+          onHide={() => markTutorialSeen('map')}
+        />
+      ) : null}
+
+      {showSealedTutorial && day ? (
+        <TutorialDialog
+          card="sealed"
+          icon="crown"
+          title="Day sealed — well climbed"
+          body="Rewards are already yours: XP, gold, loot and quest progress. A new path opens tomorrow."
+          primaryLabel="Finish the tour"
+          onPrimary={() => {
+            markTutorialSeen('sealed')
+            markTutorialSeen('node')
+            navigate({ name: 'day-summary', dayId: day.id })
+          }}
+          onHide={() => markTutorialSeen('sealed')}
+        />
       ) : null}
 
       <div className="map-wrap">
