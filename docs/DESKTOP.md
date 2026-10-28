@@ -189,8 +189,8 @@ manual pass on a desktop session:
    `localStorage` writes and `window.lifespireDesktop.localSync`, with no
    console errors.
 2. Pair with an Android device on the same Wi-Fi: Settings → Nearby devices →
-   Show my code, scan the QR (or enter the 8-character code), confirm both
-   sides show the peer and the fingerprint.
+   Pair a device, scan the QR (or enter the 8-character code), confirm both
+   sides show the peer with the right platform icon.
 3. Make an edit on Android and on desktop while the other app is closed; open
    both, sync, and confirm the conservative merge and the keep-mine/keep-peer
    dialog.

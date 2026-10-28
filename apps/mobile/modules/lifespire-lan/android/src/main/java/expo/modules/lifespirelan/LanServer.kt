@@ -131,6 +131,7 @@ class LanServer(
       port = getListeningPort(),
       secret = secret,
       expiresAt = nowIsoFromMillis(state.expiresAt),
+      platform = "android",
     ).toMap()
   }
 
@@ -154,6 +155,7 @@ class LanServer(
       port = getListeningPort(),
       secret = state.secret,
       expiresAt = nowIsoFromMillis(state.expiresAt),
+      platform = "android",
     ).toMap()
   }
 
@@ -189,7 +191,8 @@ class LanServer(
           .put("protocol", PROTOCOL_VERSION)
           .put("schemaVersion", 3)
           .put("docHash", currentMirror()?.docHash ?: JSONObject.NULL)
-          .put("updatedAt", currentMirror()?.updatedAt ?: JSONObject.NULL),
+          .put("updatedAt", currentMirror()?.updatedAt ?: JSONObject.NULL)
+          .put("platform", "android"),
       )
       method == "GET" && path == "/v1/document" -> {
         val current = currentMirror()
@@ -260,6 +263,7 @@ class LanServer(
     ) {
       return json(Response.Status.BAD_REQUEST, JSONObject().put("message", "Invalid pairing request."))
     }
+    val clientPlatform = normalizePlatform(body.optString("platform", ""))
     val secretOk = body.optString("secret", "").let { candidate ->
       candidate.isNotEmpty() && MessageDigest.isEqual(
         candidate.toByteArray(),
@@ -288,6 +292,7 @@ class LanServer(
       lastSyncAt = existing?.lastSyncAt,
       lastHost = remote.substringBefore('%'),
       lastPort = if (clientPort > 0 && clientPort < 65536) clientPort else existing?.lastPort,
+      platform = clientPlatform ?: existing?.platform,
     )
     peers.upsert(next)
     pairing = null
@@ -300,6 +305,7 @@ class LanServer(
         autoSync = next.autoSync,
         pairedAt = next.pairedAt,
         lastSyncAt = next.lastSyncAt,
+        platform = next.platform,
       ),
     )
     return json(
@@ -310,7 +316,8 @@ class LanServer(
         .put("name", identity.name)
         .put("fingerprint", identity.fingerprint)
         .put("certPem", identity.certPem)
-        .put("token", hostToken),
+        .put("token", hostToken)
+        .put("platform", "android"),
     )
   }
 

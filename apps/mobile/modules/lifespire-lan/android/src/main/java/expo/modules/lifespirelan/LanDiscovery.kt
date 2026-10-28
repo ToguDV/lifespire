@@ -135,6 +135,7 @@ class LanDiscovery(
     val port = json.optInt("port", 0)
     val fingerprint = json.optString("fingerprint", "")
     if (port <= 0 || port >= 65536 || fingerprint.length < 16) return
+    val platform = normalizePlatform(json.optString("platform", ""))
     val hostAddress = host.substringBefore('%')
     val next = NearbyPeer(
       deviceId = deviceId,
@@ -143,13 +144,15 @@ class LanDiscovery(
       port = port,
       fingerprint = fingerprint,
       lastSeenAt = System.currentTimeMillis(),
+      platform = platform,
     )
     val previous = peers.put(deviceId, next)
     if (previous == null ||
       previous.name != next.name ||
       previous.host != next.host ||
       previous.port != next.port ||
-      previous.fingerprint != next.fingerprint
+      previous.fingerprint != next.fingerprint ||
+      previous.platform != next.platform
     ) {
       onPeers(getNearby())
     }
@@ -166,6 +169,7 @@ class LanDiscovery(
     put("port", httpsPort)
     put("fingerprint", identity.fingerprint)
     put("protocol", PROTOCOL_VERSION)
+    put("platform", "android")
   }.toString()
 
   private fun probePacket(): String = JSONObject().apply {
@@ -176,6 +180,7 @@ class LanDiscovery(
     put("port", httpsPort)
     put("fingerprint", identity.fingerprint)
     put("protocol", PROTOCOL_VERSION)
+    put("platform", "android")
   }.toString()
 
   private fun probe() {

@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { useTheme } from '../theme/ThemeProvider'
-import { fonts, radius, shadows, space } from '../theme/tokens'
+import { fonts, layout, radius, shadows, space } from '../theme/tokens'
 import { Text } from './Text'
 
 export function Dialog({
@@ -139,8 +139,8 @@ const styles = StyleSheet.create({
   title: { marginTop: 4 },
   description: { marginTop: 5 },
   close: {
-    width: 44,
-    height: 44,
+    width: layout.minTouch,
+    height: layout.minTouch,
     flexGrow: 0,
     flexShrink: 0,
     alignItems: 'center',

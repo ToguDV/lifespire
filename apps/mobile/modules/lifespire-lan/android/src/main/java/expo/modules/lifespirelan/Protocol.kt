@@ -34,6 +34,7 @@ data class NearbyPeer(
   val port: Int,
   val fingerprint: String,
   val lastSeenAt: Long,
+  val platform: String? = null,
 )
 
 data class PeerRecord(
@@ -43,6 +44,7 @@ data class PeerRecord(
   val autoSync: Boolean,
   val pairedAt: String,
   val lastSyncAt: String?,
+  val platform: String? = null,
 )
 
 data class StoredPeer(
@@ -56,6 +58,7 @@ data class StoredPeer(
   val lastSyncAt: String?,
   val lastHost: String?,
   val lastPort: Int?,
+  val platform: String? = null,
 )
 
 data class PairingPayload(
@@ -68,6 +71,7 @@ data class PairingPayload(
   val port: Int,
   val secret: String,
   val expiresAt: String,
+  val platform: String? = null,
 )
 
 data class Mirror(
@@ -108,6 +112,14 @@ fun sanitizeName(value: String?, fallback: String = "LifeSpire device"): String 
   val clean = (value ?: "").replace(Regex("[^\\w .()-]"), "").trim()
   return (if (clean.isEmpty()) fallback else clean).take(120)
 }
+
+/**
+ * Device platform advertised by a peer. Display-only and optional: older
+ * peers omit it and unknown future values normalize to null (never break
+ * pairing or discovery for a hint field).
+ */
+fun normalizePlatform(value: Any?): String? =
+  if (value == "android" || value == "desktop") value as String else null
 
 fun isPrivateAddress(raw: String?): Boolean {
   val address = (raw ?: return false).substringBefore('%')
@@ -167,46 +179,52 @@ fun DeviceIdentity.toMap(): Map<String, Any?> = mapOf(
   "deviceId" to deviceId,
   "name" to name,
   "fingerprint" to fingerprint,
+  // The local identity is always this Android app.
+  "platform" to "android",
 )
 
-fun NearbyPeer.toMap(): Map<String, Any?> = mapOf(
-  "deviceId" to deviceId,
-  "name" to name,
-  "host" to host,
-  "port" to port,
-  "fingerprint" to fingerprint,
-  "lastSeenAt" to nowIsoFromMillis(lastSeenAt),
-)
+fun NearbyPeer.toMap(): Map<String, Any?> = buildMap {
+  put("deviceId", deviceId)
+  put("name", name)
+  put("host", host)
+  put("port", port)
+  put("fingerprint", fingerprint)
+  put("lastSeenAt", nowIsoFromMillis(lastSeenAt))
+  if (platform != null) put("platform", platform)
+}
 
-fun StoredPeer.toPublicMap(): Map<String, Any?> = mapOf(
-  "peerId" to peerId,
-  "name" to name,
-  "fingerprint" to fingerprint,
-  "autoSync" to autoSync,
-  "pairedAt" to pairedAt,
-  "lastSyncAt" to lastSyncAt,
-)
+fun StoredPeer.toPublicMap(): Map<String, Any?> = buildMap {
+  put("peerId", peerId)
+  put("name", name)
+  put("fingerprint", fingerprint)
+  put("autoSync", autoSync)
+  put("pairedAt", pairedAt)
+  put("lastSyncAt", lastSyncAt)
+  if (platform != null) put("platform", platform)
+}
 
-fun PeerRecord.toPublicMap(): Map<String, Any?> = mapOf(
-  "peerId" to peerId,
-  "name" to name,
-  "fingerprint" to fingerprint,
-  "autoSync" to autoSync,
-  "pairedAt" to pairedAt,
-  "lastSyncAt" to lastSyncAt,
-)
+fun PeerRecord.toPublicMap(): Map<String, Any?> = buildMap {
+  put("peerId", peerId)
+  put("name", name)
+  put("fingerprint", fingerprint)
+  put("autoSync", autoSync)
+  put("pairedAt", pairedAt)
+  put("lastSyncAt", lastSyncAt)
+  if (platform != null) put("platform", platform)
+}
 
-fun PairingPayload.toMap(): Map<String, Any?> = mapOf(
-  "v" to v,
-  "kind" to kind,
-  "deviceId" to deviceId,
-  "name" to name,
-  "fingerprint" to fingerprint,
-  "host" to host,
-  "port" to port,
-  "secret" to secret,
-  "expiresAt" to expiresAt,
-)
+fun PairingPayload.toMap(): Map<String, Any?> = buildMap {
+  put("v", v)
+  put("kind", kind)
+  put("deviceId", deviceId)
+  put("name", name)
+  put("fingerprint", fingerprint)
+  put("host", host)
+  put("port", port)
+  put("secret", secret)
+  put("expiresAt", expiresAt)
+  if (platform != null) put("platform", platform)
+}
 
 fun IncomingDocument.toMap(): Map<String, Any?> = mapOf(
   "id" to id,
@@ -227,6 +245,7 @@ fun StoredPeer.toJson(): JSONObject = JSONObject().apply {
   put("lastSyncAt", lastSyncAt ?: JSONObject.NULL)
   put("lastHost", lastHost ?: JSONObject.NULL)
   put("lastPort", lastPort ?: JSONObject.NULL)
+  put("platform", platform ?: JSONObject.NULL)
 }
 
 fun storedPeerFromJson(json: JSONObject): StoredPeer? {
@@ -247,6 +266,7 @@ fun storedPeerFromJson(json: JSONObject): StoredPeer? {
     lastSyncAt = if (json.isNull("lastSyncAt")) null else json.optString("lastSyncAt"),
     lastHost = if (json.isNull("lastHost")) null else json.optString("lastHost"),
     lastPort = if (json.isNull("lastPort")) null else json.optInt("lastPort"),
+    platform = normalizePlatform(json.optString("platform", "")),
   )
 }
 
