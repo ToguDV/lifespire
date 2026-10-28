@@ -1,7 +1,8 @@
 import crypto from 'node:crypto'
-import type { PeerRecord, StoredPeer } from './protocol'
+import type { DevicePlatform, PeerRecord, StoredPeer } from './protocol'
 import type { EncryptedStore, SecretBox, VaultFile } from './vault'
 import { createEncryptedStore } from './vault'
+import { normalizePlatform } from './protocol'
 
 export interface PeerStore {
   list(): PeerRecord[]
@@ -48,6 +49,7 @@ function toPublic(peer: StoredPeer): PeerRecord {
     autoSync: peer.autoSync,
     pairedAt: peer.pairedAt,
     lastSyncAt: peer.lastSyncAt,
+    ...(peer.platform ? { platform: peer.platform } : {}),
   }
 }
 
@@ -88,6 +90,7 @@ export function createPeerStore(deps: {
     }
     peers = value.peers.filter(isStoredPeer).map((peer) => ({
       ...peer,
+      platform: normalizePlatform(peer.platform),
       lastSyncAt: typeof peer.lastSyncAt === 'string' ? peer.lastSyncAt : null,
       lastHost: typeof peer.lastHost === 'string' ? peer.lastHost : null,
       lastPort: typeof peer.lastPort === 'number' ? peer.lastPort : null,
@@ -173,6 +176,7 @@ export function newStoredPeer(deps: {
   token: string
   lastHost: string | null
   lastPort: number | null
+  platform?: DevicePlatform
   now?: () => Date
 }): StoredPeer {
   const now = deps.now ?? (() => new Date())
@@ -187,5 +191,6 @@ export function newStoredPeer(deps: {
     lastSyncAt: null,
     lastHost: deps.lastHost,
     lastPort: deps.lastPort,
+    ...(deps.platform ? { platform: deps.platform } : {}),
   }
 }

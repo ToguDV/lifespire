@@ -10,6 +10,13 @@ export const MAX_REQUEST_BYTES = 2 * 1024 * 1024
 
 export type DiscoveryKind = 'probe' | 'announce'
 
+/** Which kind of client advertises the device. Optional: older peers omit it. */
+export type DevicePlatform = 'android' | 'desktop'
+
+export function normalizePlatform(value: unknown): DevicePlatform | undefined {
+  return value === 'android' || value === 'desktop' ? value : undefined
+}
+
 export interface DiscoveryPacket {
   v: typeof PROTOCOL_VERSION
   kind: DiscoveryKind
@@ -18,6 +25,7 @@ export interface DiscoveryPacket {
   port: number
   fingerprint: string
   protocol: typeof PROTOCOL_VERSION
+  platform?: DevicePlatform
 }
 
 export interface NearbyPeer {
@@ -27,6 +35,7 @@ export interface NearbyPeer {
   port: number
   fingerprint: string
   lastSeenAt: string
+  platform?: DevicePlatform
 }
 
 export interface PeerRecord {
@@ -36,6 +45,7 @@ export interface PeerRecord {
   autoSync: boolean
   pairedAt: string
   lastSyncAt: string | null
+  platform?: DevicePlatform
 }
 
 export interface StoredPeer extends PeerRecord {
@@ -49,6 +59,7 @@ export interface DeviceIdentity {
   deviceId: string
   name: string
   fingerprint: string
+  platform?: DevicePlatform
 }
 
 /** Main-process only: never crosses the preload/IPC boundary. */
@@ -68,6 +79,7 @@ export interface PairingPayload {
   port: number
   secret: string
   expiresAt: string
+  platform?: DevicePlatform
 }
 
 export interface Mirror {
@@ -105,6 +117,7 @@ export interface PairingRequest {
   token: string
   /** The client's own HTTPS port, so the host can connect back. */
   port: number
+  platform?: DevicePlatform
 }
 
 export function isValidDeviceId(value: unknown): value is string {
@@ -200,6 +213,7 @@ export function isPairingPayload(value: unknown): value is PairingPayload {
     payload.port > 0 &&
     payload.port < 65536 &&
     typeof payload.expiresAt === 'string' &&
-    (payload.host === null || typeof payload.host === 'string')
+    (payload.host === null || typeof payload.host === 'string') &&
+    (payload.platform === undefined || payload.platform === 'android' || payload.platform === 'desktop')
   )
 }

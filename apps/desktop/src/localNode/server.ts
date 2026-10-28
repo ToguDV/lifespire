@@ -23,6 +23,7 @@ import {
   newSecret,
   newToken,
   normalizePairingCode,
+  normalizePlatform,
   pairingCodeFromSecret,
   sanitizeName,
 } from './protocol'
@@ -132,7 +133,9 @@ function isPairingRequest(value: unknown): value is PairingRequest {
     request.port > 0 &&
     request.port < 65536 &&
     (request.secret === undefined || typeof request.secret === 'string') &&
-    (request.code === undefined || typeof request.code === 'string')
+    (request.code === undefined || typeof request.code === 'string') &&
+    // `platform` is display-only: unknown future values must not break pairing.
+    (request.platform === undefined || typeof request.platform === 'string')
   )
 }
 
@@ -181,6 +184,7 @@ export function createLocalServer(deps: {
       port: listeningPort ?? 0,
       secret: pairingState.secret,
       expiresAt: pairingState.expiresAt,
+      platform: 'desktop',
     }
   }
 
@@ -207,6 +211,7 @@ export function createLocalServer(deps: {
     const clientPort = request.port
     const existing = deps.peers.find(request.deviceId)
     const hostToken = newToken()
+    const platform = normalizePlatform(request.platform)
     deps.peers.upsert(
       newStoredPeer({
         peerId: request.deviceId,
@@ -216,6 +221,7 @@ export function createLocalServer(deps: {
         token: hostToken,
         lastHost: remote,
         lastPort: clientPort,
+        ...(platform ? { platform } : {}),
       }),
     )
     if (existing) {
@@ -289,6 +295,7 @@ export function createLocalServer(deps: {
           fingerprint: deps.identity.fingerprint,
           certPem: deps.identity.certPem,
           token: peer?.token ?? '',
+          platform: 'desktop',
         })
         return
       }
@@ -309,6 +316,7 @@ export function createLocalServer(deps: {
           schemaVersion: 3,
           docHash: current?.docHash ?? null,
           updatedAt: current?.updatedAt ?? null,
+          platform: 'desktop',
         })
         return
       }

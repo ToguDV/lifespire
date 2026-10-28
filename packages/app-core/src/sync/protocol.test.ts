@@ -5,6 +5,7 @@ import {
   encodePairingPayload,
   isPairingCode,
   isPairingPayload,
+  normalizePlatform,
   pairingCodeFromSecret,
   shortFingerprint,
 } from './protocol'
@@ -49,5 +50,31 @@ describe('pairing payload', () => {
 
   it('formats a short fingerprint for comparison', () => {
     expect(shortFingerprint('AABBCCDDEEFF')).toBe('AABB-CCDD-EEFF')
+  })
+})
+
+describe('device platform', () => {
+  it('round-trips as an optional pairing field', () => {
+    const encoded = encodePairingPayload({ ...PAYLOAD, platform: 'android' })
+    expect(decodePairingPayload(encoded)).toMatchObject({ platform: 'android' })
+  })
+
+  it('accepts payloads from older clients without a platform', () => {
+    expect(isPairingPayload(PAYLOAD)).toBe(true)
+    const decoded = decodePairingPayload(JSON.stringify(PAYLOAD))
+    expect(decoded).not.toBeNull()
+    expect('platform' in (decoded ?? {})).toBe(false)
+  })
+
+  it('tolerates unknown future platform values without breaking pairing', () => {
+    expect(isPairingPayload({ ...PAYLOAD, platform: 'watch' })).toBe(true)
+    expect(normalizePlatform('watch')).toBeUndefined()
+  })
+
+  it('normalizes platform names', () => {
+    expect(normalizePlatform('android')).toBe('android')
+    expect(normalizePlatform('desktop')).toBe('desktop')
+    expect(normalizePlatform('watch')).toBeUndefined()
+    expect(normalizePlatform(undefined)).toBeUndefined()
   })
 })

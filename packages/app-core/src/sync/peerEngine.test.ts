@@ -243,6 +243,41 @@ describe('receiveRemote', () => {
 })
 
 describe('manual sync', () => {
+  it('reports offline with guidance when the peer is unreachable', async () => {
+    const own = makeDocument('Mine')
+    const storage = makeStorage()
+    const unreachable = Object.assign(new Error('connect EHOSTUNREACH 192.168.1.18:39741'), {
+      code: 'EHOSTUNREACH',
+    })
+    const failingApi: LocalPeerApi = {
+      getSync: async () => {
+        throw unreachable
+      },
+      putSync: async () => {
+        throw unreachable
+      },
+    }
+    const local = { current: own }
+    const engine = createPeerSyncEngine({
+      storage,
+      api: failingApi,
+      peerId: 'peer_1',
+      getLocalDocument: () => local.current ?? createEmptyDocument(),
+      applyRemoteDocument: (document) => {
+        local.current = clone(document)
+      },
+      isAvailable: () => false,
+      pushDelayMs: 0,
+      useLocks: false,
+      now: () => new Date('2026-10-27T10:00:00.000Z'),
+    })
+    await engine.syncNow()
+    expect(engine.getState().status).toBe('offline')
+    expect(engine.getState().lastError).toBe(
+      "Couldn't reach the other device. Make sure both apps are open on the same Wi-Fi.",
+    )
+  })
+
   it('tries the last known peer even when discovery has not reported it', async () => {
     const own = makeDocument('Mine')
     const { local, peer } = createHarness({ local: own, peer: null })
