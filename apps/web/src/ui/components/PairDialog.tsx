@@ -4,10 +4,10 @@ import {
   decodePairingPayload,
   encodePairingPayload,
   pairingCodeFromSecret,
-  shortFingerprint,
 } from '@lifespire/app-core/sync/protocol'
 import { useSyncStore, localSync } from '../../sync/setup'
-import { Button, Dialog } from './index'
+import { Button, Dialog, Icon } from './index'
+import { platformIcon } from '../lib/deviceIcon'
 
 export type PairMode = 'host' | 'join'
 
@@ -33,6 +33,7 @@ export function PairDialog({
   const pairing = useSyncStore((state) => state.pairing)
   const nearby = useSyncStore((state) => state.nearby)
   const peers = useSyncStore((state) => state.peers)
+  const [tab, setTab] = useState<PairMode>(mode)
   const [link, setLink] = useState('')
   const [code, setCode] = useState('')
   const [deviceId, setDeviceId] = useState(initialDeviceId ?? '')
@@ -50,6 +51,7 @@ export function PairDialog({
     setError(null)
     setBusy(false)
     setCopied(false)
+    setTab(mode)
     if (mode === 'host') {
       void localSync.startPairing()
     } else {
@@ -64,6 +66,13 @@ export function PairDialog({
       void localSync.cancelPairing()
     }
   }, [open])
+
+  const switchTab = (next: PairMode): void => {
+    setTab(next)
+    setError(null)
+    if (next === 'host') void localSync.startPairing()
+    else void localSync.cancelPairing()
+  }
 
   const linkValue = pairing ? encodePairingPayload(pairing) : ''
 
@@ -115,21 +124,29 @@ export function PairDialog({
   return (
     <Dialog
       open={open}
-      title={mode === 'host' ? 'Pair this device' : 'Pair another device'}
+      title="Pair a device"
       eyebrow="Nearby sync"
-      description={
-        mode === 'host'
-          ? 'Show this code to the other device. The QR carries the certificate fingerprint; the 8-character code is the fallback.'
-          : 'Scan the other device’s QR with the Android app, paste its pairing link, or enter the 8-character code.'
-      }
+      description="Both devices must be open on the same Wi-Fi."
       onClose={onClose}
       footer={
         <Button variant="quiet" onClick={onClose}>
-          {mode === 'host' ? 'Done' : 'Cancel'}
+          {tab === 'host' ? 'Done' : 'Cancel'}
         </Button>
       }
     >
-      {mode === 'host' ? (
+      <div className="segmented pair-tabs" role="group" aria-label="Pairing direction">
+        <button
+          type="button"
+          aria-pressed={tab === 'host'}
+          onClick={() => switchTab('host')}
+        >
+          Show my code
+        </button>
+        <button type="button" aria-pressed={tab === 'join'} onClick={() => switchTab('join')}>
+          Enter a code
+        </button>
+      </div>
+      {tab === 'host' ? (
         <div className="pair-host">
           {pairing ? (
             <>
@@ -137,13 +154,9 @@ export function PairDialog({
                 <QRCodeSVG value={linkValue} size={208} marginSize={2} />
               </div>
               <p className="pair-code" aria-live="polite">
-                <span className="micro">Code</span>
                 <strong>{pairingCodeFromSecret(pairing.secret)}</strong>
               </p>
-              <p className="panel-note">
-                Expires at {formatExpiry(pairing.expiresAt)}. This device: {pairing.name} ·{' '}
-                {shortFingerprint(pairing.fingerprint)}
-              </p>
+              <p className="panel-note">Expires at {formatExpiry(pairing.expiresAt)}.</p>
               <label className="field__label" htmlFor="pair-link">
                 Pairing link
               </label>
@@ -167,30 +180,25 @@ export function PairDialog({
         </div>
       ) : (
         <div className="pair-join">
-          <div className="sync-field">
-            <label className="field__label" htmlFor="pair-nearby">
-              Nearby device
-            </label>
-            <select
-              id="pair-nearby"
-              className="input"
-              value={deviceId}
-              onChange={(event) => setDeviceId(event.target.value)}
-            >
-              <option value="">Choose a device…</option>
+          {unpaired.length === 0 ? (
+            <p className="panel-note">No nearby devices. Keep both apps open.</p>
+          ) : (
+            <ul className="device-list pair-choices">
               {unpaired.map((peer) => (
-                <option key={peer.deviceId} value={peer.deviceId}>
-                  {peer.name} · {shortFingerprint(peer.fingerprint)}
-                </option>
+                <li key={peer.deviceId}>
+                  <button
+                    type="button"
+                    className={deviceId === peer.deviceId ? 'pair-choice is-selected' : 'pair-choice'}
+                    aria-pressed={deviceId === peer.deviceId}
+                    onClick={() => setDeviceId(peer.deviceId)}
+                  >
+                    <Icon name={platformIcon(peer.platform)} />
+                    {peer.name}
+                  </button>
+                </li>
               ))}
-            </select>
-            {unpaired.length === 0 ? (
-              <p className="field-hint">
-                No nearby devices yet. Both apps must be open on the same Wi-Fi and Nearby sync
-                must be on.
-              </p>
-            ) : null}
-          </div>
+            </ul>
+          )}
           <div className="sync-field">
             <label className="field__label" htmlFor="pair-code">
               8-character code
@@ -218,7 +226,7 @@ export function PairDialog({
               onClick={() => void pairWithCode()}
               disabled={busy || !deviceId || !code.trim()}
             >
-              {busy ? 'Pairing…' : 'Pair with code'}
+              {busy ? 'Pairing…' : 'Pair'}
             </Button>
           </div>
 

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { shortFingerprint } from '@lifespire/app-core/sync/protocol'
 import type { LocalPeerView } from '@lifespire/app-core/sync/localEngine'
 import type { PeerSyncStatus } from '@lifespire/app-core/sync/peerEngine'
 import {
@@ -8,7 +7,8 @@ import {
   setDiscoverable,
   useSyncStore,
 } from '../../sync/setup'
-import { Button, Dialog, Panel, PanelHead } from './index'
+import { Button, Dialog, Icon, IconButton, Panel, PanelHead } from './index'
+import { platformIcon } from '../lib/deviceIcon'
 import { PairDialog } from './PairDialog'
 import type { PairMode } from './PairDialog'
 
@@ -25,7 +25,7 @@ const STATUS_LABEL: Record<PeerSyncStatus, string> = {
 }
 
 function formatWhen(value: string | null): string {
-  if (!value) return 'never'
+  if (!value) return 'not yet'
   try {
     return new Date(value).toLocaleString()
   } catch {
@@ -33,63 +33,58 @@ function formatWhen(value: string | null): string {
   }
 }
 
-function PeerCard({
+function PeerRow({
   peer,
   onForget,
 }: {
   peer: LocalPeerView
   onForget: (peer: LocalPeerView) => void
 }) {
+  const busy = peer.status === 'pushing' || peer.status === 'pulling'
   return (
-    <div className="device-card">
-      <div className="device-card__head">
-        <div>
-          <strong>{peer.name}</strong>
-          <p className="panel-note">
-            {STATUS_LABEL[peer.status]} · last sync {formatWhen(peer.lastSyncedAt ?? peer.lastSyncAt)}
-          </p>
-          <p className="field-hint">Fingerprint {shortFingerprint(peer.fingerprint)}</p>
-        </div>
-        <span className={`chip chip--quiet device-chip device-chip--${peer.status}`}>
-          {peer.status === 'offline' ? 'Away' : 'Paired'}
+    <li className="device-row">
+      <span className="device-row__icon" aria-hidden="true">
+        <Icon name={platformIcon(peer.platform)} />
+      </span>
+      <span className="device-row__body">
+        <strong className="device-row__name">{peer.name}</strong>
+        <span className="device-row__sub">
+          {STATUS_LABEL[peer.status]} · {formatWhen(peer.lastSyncedAt ?? peer.lastSyncAt)}
         </span>
-      </div>
-      <div className="feedback-row">
-        <div className="feedback-row__body">
-          <strong>Start syncs automatically</strong>
-          <p className="field-hint">This device initiates when both apps are open.</p>
-        </div>
-        <button
-          type="button"
-          className="feedback-switch"
-          role="switch"
-          aria-checked={peer.autoSync}
-          aria-label={`Sync automatically with ${peer.name}`}
-          onClick={() => void localSync.setAutoSync(peer.peerId, !peer.autoSync)}
-        >
-          <span className="feedback-switch__track" aria-hidden="true">
-            <span className="feedback-switch__thumb" />
-          </span>
-          {peer.autoSync ? 'On' : 'Off'}
-        </button>
-      </div>
-      <div className="settings-actions">
-        <Button variant="secondary" onClick={() => void localSync.syncNow(peer.peerId)}>
-          Sync now
-        </Button>
-        <Button variant="quiet" onClick={() => onForget(peer)}>
-          Forget
-        </Button>
-      </div>
-      {peer.lastError ? (
-        <p className="field-error" role="alert">
+      </span>
+      <IconButton
+        icon="refresh"
+        label={`Sync with ${peer.name} now`}
+        disabled={busy}
+        onClick={() => void localSync.syncNow(peer.peerId)}
+      />
+      <button
+        type="button"
+        className="feedback-switch"
+        role="switch"
+        aria-checked={peer.autoSync}
+        aria-label={`Sync automatically with ${peer.name}`}
+        onClick={() => void localSync.setAutoSync(peer.peerId, !peer.autoSync)}
+      >
+        <span className="feedback-switch__track" aria-hidden="true">
+          <span className="feedback-switch__thumb" />
+        </span>
+        <span className="sr-only">{peer.autoSync ? 'On' : 'Off'}</span>
+      </button>
+      <IconButton
+        icon="trash"
+        label={`Forget ${peer.name}`}
+        onClick={() => onForget(peer)}
+      />
+      {peer.lastError && peer.status === 'error' ? (
+        <span className="field-error device-row__error" role="alert">
           {peer.lastError}
-        </p>
+        </span>
       ) : null}
       {peer.needsReview && !peer.conflict ? (
-        <p className="field-hint">An unresolved conflict from a previous session. Tap Sync now to review it.</p>
+        <span className="field-hint">Unresolved conflict. Sync to review it.</span>
       ) : null}
-    </div>
+    </li>
   )
 }
 
@@ -125,14 +120,8 @@ export function DevicesPanel() {
   const peerList = Object.values(peers).sort((left, right) => left.name.localeCompare(right.name))
   const unpaired = nearby.filter((peer) => !peers[peer.deviceId])
 
-  const openHost = (): void => {
-    setPairMode('host')
-    setPairDevice(undefined)
-    setPairOpen(true)
-  }
-
-  const openJoin = (deviceId?: string): void => {
-    setPairMode('join')
+  const openPair = (mode: PairMode, deviceId?: string): void => {
+    setPairMode(mode)
     setPairDevice(deviceId)
     setPairOpen(true)
   }
@@ -141,7 +130,19 @@ export function DevicesPanel() {
     <Panel pad>
       <PanelHead
         label="Nearby devices"
-        aside={<span className="chip chip--quiet">{phase === 'syncing' ? 'Syncing' : 'Local'}</span>}
+        aside={
+          <span className="device-head__aside">
+            <span className={`chip chip--quiet`}>{phase === 'syncing' ? 'Syncing' : 'Local'}</span>
+            {available ? (
+              <IconButton
+                icon="refresh"
+                label="Sync all devices now"
+                disabled={peerList.length === 0}
+                onClick={() => void localSync.syncNow()}
+              />
+            ) : null}
+          </span>
+        }
       />
       <div className="sync-panel">
         {!available ? (
@@ -151,17 +152,10 @@ export function DevicesPanel() {
           </p>
         ) : (
           <>
-            <p className="panel-note">
-              Sync directly with your own devices over the local network. There is no account,
-              server or cloud copy.
-            </p>
+            <p className="panel-note">Your devices only — no account, no cloud.</p>
             <div className="feedback-row">
               <div className="feedback-row__body">
                 <strong>Nearby sync</strong>
-                <p className="field-hint">
-                  This device advertises itself while the app is open. Turn it off to stay
-                  invisible on the network.
-                </p>
               </div>
               <button
                 type="button"
@@ -177,10 +171,15 @@ export function DevicesPanel() {
                 {discoverable ? 'On' : 'Off'}
               </button>
             </div>
-            <p className="panel-note">
-              This device: <strong>{device?.name ?? 'Unknown'}</strong>
-              {device ? ` · ${shortFingerprint(device.fingerprint)}` : null}
-            </p>
+            <div className="device-row device-row--self">
+              <span className="device-row__icon" aria-hidden="true">
+                <Icon name={platformIcon(device?.platform)} />
+              </span>
+              <span className="device-row__body">
+                <strong className="device-row__name">{device?.name ?? 'Unknown'}</strong>
+              </span>
+              <span className="chip chip--quiet">This device</span>
+            </div>
             {persistence === 'plaintext' ? (
               <p className="panel-note" role="note">
                 The OS keychain is unavailable, so the local sync keys are stored with private
@@ -201,66 +200,49 @@ export function DevicesPanel() {
             ) : null}
             {migrationNotice.migrated && !migrationDismissed ? (
               <div className="panel-note" role="status">
-                <p>
-                  Your previous account save is now the local save on this device. The old copy
-                  was kept as a backup.
-                </p>
+                <p>Your previous account save is now the local save. The old copy was kept.</p>
                 <Button variant="quiet" onClick={() => setMigrationDismissed(true)}>
                   Dismiss
                 </Button>
               </div>
             ) : null}
             <div className="settings-actions">
-              <Button variant="primary" onClick={openHost}>
-                Show my code
-              </Button>
-              <Button variant="secondary" onClick={() => openJoin()}>
-                Enter a code
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => void localSync.syncNow()}
-                disabled={peerList.length === 0}
-              >
-                Sync all
+              <Button variant="secondary" onClick={() => openPair('host')}>
+                <Icon name="plus" />
+                Pair a device
               </Button>
             </div>
 
-            <h3 className="device-section">Paired devices</h3>
+            <h3 className="device-section">Paired</h3>
             {peerList.length === 0 ? (
               <p className="panel-note">No devices paired yet.</p>
             ) : (
-              <div className="device-list">
+              <ul className="device-list">
                 {peerList.map((peer) => (
-                  <PeerCard key={peer.peerId} peer={peer} onForget={setForgetPeer} />
+                  <PeerRow key={peer.peerId} peer={peer} onForget={setForgetPeer} />
                 ))}
-              </div>
+              </ul>
             )}
 
             <h3 className="device-section">Nearby</h3>
             {unpaired.length === 0 ? (
-              <p className="panel-note">
-                No other LifeSpire device is visible right now. Both apps must be open on the
-                same Wi-Fi.
-              </p>
+              <p className="panel-note">No other device visible. Keep both apps open.</p>
             ) : (
-              <div className="device-list">
+              <ul className="device-list">
                 {unpaired.map((peer) => (
-                  <div className="device-card device-card--nearby" key={peer.deviceId}>
-                    <div className="device-card__head">
-                      <div>
-                        <strong>{peer.name}</strong>
-                        <p className="field-hint">
-                          {peer.host} · {shortFingerprint(peer.fingerprint)}
-                        </p>
-                      </div>
-                      <Button variant="secondary" onClick={() => openJoin(peer.deviceId)}>
-                        Pair
-                      </Button>
-                    </div>
-                  </div>
+                  <li className="device-row" key={peer.deviceId}>
+                    <span className="device-row__icon" aria-hidden="true">
+                      <Icon name={platformIcon(peer.platform)} />
+                    </span>
+                    <span className="device-row__body">
+                      <strong className="device-row__name">{peer.name}</strong>
+                    </span>
+                    <Button variant="secondary" onClick={() => openPair('join', peer.deviceId)}>
+                      Pair
+                    </Button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </>
         )}
@@ -295,9 +277,7 @@ export function DevicesPanel() {
           </>
         }
       >
-        <p className="panel-note">
-          {forgetPeer ? `${forgetPeer.name} · ${shortFingerprint(forgetPeer.fingerprint)}` : null}
-        </p>
+        <p className="panel-note">{forgetPeer ? forgetPeer.name : null}</p>
       </Dialog>
     </Panel>
   )
