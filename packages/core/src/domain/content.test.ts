@@ -29,6 +29,7 @@ function makeGoal(overrides: Partial<Goal> = {}): Goal {
     id: 'goal_1',
     title: 'Wayfarer',
     category: 'Movement',
+    description: '',
     icon: 'compass',
     weeklyObjective: 4,
     active: true,
@@ -58,6 +59,13 @@ function fourTasks(goalId = 'goal_1'): Task[] {
 describe('validateGoalInput', () => {
   it('accepts a titled goal inside the weekly range', () => {
     expect(validateGoalInput(makeGoal())).toEqual({})
+  })
+
+  it('accepts an optional description up to the limit', () => {
+    expect(validateGoalInput(makeGoal({ description: 'A short why.' }))).toEqual({})
+    expect(
+      validateGoalInput(makeGoal({ description: 'x'.repeat(281) })).description,
+    ).toBe(CONTENT_MESSAGES.goalDescription)
   })
 
   it('rejects an unknown goal icon', () => {

@@ -22,10 +22,10 @@ import { useAppStore } from '../../state/store'
 import { Button, Icon, IconPicker, Panel, ThemeToggle } from '../components'
 import { EFFORT_LABEL, goalIconName } from '../lib/format'
 
-const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
+const STEP_LABELS = ['Origin', 'Goals', 'Routines', 'Eve'] as const
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 /** Field messages this screen renders inline (`field-error`), so they never repeat in the summary. */
-const FIELD_KEYS = ['title', 'weeklyObjective', 'goalId'] as const
+const FIELD_KEYS = ['title', 'weeklyObjective', 'goalId', 'description'] as const
 
 function unique(values: Array<string | undefined>): string[] {
   return [...new Set(values.filter((value): value is string => Boolean(value)))]
@@ -77,6 +77,7 @@ export function OnboardingScreen() {
       id: createId('goal'),
       title: '',
       category: '',
+      description: '',
       icon: nextGoalIcon(goals),
       weeklyObjective: 3,
       active: true,
@@ -214,6 +215,8 @@ export function OnboardingScreen() {
     const titleErrorId = `goal-${goal.id}-title-error`
     const weeklyHintId = `goal-${goal.id}-weekly-hint`
     const weeklyErrorId = `goal-${goal.id}-weekly-error`
+    const descriptionErrorId = `goal-${goal.id}-description-error`
+    const descriptionHintId = `goal-${goal.id}-description-hint`
     const weeklyDescribedBy = [
       weeklyHintId,
       showErrors && errors.weeklyObjective ? weeklyErrorId : '',
@@ -253,6 +256,30 @@ export function OnboardingScreen() {
               placeholder="e.g. Movement"
               onChange={(event) => updateGoal(goal.id, { category: event.target.value })}
             />
+          </div>
+          <div className="field">
+            <label htmlFor={`goal-${goal.id}-description`}>Description (optional)</label>
+            <input
+              className="input"
+              id={`goal-${goal.id}-description`}
+              type="text"
+              value={goal.description ?? ''}
+              maxLength={280}
+              placeholder="Why does this quest matter?"
+              aria-invalid={showErrors && Boolean(errors.description)}
+              aria-describedby={
+                showErrors && errors.description ? descriptionErrorId : descriptionHintId
+              }
+              onChange={(event) => updateGoal(goal.id, { description: event.target.value })}
+            />
+            <p className="field-hint" id={descriptionHintId}>
+              One line to remember why this quest matters.
+            </p>
+            {showErrors && errors.description ? (
+              <p className="field-error" id={descriptionErrorId}>
+                {errors.description}
+              </p>
+            ) : null}
           </div>
           <div className="field">
             <label htmlFor={`goal-${goal.id}-weekly`}>Weekly target</label>
@@ -306,7 +333,7 @@ export function OnboardingScreen() {
     return (
       <fieldset className="draft-card draft-card--routine" key={task.id}>
         <legend>Routine</legend>
-        <div className="field-grid">
+        <div className="field-grid field-grid--routine">
           <div className="field">
             <label htmlFor={`task-${task.id}-title`}>Routine title</label>
             <input
@@ -481,20 +508,20 @@ export function OnboardingScreen() {
 
   const stepCopy = {
     1: {
-      title: 'Who walks this path?',
-      body: 'A name is optional.',
+      title: 'Chapter I — Who walks this path?',
+      body: 'Every climb needs a traveller. A name is optional, the quest is not.',
     },
     2: {
-      title: 'What are you climbing toward?',
-      body: `Choose ${MIN_GOALS}–${MAX_GOALS} goals.`,
+      title: 'Chapter II — Choose your quests',
+      body: `Pick ${MIN_GOALS}–${MAX_GOALS} goals. Each goal is a quest; routines are how you train for it.`,
     },
     3: {
-      title: 'Which small steps will you keep?',
-      body: `Add at least ${MIN_ACTIVE_TASKS} active routines.`,
+      title: 'Chapter III — Train your routines',
+      body: `Add at least ${MIN_ACTIVE_TASKS} active routines. Small promises, kept daily, move the quest forward.`,
     },
     4: {
-      title: 'Ready to begin?',
-      body: 'Check the week before it begins.',
+      title: 'Chapter IV — The eve of the climb',
+      body: 'Review the week before it begins. You can still add a quest or a routine.',
     },
   } as const
   const copy = stepCopy[step as keyof typeof stepCopy] ?? stepCopy[1]
@@ -515,7 +542,7 @@ export function OnboardingScreen() {
 
       <div className="onboarding-shell">
         <div className="onboarding-head">
-          <span className="kicker">Create your path</span>
+          <span className="kicker">Tutorial · Create your path</span>
           <h1 id="onboarding-title" ref={headingRef} tabIndex={-1}>
             {copy.title}
           </h1>
@@ -668,6 +695,43 @@ export function OnboardingScreen() {
                 {MIN_ACTIVE_TASKS} needed
               </p>
 
+              <div className="onboarding-inline-actions">
+                <Button
+                  variant="secondary"
+                  onClick={addGoal}
+                  disabled={goals.length >= MAX_GOALS}
+                >
+                  <Icon name="plus" />
+                  Add goal here
+                </Button>
+                <span className="mini-note">
+                  No need to go back — name it below, then add its routines.
+                </span>
+              </div>
+              {goals.some((goal) => !goal.title.trim()) ? (
+                <div className="draft-list">
+                  {goals
+                    .filter((goal) => !goal.title.trim())
+                    .map((goal) => (
+                      <div className="field" key={goal.id}>
+                        <label htmlFor={`quick-${goal.id}-title`}>
+                          Name the new goal
+                        </label>
+                        <input
+                          className="input"
+                          id={`quick-${goal.id}-title`}
+                          type="text"
+                          value={goal.title}
+                          placeholder="e.g. Move under open sky"
+                          onChange={(event) =>
+                            updateGoal(goal.id, { title: event.target.value })
+                          }
+                        />
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+
               <div className="dialog__actions onboarding-actions">
                 <Button variant="quiet" onClick={() => goToStep(2)}>
                   <Icon name="arrow-left" />
@@ -760,7 +824,19 @@ export function OnboardingScreen() {
                 <Button variant="secondary" onClick={applySuggestions}>
                   Use routine-based suggestions
                 </Button>
+                <Button
+                  variant="secondary"
+                  onClick={addGoal}
+                  disabled={goals.length >= MAX_GOALS}
+                >
+                  <Icon name="plus" />
+                  Add another goal
+                </Button>
               </div>
+              <p className="mini-note">
+                New goals appear here instantly — give them a title in step 2 or above, then add
+                routines in step 3.
+              </p>
 
               <div className="dialog__actions onboarding-actions">
                 <Button variant="quiet" onClick={() => goToStep(3)}>

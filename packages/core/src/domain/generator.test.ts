@@ -25,6 +25,7 @@ function makeGoal(
     id,
     title,
     category: 'Test',
+    description: '',
     icon: 'banner',
     weeklyObjective,
     active,

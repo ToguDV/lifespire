@@ -176,6 +176,7 @@ function documentWithThreeGoals(): GameDocument {
       id: 'goal_import_focus',
       title: 'Focus',
       category: 'Practice',
+      description: '',
       icon: 'book',
       weeklyObjective: 2,
       active: true,

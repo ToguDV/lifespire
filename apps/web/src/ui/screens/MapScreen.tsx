@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   availableNodeIds,
@@ -10,6 +11,7 @@ import { useAppStore } from '../../state/store'
 import {
   Button,
   DayPips,
+  Dialog,
   Icon,
   MapGraph,
   Panel,
@@ -215,8 +217,17 @@ export function MapScreen() {
   const goals = useAppStore((state) => state.document.goals)
   const navigate = useAppStore((state) => state.navigate)
   const openDay = useAppStore((state) => state.openDay)
+  const resetCurrentDay = useAppStore((state) => state.resetCurrentDay)
   const selectNode = useAppStore((state) => state.selectNode)
   const todayKey = useAppStore((state) => state.todayKey)
+  const [confirmResetDay, setConfirmResetDay] = useState(false)
+  const [coachDismissed, setCoachDismissed] = useState(() => {
+    try {
+      return window.sessionStorage.getItem('lifespire:coach-day1') === 'done'
+    } catch {
+      return false
+    }
+  })
 
   if (!run) {
     return (
@@ -341,6 +352,22 @@ export function MapScreen() {
     return null
   })()
 
+  const showCoach =
+    !coachDismissed && day?.index === 0 && day.path.length === 0 && hasMap
+  const canResetDay =
+    run.status === 'active' &&
+    day?.date === today &&
+    (day.status === 'available' || day.status === 'in_progress' || day.status === 'completed') &&
+    (day.map !== null || day.path.length > 0 || day.rewards.length > 0)
+  const dismissCoach = () => {
+    setCoachDismissed(true)
+    try {
+      window.sessionStorage.setItem('lifespire:coach-day1', 'done')
+    } catch {
+      /* session-only hint; ignore storage failures */
+    }
+  }
+
   return (
     <section className="screen screen--map" data-screen="map" aria-labelledby="map-title">
       <ScreenHead
@@ -355,9 +382,30 @@ export function MapScreen() {
               <Icon name={chipIcon} />
               {chipLabel}
             </span>
+            {canResetDay ? (
+              <Button variant="quiet" size="sm" onClick={() => setConfirmResetDay(true)}>
+                <Icon name="archive" />
+                Reset today
+              </Button>
+            ) : null}
           </>
         }
       />
+
+      {showCoach ? (
+        <Panel pad>
+          <PanelHead label="Tutorial · Your first climb" />
+          <p className="panel-note">
+            1. Choose a glowing node. 2. Do it in real life and mark Complete. 3. Reach the boss
+            to seal the day. Resetting today takes back its rewards.
+          </p>
+          <p style={{ marginTop: 8 }}>
+            <Button variant="secondary" size="sm" onClick={dismissCoach}>
+              Got it — hide tutorial
+            </Button>
+          </p>
+        </Panel>
+      ) : null}
 
       <div className="map-wrap">
         {hasMap && map && day ? (
@@ -386,6 +434,33 @@ export function MapScreen() {
           onGoals={() => navigate({ name: 'goals' })}
         />
       </div>
+      <Dialog
+        open={confirmResetDay}
+        eyebrow="The ascent"
+        title="Reset today?"
+        description="Today returns to unwritten: its map, path, XP, gold, loot and weekly progress are taken back."
+        onClose={() => setConfirmResetDay(false)}
+        footer={
+          <>
+            <Button variant="quiet" onClick={() => setConfirmResetDay(false)}>
+              Keep today
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirmResetDay(false)
+                resetCurrentDay()
+                navigate({ name: 'home' })
+              }}
+            >
+              <Icon name="archive" />
+              Reset today
+            </Button>
+          </>
+        }
+      >
+        <p className="panel-note">Yesterday and tomorrow are untouched.</p>
+      </Dialog>
     </section>
   )
 }

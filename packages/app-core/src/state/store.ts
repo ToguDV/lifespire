@@ -20,6 +20,7 @@ import {
   createRun,
   openDay as openDayDocument,
   reconcileDays,
+  resetCurrentDay as resetCurrentDayDocument,
   resolveNode as resolveNodeDocument,
   selectNode as selectNodeDocument,
 } from '@lifespire/core'
@@ -73,6 +74,7 @@ export interface AppState {
   startRun(setup?: RunSetup, now?: Date): void
   reconcile(now?: Date): void
   openDay(dayId?: string, now?: Date): void
+  resetCurrentDay(now?: Date): void
   selectNode(nodeId: string): void
   resolveNode(nodeId: string, action: ResolutionAction, now?: Date): void
   finalizeRun(now?: Date): void
@@ -414,6 +416,22 @@ export function createAppStore(
           }
         },
 
+        resetCurrentDay: (at = nowProvider()) => {
+          get().reconcile(at)
+          const current = get().document
+          try {
+            const next = resetCurrentDayDocument(current, at)
+            set({
+              document: withSyncedLevel(next),
+              view: { name: 'home' },
+              history: [],
+              toast: 'Today is unwritten. Its rewards were taken back.',
+            })
+          } catch (error) {
+            set({ toast: errorMessage(error, 'Today cannot be reset.') })
+          }
+        },
+
         selectNode: (nodeId) => {
           const at = nowProvider()
           get().reconcile(at)
@@ -489,7 +507,8 @@ export function createAppStore(
           const goal: Goal = {
             id: existing?.id ?? idFactory('goal'),
             title: input.title.trim(),
-            category: input.category.trim() || existing?.category || 'General',
+            category: input.category?.trim() || existing?.category || 'General',
+            description: (input.description ?? existing?.description ?? '').trim(),
             icon: isGoalIconId(input.icon)
               ? input.icon
               : existing?.icon ?? nextGoalIcon(current.goals),

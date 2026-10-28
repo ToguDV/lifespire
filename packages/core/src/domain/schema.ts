@@ -49,10 +49,11 @@ export type SchemaResult = SchemaSuccess | SchemaFailure
 type RawObject = Record<string, unknown>
 type Migration = (document: RawObject) => RawObject
 
-/** Entry point for future schema upgrades. Version 3 pins the run's time zone. */
+/** Entry point for future schema upgrades. Version 4 adds the goal description. */
 const MIGRATIONS: Partial<Record<number, Migration>> = {
   1: migrateV1ToV2,
   2: migrateV2ToV3,
+  3: migrateV3ToV4,
 }
 
 function migrateV1ToV2(document: RawObject): RawObject {
@@ -85,7 +86,7 @@ function withMigratedDraftIcons(value: unknown): unknown {
 }
 
 /**
- * Version 2 runs had no pinned zone: their day boundaries were computed in
+ * Version 3 runs had no pinned zone: their day boundaries were computed in
  * whatever zone the device reported. The migration keeps that interpretation
  * (`timeZone: null`) instead of guessing, so old saves reconcile exactly as
  * before on the same device.
@@ -93,6 +94,34 @@ function withMigratedDraftIcons(value: unknown): unknown {
 function migrateV2ToV3(document: RawObject): RawObject {
   const run = isRecord(document.run) ? { ...document.run, timeZone: null } : document.run
   return { ...document, schemaVersion: 3, run }
+}
+
+/**
+ * Version 4 adds an optional goal description. Older saves simply get an
+ * empty string; the field is display-only and never affects generation,
+ * rewards or weekly progress.
+ */
+function migrateV3ToV4(document: RawObject): RawObject {
+  return {
+    ...document,
+    schemaVersion: 4,
+    goals: withGoalDescriptions(document.goals),
+    onboardingDraft: withDraftDescriptions(document.onboardingDraft),
+  }
+}
+
+function withGoalDescriptions(value: unknown): unknown {
+  if (!Array.isArray(value)) return value
+  return value.map((goal) => {
+    if (!isRecord(goal)) return goal
+    if (typeof goal.description === 'string') return goal
+    return { ...goal, description: '' }
+  })
+}
+
+function withDraftDescriptions(value: unknown): unknown {
+  if (!isRecord(value)) return value
+  return { ...value, goals: withGoalDescriptions(value.goals) }
 }
 
 const EFFORTS = ['light', 'medium', 'high'] as const
@@ -323,10 +352,13 @@ function validateGoal(value: unknown, path: string): Goal {
   if (weeklyObjective > MAX_WEEKLY_OBJECTIVE) {
     fail(`${path}.weeklyObjective`, `must be at most ${MAX_WEEKLY_OBJECTIVE}`)
   }
+  const description =
+    raw.description === undefined ? '' : expectString(raw.description, `${path}.description`)
   return {
     id: expectString(raw.id, `${path}.id`),
     title: expectString(raw.title, `${path}.title`),
     category: expectString(raw.category, `${path}.category`),
+    description,
     icon: expectEnum<GoalIconId>(raw.icon, `${path}.icon`, GOAL_ICON_IDS),
     weeklyObjective,
     active: expectBoolean(raw.active, `${path}.active`),
@@ -700,6 +732,8 @@ function validateDraftGoal(value: unknown, path: string): Goal {
     id: expectString(raw.id, `${path}.id`),
     title: expectString(raw.title, `${path}.title`),
     category: expectString(raw.category, `${path}.category`),
+    description:
+      raw.description === undefined ? '' : expectString(raw.description, `${path}.description`),
     icon: expectEnum<GoalIconId>(raw.icon, `${path}.icon`, GOAL_ICON_IDS),
     weeklyObjective: expectNumber(raw.weeklyObjective, `${path}.weeklyObjective`),
     active: expectBoolean(raw.active, `${path}.active`),

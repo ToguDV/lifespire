@@ -151,6 +151,9 @@ export function GoalsScreen() {
                           ? `this week ${objective.target}`
                           : `${goal.weeklyObjective} each week next run`}
                       </p>
+                      {goal.description.trim() ? (
+                        <p className="panel-note">{goal.description.trim()}</p>
+                      ) : null}
                     </div>
                     <div className="aim-group__progress">
                       {objective ? (

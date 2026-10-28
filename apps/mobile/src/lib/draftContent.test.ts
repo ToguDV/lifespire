@@ -8,6 +8,7 @@ describe('upsertDraftGoal', () => {
     const next = upsertDraftGoal([], {
       title: 'Move',
       category: 'Body',
+      description: '',
       icon: 'flame',
       weeklyObjective: 3,
       active: true,
@@ -17,6 +18,7 @@ describe('upsertDraftGoal', () => {
       id: 'goal_test_1',
       title: 'Move',
       category: 'Body',
+      description: '',
       icon: 'flame',
       weeklyObjective: 3,
       active: true,
@@ -28,6 +30,7 @@ describe('upsertDraftGoal', () => {
     const existing = upsertDraftGoal([], {
       title: 'Move',
       category: 'Body',
+      description: '',
       icon: 'flame',
       weeklyObjective: 3,
       active: true,
@@ -36,6 +39,7 @@ describe('upsertDraftGoal', () => {
       id: existing[0]!.id,
       title: 'Move daily',
       category: 'Body',
+      description: '',
       icon: 'quill',
       weeklyObjective: 5,
       active: true,

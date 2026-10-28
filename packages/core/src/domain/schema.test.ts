@@ -212,6 +212,7 @@ describe('serializeDocument and parseDocument', () => {
           id: 'goal_draft',
           title: '',
           category: '',
+          description: '',
           icon: 'book',
           weeklyObjective: 8,
           active: true,
@@ -223,6 +224,19 @@ describe('serializeDocument and parseDocument', () => {
     const parsed = parseDocument(serializeDocument(document))
     expect(parsed.ok).toBe(true)
     if (parsed.ok) expect(parsed.value.onboardingDraft).toEqual(document.onboardingDraft)
+  })
+
+  it('migrates a version 3 save adding empty goal descriptions', () => {
+    const legacy = JSON.parse(serializeDocument(fullDocument())) as Record<string, unknown>
+    legacy.schemaVersion = 3
+    for (const goal of legacy.goals as Array<Record<string, unknown>>) {
+      delete goal.description
+    }
+    const parsed = parseDocument(legacy)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(parsed.value.goals.every((goal) => goal.description === '')).toBe(true)
   })
 
   it('migrates a version 1 save to persisted goal icons', () => {
@@ -244,6 +258,7 @@ describe('serializeDocument and parseDocument', () => {
       id: 'goal_draft',
       title: 'Read',
       category: 'Mind',
+      description: '',
       weeklyObjective: 3,
       active: true,
       createdAt: now.toISOString(),
@@ -365,6 +380,7 @@ describe('serializeDocument and parseDocument', () => {
       id: `goal-cap-${index}`,
       title: `Cap goal ${index}`,
       category: 'Test',
+      description: '',
       icon: 'banner',
       weeklyObjective: 4,
       active: true,

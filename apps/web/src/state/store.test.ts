@@ -1674,6 +1674,7 @@ describe('content constraints during an active run', () => {
       id: 'goal_only',
       title: 'Wayfarer',
       category: 'Movement',
+      description: '',
       icon: 'compass',
       weeklyObjective: 4,
       active: true,
@@ -1771,6 +1772,7 @@ describe('content constraints during an active run', () => {
         id: 'goal_a',
         title: 'Wayfarer',
         category: 'Movement',
+        description: '',
         icon: 'compass',
         weeklyObjective: 4,
         active: true,
@@ -1780,6 +1782,7 @@ describe('content constraints during an active run', () => {
         id: 'goal_b',
         title: 'Craft',
         category: 'Making',
+        description: '',
         icon: 'quill',
         weeklyObjective: 3,
         active: true,
@@ -1938,5 +1941,42 @@ describe('map snapshots and run objectives', () => {
     )
     expect(activeRun.objectives.map((objective) => objective.target)).toEqual([4, 3])
     expect(next?.days.every((item) => item.map === null)).toBe(true)
+  })
+})
+describe('goal descriptions and day reset', () => {
+  it('persists an optional goal description', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    const goal = store.getState().document.goals[0]
+    if (!goal) throw new Error('expected a goal')
+    const result = store.getState().saveGoal(
+      { id: goal.id, title: goal.title, category: goal.category, description: 'Why it matters.', weeklyObjective: goal.weeklyObjective, active: true },
+      base,
+    )
+    expect(result.ok).toBe(true)
+    expect(store.getState().document.goals[0]?.description).toBe('Why it matters.')
+    const tooLong = store.getState().saveGoal(
+      { id: goal.id, title: goal.title, category: goal.category, description: 'x'.repeat(281), weeklyObjective: goal.weeklyObjective, active: true },
+      base,
+    )
+    expect(tooLong.ok).toBe(false)
+  })
+
+  it('resets today through the store, taking back rewards', () => {
+    const { store, base } = makeHarness()
+    onboardAndStart(store, base)
+    store.getState().openDay(undefined, base)
+    const day = store.getState().document.run?.days[0]
+    const firstId = day?.map?.layers[0]?.[0]?.id
+    if (!firstId) throw new Error('expected a first node')
+    store.getState().selectNode(firstId)
+    store.getState().resolveNode(firstId, 'complete', base)
+    expect(store.getState().document.profile?.xp).toBeGreaterThan(0)
+    store.getState().resetCurrentDay(base)
+    const reset = store.getState().document
+    expect(reset.profile?.xp).toBe(0)
+    expect(reset.run?.days[0]?.status).toBe('available')
+    expect(reset.run?.days[0]?.map).toBeNull()
+    expect(store.getState().view.name).toBe('home')
   })
 })

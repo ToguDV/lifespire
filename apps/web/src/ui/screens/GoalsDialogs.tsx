@@ -10,7 +10,7 @@ import { EFFORT_LABEL } from '../lib/format'
 
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
-const FIELD_KEYS = ['title', 'category', 'icon', 'weeklyObjective', 'effort', 'goalId'] as const
+const FIELD_KEYS = ['title', 'category', 'description', 'icon', 'weeklyObjective', 'effort', 'goalId'] as const
 
 function nonFieldErrors(errors: string[], fieldErrors: FieldErrors): string[] {
   const fields = new Set(
@@ -30,6 +30,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
   const goals = useAppStore((state) => state.document.goals)
   const [title, setTitle] = useState(goal?.title ?? '')
   const [category, setCategory] = useState(goal?.category ?? '')
+  const [description, setDescription] = useState(goal?.description ?? '')
   const [icon, setIcon] = useState<GoalIconId>(() => goal?.icon ?? nextGoalIcon(goals))
   const [weeklyObjective, setWeeklyObjective] = useState(
     String(goal?.weeklyObjective ?? 3),
@@ -44,6 +45,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       ...(goal ? { id: goal.id, createdAt: goal.createdAt } : {}),
       title,
       category,
+      description,
       icon,
       weeklyObjective: Number(weeklyObjective),
       active,
@@ -73,7 +75,11 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       open
       eyebrow="Goals"
       title={goal ? 'Edit goal' : 'Add a goal'}
-      description={goal ? 'Edits shape future maps.' : 'A goal holds the routines that move it.'}
+      description={
+        goal
+          ? 'Edits apply from tomorrow, or today if you reset the day.'
+          : 'A goal holds the routines that move it. It joins the week tomorrow.'
+      }
       onClose={onClose}
       footer={
         <>
@@ -129,6 +135,27 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
             placeholder="e.g. Movement"
             onChange={(event) => setCategory(event.target.value)}
           />
+        </div>
+        <div className="field">
+          <label htmlFor={`${formId}-description`}>Description (optional)</label>
+          <input
+            className="input"
+            id={`${formId}-description`}
+            type="text"
+            value={description}
+            maxLength={280}
+            placeholder="Why does this quest matter?"
+            aria-invalid={Boolean(fieldErrors.description)}
+            aria-describedby={
+              fieldErrors.description ? `${formId}-description-error` : undefined
+            }
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          {fieldErrors.description ? (
+            <p className="field-error" id={`${formId}-description-error`}>
+              {fieldErrors.description}
+            </p>
+          ) : null}
         </div>
         <div className="field">
           <IconPicker
@@ -235,7 +262,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
       open
       eyebrow="Routines"
       title={task ? 'Edit routine' : 'Add a routine'}
-      description="Edits shape future maps."
+      description="Edits apply from tomorrow, or today if you reset the day."
       onClose={onClose}
       footer={
         <>
@@ -375,8 +402,8 @@ export function ArchiveDialog({ kind, id, title, onClose }: ArchiveDialogProps) 
       title={`Archive “${title}”?`}
       description={
         kind === 'goal'
-          ? 'This goal and its routines leave future maps. Maps already drawn keep their original steps, and this week’s targets do not change.'
-          : 'This routine leaves future maps. Maps already drawn keep their original step, and this week’s targets do not change.'
+          ? 'This goal and its routines leave the week from tomorrow, or today if you reset the day. Maps already drawn keep their original steps.'
+          : 'This routine leaves the week from tomorrow, or today if you reset the day. Maps already drawn keep their original step.'
       }
       onClose={onClose}
       footer={

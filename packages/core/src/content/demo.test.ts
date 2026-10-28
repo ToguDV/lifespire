@@ -14,6 +14,7 @@ function makeGoal(overrides: Partial<Goal> = {}): Goal {
     id: 'goal_1',
     title: 'Wayfarer',
     category: 'Movement',
+    description: '',
     icon: 'compass',
     weeklyObjective: 4,
     active: true,

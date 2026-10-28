@@ -10,8 +10,10 @@ import {
   DomainError,
   openDay,
   reconcileDays,
+  resetCurrentDay,
   resolveNode,
   selectNode,
+  syncObjectives,
 } from './lifecycle.js'
 import { rollLootItem, rewardsForNode } from './rewards.js'
 import { createEmptyDocument, parseDocument, serializeDocument } from './schema.js'
@@ -1062,5 +1064,79 @@ describe('day lifecycle boundaries', () => {
         scenario.progress,
       )
     }
+  })
+})
+
+describe('syncObjectives', () => {
+  it('appends newly added active goals keeping progress', () => {
+    const base = makeRun('run_sync_add')
+    const extra = {
+      id: 'goal_new',
+      title: 'Hearth',
+      category: 'Home',
+      description: 'Tidy one corner.',
+      icon: 'flame' as const,
+      weeklyObjective: 2,
+      active: true,
+      createdAt: now.toISOString(),
+    }
+    const synced = syncObjectives(base, [ ...createDemoSetup(now).goals, extra ])
+    expect(synced.objectives.some((o) => o.goalId === 'goal_new')).toBe(true)
+    expect(synced.objectives.find((o) => o.goalId === 'goal_new')).toMatchObject({
+      goalTitle: 'Hearth',
+      target: 2,
+      progress: 0,
+    })
+  })
+
+  it('refreshes titles and targets and drops archived goals', () => {
+    const base = makeRun('run_sync_update')
+    const goals = createDemoSetup(now).goals.map((goal) =>
+      goal.id === 'demo-goal-wayfarer'
+        ? { ...goal, title: 'Wayfarer II', weeklyObjective: 5 }
+        : goal,
+    )
+    const archived = goals.filter((goal) => goal.id === 'demo-goal-wayfarer')
+    const synced = syncObjectives(base, archived)
+    expect(synced.objectives).toHaveLength(1)
+    expect(synced.objectives[0]).toMatchObject({ goalTitle: 'Wayfarer II', target: 5 })
+  })
+})
+
+describe('resetCurrentDay', () => {
+  it('reverses rewards and reopens a sealed day', () => {
+    const opened = openedDocument()
+    const day = opened.run?.days[0]
+    if (!day?.map) throw new Error('expected a map')
+    const firstId = day.map.layers[0]?.[0]?.id
+    if (!firstId) throw new Error('expected a first node')
+    const selected = selectNode(opened, firstId)
+    const resolved = resolveNode(selected, { nodeId: firstId, action: 'complete', now })
+    const gainedXp = resolved.profile?.xp ?? 0
+    const gainedGold = resolved.profile?.gold ?? 0
+    expect(gainedXp).toBeGreaterThan(0)
+
+    const reset = resetCurrentDay(resolved, now)
+    expect(reset.profile?.xp).toBe(0)
+    expect(reset.profile?.gold).toBe(0)
+    expect(reset.profile?.loot).toHaveLength(0)
+    const resetDay = reset.run?.days[0]
+    expect(resetDay?.status).toBe('available')
+    expect(resetDay?.map).toBeNull()
+    expect(resetDay?.path).toEqual([])
+    expect(resetDay?.rewards).toEqual([])
+    expect(resetDay?.summary).toBeNull()
+    expect(reset.run?.totals.xp).toBe(0)
+    expect(reset.run?.objectives.every((o) => o.progress === 0)).toBe(true)
+    expect(gainedGold).toBeGreaterThanOrEqual(0)
+  })
+
+  it('is a no-op for an untouched day and rejects missed days', () => {
+    const untouched = makeDocument(now, 'run_reset_noop')
+    expect(resetCurrentDay(untouched, now)).toBe(untouched)
+    const lockedDoc = makeDocument(now, 'run_reset_locked')
+    expect(() =>
+      resetCurrentDay(lockedDoc, new Date(2026, 9, 19, 9, 0, 0)),
+    ).toThrow(/no open day/i)
   })
 })

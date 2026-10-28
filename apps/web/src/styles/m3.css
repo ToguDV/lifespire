@@ -285,6 +285,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  align-items: start;
+}
+
+.field-grid .field {
+  min-width: 0;
+}
+
+.field-grid .input,
+.field-grid select.input {
+  width: 100%;
+  min-height: 44px;
 }
 
 .draft-groups {
@@ -558,6 +569,20 @@
 @media (min-width: 700px) {
   .field-grid {
     grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 0.7fr);
+  }
+
+  .field-grid--routine {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, auto);
+    align-items: start;
+  }
+
+  .field-grid--routine .field {
+    min-width: 0;
+  }
+
+  .field-grid--routine .segmented--form {
+    width: auto;
+    min-width: 220px;
   }
 
   .onboarding-panel {

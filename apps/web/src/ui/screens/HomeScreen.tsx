@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { validateSetup } from '../../content/demo'
 import type { Day, Goal, LootItem, Run, RunObjective } from '../../domain/types'
 import { useAppStore } from '../../state/store'
-import { AimRow, Button, DayPips, Icon, Panel, PanelHead } from '../components'
+import { AimRow, Button, DayPips, Dialog, Icon, Panel, PanelHead } from '../components'
 import type { IconName } from '../components'
 import { homeState, weekMarker } from '../lib/dashboard'
 import type { HomePhase } from '../lib/dashboard'
@@ -163,7 +164,9 @@ export function HomeScreen() {
   const navigate = useAppStore((state) => state.navigate)
   const startRun = useAppStore((state) => state.startRun)
   const openDay = useAppStore((state) => state.openDay)
+  const resetCurrentDay = useAppStore((state) => state.resetCurrentDay)
   const todayKey = useAppStore((state) => state.todayKey)
+  const [confirmResetDay, setConfirmResetDay] = useState(false)
 
   const run = document.run
   const profile = document.profile
@@ -179,6 +182,11 @@ export function HomeScreen() {
 
   const day = home.today
   const dayNumber = day ? day.index + 1 : 0
+  const canResetDay =
+    run?.status === 'active' &&
+    day?.date === today &&
+    (day.status === 'available' || day.status === 'in_progress' || day.status === 'completed') &&
+    (day.map !== null || day.path.length > 0 || day.rewards.length > 0)
 
   const openToday = () => {
     if (!day) return
@@ -334,6 +342,14 @@ export function HomeScreen() {
                 </div>
               ) : null}
               {heroAction}
+              {canResetDay ? (
+                <p style={{ marginTop: 10 }}>
+                  <Button variant="quiet" size="sm" onClick={() => setConfirmResetDay(true)}>
+                    <Icon name="archive" />
+                    Reset today
+                  </Button>
+                </p>
+              ) : null}
             </div>
           </article>
 
@@ -371,6 +387,35 @@ export function HomeScreen() {
           />
         </aside>
       </div>
+      <Dialog
+        open={confirmResetDay}
+        eyebrow="Camp"
+        title="Reset today?"
+        description="Today returns to unwritten: its map, path, XP, gold, loot and weekly progress are taken back. Yesterday and tomorrow are untouched."
+        onClose={() => setConfirmResetDay(false)}
+        footer={
+          <>
+            <Button variant="quiet" onClick={() => setConfirmResetDay(false)}>
+              Keep today
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirmResetDay(false)
+                resetCurrentDay()
+              }}
+            >
+              <Icon name="archive" />
+              Reset today
+            </Button>
+          </>
+        }
+      >
+        <p className="panel-note">
+          Use this to replay the day with the current goals. New goals join the week tomorrow, or
+          today after the reset.
+        </p>
+      </Dialog>
     </section>
   )
 }

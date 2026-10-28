@@ -1,4 +1,5 @@
 import { computeRunTotals } from './lifecycle.js'
+import { SCHEMA_VERSION } from './balance.js'
 import { parseDocument } from './schema.js'
 import { levelForXp } from './selectors.js'
 import type {
@@ -84,7 +85,7 @@ export function tryAutoMerge(
   }
 
   const merged: GameDocument = {
-    schemaVersion: 3,
+    schemaVersion: SCHEMA_VERSION,
     profile,
     goals,
     tasks,

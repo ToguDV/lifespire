@@ -1,5 +1,6 @@
 import {
   MAX_GOALS,
+  MAX_GOAL_DESCRIPTION_LENGTH,
   MAX_WEEKLY_OBJECTIVE,
   MIN_ACTIVE_TASKS,
   MIN_GOALS,
@@ -23,6 +24,7 @@ const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
 export const CONTENT_MESSAGES = {
   goalTitle: 'Give this goal a title.',
+  goalDescription: `Keep the description under ${MAX_GOAL_DESCRIPTION_LENGTH} characters.`,
   goalIcon: 'Choose an icon for this goal.',
   weeklyObjective: `Set the weekly target between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
   tooManyGoals: `A run can hold at most ${MAX_GOALS} active goals. Archive one before adding another.`,
@@ -49,7 +51,7 @@ export function contentFailure(fieldErrors: FieldErrors): ContentActionResult {
 
 /** Validates the editable fields of a goal, independent of the rest of the setup. */
 export function validateGoalInput(
-  goal: Pick<Goal, 'title' | 'icon' | 'weeklyObjective'>,
+  goal: Pick<Goal, 'title' | 'icon' | 'weeklyObjective'> & Partial<Pick<Goal, 'description'>>,
 ): FieldErrors {
   const errors: FieldErrors = {}
   if (!goal.title.trim()) errors.title = CONTENT_MESSAGES.goalTitle
@@ -60,6 +62,12 @@ export function validateGoalInput(
     goal.weeklyObjective > MAX_WEEKLY_OBJECTIVE
   ) {
     errors.weeklyObjective = CONTENT_MESSAGES.weeklyObjective
+  }
+  if (
+    goal.description !== undefined &&
+    goal.description.trim().length > MAX_GOAL_DESCRIPTION_LENGTH
+  ) {
+    errors.description = CONTENT_MESSAGES.goalDescription
   }
   return errors
 }

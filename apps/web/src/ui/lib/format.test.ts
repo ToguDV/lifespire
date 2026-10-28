@@ -30,6 +30,7 @@ describe('goal icons', () => {
       id: 'goal_a',
       title: 'Read',
       category: 'Mind',
+      description: '',
       icon: 'book',
       weeklyObjective: 3,
       active: true,

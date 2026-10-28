@@ -103,7 +103,7 @@ Core rules:
 5. Completing grants rewards and, if it is a task, adds progress to its goal. Skipping grants 0, carries no penalty, and allows the user to advance. The user cannot go back.
 6. Resolving the boss ends the day and shows the summary. If the boss is skipped, the day ends without the closing bonus.
 7. On day 7, the run close is calculated: objectives met, weekly bonus, loot, and totals. A new run can then be started.
-8. Editing goals or routines during the run only affects future maps: maps already drawn keep their steps and rewards. The goal icon is the exception; it is resolved when the map renders, so changing it updates the crest on the current map too.
+8. Editing goals or routines during the run applies from the next day, or today after a day reset: maps already drawn keep their steps and rewards. New goals join the weekly panel, edited titles/targets update it, and archived goals leave it. The goal icon is the exception; it is resolved when the map renders, so changing it updates the crest on the current map too. The player may reset today at will (with confirmation); its map, XP, gold, loot and progress are taken back.
 9. The daily cutoff is local midnight. The POC trusts the device clock.
 10. The app does not verify tasks: the user marks them as completed. This is acceptable for a personal app at this stage.
 
@@ -170,14 +170,14 @@ Effort multiplier: light `×1`, medium `×1.5`, high `×2`.
 
 Minimum screens:
 
-1. **Onboarding:** brief explanation, optional name, choose demo or create goals/routines, confirm weekly objectives.
-2. **Home / Run:** current day, map access, objective progress, gold, XP, and level.
-3. **Map:** main screen; traveled path, available nodes, locked nodes, and weekly objectives panel.
+1. **Onboarding:** quest-style tutorial (origin, quests, training, eve), optional name, choose demo or create goals/routines with descriptions, confirm weekly objectives.
+2. **Home / Run:** current day, map access, objective progress, gold, XP, level, and a confirmed "Reset today" that replays the day without its rewards.
+3. **Map:** main screen; traveled path, available nodes, locked nodes, weekly objectives panel, first-day coach hints, and the same confirmed "Reset today".
 4. **Node detail:** task, associated goal, effort, reward, and progress; "Complete" and "Skip" buttons. The wheel spins on the node, then the reward recap opens on its own.
 5. **Reward recap (wheel):** outcome summary with a "Done" button that records it; no way back, so no task is skipped by accident.
 6. **Day summary:** chosen path, completed/skipped nodes, rewards, and weekly progress.
 7. **Run summary:** days played/missed, objectives met, bonus, loot, and totals.
-8. **Goals and routines:** minimal CRUD for goals, tasks, effort, weekly frequency, and the goal icon that marks its map nodes.
+8. **Goals and routines:** minimal CRUD for goals (with optional description), tasks, effort, weekly frequency, and the goal icon that marks its map nodes.
 9. **Profile / collection:** level, XP, gold, and loot obtained.
 10. **Settings:** export/import JSON, reset, and dev panel.
 
@@ -196,7 +196,7 @@ Daily flow:
 | Entity | Key fields |
 |---|---|
 | **Profile** | id, name, XP, level, gold, loot, creation date |
-| **Goal** | id, title, category, icon, weekly objective, active |
+| **Goal** | id, title, category, description (optional, ≤280), icon, weekly objective, active |
 | **Task** | id, goalId, title, effort, active |
 | **Run** | id, seed, start date, status, weekly objectives, days, totals |
 | **Day** | date, status, map, path, resolved nodes, rewards |

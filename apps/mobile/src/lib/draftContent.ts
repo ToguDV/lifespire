@@ -23,7 +23,8 @@ export function upsertDraftGoal(
         ? {
             ...goal,
             title: input.title,
-            category: input.category,
+            category: input.category ?? goal.category,
+            description: (input.description ?? goal.description ?? '').trim(),
             icon: input.icon ?? goal.icon,
             weeklyObjective: input.weeklyObjective,
             active: input.active,
@@ -36,7 +37,8 @@ export function upsertDraftGoal(
     {
       id: deps.newId('goal'),
       title: input.title.trim(),
-      category: input.category.trim() || 'General',
+      category: (input.category ?? '').trim() || 'General',
+      description: (input.description ?? '').trim(),
       icon: input.icon ?? nextGoalIcon(goals),
       weeklyObjective: input.weeklyObjective,
       active: input.active,
