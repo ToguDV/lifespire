@@ -58,6 +58,38 @@ async function completeFirstNode(page: import('@playwright/test').Page) {
 }
 
 test.describe('core loop', () => {
+  test('custom quest title aligns with the shared form fields on mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 })
+    await page.goto('/')
+    await page.evaluate(() => window.localStorage.clear())
+    await page.reload()
+    await page.getByRole('button', { name: /Create my own path/i }).click()
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.getByRole('button', { name: 'Add quest' }).click()
+
+    const title = page.getByRole('textbox', { name: 'Quest name' })
+    const category = page.getByRole('textbox', { name: 'Category' })
+    const weeklyTarget = page.getByRole('spinbutton', { name: 'Weekly target' })
+    const remove = page.getByRole('button', { name: 'Remove quest' })
+    const [titleBox, categoryBox, targetBox, removeBox] = await Promise.all([
+      title.boundingBox(),
+      category.boundingBox(),
+      weeklyTarget.boundingBox(),
+      remove.boundingBox(),
+    ])
+
+    expect(titleBox).not.toBeNull()
+    expect(categoryBox).not.toBeNull()
+    expect(targetBox).not.toBeNull()
+    expect(removeBox).not.toBeNull()
+    expect(titleBox!.height).toBe(44)
+    expect(categoryBox!.height).toBe(44)
+    expect(targetBox!.height).toBe(44)
+    expect(Math.abs(titleBox!.x - categoryBox!.x)).toBeLessThan(1)
+    expect(titleBox!.width).toBeGreaterThan(140)
+    expect(Math.abs(titleBox!.y + titleBox!.height / 2 - (removeBox!.y + removeBox!.height / 2))).toBeLessThan(1)
+  })
+
   test('demo onboarding opens the first map', async ({ page }) => {
     await startDemoRun(page)
     await openMap(page)

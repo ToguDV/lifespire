@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { SCHEMA_VERSION } from './balance.js'
 import { createEmptyDocument, parseDocument } from './schema.js'
 
-describe('schema v3 run.timeZone', () => {
-  it('stamps version 3 on new documents', () => {
-    expect(SCHEMA_VERSION).toBe(3)
-    expect(createEmptyDocument().schemaVersion).toBe(3)
+describe('schema v4 run.timeZone', () => {
+  it('stamps version 4 on new documents', () => {
+    expect(SCHEMA_VERSION).toBe(4)
+    expect(createEmptyDocument().schemaVersion).toBe(4)
   })
 
   it('migrates v2 runs to timeZone null', () => {
@@ -38,7 +38,7 @@ describe('schema v3 run.timeZone', () => {
     const parsed = parseDocument(JSON.parse(JSON.stringify(doc)))
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
-    expect(parsed.value.schemaVersion).toBe(3)
+    expect(parsed.value.schemaVersion).toBe(4)
     expect(parsed.value.run?.timeZone).toBe(null)
   })
 
@@ -47,7 +47,7 @@ describe('schema v3 run.timeZone', () => {
     const withRun = { ...base, run: null as unknown }
     void withRun
     const doc = JSON.parse(JSON.stringify({ ...base, run: null })) as Record<string, unknown>
-    doc.schemaVersion = 3
+    doc.schemaVersion = 4
     expect(parseDocument(doc).ok).toBe(true)
   })
 })

@@ -10,11 +10,12 @@ import {
 import type { MapNode, Run } from '../../domain/types'
 import { rollWheelOutcome } from '../../domain/lifecycle'
 import { useAppStore } from '../../state/store'
-import { Button, Icon, Panel, Pips } from '../components'
+import { Button, Icon, Panel, Pips, TutorialDialog } from '../components'
 import { playFeedback } from '../lib/feedback'
 import { rewardFeedback } from '../lib/daySummary'
 import { playForRewardEvent } from '../lib/resolveFeedback'
 import { EFFORT_LABEL, NODE_TYPE_ICON, NODE_TYPE_LABEL, goalIconFor } from '../lib/format'
+import { markTutorialSeen, useSeenTutorialCards } from '../lib/tutorial'
 import {
   WHEEL_RECAP_DELAY_MS,
   WHEEL_SPIN_DURATION_MS,
@@ -61,6 +62,22 @@ function AimProgress({ run, node }: { run: Run; node: MapNode }) {
         {met ? 'Target met' : `After this step: ${after} of ${target}`}
       </p>
     </div>
+  )
+}
+
+function NodeTutorialCard() {
+  const seen = useSeenTutorialCards()
+  if (seen.has('node')) return null
+  return (
+    <TutorialDialog
+      card="node"
+      icon="check"
+      title="Do it, then mark it"
+      body="Do the step in real life, then Complete it for XP, gold and quest progress. Skip moves on with nothing — no penalty."
+      primaryLabel="Got it"
+      onPrimary={() => markTutorialSeen('node')}
+      onHide={() => markTutorialSeen('node')}
+    />
   )
 }
 
@@ -323,6 +340,7 @@ export function NodeScreen() {
         <Icon name="arrow-left" />
         Back to the map
       </button>
+      <NodeTutorialCard />
 
       <div className="node-detail">
         <article className="panel node-spread" data-variant={node.type}>

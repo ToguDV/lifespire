@@ -1,6 +1,6 @@
 import type { Effort, NodeRewards, NodeType, Rarity, WheelOutcome } from './types.js'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 export const STORAGE_KEY = 'lifespire:mvp0'
 /** Last raw save copied before a destructive import or reset. */
 export const STORAGE_BACKUP_KEY = 'lifespire:mvp0:backup'
@@ -30,6 +30,7 @@ export const MAX_ELITES_PER_MAP = 2
 export const MIN_ACTIVE_TASKS = 4
 export const MIN_WEEKLY_OBJECTIVE = 1
 export const MAX_WEEKLY_OBJECTIVE = 7
+export const MAX_GOAL_DESCRIPTION_LENGTH = 280
 
 export const XP_PER_LEVEL = 100
 

@@ -25,6 +25,7 @@ function makeGoal(
     id,
     title,
     category: 'Test',
+    description: '',
     icon: 'banner',
     weeklyObjective,
     active,
@@ -110,7 +111,7 @@ function variationsFor(index: number): { goals: Goal[]; tasks: Task[]; objective
     return makeTask(
       `t${index}-${taskIndex}`,
       (goals[taskIndex % goals.length] as Goal).id,
-      `Routine ${index}-${taskIndex}`,
+      `Trial ${index}-${taskIndex}`,
       effort,
     )
   })
@@ -165,8 +166,8 @@ function goalsFor(goalCount: number): {
     makeGoal(`goal-depth-${index}`, `Depth goal ${index}`, 4),
   )
   const tasks = goals.flatMap((goal, index) => [
-    makeTask(`task-depth-${index}-a`, goal.id, `Depth routine ${index} A`, 'light'),
-    makeTask(`task-depth-${index}-b`, goal.id, `Depth routine ${index} B`, 'medium'),
+    makeTask(`task-depth-${index}-a`, goal.id, `Depth trial ${index} A`, 'light'),
+    makeTask(`task-depth-${index}-b`, goal.id, `Depth trial ${index} B`, 'medium'),
   ])
   return {
     goals,
@@ -252,7 +253,7 @@ describe('generateMap structure', () => {
       makeTask(
         `task-large-${String(index).padStart(2, '0')}`,
         (goals[index % goals.length] as Goal).id,
-        `Routine ${index}`,
+        `Trial ${index}`,
         (['light', 'medium', 'high'] as const)[index % 3] as Effort,
       ),
     )
@@ -300,13 +301,13 @@ describe('generateMap structure', () => {
   })
 })
 
-describe('generateMap depth from goals with active routines', () => {
+describe('generateMap depth from goals with active trials', () => {
   it('grows the map with the weekly targets of the same goals', () => {
     const lightGoal = makeGoal('goal-light', 'Light goal', 1)
     const heavyGoal = makeGoal('goal-heavy', 'Heavy goal', 7)
     const tasks = [
-      makeTask('task-light', lightGoal.id, 'Light routine', 'light'),
-      makeTask('task-heavy', heavyGoal.id, 'Heavy routine', 'light'),
+      makeTask('task-light', lightGoal.id, 'Light trial', 'light'),
+      makeTask('task-heavy', heavyGoal.id, 'Heavy trial', 'light'),
     ]
 
     const light = generateMap(
@@ -328,7 +329,7 @@ describe('generateMap depth from goals with active routines', () => {
     expect(heavy.layers).toHaveLength(4)
   })
 
-  it('builds fifteen layers for ten goals with routines', () => {
+  it('builds fifteen layers for ten goals with trials', () => {
     const { goals, tasks, objectives } = goalsFor(10)
     const map = generateMap(baseInput({ goals, tasks, objectives }))
 
@@ -338,7 +339,7 @@ describe('generateMap depth from goals with active routines', () => {
     expect(validateMap(map)).toEqual({ ok: true })
   })
 
-  it('keeps ten-goal maps valid across routine pools from one to twenty', () => {
+  it('keeps ten-goal maps valid across trial pools from one to twenty', () => {
     const seeds = ['alpha', 'beta', 'gamma']
     for (let poolSize = 1; poolSize <= 20; poolSize += 1) {
       const { goals, objectives } = goalsFor(10)
@@ -346,7 +347,7 @@ describe('generateMap depth from goals with active routines', () => {
         makeTask(
           `task-depth-pool-${index}`,
           `goal-depth-${index % 10}`,
-          `Depth pool routine ${index}`,
+          `Depth pool trial ${index}`,
           (['light', 'medium', 'high'] as const)[index % 3] as Effort,
         ),
       )
@@ -387,7 +388,7 @@ describe('generateMap depth from goals with active routines', () => {
     }
   })
 
-  it('builds nine layers for four goals with routines and weekly targets', () => {
+  it('builds nine layers for four goals with trials and weekly targets', () => {
     const { goals, tasks, objectives } = goalsFor(4)
     const map = generateMap(baseInput({ goals, tasks, objectives }))
 
@@ -396,7 +397,7 @@ describe('generateMap depth from goals with active routines', () => {
     expect(map.boss.id).toBe('n9_0')
   })
 
-  it('counts only goals that actually have an active routine', () => {
+  it('counts only goals that actually have an active trial', () => {
     const { goals, tasks, objectives } = goalsFor(10)
     const goalsWithRoutines = new Set(['goal-depth-0', 'goal-depth-1', 'goal-depth-2'])
     const onlyThreeGoalsHaveRoutines = tasks.filter((task) =>
@@ -494,7 +495,7 @@ describe('generateMap map shape', () => {
 })
 
 describe('generateMap edge cases', () => {
-  it('handles exactly four routines and one goal', () => {
+  it('handles exactly four trials and one goal', () => {
     const goals = [makeGoal('goal-solo', 'Solo goal', 5)]
     const tasks = [
       makeTask('task-a', 'goal-solo', 'A', 'light'),
@@ -516,7 +517,7 @@ describe('generateMap edge cases', () => {
       makeTask(
         `task-${index}`,
         (goals[index % goals.length] as Goal).id,
-        `Routine ${index}`,
+        `Trial ${index}`,
         (['light', 'medium', 'high'] as const)[index % 3] as Effort,
       ),
     )
@@ -531,7 +532,7 @@ describe('generateMap edge cases', () => {
       makeTask(
         `task-small-${index}`,
         'goal-small',
-        `Routine ${index}`,
+        `Trial ${index}`,
         (['light', 'medium', 'high'] as const)[index % 3] as Effort,
       ),
     )
@@ -548,12 +549,12 @@ describe('generateMap edge cases', () => {
     }
   })
 
-  it('rejects an empty active routine pool with a clear domain error', () => {
+  it('rejects an empty active trial pool with a clear domain error', () => {
     expect(() => generateMap(baseInput({ tasks: [] }))).toThrow(MapGenerationError)
-    expect(() => generateMap(baseInput({ tasks: [] }))).toThrow(/active routine/i)
+    expect(() => generateMap(baseInput({ tasks: [] }))).toThrow(/active trial/i)
   })
 
-  it('ignores routines from inactive goals and inactive routines', () => {
+  it('ignores trials from inactive goals and inactive trials', () => {
     const goals = [makeGoal('goal-off', 'Off', 2, false), makeGoal('goal-on', 'On', 2)]
     const tasks = [
       makeTask('task-off-goal', 'goal-off', 'Off goal', 'high'),
@@ -562,7 +563,7 @@ describe('generateMap edge cases', () => {
     expect(() => generateMap(baseInput({ goals, tasks }))).toThrow(MapGenerationError)
   })
 
-  it('does not mutate the goals, routines or objectives it receives', () => {
+  it('does not mutate the goals, trials or objectives it receives', () => {
     const goals = baseGoals().map((goal) => Object.freeze({ ...goal }))
     const tasks = baseTasks().map((task) => Object.freeze({ ...task }))
     const objectives = goals.map((goal) => Object.freeze(makeObjective(goal, 0)))

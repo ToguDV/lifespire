@@ -173,10 +173,10 @@ the rest of the app remains fully usable.
   pines and crescent) and the lock privacy line. The welcome no longer asks for
   a name, lists mechanic bullets or explains the demo size; the demo uses
   `Wayfarer` and the custom flow asks for an optional name in step 1. The
-  wizard keeps the four steps, visual stepper, review summary and routine-based
+  wizard keeps the four steps, visual stepper, review summary and trial-based
   target suggestions, but the kicker is just `Create your path`, the step
   bodies are one line, and the review/map explanation hints are gone. Editing a
-  goal or routine inside the wizard opens a touch dialog instead of the web
+  goal or trial inside the wizard opens a touch dialog instead of the web
   inline fieldsets; the domain draft and validation stay shared. There is no
   account row: the local profile is the only identity.
 - The map mirrors the web state machine: the screen resolves the active day,

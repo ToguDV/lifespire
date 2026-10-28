@@ -51,7 +51,7 @@ export function SettingsScreen() {
     anchor.click()
     anchor.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
-    showToast('Save exported. It includes your profile, goals, routines, run and collection.')
+    showToast('Save exported. It includes your profile, goals, trials, run and collection.')
   }
 
   const closeReset = () => {
@@ -176,7 +176,7 @@ export function SettingsScreen() {
       <Dialog
         open={confirmReset}
         title="Reset local data?"
-        description="This removes the profile, goals, routines, run and collection from this device."
+        description="This removes the profile, goals, trials, run and collection from this device."
         onClose={closeReset}
         footer={
           <>

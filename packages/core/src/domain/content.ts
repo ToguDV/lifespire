@@ -1,5 +1,6 @@
 import {
   MAX_GOALS,
+  MAX_GOAL_DESCRIPTION_LENGTH,
   MAX_WEEKLY_OBJECTIVE,
   MIN_ACTIVE_TASKS,
   MIN_GOALS,
@@ -23,19 +24,20 @@ const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
 export const CONTENT_MESSAGES = {
   goalTitle: 'Give this goal a title.',
+  goalDescription: `Keep the description under ${MAX_GOAL_DESCRIPTION_LENGTH} characters.`,
   goalIcon: 'Choose an icon for this goal.',
   weeklyObjective: `Set the weekly target between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
   tooManyGoals: `A run can hold at most ${MAX_GOALS} active goals. Archive one before adding another.`,
   lastGoal: 'Keep at least one active goal while the run is underway.',
-  fewRoutines: `Keep at least ${MIN_ACTIVE_TASKS} active routines while the run is underway.`,
+  fewRoutines: `Keep at least ${MIN_ACTIVE_TASKS} active trials while the run is underway.`,
   aimWithoutRoutine:
-    'Keep at least one active routine under every active goal while the run is underway.',
-  taskTitle: 'Give this routine a title.',
-  taskGoal: 'Choose an active goal for this routine.',
+    'Keep at least one active trial under every active goal while the run is underway.',
+  taskTitle: 'Give this trial a title.',
+  taskGoal: 'Choose an active goal for this trial.',
   taskEffort: 'Choose light, medium or heavy effort.',
-  orphanTask: 'Every routine needs an active goal.',
+  orphanTask: 'Every trial needs an active goal.',
   missingGoal: 'That goal no longer exists. Refresh and try again.',
-  missingTask: 'That routine no longer exists. Refresh and try again.',
+  missingTask: 'That trial no longer exists. Refresh and try again.',
 } as const
 
 export function contentSuccess(): ContentActionResult {
@@ -49,7 +51,7 @@ export function contentFailure(fieldErrors: FieldErrors): ContentActionResult {
 
 /** Validates the editable fields of a goal, independent of the rest of the setup. */
 export function validateGoalInput(
-  goal: Pick<Goal, 'title' | 'icon' | 'weeklyObjective'>,
+  goal: Pick<Goal, 'title' | 'icon' | 'weeklyObjective'> & Partial<Pick<Goal, 'description'>>,
 ): FieldErrors {
   const errors: FieldErrors = {}
   if (!goal.title.trim()) errors.title = CONTENT_MESSAGES.goalTitle
@@ -61,10 +63,16 @@ export function validateGoalInput(
   ) {
     errors.weeklyObjective = CONTENT_MESSAGES.weeklyObjective
   }
+  if (
+    goal.description !== undefined &&
+    goal.description.trim().length > MAX_GOAL_DESCRIPTION_LENGTH
+  ) {
+    errors.description = CONTENT_MESSAGES.goalDescription
+  }
   return errors
 }
 
-/** Validates a routine, including that its goal exists and is active. */
+/** Validates a trial, including that its goal exists and is active. */
 export function validateTaskInput(
   task: Pick<Task, 'title' | 'goalId' | 'effort'>,
   goals: readonly Goal[],
@@ -87,7 +95,7 @@ export function activeTasksUnderActiveGoals(goals: readonly Goal[], tasks: reado
   return tasks.filter((task) => task.active && goalIds.has(task.goalId))
 }
 
-/** Whether an active goal still has at least one active routine in `tasks`. */
+/** Whether an active goal still has at least one active trial in `tasks`. */
 export function goalHasActiveRoutine(
   goals: readonly Goal[],
   tasks: readonly Task[],

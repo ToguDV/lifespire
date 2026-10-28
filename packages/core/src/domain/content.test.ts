@@ -29,6 +29,7 @@ function makeGoal(overrides: Partial<Goal> = {}): Goal {
     id: 'goal_1',
     title: 'Wayfarer',
     category: 'Movement',
+    description: '',
     icon: 'compass',
     weeklyObjective: 4,
     active: true,
@@ -51,13 +52,20 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 
 function fourTasks(goalId = 'goal_1'): Task[] {
   return [1, 2, 3, 4].map((index) =>
-    makeTask({ id: `task_${index}`, goalId, title: `Routine ${index}` }),
+    makeTask({ id: `task_${index}`, goalId, title: `Trial ${index}` }),
   )
 }
 
 describe('validateGoalInput', () => {
   it('accepts a titled goal inside the weekly range', () => {
     expect(validateGoalInput(makeGoal())).toEqual({})
+  })
+
+  it('accepts an optional description up to the limit', () => {
+    expect(validateGoalInput(makeGoal({ description: 'A short why.' }))).toEqual({})
+    expect(
+      validateGoalInput(makeGoal({ description: 'x'.repeat(281) })).description,
+    ).toBe(CONTENT_MESSAGES.goalDescription)
   })
 
   it('rejects an unknown goal icon', () => {
@@ -83,7 +91,7 @@ describe('validateGoalInput', () => {
 })
 
 describe('validateTaskInput', () => {
-  it('accepts a titled routine under an active goal', () => {
+  it('accepts a titled trial under an active goal', () => {
     expect(validateTaskInput(makeTask(), [makeGoal()])).toEqual({})
   })
 
@@ -157,7 +165,7 @@ describe('validateContentConstraints', () => {
     ).toContain(CONTENT_MESSAGES.fewRoutines)
   })
 
-  it('rejects active routines pointing at an inactive goal', () => {
+  it('rejects active trials pointing at an inactive goal', () => {
     const document = demoDocument()
     const goal = document.goals[0]
     if (!goal) throw new Error('expected a demo goal')
@@ -170,7 +178,7 @@ describe('validateContentConstraints', () => {
     )
   })
 
-  it('counts only active routines under active goals', () => {
+  it('counts only active trials under active goals', () => {
     const goals = [makeGoal(), makeGoal({ id: 'goal_2' })]
     const tasks = [
       ...fourTasks(),

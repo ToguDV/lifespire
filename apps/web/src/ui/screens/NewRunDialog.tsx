@@ -118,7 +118,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
                     <div>
                       <strong>{goal.title}</strong>
                       <span className="mini-note">
-                        {routines} active {routines === 1 ? 'routine' : 'routines'}
+                        {routines} active {routines === 1 ? 'trial' : 'trials'}
                       </span>
                     </div>
                   </div>
@@ -153,8 +153,8 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
 
         {validation.activeRoutines < 4 ? (
           <p className="form-alert" role="status">
-            <strong>Routines needed</strong>
-            A run needs at least four active routines. This setup has{' '}
+            <strong>Trials needed</strong>
+            A run needs at least four active trials. This setup has{' '}
             {validation.activeRoutines}.
           </p>
         ) : null}

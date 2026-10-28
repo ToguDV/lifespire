@@ -285,6 +285,32 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  align-items: start;
+}
+
+.field-grid .field {
+  min-width: 0;
+  margin-top: 0;
+}
+
+.field-grid .field + .field {
+  margin-top: 0;
+}
+
+.field-grid .input,
+.field-grid select.input {
+  width: 100%;
+  min-height: 44px;
+}
+
+.field-grid .field__label {
+  display: block;
+  min-height: 18px;
+  margin-bottom: 6px;
+}
+
+.field-grid .segmented {
+  min-height: 44px;
 }
 
 .draft-groups {
@@ -560,6 +586,23 @@
     grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 0.7fr);
   }
 
+  .field-grid--routine {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(220px, 0.9fr);
+    align-items: start;
+  }
+
+  .field-grid--routine .field {
+    min-width: 0;
+  }
+
+  .field-grid--routine .segmented--form {
+    width: 100%;
+  }
+
+  .field-grid--quest {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 200px);
+  }
+
   .onboarding-panel {
     padding: 22px;
   }
@@ -708,3 +751,232 @@
   .new-run-goal__field {
     width: min(100%, 180px);
   }
+}
+
+/* Floating tutorial cards ------------------------------------ */
+
+.tutorial-cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.tutorial-card {
+  position: relative;
+  padding: 13px 14px 13px 46px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+}
+
+.tutorial-card__icon {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.tutorial-card__icon .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.tutorial-card strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.tutorial-card p {
+  margin-top: 3px;
+  color: var(--ink-muted);
+  font-size: var(--text-body-sm);
+  line-height: 1.45;
+}
+
+.tutorial-float {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 11px 13px;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-md);
+  background: var(--accent-wash);
+  color: var(--ink-soft);
+  font-size: var(--text-body-sm);
+  line-height: 1.5;
+}
+
+.tutorial-float .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--accent-deep);
+}
+
+@media (min-width: 700px) {
+  .tutorial-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tutorial-card:nth-child(2) {
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-card:nth-child(2) {
+    transform: none;
+  }
+}
+
+/* Quest cards: goal + routines together ---------------------- */
+
+.quest-card {
+  padding: 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+}
+
+.quest-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.quest-card__head .icon-btn {
+  flex: none;
+}
+
+.quest-card__title {
+  flex: none;
+  min-width: 0;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+}
+
+.quest-card__titlewrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.quest-card__fields {
+  margin-top: 12px;
+}
+
+.quest-card__routines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+
+.quest-card .draft-card--routine {
+  background: var(--surface);
+}
+
+/* In-game tutorial dialog cards -------------------------------- */
+
+.tutorial-dialog {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 12px;
+  padding: 13px 14px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-float);
+}
+
+.tutorial-dialog__portrait {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.tutorial-dialog__portrait .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.tutorial-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tutorial-dialog__speaker {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tutorial-dialog__title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.tutorial-dialog__text {
+  margin: 2px 0 0;
+  color: var(--ink-muted);
+  font-size: var(--text-body-sm);
+  line-height: 1.5;
+}
+
+.tutorial-dialog__dots {
+  display: flex;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.tutorial-dialog__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hairline-strong);
+}
+
+.tutorial-dialog__dot.is-on {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.tutorial-dialog__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}

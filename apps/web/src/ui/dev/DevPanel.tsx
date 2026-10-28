@@ -15,12 +15,12 @@ const CONFIRM_COPY: Record<PendingAction, { title: string; description: string; 
   restart: {
     title: 'Restart the current run?',
     description: 'The run and its days are discarded. The profile, XP, gold and collection stay.',
-    body: 'A new seven-day run begins today with the current goals and routines.',
+    body: 'A new seven-day run begins today with the current goals and trials.',
     confirm: 'Restart run',
   },
   reset: {
     title: 'Reset all data?',
-    description: 'This removes the profile, goals, routines, run and collection.',
+    description: 'This removes the profile, goals, trials, run and collection.',
     body: 'The development clock also returns to zero. Export first if you need a copy.',
     confirm: 'Reset everything',
   },

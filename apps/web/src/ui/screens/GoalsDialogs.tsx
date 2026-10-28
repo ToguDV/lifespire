@@ -10,7 +10,7 @@ import { EFFORT_LABEL } from '../lib/format'
 
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
-const FIELD_KEYS = ['title', 'category', 'icon', 'weeklyObjective', 'effort', 'goalId'] as const
+const FIELD_KEYS = ['title', 'category', 'description', 'icon', 'weeklyObjective', 'effort', 'goalId'] as const
 
 function nonFieldErrors(errors: string[], fieldErrors: FieldErrors): string[] {
   const fields = new Set(
@@ -30,6 +30,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
   const goals = useAppStore((state) => state.document.goals)
   const [title, setTitle] = useState(goal?.title ?? '')
   const [category, setCategory] = useState(goal?.category ?? '')
+  const [description, setDescription] = useState(goal?.description ?? '')
   const [icon, setIcon] = useState<GoalIconId>(() => goal?.icon ?? nextGoalIcon(goals))
   const [weeklyObjective, setWeeklyObjective] = useState(
     String(goal?.weeklyObjective ?? 3),
@@ -44,6 +45,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       ...(goal ? { id: goal.id, createdAt: goal.createdAt } : {}),
       title,
       category,
+      description,
       icon,
       weeklyObjective: Number(weeklyObjective),
       active,
@@ -73,7 +75,11 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       open
       eyebrow="Goals"
       title={goal ? 'Edit goal' : 'Add a goal'}
-      description={goal ? 'Edits shape future maps.' : 'A goal holds the routines that move it.'}
+      description={
+        goal
+          ? 'Edits apply from tomorrow, or today if you reset the day.'
+          : 'A goal holds the trials that move it. It joins the week tomorrow.'
+      }
       onClose={onClose}
       footer={
         <>
@@ -131,6 +137,27 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
           />
         </div>
         <div className="field">
+          <label htmlFor={`${formId}-description`}>Description (optional)</label>
+          <input
+            className="input"
+            id={`${formId}-description`}
+            type="text"
+            value={description}
+            maxLength={280}
+            placeholder="Why does this quest matter?"
+            aria-invalid={Boolean(fieldErrors.description)}
+            aria-describedby={
+              fieldErrors.description ? `${formId}-description-error` : undefined
+            }
+            onChange={(event) => setDescription(event.target.value)}
+          />
+          {fieldErrors.description ? (
+            <p className="field-error" id={`${formId}-description-error`}>
+              {fieldErrors.description}
+            </p>
+          ) : null}
+        </div>
+        <div className="field">
           <IconPicker
             name={`${formId}-icon`}
             value={icon}
@@ -160,7 +187,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
             onChange={(event) => setWeeklyObjective(event.target.value)}
           />
           <p className="field-hint" id={`${formId}-weekly-hint`}>
-            How many routines of this goal you want to complete this week (1–7).
+            How many trials of this goal you want to complete this week (1–7).
           </p>
           {fieldErrors.weeklyObjective ? (
             <p className="field-error" id={`${formId}-weekly-error`}>
@@ -221,7 +248,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
   const alert =
     failures.length > 0 ? (
       <div className="form-alert" role="alert">
-        <strong>This routine was not saved</strong>
+        <strong>This trial was not saved</strong>
         <ul>
           {failures.map((message) => (
             <li key={message}>{message}</li>
@@ -233,16 +260,16 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
   return (
     <Dialog
       open
-      eyebrow="Routines"
-      title={task ? 'Edit routine' : 'Add a routine'}
-      description="Edits shape future maps."
+      eyebrow="Trials"
+      title={task ? 'Edit trial' : 'Add a trial'}
+      description="Edits apply from tomorrow, or today if you reset the day."
       onClose={onClose}
       footer={
         <>
           {task ? (
             <Button variant="danger" onClick={() => { onClose(); onArchive(task) }}>
               <Icon name="archive" />
-              Archive routine
+              Archive trial
             </Button>
           ) : null}
           <Button variant="quiet" onClick={onClose}>
@@ -254,7 +281,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
             variant="primary"
             disabled={activeGoals.length === 0}
           >
-            Save routine
+            Save trial
           </Button>
         </>
       }
@@ -270,11 +297,11 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
         {alert}
         {activeGoals.length === 0 ? (
           <p className="panel-note">
-            Add an active goal first. Every routine needs an active goal.
+            Add an active goal first. Every trial needs an active goal.
           </p>
         ) : null}
         <div className="field">
-          <label htmlFor={`${formId}-title`}>Routine title</label>
+          <label htmlFor={`${formId}-title`}>Trial title</label>
           <input
             className="input"
             id={`${formId}-title`}
@@ -371,18 +398,18 @@ export function ArchiveDialog({ kind, id, title, onClose }: ArchiveDialogProps) 
   return (
     <Dialog
       open
-      eyebrow={kind === 'goal' ? 'Goals' : 'Routines'}
+      eyebrow={kind === 'goal' ? 'Goals' : 'Trials'}
       title={`Archive “${title}”?`}
       description={
         kind === 'goal'
-          ? 'This goal and its routines leave future maps. Maps already drawn keep their original steps, and this week’s targets do not change.'
-          : 'This routine leaves future maps. Maps already drawn keep their original step, and this week’s targets do not change.'
+          ? 'This goal and its trials leave the week from tomorrow, or today if you reset the day. Maps already drawn keep their original steps.'
+          : 'This trial leaves the week from tomorrow, or today if you reset the day. Maps already drawn keep their original step.'
       }
       onClose={onClose}
       footer={
         <>
           <Button variant="quiet" onClick={onClose}>
-            Keep {kind === 'goal' ? 'goal' : 'routine'}
+            Keep {kind === 'goal' ? 'goal' : 'trial'}
           </Button>
           <Button variant="danger" onClick={confirm}>
             <Icon name="archive" />

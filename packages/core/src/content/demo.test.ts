@@ -14,6 +14,7 @@ function makeGoal(overrides: Partial<Goal> = {}): Goal {
     id: 'goal_1',
     title: 'Wayfarer',
     category: 'Movement',
+    description: '',
     icon: 'compass',
     weeklyObjective: 4,
     active: true,
@@ -44,7 +45,7 @@ function fourTasks(): Task[] {
 }
 
 describe('createDemoSetup', () => {
-  it('creates a valid demo with two goals and five routines', () => {
+  it('creates a valid demo with two goals and five trials', () => {
     const setup = createDemoSetup(now)
     expect(setup.name).toBe('Wren')
     expect(setup.goals).toHaveLength(2)
@@ -69,7 +70,7 @@ describe('createDemoSetup', () => {
     expect(setup.goals.every((goal) => goal.active)).toBe(true)
   })
 
-  it('belongs every routine to an active goal with unique ids', () => {
+  it('belongs every trial to an active goal with unique ids', () => {
     const setup = createDemoSetup(now)
     const goalIds = new Set(setup.goals.map((goal) => goal.id))
     expect(setup.tasks.every((task) => goalIds.has(task.goalId))).toBe(true)
@@ -112,19 +113,19 @@ describe('validateSetup', () => {
     )
   })
 
-  it('rejects fewer than four active routines', () => {
+  it('rejects fewer than four active trials', () => {
     const validation = validateSetup([makeGoal()], fourTasks().slice(0, 3))
     expect(validation.ok).toBe(false)
-    expect(validation.errors).toContain('Add at least 4 routines to light the week.')
+    expect(validation.errors).toContain('Add at least 4 trials to light the week.')
   })
 
-  it('ignores archived routines when counting', () => {
+  it('ignores archived trials when counting', () => {
     const tasks = [...fourTasks(), makeTask({ id: 'task_5', active: false })]
     expect(validateSetup([makeGoal()], tasks.slice(0, 3)).ok).toBe(false)
     expect(validateSetup([makeGoal()], tasks).ok).toBe(true)
   })
 
-  it('requires at least one active routine per active goal', () => {
+  it('requires at least one active trial per active goal', () => {
     const goals = [makeGoal(), makeGoal({ id: 'goal_2', title: 'Craft' })]
     const allInOneAim = fourTasks()
     const allInOne = validateSetup(goals, allInOneAim)
@@ -160,11 +161,11 @@ describe('validateSetup', () => {
     )
   })
 
-  it('rejects routines without an active goal', () => {
+  it('rejects trials without an active goal', () => {
     const tasks = fourTasks()
     tasks[0] = { ...tasks[0]!, goalId: 'missing_goal' }
     expect(validateSetup([makeGoal()], tasks).errors).toContain(
-      'Every routine needs a goal in this run.',
+      'Every trial needs a goal in this run.',
     )
 
     const archivedGoal = makeGoal({ id: 'goal_2', active: false })
@@ -173,13 +174,13 @@ describe('validateSetup', () => {
     expect(validateSetup([makeGoal(), archivedGoal], tasksOnArchived).ok).toBe(false)
   })
 
-  it('rejects unnamed goals and routines', () => {
+  it('rejects unnamed goals and trials', () => {
     expect(validateSetup([makeGoal({ title: ' ' })], fourTasks()).errors).toContain(
       'Give every goal a name.',
     )
     const tasks = fourTasks()
     tasks[0] = { ...tasks[0]!, title: '' }
-    expect(validateSetup([makeGoal()], tasks).errors).toContain('Give every routine a name.')
+    expect(validateSetup([makeGoal()], tasks).errors).toContain('Give every trial a name.')
   })
 
   it('rejects repeated ids', () => {

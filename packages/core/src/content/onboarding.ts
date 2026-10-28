@@ -2,7 +2,7 @@ import { MAX_WEEKLY_OBJECTIVE, MIN_WEEKLY_OBJECTIVE } from '../domain/balance.js
 import type { Goal, OnboardingDraft, OnboardingSetup, Task } from '../domain/types.js'
 
 export const DEFAULT_TRAVELLER = 'Wayfarer'
-export const ONBOARDING_STEPS = 4
+export const ONBOARDING_STEPS = 3
 
 export function createEmptyDraft(): OnboardingDraft {
   return {
@@ -28,12 +28,12 @@ function clampObjective(value: number): number {
 }
 
 /**
- * Suggested weekly target derived from the active routines under a goal. Keeping
+ * Suggested weekly target derived from the active trials under a goal. Keeping
  * one spare slot leaves room for a missed day without making the goal trivial.
  */
 export function suggestedWeeklyObjective(goalId: string, tasks: readonly Task[]): number {
-  const routines = tasks.filter((task) => task.active && task.goalId === goalId).length
-  return clampObjective(routines + 1)
+  const trials = tasks.filter((task) => task.active && task.goalId === goalId).length
+  return clampObjective(trials + 1)
 }
 
 /** Applies the routine-based suggestion to every goal in the draft. */

@@ -24,7 +24,7 @@ export type View =
   | { name: 'recovery'; reason: 'corrupt' | 'future-version' | 'import-error' }
 
 export interface GameDocument {
-  schemaVersion: 3
+  schemaVersion: 4
   profile: Profile | null
   goals: Goal[]
   tasks: Task[]
@@ -56,6 +56,7 @@ export interface Goal {
   id: string
   title: string
   category: string
+  description: string
   icon: GoalIconId
   weeklyObjective: number
   active: boolean
@@ -66,7 +67,7 @@ export type GoalInput = Pick<
   Goal,
   'title' | 'category' | 'weeklyObjective' | 'active'
 > &
-  Partial<Pick<Goal, 'id' | 'createdAt' | 'icon'>>
+  Partial<Pick<Goal, 'id' | 'createdAt' | 'icon' | 'description' | 'category'>>
 
 export interface Task {
   id: string

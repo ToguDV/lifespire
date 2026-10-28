@@ -23,7 +23,7 @@ describe('initialWeeklyTargets', () => {
 })
 
 describe('validateNewRunSetup', () => {
-  it('accepts the active goals and routines with adjusted 1–7 targets', () => {
+  it('accepts the active goals and trials with adjusted 1–7 targets', () => {
     const targets = initialWeeklyTargets(setup.goals)
     targets['demo-goal-wayfarer'] = '1'
     targets['demo-goal-craft'] = String(MAX_WEEKLY_OBJECTIVE)
@@ -51,7 +51,7 @@ describe('validateNewRunSetup', () => {
     }
   })
 
-  it('requires at least one active goal and four active routines', () => {
+  it('requires at least one active goal and four active trials', () => {
     const targets = initialWeeklyTargets(setup.goals)
     const noGoals = validateNewRunSetup(
       setup.goals.map((goal) => ({ ...goal, active: false })),
@@ -63,7 +63,7 @@ describe('validateNewRunSetup', () => {
 
     const fewRoutines = validateNewRunSetup(setup.goals, setup.tasks.slice(0, 3), targets)
     expect(fewRoutines.ok).toBe(false)
-    expect(fewRoutines.errors).toContain('Add at least 4 routines to light the week.')
+    expect(fewRoutines.errors).toContain('Add at least 4 trials to light the week.')
     expect(fewRoutines.activeRoutines).toBe(3)
 
     const missingTarget = initialWeeklyTargets(setup.goals)
@@ -73,7 +73,7 @@ describe('validateNewRunSetup', () => {
     expect(missing.fieldErrors['demo-goal-craft']).toBeTruthy()
   })
 
-  it('requires a routine under every active goal', () => {
+  it('requires a trial under every active goal', () => {
     const targets = initialWeeklyTargets(setup.goals)
     const allInOneAim = setup.tasks.map((task) => ({
       ...task,
@@ -81,7 +81,7 @@ describe('validateNewRunSetup', () => {
     }))
     const result = validateNewRunSetup(setup.goals, allInOneAim, targets)
     expect(result.ok).toBe(false)
-    expect(result.errors).toContain('Every active goal needs at least one active routine.')
+    expect(result.errors).toContain('Every active goal needs at least one active trial.')
   })
 
   it('reuses the same setup rules as onboarding', () => {

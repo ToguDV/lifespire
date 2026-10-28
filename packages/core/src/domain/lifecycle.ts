@@ -3,7 +3,7 @@ import { addDays, dayKey, isValidTimeZone, parseDayKey } from './dates.js'
 import { buildTaskPool, generateMap } from './generator.js'
 import { createRng } from './rng.js'
 import { acquireLoot, applyXp, rewardsForNode, rollLootItem } from './rewards.js'
-import { availableNodeIds, currentDay, resolveNodeById } from './selectors.js'
+import { availableNodeIds, currentDay, levelForXp, resolveNodeById } from './selectors.js'
 import type {
   Day,
   DaySummary,
@@ -327,6 +327,131 @@ export function reconcileDays(run: Run, todayKey: string, now?: Date): Run {
 }
 
 /**
+ * Brings the run's weekly objectives in line with the current goal list.
+ * Additive and conservative: new active goals are appended, surviving goals
+ * keep their progress while their title/target refresh, and archived goals
+ * leave the panel. Earned XP/gold/totals are never touched; sealed day
+ * summaries keep their stored rows.
+ */
+export function syncObjectives(run: Run, goals: readonly Goal[]): Run {
+  const active = goals.filter((goal) => goal.active)
+  const byId = new Map(run.objectives.map((objective) => [objective.goalId, objective]))
+  let changed = false
+  const objectives: RunObjective[] = []
+  for (const goal of active) {
+    const existing = byId.get(goal.id)
+    if (!existing) {
+      changed = true
+      objectives.push({
+        goalId: goal.id,
+        goalTitle: goal.title,
+        target: goal.weeklyObjective,
+        progress: 0,
+      })
+    } else if (
+      existing.goalTitle !== goal.title ||
+      existing.target !== goal.weeklyObjective
+    ) {
+      changed = true
+      objectives.push({
+        ...existing,
+        goalTitle: goal.title,
+        target: goal.weeklyObjective,
+      })
+    } else {
+      objectives.push(existing)
+    }
+  }
+  if (!changed && objectives.length === run.objectives.length) return run
+  if (
+    !changed &&
+    objectives.length === run.objectives.length &&
+    objectives.every((objective, index) => objective.goalId === run.objectives[index]?.goalId)
+  ) {
+    return run
+  }
+  return { ...run, objectives }
+}
+
+/**
+ * Resets the current day so it can be replayed. Only today's date can be
+ * reset and only while the run is active; sealed future/past days and closed
+ * runs are rejected. All XP, gold, loot and weekly progress earned today are
+ * removed, the map and path are cleared, and totals are recomputed. The day
+ * returns to `available` so the next `openDay` draws a fresh map with the
+ * current goals. Idempotent: a day without map, path or rewards is a no-op.
+ */
+export function resetCurrentDay(document: GameDocument, now: Date): GameDocument {
+  const run = document.run
+  if (!run || run.status !== 'active') {
+    throw new DomainError('There is no active run to reset.')
+  }
+  const today = dayKey(now, run.timeZone ?? null)
+  const day = run.days.find((candidate) => candidate.date === today)
+  if (!day) {
+    throw new DomainError('There is no open day to reset.')
+  }
+  if (day.status === 'locked') {
+    throw new DomainError('That day has not arrived yet.')
+  }
+  if (day.status === 'missed') {
+    throw new DomainError('Missed days cannot be replayed.')
+  }
+  if (day.map === null && day.path.length === 0 && day.rewards.length === 0) {
+    return document
+  }
+  if (!document.profile) {
+    throw new DomainError('A profile is required to reset the day.')
+  }
+
+  let xp = 0
+  let gold = 0
+  const lootIds = new Set<string>()
+  const progressByGoal = new Map<string, number>()
+  for (const event of day.rewards) {
+    xp += event.xp
+    gold += event.gold
+    if (event.lootItem) lootIds.add(event.lootItem.id)
+    if (event.progress > 0 && event.goalId) {
+      progressByGoal.set(event.goalId, (progressByGoal.get(event.goalId) ?? 0) + event.progress)
+    }
+  }
+
+  const profile: Profile = {
+    ...document.profile,
+    xp: Math.max(0, document.profile.xp - xp),
+    gold: Math.max(0, document.profile.gold - gold),
+    loot: document.profile.loot.filter((item) => !lootIds.has(item.id)),
+  }
+  const leveled: Profile = { ...profile, level: profile.xp === document.profile.xp ? profile.level : levelForXp(profile.xp) }
+
+  const objectives = run.objectives.map((objective) => {
+    const taken = progressByGoal.get(objective.goalId) ?? 0
+    return taken > 0
+      ? { ...objective, progress: Math.max(0, objective.progress - taken) }
+      : objective
+  })
+
+  const resetDay: Day = {
+    ...day,
+    status: 'available',
+    map: null,
+    path: [],
+    rewards: [],
+    openedAt: null,
+    closedAt: null,
+    summary: null,
+  }
+  const days = run.days.map((candidate) => (candidate.id === day.id ? resetDay : candidate))
+  const withDays: Run = { ...run, objectives, days }
+  return {
+    ...document,
+    profile: leveled,
+    run: { ...withDays, totals: computeRunTotals(withDays) },
+  }
+}
+
+/**
  * Opens the current day exactly once. Only the first day that is neither
  * completed nor missed can be opened, and only when its local date is today.
  * Existing maps are never regenerated; repeated calls return the same document.
@@ -357,18 +482,19 @@ export function openDay(document: GameDocument, options: OpenDayOptions): GameDo
 
   if (day.map) return document
 
+  const synced = syncObjectives(run, document.goals)
   const map = generateMap({
-    runId: run.id,
-    runSeed: run.seed,
+    runId: synced.id,
+    runSeed: synced.seed,
     dayIndex: day.index,
     generatorVersion: GENERATOR_VERSION,
     goals: document.goals,
     tasks: document.tasks,
-    objectives: run.objectives,
+    objectives: synced.objectives,
     now: options.now.toISOString(),
   })
 
-  const days = run.days.map((candidate): Day =>
+  const days = synced.days.map((candidate): Day =>
     candidate.id === day.id
       ? {
           ...candidate,
@@ -379,7 +505,7 @@ export function openDay(document: GameDocument, options: OpenDayOptions): GameDo
       : candidate,
   )
 
-  return { ...document, run: { ...run, days } }
+  return { ...document, run: { ...synced, days } }
 }
 
 /**

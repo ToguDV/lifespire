@@ -19,6 +19,7 @@ function makeGoal(id: string, title: string, weeklyObjective = 3): Goal {
     id,
     title,
     category: 'Test',
+    description: '',
     icon: 'banner',
     weeklyObjective,
     active: true,
