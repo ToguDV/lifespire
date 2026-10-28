@@ -138,6 +138,7 @@ class LanManager(
       fingerprint = fingerprint,
       body = mapOf("secret" to secret),
       expectedDeviceId = deviceId,
+      fallbackPlatform = normalizePlatform(payload["platform"]),
     )
   }
 
@@ -154,6 +155,7 @@ class LanManager(
       fingerprint = nearby.fingerprint,
       body = mapOf("code" to normalized),
       expectedDeviceId = deviceId,
+      fallbackPlatform = nearby.platform,
     )
   }
 
@@ -185,14 +187,7 @@ class LanManager(
   fun setAutoSync(peerId: String, autoSync: Boolean): Map<String, Any?> {
     val peer = peers?.setAutoSync(peerId, autoSync)
       ?: throw IllegalArgumentException("Unknown device.")
-    return mapOf(
-      "peerId" to peer.peerId,
-      "name" to peer.name,
-      "fingerprint" to peer.fingerprint,
-      "autoSync" to peer.autoSync,
-      "pairedAt" to peer.pairedAt,
-      "lastSyncAt" to peer.lastSyncAt,
-    )
+    return peer.toPublicMap()
   }
 
   fun request(peerId: String, request: Map<String, Any?>): Map<String, Any?> {
@@ -234,6 +229,7 @@ class LanManager(
     fingerprint: String,
     body: Map<String, Any?>,
     expectedDeviceId: String,
+    fallbackPlatform: String? = null,
   ): Map<String, Any?> {
     val current = identity ?: throw IllegalStateException("Local sync is not running.")
     val clientToken = newToken()
@@ -244,6 +240,7 @@ class LanManager(
     payload["certPem"] = current.certPem
     payload["token"] = clientToken
     payload["port"] = server?.port() ?: 0
+    payload["platform"] = "android"
     val response = client.request(
       host = host,
       port = port,
@@ -273,6 +270,7 @@ class LanManager(
       throw IllegalStateException("The other device sent an invalid pairing response.")
     }
     val existing = peers?.find(expectedDeviceId)
+    val platform = normalizePlatform(json.optString("platform", "")) ?: fallbackPlatform
     val next = StoredPeer(
       peerId = expectedDeviceId,
       name = sanitizeName(json.optString("name", ""), "Nearby device"),
@@ -284,6 +282,7 @@ class LanManager(
       lastSyncAt = existing?.lastSyncAt,
       lastHost = host,
       lastPort = port,
+      platform = platform,
     )
     peers?.upsert(next)
     return next.toPublicMap()

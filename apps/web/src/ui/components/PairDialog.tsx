@@ -52,6 +52,8 @@ export function PairDialog({
     setBusy(false)
     setCopied(false)
     setTab(mode)
+    setCode('')
+    setLink('')
     if (mode === 'host') {
       void localSync.startPairing()
     } else {

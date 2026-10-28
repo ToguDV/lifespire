@@ -9,5 +9,6 @@ describe('platformIcon', () => {
 
   it('never guesses for unknown or missing platforms', () => {
     expect(platformIcon(undefined)).toBe('devices')
+    expect(platformIcon('watch' as never)).toBe('devices')
   })
 })

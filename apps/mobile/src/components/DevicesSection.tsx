@@ -1,24 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Share, StyleSheet, Switch, View } from 'react-native'
+import { Pressable, Share, StyleSheet, Switch, View } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import QRCode from 'react-native-qrcode-svg'
 import {
   decodePairingPayload,
   encodePairingPayload,
   pairingCodeFromSecret,
-  shortFingerprint,
 } from '@lifespire/app-core/sync/protocol'
 import type { LocalPeerView } from '@lifespire/app-core/sync/localEngine'
 import type { PeerSyncStatus } from '@lifespire/app-core/sync/peerEngine'
 import { useTheme } from '../theme/ThemeProvider'
-import { space } from '../theme/tokens'
+import { radius, space } from '../theme/tokens'
 import { Button } from './Button'
 import { Chip } from './Chip'
 import { Dialog } from './Dialog'
 import { Field, Input } from './Field'
+import { Icon } from './Icon'
+import { IconButton } from './IconButton'
 import { Panel, PanelHead } from './Panel'
 import { Text } from './Text'
 import { localSync, migrationNotice, setDiscoverable, useSyncStore } from '../sync/setup'
+import { platformIcon } from '../lib/deviceIcon'
 
 const STATUS_LABEL: Record<PeerSyncStatus, string> = {
   disabled: 'Off',
@@ -33,9 +35,17 @@ const STATUS_LABEL: Record<PeerSyncStatus, string> = {
 }
 
 function formatWhen(value: string | null): string {
-  if (!value) return 'never'
+  if (!value) return 'not yet'
   try {
     return new Date(value).toLocaleString()
+  } catch {
+    return value
+  }
+}
+
+function formatExpiry(value: string): string {
+  try {
+    return new Date(value).toLocaleTimeString()
   } catch {
     return value
   }
@@ -48,49 +58,45 @@ function PeerCard({
   peer: LocalPeerView
   onForget: (peer: LocalPeerView) => void
 }) {
+  const { colors } = useTheme()
+  const busy = peer.status === 'pushing' || peer.status === 'pulling'
   return (
-    <View style={styles.peer}>
+    <View style={[styles.peer, { borderTopColor: colors.hairline }]}>
       <View style={styles.peerHead}>
+        <View style={styles.peerIcon}>
+          <Icon name={platformIcon(peer.platform)} size={26} color={colors.accentDeep} />
+        </View>
         <View style={styles.peerText}>
           <Text variant="bodySm">{peer.name}</Text>
           <Text variant="caption" tone="soft">
             {STATUS_LABEL[peer.status]} · {formatWhen(peer.lastSyncedAt ?? peer.lastSyncAt)}
           </Text>
-          <Text variant="caption" tone="soft">
-            {shortFingerprint(peer.fingerprint)}
-          </Text>
         </View>
-        <Chip variant="quiet">{peer.status === 'offline' ? 'Away' : 'Paired'}</Chip>
-      </View>
-      <View style={styles.row}>
-        <View style={styles.peerText}>
-          <Text variant="bodySm">Start syncs automatically</Text>
-          <Text variant="caption" tone="soft">
-            This device initiates when both apps are open.
-          </Text>
-        </View>
+        <IconButton
+          icon="refresh"
+          label={`Sync with ${peer.name} now`}
+          disabled={busy}
+          onPress={() => void localSync.syncNow(peer.peerId)}
+        />
         <Switch
           value={peer.autoSync}
           onValueChange={(value) => void localSync.setAutoSync(peer.peerId, value)}
           accessibilityLabel={`Sync automatically with ${peer.name}`}
         />
+        <IconButton
+          icon="trash"
+          label={`Forget ${peer.name}`}
+          onPress={() => onForget(peer)}
+        />
       </View>
-      <View style={styles.actions}>
-        <Button variant="secondary" small onPress={() => void localSync.syncNow(peer.peerId)}>
-          Sync now
-        </Button>
-        <Button variant="quiet" small onPress={() => onForget(peer)}>
-          Forget
-        </Button>
-      </View>
-      {peer.lastError ? (
+      {peer.lastError && peer.status === 'error' ? (
         <Text variant="caption" accessibilityRole="alert">
           {peer.lastError}
         </Text>
       ) : null}
       {peer.needsReview && !peer.conflict ? (
         <Text variant="caption" tone="soft">
-          An unresolved conflict from a previous session. Tap Sync now to review it.
+          Unresolved conflict. Sync to review it.
         </Text>
       ) : null}
     </View>
@@ -114,6 +120,7 @@ function PairSheet({
   const pairing = useSyncStore((state) => state.pairing)
   const nearby = useSyncStore((state) => state.nearby)
   const peers = useSyncStore((state) => state.peers)
+  const [tab, setTab] = useState<PairMode>(mode)
   const [code, setCode] = useState('')
   const [deviceId, setDeviceId] = useState(initialDeviceId ?? '')
   const [link, setLink] = useState('')
@@ -138,6 +145,7 @@ function PairSheet({
     setScannerOpen(false)
     setCode('')
     setLink('')
+    setTab(mode)
     setDeviceId(initialDeviceId ?? '')
     if (mode === 'host') void localSync.startPairing()
     else void localSync.cancelPairing()
@@ -149,6 +157,13 @@ function PairSheet({
       void localSync.cancelPairing()
     }
   }, [visible])
+
+  const switchTab = (next: PairMode): void => {
+    setTab(next)
+    setError(null)
+    if (next === 'host') void localSync.startPairing()
+    else void localSync.cancelPairing()
+  }
 
   const pairWithLink = async (value: string): Promise<void> => {
     setError(null)
@@ -173,7 +188,7 @@ function PairSheet({
       return
     }
     if (!/^[A-Za-z0-9]{8}$/.test(code.replace(/[^A-Za-z0-9]/g, ''))) {
-      setError('Enter the 8-character code.')
+      setError('Enter the 8-character code shown on the other device.')
       return
     }
     setBusy(true)
@@ -232,20 +247,16 @@ function PairSheet({
   return (
     <Dialog
       visible={visible}
-      title={mode === 'host' ? 'Pair this device' : 'Pair another device'}
+      title="Pair a device"
       eyebrow="Nearby sync"
-      description={
-        mode === 'host'
-          ? 'Show this QR or the 8-character code to the other device.'
-          : 'Scan the other device’s QR, paste its link or enter the code.'
-      }
+      description="Both devices must be open on the same Wi-Fi."
       onClose={onClose}
       actions={
         <>
           <Button variant="quiet" onPress={onClose}>
-            {mode === 'host' ? 'Done' : 'Cancel'}
+            {tab === 'host' ? 'Done' : 'Cancel'}
           </Button>
-          {mode === 'join' ? (
+          {tab === 'join' ? (
             <Button variant="secondary" onPress={() => void openScanner()}>
               Scan QR
             </Button>
@@ -253,7 +264,31 @@ function PairSheet({
         </>
       }
     >
-      {mode === 'host' ? (
+      <View style={styles.tabs}>
+        {(['host', 'join'] as const).map((option) => {
+          const selected = tab === option
+          return (
+            <Pressable
+              key={option}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => switchTab(option)}
+              style={[
+                styles.tab,
+                {
+                  borderColor: selected ? colors.accent : colors.hairline,
+                  backgroundColor: selected ? colors.accentSoft : colors.surface,
+                },
+              ]}
+            >
+              <Text variant="caption" tone={selected ? 'deep' : 'muted'}>
+                {option === 'host' ? 'Show my code' : 'Enter a code'}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </View>
+      {tab === 'host' ? (
         <View style={styles.stack}>
           {pairing ? (
             <>
@@ -264,9 +299,16 @@ function PairSheet({
                 {pairingCodeFromSecret(pairing.secret)}
               </Text>
               <Text variant="caption" tone="soft">
-                Expires {formatWhen(pairing.expiresAt)}. This device: {pairing.name} ·{' '}
-                {shortFingerprint(pairing.fingerprint)}
+                Expires at {formatExpiry(pairing.expiresAt)}.
               </Text>
+              <Field label="Pairing link">
+                <Input
+                  value={linkValue}
+                  editable={false}
+                  multiline
+                  numberOfLines={3}
+                />
+              </Field>
               <Button
                 variant="secondary"
                 onPress={() => void Share.share({ message: linkValue })}
@@ -285,7 +327,7 @@ function PairSheet({
           </Text>
           {unpaired.length === 0 ? (
             <Text variant="caption" tone="soft">
-              No nearby devices. Both apps must be open on the same Wi-Fi with Nearby sync on.
+              No nearby devices. Keep both apps open.
             </Text>
           ) : (
             <View style={styles.choices}>
@@ -294,6 +336,7 @@ function PairSheet({
                   key={peer.deviceId}
                   variant={deviceId === peer.deviceId ? 'primary' : 'secondary'}
                   small
+                  icon={platformIcon(peer.platform)}
                   onPress={() => setDeviceId(peer.deviceId)}
                 >
                   {peer.name}
@@ -316,7 +359,7 @@ function PairSheet({
             onPress={() => void pairWithCode()}
             disabled={busy || !deviceId || !code.trim()}
           >
-            {busy ? 'Pairing…' : 'Pair with code'}
+            {busy ? 'Pairing…' : 'Pair'}
           </Button>
           <Field label="Pairing link">
             <Input
@@ -344,6 +387,7 @@ function PairSheet({
 }
 
 export function DevicesSection() {
+  const { colors } = useTheme()
   const available = useSyncStore((state) => state.available)
   const device = useSyncStore((state) => state.device)
   const discoverable = useSyncStore((state) => state.discoverable)
@@ -351,6 +395,7 @@ export function DevicesSection() {
   const peers = useSyncStore((state) => state.peers)
   const conflicts = useSyncStore((state) => state.conflicts)
   const lastError = useSyncStore((state) => state.lastError)
+  const phase = useSyncStore((state) => state.phase)
   const [pairOpen, setPairOpen] = useState(false)
   const [pairMode, setPairMode] = useState<PairMode>('host')
   const [pairDevice, setPairDevice] = useState<string | undefined>(undefined)
@@ -360,20 +405,30 @@ export function DevicesSection() {
   const peerList = Object.values(peers).sort((left, right) => left.name.localeCompare(right.name))
   const unpaired = nearby.filter((peer) => !peers[peer.deviceId])
 
-  const openHost = (): void => {
-    setPairMode('host')
-    setPairDevice(undefined)
-    setPairOpen(true)
-  }
-  const openJoin = (peerId?: string): void => {
-    setPairMode('join')
+  const openPair = (mode: PairMode, peerId?: string): void => {
+    setPairMode(mode)
     setPairDevice(peerId)
     setPairOpen(true)
   }
 
   return (
     <Panel>
-      <PanelHead label="Nearby devices" aside={<Chip variant="quiet">Local</Chip>} />
+      <PanelHead
+        label="Nearby devices"
+        aside={
+          <View style={styles.headAside}>
+            <Chip variant="quiet">{phase === 'syncing' ? 'Syncing' : 'Local'}</Chip>
+            {available ? (
+              <IconButton
+                icon="refresh"
+                label="Sync all devices now"
+                disabled={peerList.length === 0}
+                onPress={() => void localSync.syncNow()}
+              />
+            ) : null}
+          </View>
+        }
+      />
       <View style={styles.stack}>
         {!available ? (
           <Text variant="bodySm" tone="soft">
@@ -382,14 +437,11 @@ export function DevicesSection() {
         ) : (
           <>
             <Text variant="bodySm" tone="soft">
-              Sync directly with your own devices over Wi-Fi. No account or server.
+              Your devices only — no account, no cloud.
             </Text>
             <View style={styles.row}>
               <View style={styles.peerText}>
                 <Text variant="bodySm">Nearby sync</Text>
-                <Text variant="caption" tone="soft">
-                  Advertise this device while the app is open.
-                </Text>
               </View>
               <Switch
                 value={discoverable}
@@ -397,10 +449,13 @@ export function DevicesSection() {
                 accessibilityLabel="Nearby sync"
               />
             </View>
-            <Text variant="caption" tone="soft">
-              This device: {device?.name ?? 'Unknown'}
-              {device ? ` · ${shortFingerprint(device.fingerprint)}` : null}
-            </Text>
+            <View style={[styles.selfRow, { borderColor: colors.hairline }]}>
+              <Icon name={platformIcon(device?.platform)} size={26} color={colors.accentDeep} />
+              <View style={styles.peerText}>
+                <Text variant="bodySm">{device?.name ?? 'Unknown'}</Text>
+              </View>
+              <Chip variant="quiet">This device</Chip>
+            </View>
             {lastError ? (
               <Text variant="caption" accessibilityRole="alert">
                 {lastError}
@@ -409,15 +464,14 @@ export function DevicesSection() {
             {conflicts.length > 0 ? (
               <Text variant="caption" accessibilityRole="alert">
                 {conflicts.length === 1
-                  ? `A change from ${conflicts[0]?.peerName} needs review.`
-                  : `${conflicts.length} devices have changes that need review.`}
+                  ? `A change from ${conflicts[0]?.peerName} needs your review.`
+                  : `${conflicts.length} devices have changes that need your review.`}
               </Text>
             ) : null}
             {migrationNotice.migrated && !migrationDismissed ? (
-              <View style={styles.notice}>
+              <View style={styles.notice} accessibilityLiveRegion="polite">
                 <Text variant="caption" tone="soft">
-                  Your previous account save is now the local save. The old copy was kept as a
-                  backup.
+                  Your previous account save is now the local save. The old copy was kept.
                 </Text>
                 <Button variant="quiet" small onPress={() => setMigrationDismissed(true)}>
                   Dismiss
@@ -425,22 +479,12 @@ export function DevicesSection() {
               </View>
             ) : null}
             <View style={styles.actions}>
-              <Button variant="primary" onPress={openHost}>
-                Show my code
-              </Button>
-              <Button variant="secondary" onPress={() => openJoin()}>
-                Enter a code
-              </Button>
-              <Button
-                variant="secondary"
-                onPress={() => void localSync.syncNow()}
-                disabled={peerList.length === 0}
-              >
-                Sync all
+              <Button variant="secondary" icon="plus" onPress={() => openPair('host')}>
+                Pair a device
               </Button>
             </View>
             <Text variant="micro" tone="muted">
-              PAIRED DEVICES
+              PAIRED
             </Text>
             {peerList.length === 0 ? (
               <Text variant="caption" tone="soft">
@@ -456,18 +500,18 @@ export function DevicesSection() {
             </Text>
             {unpaired.length === 0 ? (
               <Text variant="caption" tone="soft">
-                No other LifeSpire device is visible. Both apps must be open on the same Wi-Fi.
+                No other device visible. Keep both apps open.
               </Text>
             ) : (
               unpaired.map((peer) => (
                 <View key={peer.deviceId} style={styles.peerHead}>
+                  <View style={styles.peerIcon}>
+                    <Icon name={platformIcon(peer.platform)} size={26} color={colors.accentDeep} />
+                  </View>
                   <View style={styles.peerText}>
                     <Text variant="bodySm">{peer.name}</Text>
-                    <Text variant="caption" tone="soft">
-                      {peer.host} · {shortFingerprint(peer.fingerprint)}
-                    </Text>
                   </View>
-                  <Button variant="secondary" small onPress={() => openJoin(peer.deviceId)}>
+                  <Button variant="secondary" small onPress={() => openPair('join', peer.deviceId)}>
                     Pair
                   </Button>
                 </View>
@@ -487,7 +531,7 @@ export function DevicesSection() {
       <Dialog
         visible={forgetPeer !== null}
         title="Forget this device?"
-        description="It stops syncing with this device. Its own save is not deleted."
+        description="It stops syncing with this device. Its own save is not deleted, and you can pair it again later."
         onClose={() => setForgetPeer(null)}
         actions={
           <>
@@ -501,14 +545,12 @@ export function DevicesSection() {
                 setForgetPeer(null)
               }}
             >
-              Forget
+              Forget device
             </Button>
           </>
         }
       >
-        <Text variant="bodySm">
-          {forgetPeer ? `${forgetPeer.name} · ${shortFingerprint(forgetPeer.fingerprint)}` : null}
-        </Text>
+        <Text variant="bodySm">{forgetPeer ? forgetPeer.name : null}</Text>
       </Dialog>
     </Panel>
   )
@@ -517,15 +559,36 @@ export function DevicesSection() {
 const styles = StyleSheet.create({
   stack: { gap: space.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  peer: {
+  headAside: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  selfRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: space.sm,
     paddingVertical: space.sm,
+    paddingHorizontal: space.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+    borderRadius: radius.md,
+  },
+  peer: {
+    gap: space.xs,
+    paddingVertical: space.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#00000022',
   },
   peerHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  peerIcon: { width: 30, alignItems: 'center' },
   peerText: { flex: 1, gap: 2 },
   actions: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
+  tabs: { flexDirection: 'row', gap: space.xs, marginBottom: space.sm },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: space.sm,
+  },
   choices: { flexDirection: 'row', gap: space.xs, flexWrap: 'wrap' },
   notice: { gap: space.xs },
   qr: { alignSelf: 'center', backgroundColor: '#ffffff', padding: 10, borderRadius: 8 },

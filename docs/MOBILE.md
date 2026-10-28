@@ -255,9 +255,11 @@ the rest of the app remains fully usable.
 - Settings orders the three primary sections (Appearance, Nearby devices, Data), then
   the Android-only Reminders and the dev-only Development panel. Theme options
   are Day, Night and System; Appearance also holds the vibration switch.
-  Nearby devices shows the local device/fingerprint, the QR/code pairing entry
-  points, paired and nearby lists, per-peer auto-sync switches and the conflict
-  entry point. There is no login, invite, password reset or server form. Data
+  Nearby devices shows the local device with its platform icon, the Pair a device
+  entry point, paired and nearby lists, per-peer sync/forget actions and
+  auto-sync switches, and the conflict entry point. Fingerprints are never
+  shown: the QR path carries the pinned certificate and the code is the
+  fallback. There is no login, invite, password reset or server form. Data
   has one
   `Your save stays on this device.` line, export/import/reset actions and a
   `Save details` disclosure for the storage key and schema. About and the long
@@ -330,8 +332,8 @@ Manual Android checklist before a release:
 1. Fresh install → demo onboarding → open day 1 → resolve a task, a wheel and
    the boss → read day and run summaries.
 2. Pair Android with the desktop app (scan the QR or enter the code) and with
-   another Android device; confirm both sides show the peer, the fingerprint
-   matches, auto-sync works and "Forget" stops it.
+   another Android device; confirm both sides show the peer with the right
+   platform icon, auto-sync works and "Forget device" stops it.
 3. Force-stop during a day, reopen, confirm the map, path and rewards survive.
 4. Export on web, import on Android; export on Android, import on web.
 5. Play one day on Android and one on the paired desktop/Android while the

@@ -32,6 +32,7 @@ class PeerStore(context: Context) {
       autoSync = it.autoSync,
       pairedAt = it.pairedAt,
       lastSyncAt = it.lastSyncAt,
+      platform = it.platform,
     )
   }
 
@@ -76,7 +77,15 @@ class PeerStore(context: Context) {
   @Synchronized
   fun setAutoSync(peerId: String, autoSync: Boolean): PeerRecord? =
     update(peerId) { it.copy(autoSync = autoSync) }?.let {
-      PeerRecord(it.peerId, it.name, it.fingerprint, it.autoSync, it.pairedAt, it.lastSyncAt)
+      PeerRecord(
+        peerId = it.peerId,
+        name = it.name,
+        fingerprint = it.fingerprint,
+        autoSync = it.autoSync,
+        pairedAt = it.pairedAt,
+        lastSyncAt = it.lastSyncAt,
+        platform = it.platform,
+      )
     }
 
   @Synchronized
