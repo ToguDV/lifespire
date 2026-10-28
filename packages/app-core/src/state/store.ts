@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { StoreApi, UseBoundStore } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { toUserMessage } from '../ui/userError'
 import { createDemoSetup, validateSetup } from '@lifespire/core'
 import { SCHEMA_VERSION, STORAGE_KEY } from '@lifespire/core'
 import {
@@ -143,7 +144,7 @@ function withSyncedLevel(document: GameDocument): GameDocument {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback
+  return toUserMessage(error, fallback)
 }
 
 /** First view after hydration. Recovery wins over every other flow. */
