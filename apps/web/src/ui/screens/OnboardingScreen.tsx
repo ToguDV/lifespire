@@ -3,7 +3,6 @@ import { AIM_WITHOUT_ROUTINE, createDemoSetup, validateSetup } from '../../conte
 import {
   createEmptyDraft,
   draftToSetup,
-  suggestedWeeklyObjective,
   withSuggestedObjectives,
 } from '../../content/onboarding'
 import {
@@ -204,42 +203,14 @@ export function OnboardingScreen() {
       </div>
     ) : null
 
-  const renderGoalFields = (goal: Goal, index: number) => {
+  const renderGoalFields = (goal: Goal) => {
     const errors = validateGoalInput(goal)
-    const titleErrorId = `goal-${goal.id}-title-error`
-    const weeklyHintId = `goal-${goal.id}-weekly-hint`
     const weeklyErrorId = `goal-${goal.id}-weekly-error`
     const descriptionErrorId = `goal-${goal.id}-description-error`
-    const descriptionHintId = `goal-${goal.id}-description-hint`
-    const weeklyDescribedBy = [
-      weeklyHintId,
-      showErrors && errors.weeklyObjective ? weeklyErrorId : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
 
     return (
-      <fieldset className="draft-card" key={goal.id}>
-        <legend>Quest {index + 1}</legend>
+      <div className="quest-card__fields" key={goal.id}>
         <div className="field-grid">
-          <div className="field">
-            <label htmlFor={`goal-${goal.id}-title`}>Quest title</label>
-            <input
-              className="input"
-              id={`goal-${goal.id}-title`}
-              type="text"
-              value={goal.title}
-              placeholder="e.g. Move under open sky"
-              aria-invalid={showErrors && Boolean(errors.title)}
-              aria-describedby={showErrors && errors.title ? titleErrorId : undefined}
-              onChange={(event) => updateGoal(goal.id, { title: event.target.value })}
-            />
-            {showErrors && errors.title ? (
-              <p className="field-error" id={titleErrorId}>
-                {errors.title}
-              </p>
-            ) : null}
-          </div>
           <div className="field">
             <label htmlFor={`goal-${goal.id}-category`}>Category</label>
             <input
@@ -262,14 +233,13 @@ export function OnboardingScreen() {
               step={1}
               value={goal.weeklyObjective}
               aria-invalid={showErrors && Boolean(errors.weeklyObjective)}
-              aria-describedby={weeklyDescribedBy}
+              aria-describedby={
+                showErrors && errors.weeklyObjective ? weeklyErrorId : undefined
+              }
               onChange={(event) =>
                 updateGoal(goal.id, { weeklyObjective: Number(event.target.value) })
               }
             />
-            <p className="field-hint" id={weeklyHintId}>
-              How many routines of this quest you want to complete this week (1–7).
-            </p>
             {showErrors && errors.weeklyObjective ? (
               <p className="field-error" id={weeklyErrorId}>
                 {errors.weeklyObjective}
@@ -288,13 +258,10 @@ export function OnboardingScreen() {
             placeholder="Why does this quest matter?"
             aria-invalid={showErrors && Boolean(errors.description)}
             aria-describedby={
-              showErrors && errors.description ? descriptionErrorId : descriptionHintId
+              showErrors && errors.description ? descriptionErrorId : undefined
             }
             onChange={(event) => updateGoal(goal.id, { description: event.target.value })}
           />
-          <p className="field-hint" id={descriptionHintId}>
-            One line to remember why this quest matters.
-          </p>
           {showErrors && errors.description ? (
             <p className="field-error" id={descriptionErrorId}>
               {errors.description}
@@ -310,12 +277,7 @@ export function OnboardingScreen() {
             onChange={(icon) => updateGoal(goal.id, { icon })}
           />
         </div>
-        <div className="draft-card__actions">
-          <Button variant="quiet" onClick={() => removeGoal(goal.id)}>
-            Remove quest
-          </Button>
-        </div>
-      </fieldset>
+      </div>
     )
   }
 
@@ -325,8 +287,7 @@ export function OnboardingScreen() {
     const goalErrorId = `task-${task.id}-goal-error`
 
     return (
-      <fieldset className="draft-card draft-card--routine" key={task.id}>
-        <legend>Routine</legend>
+      <fieldset className="draft-card draft-card--routine" key={task.id} aria-label="Routine">
         <div className="field-grid field-grid--routine">
           <div className="field">
             <label htmlFor={`task-${task.id}-title`}>Routine title</label>
@@ -403,31 +364,37 @@ export function OnboardingScreen() {
 
   const renderQuestCard = (goal: Goal, index: number) => {
     const goalTasks = tasks.filter((task) => task.goalId === goal.id)
-    const activeCount = goalTasks.filter((task) => task.active).length
+    const goalErrors = validateGoalInput(goal)
+    const titleErrorId = `quest-${goal.id}-title-error`
     return (
       <article className="quest-card" key={goal.id} aria-label={goalLabel(index)}>
         <div className="quest-card__head">
           <span className="draft-group__crest">
             <Icon name={goalIconName(goal.icon, index)} />
           </span>
-          <input
-            className="quest-card__title"
-            type="text"
-            value={goal.title}
-            placeholder={`Quest ${index + 1} — e.g. Move under open sky`}
-            aria-label={`Quest ${index + 1} title`}
-            onChange={(event) => updateGoal(goal.id, { title: event.target.value })}
-          />
+          <div className="quest-card__titlewrap">
+            <input
+              className="quest-card__title"
+              type="text"
+              value={goal.title}
+              placeholder={`Quest ${index + 1} — e.g. Move under open sky`}
+              aria-label={`Quest ${index + 1} title`}
+              aria-invalid={showErrors && Boolean(goalErrors.title)}
+              aria-describedby={showErrors && goalErrors.title ? titleErrorId : undefined}
+              onChange={(event) => updateGoal(goal.id, { title: event.target.value })}
+            />
+            {showErrors && goalErrors.title ? (
+              <p className="field-error" id={titleErrorId}>
+                {goalErrors.title}
+              </p>
+            ) : null}
+          </div>
           <Button variant="quiet" size="sm" onClick={() => removeGoal(goal.id)}>
             Remove
           </Button>
         </div>
-        {renderGoalFields(goal, index)}
+        {renderGoalFields(goal)}
         <div className="quest-card__routines">
-          <span className="mini-note">
-            {activeCount} active {activeCount === 1 ? 'routine' : 'routines'} · suggested
-            target {suggestedWeeklyObjective(goal.id, tasks)}
-          </span>
           {goalTasks.length === 0 ? (
             <p className="panel-note">No routines yet — add the first small step.</p>
           ) : (
