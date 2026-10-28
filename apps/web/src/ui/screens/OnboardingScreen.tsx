@@ -17,7 +17,7 @@ import { nextGoalIcon } from '../../domain/goalIcons'
 import type { Effort, Goal, Task } from '../../domain/types'
 import { getNow } from '../../state/clock'
 import { useAppStore } from '../../state/store'
-import { Button, Icon, IconPicker, Panel, ThemeToggle } from '../components'
+import { Button, Icon, IconButton, IconPicker, Panel, ThemeToggle } from '../components'
 import { EFFORT_LABEL, goalIconName } from '../lib/format'
 
 const STEP_LABELS = ['Origin', 'Quests', 'Eve'] as const
@@ -362,36 +362,43 @@ export function OnboardingScreen() {
     )
   }
 
-  const renderQuestCard = (goal: Goal, index: number) => {
+  const renderQuestCard = (goal: Goal) => {
     const goalTasks = tasks.filter((task) => task.goalId === goal.id)
     const goalErrors = validateGoalInput(goal)
+    const titleId = `quest-${goal.id}-title`
     const titleErrorId = `quest-${goal.id}-title-error`
     return (
-      <article className="quest-card" key={goal.id} aria-label={goalLabel(index)}>
-        <div className="quest-card__head">
-          <span className="draft-group__crest">
-            <Icon name={goalIconName(goal.icon, index)} />
-          </span>
-          <div className="quest-card__titlewrap">
-            <input
-              className="input quest-card__title"
-              type="text"
-              value={goal.title}
-              placeholder={`Quest ${index + 1} — e.g. Move under open sky`}
-              aria-label={`Quest ${index + 1} title`}
-              aria-invalid={showErrors && Boolean(goalErrors.title)}
-              aria-describedby={showErrors && goalErrors.title ? titleErrorId : undefined}
-              onChange={(event) => updateGoal(goal.id, { title: event.target.value })}
+      <article
+        className="quest-card"
+        key={goal.id}
+        aria-label={goal.title.trim() || 'New quest'}
+      >
+        <div className="field">
+          <label htmlFor={titleId}>Quest name</label>
+          <div className="quest-card__head">
+            <div className="quest-card__titlewrap">
+              <input
+                className="input quest-card__title"
+                id={titleId}
+                type="text"
+                value={goal.title}
+                placeholder="e.g. Move under open sky"
+                aria-invalid={showErrors && Boolean(goalErrors.title)}
+                aria-describedby={showErrors && goalErrors.title ? titleErrorId : undefined}
+                onChange={(event) => updateGoal(goal.id, { title: event.target.value })}
+              />
+              {showErrors && goalErrors.title ? (
+                <p className="field-error" id={titleErrorId}>
+                  {goalErrors.title}
+                </p>
+              ) : null}
+            </div>
+            <IconButton
+              icon="archive"
+              label="Remove quest"
+              onClick={() => removeGoal(goal.id)}
             />
-            {showErrors && goalErrors.title ? (
-              <p className="field-error" id={titleErrorId}>
-                {goalErrors.title}
-              </p>
-            ) : null}
           </div>
-          <Button variant="quiet" size="sm" onClick={() => removeGoal(goal.id)}>
-            Remove
-          </Button>
         </div>
         {renderGoalFields(goal)}
         <div className="quest-card__routines">
@@ -648,7 +655,7 @@ export function OnboardingScreen() {
                     start.
                   </p>
                 ) : (
-                  goals.map((goal, index) => renderQuestCard(goal, index))
+                  goals.map(renderQuestCard)
                 )}
               </div>
 
@@ -661,11 +668,6 @@ export function OnboardingScreen() {
                   <Icon name="plus" />
                   Add quest
                 </Button>
-                <span className="mini-note">
-                  {goals.length} / {MAX_GOALS} quests ·{' '}
-                  {tasks.filter((task) => task.active).length} active routines (need{' '}
-                  {MIN_ACTIVE_TASKS})
-                </span>
               </div>
 
               <div className="dialog__actions onboarding-actions">
