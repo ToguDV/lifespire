@@ -20,7 +20,7 @@ import { useAppStore } from '../../state/store'
 import { Button, Icon, IconButton, IconPicker, Panel, ThemeToggle } from '../components'
 import { EFFORT_LABEL, goalIconName } from '../lib/format'
 
-const STEP_LABELS = ['Origin', 'Quests', 'Eve'] as const
+const STEP_LABELS = ['Origin', 'Quests', 'Review'] as const
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 /** Field messages this screen renders inline (`field-error`), so they never repeat in the summary. */
 const FIELD_KEYS = ['title', 'weeklyObjective', 'goalId', 'description'] as const
@@ -51,7 +51,7 @@ export function OnboardingScreen() {
   const goals = draft.goals
   const tasks = draft.tasks
   const rawStep = draft.mode === 'custom' ? draft.step : 0
-  // Old 4-step drafts land on the new 3-step flow: the former review (4) is now the eve (3).
+  // Old 4-step drafts land on the new 3-step flow: the former review (4) is now step 3.
   const step = rawStep >= 4 ? 3 : rawStep
   const headingRef = useRef<HTMLHeadingElement>(null)
   const previousStep = useRef(0)
@@ -555,7 +555,7 @@ export function OnboardingScreen() {
       tip: 'Tip: one quest with 4 tiny routines beats four vague quests.',
     },
     3: {
-      title: 'Chapter III — The eve of the climb',
+      title: 'Chapter III — Review the week',
       body: 'One last look. Tomorrow each quest becomes paths on your map.',
       tip: 'New quests join next map — or today if you reset the day.',
     },
@@ -676,7 +676,7 @@ export function OnboardingScreen() {
                   Back
                 </Button>
                 <Button type="submit" variant="primary">
-                  Review the eve
+                  Review
                   <Icon name="chevron-right" />
                 </Button>
               </div>
