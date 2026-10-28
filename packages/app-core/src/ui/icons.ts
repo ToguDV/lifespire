@@ -49,6 +49,11 @@ export const ICON_NAMES = [
   'briefcase',
   'users',
   'utensils',
+  'smartphone',
+  'laptop',
+  'devices',
+  'refresh',
+  'trash',
 ] as const
 
 export type IconName = (typeof ICON_NAMES)[number]

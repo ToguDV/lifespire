@@ -3,7 +3,7 @@ import { parseDocument } from '@lifespire/core'
 import { checksumDocument } from './checksum'
 import { createPeerSyncEngine } from './peerEngine'
 import type { PeerConflict, PeerEngineState, PeerSyncEngine, PeerSyncStatus } from './peerEngine'
-import { SyncConflictError } from './errors'
+import { SyncConflictError, toUserSyncError } from './errors'
 import type {
   DeviceIdentity,
   IncomingDocument,
@@ -79,10 +79,6 @@ function initialState(): LocalSyncState {
     pairing: null,
     lastError: null,
   }
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback
 }
 
 function readJson(body: unknown): Record<string, unknown> | null {
@@ -352,7 +348,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
     try {
       await deps.transport.setDocument(JSON.stringify(document), checksumDocument(document))
     } catch (error) {
-      patchState({ lastError: errorMessage(error, 'Could not update the local sync mirror.') })
+      patchState({ lastError: toUserSyncError(error, 'Could not update the local sync mirror.') })
     }
   }
 
@@ -511,7 +507,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         )
         unsubscribers.add(
           deps.transport.onError((message) => {
-            patchState({ lastError: message, phase: 'error' })
+            patchState({ lastError: toUserSyncError(message, message), phase: 'error' })
           }),
         )
         const pending = await deps.transport.pendingIncoming()
@@ -528,7 +524,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
           initialized: true,
           available: deps.transport.available,
           phase: 'error',
-          lastError: errorMessage(error, 'Could not start local sync.'),
+          lastError: toUserSyncError(error, 'Could not start local sync.'),
         })
       }
     },
@@ -560,7 +556,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       try {
         await deps.transport.setDiscoverable(discoverable)
       } catch (error) {
-        patchState({ lastError: errorMessage(error, 'Could not change discoverability.') })
+        patchState({ lastError: toUserSyncError(error, 'Could not change discoverability.') })
       }
     },
 
@@ -589,7 +585,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         patchState({ pairing: payload, lastError: null })
         return payload
       } catch (error) {
-        patchState({ lastError: errorMessage(error, 'Could not start pairing.') })
+        patchState({ lastError: toUserSyncError(error, 'Could not start pairing.') })
         return null
       }
     },
@@ -608,7 +604,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         const peer = await deps.transport.pair(payload)
         return completePair(peer)
       } catch (error) {
-        patchState({ lastError: errorMessage(error, 'Could not pair the device.') })
+        patchState({ lastError: toUserSyncError(error, 'Could not pair the device.') })
         return null
       }
     },
@@ -618,7 +614,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         const peer = await deps.transport.pairWithCode(deviceId, code)
         return completePair(peer)
       } catch (error) {
-        patchState({ lastError: errorMessage(error, 'Could not pair the device.') })
+        patchState({ lastError: toUserSyncError(error, 'Could not pair the device.') })
         return null
       }
     },
@@ -627,7 +623,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       try {
         await deps.transport.forget(peerId)
       } catch (error) {
-        patchState({ lastError: errorMessage(error, 'Could not forget the device.') })
+        patchState({ lastError: toUserSyncError(error, 'Could not forget the device.') })
         return
       }
       const peerEngine = engines.get(peerId)
@@ -649,7 +645,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       try {
         await deps.transport.setAutoSync(peerId, autoSync)
       } catch (error) {
-        patchState({ lastError: errorMessage(error, 'Could not save the auto-sync setting.') })
+        patchState({ lastError: toUserSyncError(error, 'Could not save the auto-sync setting.') })
         return
       }
       const peer = state.peers[peerId]
@@ -743,7 +739,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         patchState({
           available: false,
           phase: 'error',
-          lastError: errorMessage(error, 'Could not resume local sync.'),
+          lastError: toUserSyncError(error, 'Could not resume local sync.'),
         })
       }
     },

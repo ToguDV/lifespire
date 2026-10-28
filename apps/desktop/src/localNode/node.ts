@@ -13,6 +13,7 @@ import type { PeerStore } from './peerStore'
 import { createPeerStore, newStoredPeer } from './peerStore'
 import type {
   DeviceIdentity,
+  DevicePlatform,
   FullIdentity,
   IncomingDocument,
   NearbyPeer,
@@ -27,6 +28,7 @@ import {
   isValidDeviceId,
   newToken,
   normalizePairingCode,
+  normalizePlatform,
   sanitizeName,
 } from './protocol'
 import { createVaultFile } from './vault'
@@ -88,6 +90,7 @@ function publicIdentity(identity: FullIdentity): DeviceIdentity {
     deviceId: identity.deviceId,
     name: identity.name,
     fingerprint: identity.fingerprint,
+    platform: 'desktop',
   }
 }
 
@@ -157,6 +160,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
     expectedFingerprint: string
     body: Record<string, unknown>
     expectedDeviceId: string
+    fallbackPlatform?: DevicePlatform
   }): Promise<PeerRecord> => {
     if (!identity) throw new Error('Local sync is not running.')
     const clientToken = newToken()
@@ -175,6 +179,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
         certPem: identity.certPem,
         token: clientToken,
         port: serverPort,
+        platform: 'desktop' as const,
       },
     })
     if (response.status !== 200) {
@@ -189,6 +194,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
       fingerprint?: unknown
       certPem?: unknown
       token?: unknown
+      platform?: unknown
     }
     if (
       body.deviceId !== params.expectedDeviceId ||
@@ -201,6 +207,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
       throw new Error('The other device sent an invalid pairing response.')
     }
     const existing = peerStore.find(params.expectedDeviceId)
+    const platform = normalizePlatform(body.platform) ?? params.fallbackPlatform
     const record = newStoredPeer({
       peerId: params.expectedDeviceId,
       name: sanitizeName(body.name, 'Nearby device'),
@@ -210,6 +217,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
       lastHost: params.host,
       lastPort: params.port,
       now,
+      ...(platform ? { platform } : {}),
     })
     peerStore.upsert(
       existing
@@ -264,6 +272,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
           deviceId: loaded.deviceId,
           name: loaded.name,
           fingerprint: loaded.fingerprint,
+          platform: 'desktop',
         },
         discoverable,
         onError: emitError,
@@ -275,6 +284,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
           deviceId: loaded.deviceId,
           name: loaded.name,
           fingerprint: loaded.fingerprint,
+          platform: 'desktop',
         },
         port,
       )
@@ -307,6 +317,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
             deviceId: identity.deviceId,
             name: identity.name,
             fingerprint: identity.fingerprint,
+            platform: 'desktop',
           },
           server?.port() ?? 0,
         )
@@ -363,6 +374,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
         expectedFingerprint: payload.fingerprint,
         expectedDeviceId: payload.deviceId,
         body: { secret: payload.secret },
+        ...(normalizePlatform(payload.platform) ? { fallbackPlatform: normalizePlatform(payload.platform) } : {}),
       })
     },
 
@@ -380,6 +392,7 @@ export function createLocalNode(options: LocalNodeOptions): LocalNode {
         expectedFingerprint: nearby.fingerprint,
         expectedDeviceId: deviceId,
         body: { code: normalized },
+        ...(nearby.platform ? { fallbackPlatform: nearby.platform } : {}),
       })
     },
 

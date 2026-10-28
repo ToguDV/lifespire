@@ -2,6 +2,7 @@ export interface DesktopLocalIdentity {
   deviceId: string
   name: string
   fingerprint: string
+  platform?: 'android' | 'desktop'
 }
 
 export interface DesktopLocalPeer {
@@ -11,6 +12,7 @@ export interface DesktopLocalPeer {
   autoSync: boolean
   pairedAt: string
   lastSyncAt: string | null
+  platform?: 'android' | 'desktop'
 }
 
 export interface DesktopLocalNearby {
@@ -20,6 +22,7 @@ export interface DesktopLocalNearby {
   port: number
   fingerprint: string
   lastSeenAt: string
+  platform?: 'android' | 'desktop'
 }
 
 export interface DesktopLocalPairing {
@@ -32,6 +35,7 @@ export interface DesktopLocalPairing {
   port: number
   secret: string
   expiresAt: string
+  platform?: 'android' | 'desktop'
 }
 
 export interface DesktopLocalIncoming {

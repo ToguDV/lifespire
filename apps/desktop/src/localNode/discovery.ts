@@ -1,7 +1,7 @@
 import dgram from 'node:dgram'
 import os from 'node:os'
-import type { DiscoveryPacket, NearbyPeer } from './protocol'
-import { DISCOVERY_PORT, PROTOCOL_VERSION, isValidDeviceId } from './protocol'
+import type { DevicePlatform, DiscoveryPacket, NearbyPeer } from './protocol'
+import { DISCOVERY_PORT, PROTOCOL_VERSION, isValidDeviceId, normalizePlatform } from './protocol'
 
 export const PEER_TTL_MS = 30_000
 export const ANNOUNCE_INTERVAL_MS = 10_000
@@ -12,6 +12,7 @@ export interface DiscoveryIdentity {
   deviceId: string
   name: string
   fingerprint: string
+  platform: DevicePlatform
 }
 
 export interface Discovery {
@@ -43,6 +44,7 @@ export function parseDiscoveryPacket(raw: string): DiscoveryPacket | null {
     ) {
       return null
     }
+    const platform = normalizePlatform(value.platform)
     return {
       v: PROTOCOL_VERSION,
       kind: value.kind,
@@ -51,6 +53,7 @@ export function parseDiscoveryPacket(raw: string): DiscoveryPacket | null {
       port: value.port,
       fingerprint: value.fingerprint,
       protocol: PROTOCOL_VERSION,
+      ...(platform ? { platform } : {}),
     }
   } catch {
     return null
@@ -129,6 +132,7 @@ export function createDiscovery(deps: {
       port: httpsPort,
       fingerprint: identity.fingerprint,
       protocol: PROTOCOL_VERSION,
+      platform: identity.platform,
     }
     const payload = Buffer.from(JSON.stringify(packet))
     try {
@@ -152,6 +156,7 @@ export function createDiscovery(deps: {
             port: httpsPort,
             fingerprint: identity.fingerprint,
             protocol: PROTOCOL_VERSION,
+            platform: identity.platform,
           }),
         ),
         port,
@@ -190,13 +195,15 @@ export function createDiscovery(deps: {
       port: packet.port,
       fingerprint: packet.fingerprint,
       lastSeenAt: now().toISOString(),
+      ...(packet.platform ? { platform: packet.platform } : {}),
     }
     const changed =
       !previous ||
       previous.name !== next.name ||
       previous.host !== next.host ||
       previous.port !== next.port ||
-      previous.fingerprint !== next.fingerprint
+      previous.fingerprint !== next.fingerprint ||
+      previous.platform !== next.platform
     peers.set(packet.deviceId, next)
     if (changed) emit()
     if (packet.kind === 'probe' && discoverable) {
@@ -208,6 +215,7 @@ export function createDiscovery(deps: {
         port: httpsPort,
         fingerprint: identity.fingerprint,
         protocol: PROTOCOL_VERSION,
+        platform: identity.platform,
       }
       try {
         socket?.send(Buffer.from(JSON.stringify(announcePacket)), rinfo.port, rinfo.address)

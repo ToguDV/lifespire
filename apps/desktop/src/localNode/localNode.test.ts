@@ -72,8 +72,31 @@ describe('desktop local node primitives', () => {
     expect(store.list()[0]?.autoSync).toBe(true)
     store.setAutoSync('peer-1234-abcd', false)
     expect(store.list()[0]?.autoSync).toBe(false)
+    // Peers paired before the platform field existed load without it.
+    expect('platform' in (store.list()[0] ?? {})).toBe(false)
     store.remove('peer-1234-abcd')
     expect(store.list()).toHaveLength(0)
+  })
+
+  it('stores the advertised platform and normalizes unknown values', () => {
+    const dir = tempDir()
+    const file = createVaultFile(path.join(dir, 'peers.json'), fs)
+    const store = createPeerStore({ file, secrets: plainSecrets })
+    store.upsert(
+      newStoredPeer({
+        peerId: 'peer-1234-abcd',
+        name: 'Phone',
+        fingerprint: 'fingerprint-abcdefghijklmnop',
+        certPem: '-----BEGIN CERTIFICATE-----\nxxx\n-----END CERTIFICATE-----\n',
+        token: 'token-0123456789abcdef',
+        lastHost: '192.168.1.20',
+        lastPort: 4444,
+        platform: 'android',
+      }),
+    )
+    expect(store.list()[0]?.platform).toBe('android')
+    const reopened = createPeerStore({ file, secrets: plainSecrets })
+    expect(reopened.list()[0]?.platform).toBe('android')
   })
 
   it('keeps incoming documents until they are acknowledged', () => {
@@ -114,6 +137,14 @@ describe('desktop local node primitives', () => {
       port: 4444,
     })
     expect(parseDiscoveryPacket('{}')).toBeNull()
+    // Older clients omit the platform; unknown values normalize to absent.
+    expect(parseDiscoveryPacket(JSON.stringify(packet))).not.toHaveProperty('platform')
+    expect(parseDiscoveryPacket(JSON.stringify({ ...packet, platform: 'android' }))).toMatchObject(
+      { platform: 'android' },
+    )
+    expect(parseDiscoveryPacket(JSON.stringify({ ...packet, platform: 'watch' }))).not.toHaveProperty(
+      'platform',
+    )
     expect(broadcastAddressFor('192.168.1.10', '255.255.255.0')).toBe('192.168.1.255')
     expect(broadcastAddressFor('not-an-ip', '255.255.255.0')).toBeNull()
   })
@@ -157,6 +188,10 @@ describe('desktop local node over HTTPS', () => {
     try {
       expect(a.listPeers()).toHaveLength(1)
       expect(b.listPeers()).toHaveLength(1)
+      // Both desktop nodes advertise themselves as desktop peers.
+      expect(a.identity()?.platform).toBe('desktop')
+      expect(a.listPeers()[0]?.platform).toBe('desktop')
+      expect(b.listPeers()[0]?.platform).toBe('desktop')
 
       await a.setDocument('{"schemaVersion":3,"marker":"A"}', 'hash-a')
       const info = await b.request(aId, { method: 'GET', path: '/v1/info' })

@@ -14,6 +14,13 @@ export const PAIRING_SCHEME = 'lifespire'
 export const DOCUMENT_LIMIT_BYTES = 512 * 1024
 export const PAIRING_TTL_MS = 5 * 60 * 1000
 
+/** Which kind of client advertises the device. Optional: older peers omit it. */
+export type DevicePlatform = 'android' | 'desktop'
+
+export function normalizePlatform(value: unknown): DevicePlatform | undefined {
+  return value === 'android' || value === 'desktop' ? value : undefined
+}
+
 export type DiscoveryKind = 'probe' | 'announce'
 
 export interface DiscoveryPacket {
@@ -24,6 +31,7 @@ export interface DiscoveryPacket {
   port: number
   fingerprint: string
   protocol: typeof PROTOCOL_VERSION
+  platform?: DevicePlatform
 }
 
 /** A device that answered discovery and is not necessarily paired yet. */
@@ -34,6 +42,7 @@ export interface NearbyPeer {
   port: number
   fingerprint: string
   lastSeenAt: string
+  platform?: DevicePlatform
 }
 
 /** A device whose certificate and token have been accepted. */
@@ -44,12 +53,14 @@ export interface PeerRecord {
   autoSync: boolean
   pairedAt: string
   lastSyncAt: string | null
+  platform?: DevicePlatform
 }
 
 export interface DeviceIdentity {
   deviceId: string
   name: string
   fingerprint: string
+  platform?: DevicePlatform
 }
 
 /**
@@ -67,6 +78,7 @@ export interface PairingPayload {
   port: number
   secret: string
   expiresAt: string
+  platform?: DevicePlatform
 }
 
 export interface PeerSnapshot {
@@ -172,7 +184,9 @@ export function isPairingPayload(value: unknown): value is PairingPayload {
     payload.port > 0 &&
     payload.port < 65536 &&
     typeof payload.expiresAt === 'string' &&
-    (payload.host === null || typeof payload.host === 'string')
+    (payload.host === null || typeof payload.host === 'string') &&
+    // `platform` is display-only: unknown future values must not break pairing.
+    (payload.platform === undefined || typeof payload.platform === 'string')
   )
 }
 

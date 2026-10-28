@@ -1,7 +1,7 @@
 import type { GameDocument } from '@lifespire/core'
 import { parseDocument, tryAutoMerge } from '@lifespire/core'
 import { checksumDocument } from './checksum'
-import { SyncConflictError } from './errors'
+import { SyncConflictError, isNetworkUnreachable, toUserSyncError } from './errors'
 import type { LocalPeerApi, PeerSnapshot } from './protocol'
 import { peerBaseKey, peerMetaKey } from './storageKeys'
 
@@ -313,9 +313,12 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       if (error instanceof SyncConflictError) {
         await openConflict()
       } else {
-        const message = error instanceof Error ? error.message : 'Sync failed.'
+        const unreachable = isNetworkUnreachable(error)
         backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS)
-        setState({ status: isAvailable() ? 'error' : 'offline', lastError: message })
+        setState({
+          status: unreachable || !isAvailable() ? 'offline' : 'error',
+          lastError: toUserSyncError(error, 'Sync failed.'),
+        })
         scheduleRetry()
       }
     } finally {
@@ -384,9 +387,10 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           })
         }
       } else {
+        const unreachable = isNetworkUnreachable(error)
         setState({
-          status: 'error',
-          lastError: error instanceof Error ? error.message : 'Push failed.',
+          status: unreachable ? 'offline' : 'error',
+          lastError: toUserSyncError(error, 'Push failed.'),
         })
         scheduleRetry()
       }
@@ -465,7 +469,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
     } catch (error) {
       setState({
         status: 'conflict',
-        lastError: error instanceof Error ? error.message : 'Could not read the other device.',
+        lastError: toUserSyncError(error, 'Could not read the other device.'),
         needsReview: true,
       })
     }
@@ -777,9 +781,10 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         if (options.announce) deps.onRemoteApplied?.()
       } catch (error) {
         if (state.status === 'pulling') {
+          const unreachable = isNetworkUnreachable(error)
           setState({
-            status: isAvailable() ? 'error' : 'offline',
-            lastError: error instanceof Error ? error.message : 'Pull failed.',
+            status: unreachable || !isAvailable() ? 'offline' : 'error',
+            lastError: toUserSyncError(error, 'Pull failed.'),
           })
         }
       } finally {
@@ -820,9 +825,10 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         if (error instanceof SyncConflictError) {
           await openConflict()
         } else {
+          const unreachable = isNetworkUnreachable(error)
           setState({
-            status: 'error',
-            lastError: error instanceof Error ? error.message : 'Push failed.',
+            status: unreachable ? 'offline' : 'error',
+            lastError: toUserSyncError(error, 'Push failed.'),
           })
         }
       }
@@ -879,9 +885,10 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           await engine.pullNow({ announce: true })
         }
       } catch (error) {
+        const unreachable = isNetworkUnreachable(error)
         setState({
-          status: isAvailable() ? 'error' : 'offline',
-          lastError: error instanceof Error ? error.message : 'Sync failed.',
+          status: unreachable || !isAvailable() ? 'offline' : 'error',
+          lastError: toUserSyncError(error, 'Sync failed.'),
         })
       } finally {
         forceAvailable = false
