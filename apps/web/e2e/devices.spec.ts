@@ -63,6 +63,16 @@ async function openSettings(page: import('@playwright/test').Page): Promise<void
   await expect(page.locator('section[data-screen="settings"]')).toBeVisible()
 }
 
+test.describe('settings appearance', () => {
+  test('shows an icon on every theme choice', async ({ page }) => {
+    await openSettings(page)
+    const theme = page.getByRole('group', { name: 'Theme' })
+    await expect(theme.getByRole('button')).toHaveCount(3)
+    await expect(theme.locator('button svg.icon')).toHaveCount(3)
+    await expect(theme.locator('button svg.icon[aria-hidden="true"]')).toHaveCount(3)
+  })
+})
+
 test.describe('nearby devices', () => {
   test('shows the local node and its pairing code in the desktop shell', async ({ page }) => {
     await seedDesktopBridge(page)
@@ -73,6 +83,8 @@ test.describe('nearby devices', () => {
     await expect(page.getByRole('heading', { name: 'Pair a device' })).toBeVisible()
     await expect(page.locator('#pair-link')).toHaveValue(/^lifespire:\/\/pair\?p=/)
     await expect(page.locator('.pair-code strong')).toHaveText(/^[A-Z2-9]{8}$/)
+    const linkBox = await page.locator('#pair-link').boundingBox()
+    expect(linkBox?.height ?? 0).toBeGreaterThan(60)
   })
 
   test('explains the browser limitation without the desktop bridge', async ({ page }) => {

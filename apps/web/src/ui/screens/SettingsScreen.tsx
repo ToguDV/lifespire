@@ -15,15 +15,16 @@ import {
   PanelHead,
   SaveImport,
   ScreenHead,
+  type IconName,
 } from '../components'
 import { useFeedbackPrefs } from '../lib/feedback'
 import { saveFileName } from '../lib/importSave'
 import { RESET_CONFIRMATION, isResetConfirmation } from '../lib/reset'
 
-const THEME_OPTIONS: Array<{ value: ThemePreference; label: string }> = [
-  { value: 'light', label: 'Day' },
-  { value: 'dark', label: 'Night' },
-  { value: 'system', label: 'System' },
+const THEME_OPTIONS: Array<{ value: ThemePreference; label: string; icon: IconName }> = [
+  { value: 'light', label: 'Day', icon: 'sun' },
+  { value: 'dark', label: 'Night', icon: 'moon' },
+  { value: 'system', label: 'System', icon: 'compass' },
 ]
 
 export function SettingsScreen() {
@@ -96,6 +97,7 @@ export function SettingsScreen() {
                   aria-pressed={gameDocument.settings.theme === option.value}
                   onClick={() => setTheme(option.value)}
                 >
+                  <Icon name={option.icon} className="icon--sm" />
                   {option.label}
                 </button>
               ))}

@@ -2002,6 +2002,10 @@ html:not([data-theme]) .theme-glyph--sun {
 }
 
 .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 30px;
   border: 0;
   border-radius: 6px;
