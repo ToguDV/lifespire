@@ -31,6 +31,18 @@ function makeDocument(name: string | null, theme: 'system' | 'dark' = 'system'):
   return document
 }
 
+function makeNearby(platform?: NearbyPeer['platform']): NearbyPeer {
+  return {
+    deviceId: PEER_ID,
+    name: 'Phone',
+    host: '127.0.0.1',
+    port: 45555,
+    fingerprint: FINGERPRINT,
+    lastSeenAt: '2026-10-27T09:00:00.000Z',
+    ...(platform ? { platform } : {}),
+  }
+}
+
 function createHarness(initial: GameDocument) {
   const local = { current: initial }
   const requests: Array<{ peerId: string; request: PeerRequest }> = []
@@ -142,6 +154,9 @@ function createHarness(initial: GameDocument) {
     requests,
     acks,
     peer: () => peer,
+    setPeer: (next: PeerRecord) => {
+      peer = next
+    },
     setNearby: (peers: NearbyPeer[]) => {
       nearby = peers
       peerListeners.forEach((listener) => listener(peers))
@@ -219,6 +234,41 @@ describe('local sync coordinator', () => {
     expect(harness.local.current.profile?.name).toBe('Mine')
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(harness.setDocumentCount()).toBe(before)
+  })
+
+  it('shows the advertised platform for peers paired before the field existed', async () => {
+    const harness = createHarness(makeDocument('Wren'))
+    harness.setNearby([makeNearby('android')])
+    await harness.engine.start()
+    expect(harness.engine.getState().peers[PEER_ID]?.platform).toBe('android')
+  })
+
+  it('fills the platform when a legacy peer appears nearby later', async () => {
+    const harness = createHarness(makeDocument('Wren'))
+    await harness.engine.start()
+    expect(harness.engine.getState().peers[PEER_ID]?.platform).toBeUndefined()
+
+    harness.setNearby([makeNearby('android')])
+    expect(harness.engine.getState().peers[PEER_ID]?.platform).toBe('android')
+  })
+
+  it('fills the platform after a pause and resume', async () => {
+    const harness = createHarness(makeDocument('Wren'))
+    await harness.engine.start()
+    expect(harness.engine.getState().peers[PEER_ID]?.platform).toBeUndefined()
+
+    await harness.engine.pause()
+    harness.setNearby([makeNearby('android')])
+    await harness.engine.resume()
+    expect(harness.engine.getState().peers[PEER_ID]?.platform).toBe('android')
+  })
+
+  it('keeps the stored platform when discovery reports another one', async () => {
+    const harness = createHarness(makeDocument('Wren'))
+    harness.setPeer({ ...harness.peer(), platform: 'desktop' })
+    harness.setNearby([makeNearby('android')])
+    await harness.engine.start()
+    expect(harness.engine.getState().peers[PEER_ID]?.platform).toBe('desktop')
   })
 
   it('pauses and resumes the transport', async () => {
