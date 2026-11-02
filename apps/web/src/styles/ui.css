@@ -2073,6 +2073,7 @@ button.text-link {
 
 .device-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   min-height: 56px;
@@ -2149,8 +2150,13 @@ button.text-link {
   margin: 0;
 }
 
-.pair-host .pair-link {
+/* `.input` fixes a single-line height; the pairing payload needs several. */
+.pair-link {
   width: 100%;
+  height: auto;
+  min-height: 96px;
+  padding: 10px 12px;
+  resize: vertical;
 }
 
 .pair-join {

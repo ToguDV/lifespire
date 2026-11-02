@@ -6,6 +6,7 @@ import type { PeerConflict, PeerEngineState, PeerSyncEngine, PeerSyncStatus } fr
 import { SyncConflictError, toUserSyncError } from './errors'
 import type {
   DeviceIdentity,
+  DevicePlatform,
   IncomingDocument,
   LocalPeerApi,
   LocalTransport,
@@ -92,6 +93,10 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
   const engines = new Map<string, PeerSyncEngine>()
   const unsubscribers = new Set<() => void>()
   const nearbyIds = new Set<string>()
+  // Display-only cache for peers paired before the platform field existed.
+  // Discovery knows the platform, so the list can show the right icon without
+  // rewriting the native peer vault; the next pairing persists it.
+  const nearbyPlatforms = new Map<string, DevicePlatform>()
   let mirrorTimer: ReturnType<typeof setTimeout> | null = null
   let started = false
   let incomingQueue: Promise<void> = Promise.resolve()
@@ -219,6 +224,12 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
     },
   })
 
+  const withNearbyPlatform = (peer: PeerRecord): PeerRecord => {
+    if (peer.platform) return peer
+    const platform = nearbyPlatforms.get(peer.peerId)
+    return platform ? { ...peer, platform } : peer
+  }
+
   const ensureEngine = (peer: PeerRecord, available: boolean): PeerSyncEngine => {
     const existing = engines.get(peer.peerId)
     if (existing) {
@@ -239,7 +250,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         peers: {
           ...state.peers,
           [peer.peerId]: {
-            ...peer,
+            ...withNearbyPlatform(peer),
             status: existing.getState().status,
             lastError: existing.getState().lastError,
             lastSyncedAt: existing.getState().lastSyncedAt ?? peer.lastSyncAt,
@@ -281,7 +292,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       peers: {
         ...state.peers,
         [peer.peerId]: {
-          ...peer,
+          ...withNearbyPlatform(peer),
           status: 'offline',
           lastError: null,
           lastSyncedAt: peer.lastSyncAt,
@@ -304,8 +315,17 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
 
   const setNearby = (nearby: NearbyPeer[]): void => {
     nearbyIds.clear()
-    nearby.forEach((peer) => nearbyIds.add(peer.deviceId))
-    state = { ...state, nearby }
+    let peers = state.peers
+    for (const peer of nearby) {
+      nearbyIds.add(peer.deviceId)
+      if (peer.platform) nearbyPlatforms.set(peer.deviceId, peer.platform)
+      const record = peers[peer.deviceId]
+      if (record && !record.platform && peer.platform) {
+        if (peers === state.peers) peers = { ...state.peers }
+        peers[peer.deviceId] = { ...record, platform: peer.platform }
+      }
+    }
+    state = peers === state.peers ? { ...state, nearby } : { ...state, nearby, peers }
     for (const [peerId, engine] of engines) {
       const present = nearbyIds.has(peerId)
       if (!present) engine.setAvailable(false)
@@ -486,9 +506,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
           deps.transport.listPeers(),
           deps.transport.listNearby(),
         ])
-        nearbyIds.clear()
-        nearby.forEach((peer) => nearbyIds.add(peer.deviceId))
-        state = { ...state, nearby }
+        setNearby(nearby)
         for (const peer of peers) ensureEngine(peer, nearbyIds.has(peer.peerId))
         // Only now can we tell whether a persisted conflict must keep the node
         // from advertising the unresolved local copy.
@@ -541,6 +559,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       engines.forEach((peerEngine) => peerEngine.dispose())
       engines.clear()
       nearbyIds.clear()
+      nearbyPlatforms.clear()
       try {
         await deps.transport.stop()
       } catch {
@@ -631,6 +650,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       engines.delete(peerId)
       const peers = { ...state.peers }
       delete peers[peerId]
+      nearbyPlatforms.delete(peerId)
       try {
         deps.storage.removeItem(peerBaseKey(peerId))
         deps.storage.removeItem(peerMetaKey(peerId))
@@ -725,15 +745,8 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
           deps.transport.listPeers(),
           deps.transport.listNearby(),
         ])
-        nearbyIds.clear()
-        nearby.forEach((peer) => nearbyIds.add(peer.deviceId))
-        state = { ...state, nearby }
+        setNearby(nearby)
         for (const peer of peers) ensureEngine(peer, nearbyIds.has(peer.peerId))
-        for (const [peerId, peerEngine] of engines) {
-          const present = nearbyIds.has(peerId)
-          if (!present) peerEngine.setAvailable(false)
-          else if (state.peers[peerId]?.autoSync) peerEngine.setAvailable(true)
-        }
         patchState({ phase: 'idle', lastError: null })
       } catch (error) {
         patchState({

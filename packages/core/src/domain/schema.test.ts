@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createDemoSetup } from '../content/demo.js'
+import legacyV030Raw from './fixtures/v0.3.0-save.json?raw'
 import { MAX_DECISION_LAYERS, SCHEMA_VERSION } from './balance.js'
 import { generateMap } from './generator.js'
 import { createRun } from './lifecycle.js'
@@ -237,6 +238,60 @@ describe('serializeDocument and parseDocument', () => {
     if (!parsed.ok) return
     expect(parsed.value.schemaVersion).toBe(SCHEMA_VERSION)
     expect(parsed.value.goals.every((goal) => goal.description === '')).toBe(true)
+  })
+
+  it('loads a save written by v0.3.0 and keeps it re-importable', () => {
+    const legacy = JSON.parse(legacyV030Raw) as Record<string, unknown>
+    expect(legacy.schemaVersion).toBe(3)
+
+    const parsed = parseDocument(legacy)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(parsed.value.goals.every((goal) => goal.description === '')).toBe(true)
+    expect(parsed.value.run?.timeZone).toBe('America/Bogota')
+    expect(parsed.value.run?.days).toHaveLength(7)
+
+    const exported = serializeDocument(parsed.value)
+    const reimported = parseDocument(exported)
+    expect(reimported).toEqual(parsed)
+    if (reimported.ok) expect(serializeDocument(reimported.value)).toBe(exported)
+  })
+
+  it('round-trips a version 3 save through the v4 migration', () => {
+    const legacy = JSON.parse(serializeDocument(fullDocument())) as Record<string, unknown>
+    legacy.schemaVersion = 3
+    for (const goal of legacy.goals as Array<Record<string, unknown>>) {
+      delete goal.description
+    }
+    legacy.onboardingDraft = {
+      step: 2,
+      mode: 'custom',
+      name: 'Ari',
+      goals: [
+        {
+          id: 'goal_draft',
+          title: 'Read',
+          category: 'Mind',
+          icon: 'banner',
+          weeklyObjective: 3,
+          active: true,
+          createdAt: now.toISOString(),
+        },
+      ],
+      tasks: [],
+    }
+
+    const migrated = parseDocument(legacy)
+    expect(migrated.ok).toBe(true)
+    if (!migrated.ok) return
+    expect(migrated.value.goals.every((goal) => goal.description === '')).toBe(true)
+    expect(migrated.value.onboardingDraft?.goals[0]?.description).toBe('')
+
+    const exported = serializeDocument(migrated.value)
+    const reimported = parseDocument(exported)
+    expect(reimported).toEqual(migrated)
+    if (reimported.ok) expect(serializeDocument(reimported.value)).toBe(exported)
   })
 
   it('migrates a version 1 save to persisted goal icons', () => {

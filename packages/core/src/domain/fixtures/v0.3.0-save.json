@@ -1,0 +1,608 @@
+{
+  "schemaVersion": 3,
+  "profile": {
+    "id": "profile_fixture",
+    "name": "Wren",
+    "xp": 0,
+    "level": 1,
+    "gold": 0,
+    "loot": [],
+    "createdAt": "2026-10-27T15:00:00.000Z"
+  },
+  "goals": [
+    {
+      "id": "demo-goal-wayfarer",
+      "title": "Wayfarer",
+      "category": "Movement",
+      "icon": "compass",
+      "weeklyObjective": 4,
+      "active": true,
+      "createdAt": "2026-10-27T15:00:00.000Z"
+    },
+    {
+      "id": "demo-goal-craft",
+      "title": "Craft",
+      "category": "Making",
+      "icon": "quill",
+      "weeklyObjective": 3,
+      "active": true,
+      "createdAt": "2026-10-27T15:00:00.000Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "demo-task-walk-north-trail",
+      "goalId": "demo-goal-wayfarer",
+      "title": "Walk the north trail",
+      "effort": "light",
+      "active": true,
+      "createdAt": "2026-10-27T15:00:00.000Z"
+    },
+    {
+      "id": "demo-task-ride-before-dawn",
+      "goalId": "demo-goal-wayfarer",
+      "title": "Ride before dawn",
+      "effort": "medium",
+      "active": true,
+      "createdAt": "2026-10-27T15:00:00.000Z"
+    },
+    {
+      "id": "demo-task-climb-old-stair",
+      "goalId": "demo-goal-wayfarer",
+      "title": "Climb the old stair",
+      "effort": "high",
+      "active": true,
+      "createdAt": "2026-10-27T15:00:00.000Z"
+    },
+    {
+      "id": "demo-task-write-one-page",
+      "goalId": "demo-goal-craft",
+      "title": "Write one page",
+      "effort": "medium",
+      "active": true,
+      "createdAt": "2026-10-27T15:00:00.000Z"
+    },
+    {
+      "id": "demo-task-mend-old-chair",
+      "goalId": "demo-goal-craft",
+      "title": "Mend the old chair",
+      "effort": "high",
+      "active": true,
+      "createdAt": "2026-10-27T15:00:00.000Z"
+    }
+  ],
+  "run": {
+    "id": "run_fixture",
+    "seed": "run:run_fixture",
+    "generatorVersion": 5,
+    "startDate": "2026-10-27",
+    "timeZone": "America/Bogota",
+    "status": "active",
+    "objectives": [
+      {
+        "goalId": "demo-goal-wayfarer",
+        "goalTitle": "Wayfarer",
+        "target": 4,
+        "progress": 0
+      },
+      {
+        "goalId": "demo-goal-craft",
+        "goalTitle": "Craft",
+        "target": 3,
+        "progress": 0
+      }
+    ],
+    "days": [
+      {
+        "id": "run_fixture:day:0",
+        "index": 0,
+        "date": "2026-10-27",
+        "status": "in_progress",
+        "map": {
+          "id": "run_fixture:map:0",
+          "seed": "run:run_fixture:day:0:g5",
+          "dayIndex": 0,
+          "generatorVersion": 5,
+          "layers": [
+            [
+              {
+                "id": "n0_0",
+                "layer": 0,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-walk-north-trail",
+                  "title": "Walk the north trail",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "light"
+                },
+                "rewards": {
+                  "xp": 10,
+                  "gold": 10,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n1_0"
+                ]
+              },
+              {
+                "id": "n0_1",
+                "layer": 0,
+                "type": "rest",
+                "task": null,
+                "rewards": {
+                  "xp": 5,
+                  "gold": 0,
+                  "lootRolls": 0,
+                  "progress": 0
+                },
+                "connections": [
+                  "n1_1",
+                  "n1_2"
+                ]
+              },
+              {
+                "id": "n0_2",
+                "layer": 0,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-climb-old-stair",
+                  "title": "Climb the old stair",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "high"
+                },
+                "rewards": {
+                  "xp": 20,
+                  "gold": 20,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n1_2"
+                ]
+              },
+              {
+                "id": "n0_3",
+                "layer": 0,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-ride-before-dawn",
+                  "title": "Ride before dawn",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "medium"
+                },
+                "rewards": {
+                  "xp": 15,
+                  "gold": 15,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n1_2",
+                  "n1_3"
+                ]
+              },
+              {
+                "id": "n0_4",
+                "layer": 0,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-mend-old-chair",
+                  "title": "Mend the old chair",
+                  "goalId": "demo-goal-craft",
+                  "goalTitle": "Craft",
+                  "effort": "high"
+                },
+                "rewards": {
+                  "xp": 20,
+                  "gold": 20,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n1_3"
+                ]
+              }
+            ],
+            [
+              {
+                "id": "n1_0",
+                "layer": 1,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-write-one-page",
+                  "title": "Write one page",
+                  "goalId": "demo-goal-craft",
+                  "goalTitle": "Craft",
+                  "effort": "medium"
+                },
+                "rewards": {
+                  "xp": 15,
+                  "gold": 15,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n2_0"
+                ]
+              },
+              {
+                "id": "n1_1",
+                "layer": 1,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-ride-before-dawn",
+                  "title": "Ride before dawn",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "medium"
+                },
+                "rewards": {
+                  "xp": 15,
+                  "gold": 15,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n2_1",
+                  "n2_2"
+                ]
+              },
+              {
+                "id": "n1_2",
+                "layer": 1,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-climb-old-stair",
+                  "title": "Climb the old stair",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "high"
+                },
+                "rewards": {
+                  "xp": 20,
+                  "gold": 20,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n2_2"
+                ]
+              },
+              {
+                "id": "n1_3",
+                "layer": 1,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-walk-north-trail",
+                  "title": "Walk the north trail",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "light"
+                },
+                "rewards": {
+                  "xp": 10,
+                  "gold": 10,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n2_2"
+                ]
+              }
+            ],
+            [
+              {
+                "id": "n2_0",
+                "layer": 2,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-walk-north-trail",
+                  "title": "Walk the north trail",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "light"
+                },
+                "rewards": {
+                  "xp": 10,
+                  "gold": 10,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n3_1"
+                ]
+              },
+              {
+                "id": "n2_1",
+                "layer": 2,
+                "type": "wheel",
+                "task": null,
+                "rewards": {
+                  "xp": 0,
+                  "gold": 0,
+                  "lootRolls": 0,
+                  "progress": 0
+                },
+                "connections": [
+                  "n3_0",
+                  "n3_2"
+                ]
+              },
+              {
+                "id": "n2_2",
+                "layer": 2,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-mend-old-chair",
+                  "title": "Mend the old chair",
+                  "goalId": "demo-goal-craft",
+                  "goalTitle": "Craft",
+                  "effort": "high"
+                },
+                "rewards": {
+                  "xp": 20,
+                  "gold": 20,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n3_1"
+                ]
+              }
+            ],
+            [
+              {
+                "id": "n3_0",
+                "layer": 3,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-write-one-page",
+                  "title": "Write one page",
+                  "goalId": "demo-goal-craft",
+                  "goalTitle": "Craft",
+                  "effort": "medium"
+                },
+                "rewards": {
+                  "xp": 15,
+                  "gold": 15,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n4_0",
+                  "n4_1"
+                ]
+              },
+              {
+                "id": "n3_1",
+                "layer": 3,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-ride-before-dawn",
+                  "title": "Ride before dawn",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "medium"
+                },
+                "rewards": {
+                  "xp": 15,
+                  "gold": 15,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n4_1"
+                ]
+              },
+              {
+                "id": "n3_2",
+                "layer": 3,
+                "type": "elite",
+                "task": {
+                  "taskId": "demo-task-climb-old-stair",
+                  "title": "Climb the old stair",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "high"
+                },
+                "rewards": {
+                  "xp": 40,
+                  "gold": 40,
+                  "lootRolls": 1,
+                  "progress": 1
+                },
+                "connections": [
+                  "n4_1",
+                  "n4_2"
+                ]
+              }
+            ],
+            [
+              {
+                "id": "n4_0",
+                "layer": 4,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-walk-north-trail",
+                  "title": "Walk the north trail",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "light"
+                },
+                "rewards": {
+                  "xp": 10,
+                  "gold": 10,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n5_0"
+                ]
+              },
+              {
+                "id": "n4_1",
+                "layer": 4,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-mend-old-chair",
+                  "title": "Mend the old chair",
+                  "goalId": "demo-goal-craft",
+                  "goalTitle": "Craft",
+                  "effort": "high"
+                },
+                "rewards": {
+                  "xp": 20,
+                  "gold": 20,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n5_0"
+                ]
+              },
+              {
+                "id": "n4_2",
+                "layer": 4,
+                "type": "task",
+                "task": {
+                  "taskId": "demo-task-ride-before-dawn",
+                  "title": "Ride before dawn",
+                  "goalId": "demo-goal-wayfarer",
+                  "goalTitle": "Wayfarer",
+                  "effort": "medium"
+                },
+                "rewards": {
+                  "xp": 15,
+                  "gold": 15,
+                  "lootRolls": 0,
+                  "progress": 1
+                },
+                "connections": [
+                  "n5_0"
+                ]
+              }
+            ]
+          ],
+          "boss": {
+            "id": "n5_0",
+            "layer": 5,
+            "type": "boss",
+            "task": {
+              "taskId": "demo-task-mend-old-chair",
+              "title": "Mend the old chair",
+              "goalId": "demo-goal-craft",
+              "goalTitle": "Craft",
+              "effort": "high"
+            },
+            "rewards": {
+              "xp": 60,
+              "gold": 60,
+              "lootRolls": 1,
+              "progress": 1
+            },
+            "connections": []
+          },
+          "currentNodeId": null,
+          "createdAt": "2026-10-27T15:00:00.000Z"
+        },
+        "path": [],
+        "rewards": [],
+        "openedAt": "2026-10-27T15:00:00.000Z",
+        "closedAt": null,
+        "summary": null
+      },
+      {
+        "id": "run_fixture:day:1",
+        "index": 1,
+        "date": "2026-10-28",
+        "status": "locked",
+        "map": null,
+        "path": [],
+        "rewards": [],
+        "openedAt": null,
+        "closedAt": null,
+        "summary": null
+      },
+      {
+        "id": "run_fixture:day:2",
+        "index": 2,
+        "date": "2026-10-29",
+        "status": "locked",
+        "map": null,
+        "path": [],
+        "rewards": [],
+        "openedAt": null,
+        "closedAt": null,
+        "summary": null
+      },
+      {
+        "id": "run_fixture:day:3",
+        "index": 3,
+        "date": "2026-10-30",
+        "status": "locked",
+        "map": null,
+        "path": [],
+        "rewards": [],
+        "openedAt": null,
+        "closedAt": null,
+        "summary": null
+      },
+      {
+        "id": "run_fixture:day:4",
+        "index": 4,
+        "date": "2026-10-31",
+        "status": "locked",
+        "map": null,
+        "path": [],
+        "rewards": [],
+        "openedAt": null,
+        "closedAt": null,
+        "summary": null
+      },
+      {
+        "id": "run_fixture:day:5",
+        "index": 5,
+        "date": "2026-11-01",
+        "status": "locked",
+        "map": null,
+        "path": [],
+        "rewards": [],
+        "openedAt": null,
+        "closedAt": null,
+        "summary": null
+      },
+      {
+        "id": "run_fixture:day:6",
+        "index": 6,
+        "date": "2026-11-02",
+        "status": "locked",
+        "map": null,
+        "path": [],
+        "rewards": [],
+        "openedAt": null,
+        "closedAt": null,
+        "summary": null
+      }
+    ],
+    "totals": {
+      "xp": 0,
+      "gold": 0,
+      "lootCount": 0,
+      "nodesCompleted": 0,
+      "nodesSkipped": 0,
+      "daysPlayed": 0,
+      "daysMissed": 0
+    },
+    "createdAt": "2026-10-27T15:00:00.000Z",
+    "closedAt": null,
+    "summary": null
+  },
+  "onboardingDraft": null,
+  "settings": {
+    "theme": "system"
+  }
+}

@@ -108,6 +108,7 @@ describe('createDocumentStorage', () => {
     expect(restored.state.document.goals[0]?.icon).toBe('banner')
     expect(restored.state.document.onboardingDraft?.goals[0]?.icon).toBe('banner')
     expect(memory.getItem(STORAGE_KEY)).toBe(JSON.stringify(legacy))
+    expect(memory.getItem(STORAGE_BACKUP_KEY)).toBe(JSON.stringify(legacy))
   })
 
   it('blocks writes for corrupt JSON without overwriting it', () => {

@@ -134,7 +134,7 @@ jobs:
     # The LAN node is Kotlin; Metro alone cannot catch a native compile error.
     if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.mobile-native == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
 
@@ -163,6 +163,29 @@ jobs:
       - name: Prebuild Android project
         run: pnpm --filter @lifespire/mobile exec expo prebuild --platform android --no-install
 
+      # Cache the Gradle distribution, dependencies and transforms. React Native
+      # publishes a ~288 MB debug AAR through a flaky Maven proxy; restoring it
+      # from the cache removes the main source of transient mobile-native fails.
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Tune Gradle network timeouts
+        run: |
+          mkdir -p "$HOME/.gradle"
+          cat > "$HOME/.gradle/gradle.properties" <<'EOF'
+          systemProp.org.gradle.internal.http.connectionTimeout=120000
+          systemProp.org.gradle.internal.http.socketTimeout=120000
+          systemProp.org.gradle.internal.repository.max.tentatives=5
+          systemProp.org.gradle.internal.repository.initial.backoff=2000
+          EOF
+
       - name: Compile the Android app and the LAN module
         working-directory: apps/mobile/android
-        run: ./gradlew :app:assembleDebug --no-daemon
+        run: |
+          for attempt in 1 2; do
+            if ./gradlew :app:assembleDebug --no-daemon; then
+              exit 0
+            fi
+            echo "::warning::Gradle attempt ${attempt} failed; retrying in 20s"
+            sleep 20
+          done
+          exit 1

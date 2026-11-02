@@ -130,6 +130,12 @@ export function createDocumentStorage(
           return null
         }
 
+        // Migrations are forward-only. Copy the pre-migration raw before the
+        // first write replaces it, so a downgrade or a migration bug still has
+        // the original save under the backup key.
+        const sourceVersion = (JSON.parse(raw) as { schemaVersion?: unknown }).schemaVersion
+        if (sourceVersion !== SCHEMA_VERSION) backup(name)
+
         return { state: { document: result.value }, version: SCHEMA_VERSION }
       } catch {
         block({ reason: 'corrupt' })
