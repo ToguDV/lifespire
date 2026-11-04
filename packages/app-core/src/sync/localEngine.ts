@@ -3,7 +3,7 @@ import { parseDocument } from '@lifespire/core'
 import { checksumDocument } from './checksum'
 import { createPeerSyncEngine } from './peerEngine'
 import type { PeerConflict, PeerEngineState, PeerSyncEngine, PeerSyncStatus } from './peerEngine'
-import { SyncConflictError, toUserSyncError } from './errors'
+import { LocalSyncError, SyncConflictError, toUserSyncError } from './errors'
 import type {
   DeviceIdentity,
   DevicePlatform,
@@ -12,6 +12,7 @@ import type {
   LocalTransport,
   NearbyPeer,
   PairingPayload,
+  PeerHead,
   PeerRecord,
   PeerResponse,
   PeerSnapshot,
@@ -44,6 +45,8 @@ export interface LocalSyncState {
   peers: Record<string, LocalPeerView>
   conflicts: LocalConflictView[]
   pairing: PairingPayload | null
+  /** Failure shown inside the pairing dialog, never in the device panel. */
+  pairingError: string | null
   lastError: string | null
 }
 
@@ -65,6 +68,8 @@ export interface LocalSyncDeps {
   /** Best-effort local backup before an incoming/merged document applies. */
   onBackup?: () => void
   onRemoteApplied?: (peerName: string) => void
+  /** A conflict was resolved without this device's dialog. */
+  onConflictResolved?: (peerName: string, outcome: 'this-device' | 'other-device') => void
 }
 
 function initialState(): LocalSyncState {
@@ -78,12 +83,27 @@ function initialState(): LocalSyncState {
     peers: {},
     conflicts: [],
     pairing: null,
+    pairingError: null,
     lastError: null,
   }
 }
 
 function readJson(body: unknown): Record<string, unknown> | null {
   return body && typeof body === 'object' ? (body as Record<string, unknown>) : null
+}
+
+/**
+ * Keeps the HTTP status on the failure so `toUserSyncError` can choose the
+ * curated copy; the server message is only a fallback for unclassified codes.
+ */
+function syncResponseError(response: PeerResponse): LocalSyncError {
+  const body = readJson(response.body)
+  return new LocalSyncError(
+    typeof body?.message === 'string'
+      ? body.message
+      : 'The other device could not complete the sync. Try again.',
+    { status: response.status },
+  )
 }
 
 export function createLocalSyncEngine(deps: LocalSyncDeps) {
@@ -139,90 +159,98 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
   }
 
   const refreshPhase = (): void => {
-    const statuses = Object.values(state.peers).map((peer) => peer.status)
-    const errors = Object.values(state.peers)
-      .map((peer) => peer.lastError)
-      .filter((message): message is string => Boolean(message))
-    if (errors.length > 0) {
-      patchState({ phase: 'error', lastError: errors[0] })
+    const peers = Object.values(state.peers)
+    // Peer failures live in their own device row. Only coordinator-level
+    // failures use the panel-wide lastError, so the same text is never shown
+    // twice in two different parts of the UI.
+    if (peers.some((peer) => peer.status === 'error') || state.lastError) {
+      patchState({ phase: 'error' })
       return
     }
-    if (statuses.some((status) => status === 'pushing' || status === 'pulling')) {
+    if (peers.some((peer) => peer.status === 'pushing' || peer.status === 'pulling')) {
       patchState({ phase: 'syncing' })
       return
     }
     patchState({ phase: 'idle' })
   }
 
-  const peerApi = (peerId: string): LocalPeerApi => ({
-    getSync: async (ifMatch?: string): Promise<PeerSnapshot | null> => {
-      const infoResponse = await deps.transport.request(peerId, {
+  const peerApi = (peerId: string): LocalPeerApi => {
+    const fetchInfo = async (): Promise<PeerHead | null> => {
+      const response = await deps.transport.request(peerId, {
         method: 'GET',
         path: '/v1/info',
       })
-      if (infoResponse.status !== 200) {
-        throw new Error(`The other device answered ${infoResponse.status}.`)
-      }
-      const info = readJson(infoResponse.body)
-      const docHash = typeof info?.docHash === 'string' ? info.docHash : null
-      if (!docHash) return null
-      if (ifMatch && docHash === ifMatch) return null
-
-      const documentResponse = await deps.transport.request(peerId, {
-        method: 'GET',
-        path: '/v1/document',
-      })
-      if (documentResponse.status !== 200) {
-        throw new Error(`The other device answered ${documentResponse.status}.`)
-      }
-      const payload = readJson(documentResponse.body)
-      if (!payload) throw new Error('The other device sent an empty document.')
-      if (typeof payload.documentJson !== 'string') {
-        throw new Error('The other device sent an unreadable document.')
-      }
+      if (response.status !== 200) throw syncResponseError(response)
+      const info = readJson(response.body)
+      const version = typeof info?.docHash === 'string' ? info.docHash : null
+      if (!version) return null
       return {
-        version: typeof payload.docHash === 'string' ? payload.docHash : docHash,
-        schemaVersion:
-          typeof payload.schemaVersion === 'number' ? payload.schemaVersion : 0,
-        document: JSON.parse(payload.documentJson) as unknown,
-        updatedAt: typeof payload.updatedAt === 'string' ? payload.updatedAt : now().toISOString(),
+        version,
+        updatedAt: typeof info?.updatedAt === 'string' ? info.updatedAt : now().toISOString(),
       }
-    },
+    }
 
-    putSync: async (document: unknown, options): Promise<{ version: string; updatedAt: string }> => {
-      const response: PeerResponse = await deps.transport.request(peerId, {
-        method: 'POST',
-        path: '/v1/document',
-        body: {
-          documentJson: JSON.stringify(document),
-          expectedHash: options.create ? null : (options.ifMatch ?? null),
-          docHash: checksumDocument(document),
-        },
-      })
-      if (response.status === 409) {
+    return {
+      getInfo: fetchInfo,
+
+      getSync: async (ifMatch?: string): Promise<PeerSnapshot | null> => {
+        const info = await fetchInfo()
+        if (!info) return null
+        if (ifMatch && info.version === ifMatch) return null
+
+        const documentResponse = await deps.transport.request(peerId, {
+          method: 'GET',
+          path: '/v1/document',
+        })
+        if (documentResponse.status !== 200) throw syncResponseError(documentResponse)
+        const payload = readJson(documentResponse.body)
+        if (!payload) throw new Error('The other device sent an empty document.')
+        if (typeof payload.documentJson !== 'string') {
+          throw new Error('The other device sent an unreadable document.')
+        }
+        return {
+          version: typeof payload.docHash === 'string' ? payload.docHash : info.version,
+          schemaVersion:
+            typeof payload.schemaVersion === 'number' ? payload.schemaVersion : 0,
+          document: JSON.parse(payload.documentJson) as unknown,
+          updatedAt:
+            typeof payload.updatedAt === 'string' ? payload.updatedAt : info.updatedAt,
+        }
+      },
+
+      putSync: async (
+        document: unknown,
+        options,
+      ): Promise<{ version: string; updatedAt: string }> => {
+        const response: PeerResponse = await deps.transport.request(peerId, {
+          method: 'POST',
+          path: '/v1/document',
+          body: {
+            documentJson: JSON.stringify(document),
+            expectedHash: options.create ? null : (options.ifMatch ?? null),
+            docHash: checksumDocument(document),
+          },
+        })
+        if (response.status === 409) {
+          const body = readJson(response.body)
+          const currentVersion = typeof body?.docHash === 'string' ? body.docHash : ''
+          const currentUpdatedAt =
+            typeof body?.updatedAt === 'string' ? body.updatedAt : now().toISOString()
+          throw new SyncConflictError(currentVersion, currentUpdatedAt)
+        }
+        if (response.status !== 200 && response.status !== 202) {
+          throw syncResponseError(response)
+        }
         const body = readJson(response.body)
-        const currentVersion = typeof body?.docHash === 'string' ? body.docHash : ''
-        const currentUpdatedAt =
-          typeof body?.updatedAt === 'string' ? body.updatedAt : now().toISOString()
-        throw new SyncConflictError(currentVersion, currentUpdatedAt)
-      }
-      if (response.status !== 200 && response.status !== 202) {
-        const body = readJson(response.body)
-        throw new Error(
-          typeof body?.message === 'string'
-            ? body.message
-            : `The other device answered ${response.status}.`,
-        )
-      }
-      const body = readJson(response.body)
-      return {
-        version:
-          typeof body?.docHash === 'string' ? body.docHash : checksumDocument(document),
-        updatedAt:
-          typeof body?.updatedAt === 'string' ? body.updatedAt : now().toISOString(),
-      }
-    },
-  })
+        return {
+          version:
+            typeof body?.docHash === 'string' ? body.docHash : checksumDocument(document),
+          updatedAt:
+            typeof body?.updatedAt === 'string' ? body.updatedAt : now().toISOString(),
+        }
+      },
+    }
+  }
 
   const withNearbyPlatform = (peer: PeerRecord): PeerRecord => {
     if (peer.platform) return peer
@@ -278,8 +306,21 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       },
       getDevOffset: deps.getDevOffset,
       isAvailable: () => nearbyIds.has(peer.peerId),
+      isBlocked: () => hasOpenConflict(),
       now,
       onBeforeAutoMergePush: () => deps.onBackup?.(),
+      onLocalAdopted: () => {
+        // The peer now serves this device's copy: refresh the local mirror so
+        // a later pull from the other side cannot resurrect the stale copy.
+        void flushMirror()
+      },
+      onConflictResolved: (outcome) => {
+        deps.onConflictResolved?.(
+          state.peers[peer.peerId]?.name ?? peer.name,
+          outcome === 'local' ? 'this-device' : 'other-device',
+        )
+        resumeAutoSyncPeers()
+      },
     })
     engines.set(peer.peerId, engine)
     const unsubscribe = engine.subscribe(() => {
@@ -353,6 +394,16 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
   const hasOpenConflict = (): boolean =>
     state.conflicts.length > 0 ||
     Object.values(state.peers).some((peer) => peer.needsReview)
+
+  /** Restart automatic sync after the last conflict of the pair is settled. */
+  const resumeAutoSyncPeers = (): void => {
+    if (hasOpenConflict()) return
+    for (const [peerId, peerEngine] of engines) {
+      if (!state.peers[peerId]?.autoSync) continue
+      peerEngine.setAvailable(nearbyIds.has(peerId))
+      peerEngine.adoptLocal()
+    }
+  }
 
   const flushMirror = async (): Promise<void> => {
     if (mirrorTimer !== null) {
@@ -460,7 +511,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
 
   const completePair = (peer: PeerRecord): PeerRecord => {
     const peerEngine = ensureEngine(peer, nearbyIds.has(peer.peerId))
-    patchState({ pairing: null, lastError: null })
+    patchState({ pairing: null, pairingError: null, lastError: null })
     if (peer.autoSync) {
       peerEngine.setAvailable(nearbyIds.has(peer.peerId))
       peerEngine.adoptLocal()
@@ -501,6 +552,7 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
           device,
           discoverable: deps.initialDiscoverable ?? false,
           available: true,
+          lastError: null,
         })
         const [peers, nearby] = await Promise.all([
           deps.transport.listPeers(),
@@ -525,7 +577,10 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         )
         unsubscribers.add(
           deps.transport.onError((message) => {
-            patchState({ lastError: toUserSyncError(message, message), phase: 'error' })
+            patchState({
+              lastError: toUserSyncError(message, 'Nearby sync ran into a problem. Try again.'),
+              phase: 'error',
+            })
           }),
         )
         const pending = await deps.transport.pendingIncoming()
@@ -595,22 +650,23 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         await peerEngine.syncNow()
       }
       refreshPhase()
+      resumeAutoSyncPeers()
     },
 
     startPairing: async (): Promise<PairingPayload | null> => {
       if (!deps.transport.available) return null
       try {
         const payload = await deps.transport.startPairing()
-        patchState({ pairing: payload, lastError: null })
+        patchState({ pairing: payload, pairingError: null, lastError: null })
         return payload
       } catch (error) {
-        patchState({ lastError: toUserSyncError(error, 'Could not start pairing.') })
+        patchState({ pairingError: toUserSyncError(error, 'Could not start pairing.') })
         return null
       }
     },
 
     cancelPairing: async (): Promise<void> => {
-      patchState({ pairing: null })
+      patchState({ pairing: null, pairingError: null })
       try {
         await deps.transport.cancelPairing()
       } catch {
@@ -619,21 +675,23 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
     },
 
     pair: async (payload: PairingPayload): Promise<PeerRecord | null> => {
+      patchState({ pairingError: null })
       try {
         const peer = await deps.transport.pair(payload)
         return completePair(peer)
       } catch (error) {
-        patchState({ lastError: toUserSyncError(error, 'Could not pair the device.') })
+        patchState({ pairingError: toUserSyncError(error, 'Could not pair the device.') })
         return null
       }
     },
 
     pairWithCode: async (deviceId: string, code: string): Promise<PeerRecord | null> => {
+      patchState({ pairingError: null })
       try {
         const peer = await deps.transport.pairWithCode(deviceId, code)
         return completePair(peer)
       } catch (error) {
-        patchState({ lastError: toUserSyncError(error, 'Could not pair the device.') })
+        patchState({ pairingError: toUserSyncError(error, 'Could not pair the device.') })
         return null
       }
     },
@@ -684,12 +742,14 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
       await engines.get(peerId)?.resolveKeepMine()
       refreshPhase()
       await flushMirror()
+      resumeAutoSyncPeers()
     },
 
     resolveKeepPeer: async (peerId: string): Promise<void> => {
       engines.get(peerId)?.resolveKeepPeer()
       refreshPhase()
       await flushMirror()
+      resumeAutoSyncPeers()
     },
 
     discardConflict: (peerId: string): void => {
@@ -709,6 +769,8 @@ export function createLocalSyncEngine(deps: LocalSyncDeps) {
         const nearby = await deps.transport.listNearby()
         setNearby(nearby)
         await refreshPairs()
+        for (const peerEngine of engines.values()) peerEngine.checkConflictResolution()
+        resumeAutoSyncPeers()
       } catch {
         // The next discovery event retries.
       }

@@ -963,6 +963,17 @@ prototipo retirado:
   el CAS hasta 3 veces y abre el diálogo keep-mine/keep-peer si el merge no es
   seguro. Un reset/import se propaga; el diálogo permite "reset solo este
   dispositivo" desemparejando primero.
+- **Conflicto compartido:** el diálogo representa una decisión de la pareja, no
+  de un dispositivo. El push de la copia que el conflicto mostraba como remota
+  vale como "keep peer" del otro; mientras hay conflicto el motor consulta
+  `/v1/info` (sin descargar el documento) y, si el peer ya sirve la copia local,
+  cierra el diálogo y refresca el mirror. Un remoto nuevo y distinto no se
+  adopta a ciegas: se refresca el conflicto. Sin cambios de endpoint, esquema ni
+  claves de storage.
+- **Errores de sync:** los estados HTTP y las excepciones nativas (Java/Kotlin,
+  Expo, IPC de Electron) se traducen a copy curada; el error de un peer se pinta
+  solo en su fila y los fallos de pairing viven dentro del diálogo de pairing,
+  nunca duplicados en el panel.
 
 ### App Android (Expo, SDK 58)
 

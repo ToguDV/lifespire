@@ -4,6 +4,10 @@
 > sync), ADR-0002 (auth/admin), ADR-0005 (native auth) and ADR-0006
 > (foreground change feed). ADR-0004 (conservative auto-merge) still applies;
 > its merge base is now per paired peer instead of per account.
+>
+> Amended 2026-11-04: a conflict is **shared by the pair**. The first device
+> that commits a decision wins; the other device closes its dialog and applies
+> it without asking again (see “Shared conflict decisions”). No wire change.
 
 ## Context
 
@@ -115,6 +119,28 @@ per-peer base (the last document shared with that peer) and reuses
   both have saves, ask explicitly. No blind 3-way merge.
 - The document schema does not change. Sync metadata lives outside
   `GameDocument` (`lifespire:peer:<id>:base` / `:meta`).
+
+### Shared conflict decisions (amendment)
+
+The conflict dialog is a per-pair decision, not a per-device one. The copies
+offered are the same on both sides, so the first committed decision must settle
+the pair:
+
+- A push whose document hash equals the copy the conflict showed as the peer
+  side is the peer's “keep mine” decision. The receiver backs up, applies it,
+  clears the conflict and acks.
+- While a conflict is open and the peer is reachable, the engine reads
+  `/v1/info` (no document download) and also checks on foreground/resume,
+  manual sync and before opening the dialog. If the peer's `docHash` equals
+  this device's local copy, the peer's node already holds it in its durable
+  inbox: the dialog closes and the local mirror is refreshed.
+- A different, newer peer copy is **not** adopted as a decision; it refreshes
+  both copies and keeps the explicit conflict. Every overwrite is still backed
+  up locally.
+- A “keep this device” decision that cannot be delivered (peer offline or
+  revoked) is not considered committed; the dialog stays with actionable copy.
+- No new endpoint, field, storage key or schema version is introduced. Old
+  peers that decide first may still show their own dialog, but no data is lost.
 
 ### UX
 

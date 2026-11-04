@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { dayKey } from '@lifespire/core'
 import type { GameDocument } from '@lifespire/core'
@@ -90,6 +90,12 @@ export function ConflictDialog() {
   const showToast = useAppStore((state) => state.showToast)
   const [busy, setBusy] = useState<'mine' | 'cloud' | 'export' | null>(null)
   const [resolveError, setResolveError] = useState<string | null>(null)
+  const activePeerId = active?.peerId ?? null
+
+  useEffect(() => {
+    setResolveError(null)
+    setBusy(null)
+  }, [activePeerId])
 
   if (!active) return null
   const { conflict, peerId, peerName } = active
@@ -107,10 +113,10 @@ export function ConflictDialog() {
       backupLocally('keeping this device')
       await syncEngine.resolveKeepMine(peerId)
       const next = useSyncStore.getState()
-      if (next.conflicts.length > 0) {
+      if (next.conflicts.some((entry) => entry.peerId === peerId)) {
         setResolveError(
           toUserSyncError(
-            next.lastError,
+            next.peers[peerId]?.lastError ?? next.lastError,
             'This device copy could not be uploaded. Try again.',
           ),
         )
@@ -132,7 +138,7 @@ export function ConflictDialog() {
       backupLocally('keeping the other copy')
       syncEngine.resolveKeepPeer(peerId)
       const next = useSyncStore.getState()
-      if (next.conflicts.length > 0) {
+      if (next.conflicts.some((entry) => entry.peerId === peerId)) {
         setResolveError('The other copy could not be applied. Your device copy is still safe.')
       }
     } catch (error) {

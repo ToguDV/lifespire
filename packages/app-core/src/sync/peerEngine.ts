@@ -1,7 +1,12 @@
 import type { GameDocument } from '@lifespire/core'
 import { parseDocument, tryAutoMerge } from '@lifespire/core'
 import { checksumDocument } from './checksum'
-import { SyncConflictError, isNetworkUnreachable, toUserSyncError } from './errors'
+import {
+  SyncConflictError,
+  isNetworkUnreachable,
+  isSyncAuthFailure,
+  toUserSyncError,
+} from './errors'
 import type { LocalPeerApi, PeerSnapshot } from './protocol'
 import { peerBaseKey, peerMetaKey } from './storageKeys'
 
@@ -64,29 +69,57 @@ export interface PeerEngineDeps {
   useLocks?: boolean
   /** Best-effort backup before an auto-merged document overwrites the peer. */
   onBeforeAutoMergePush?: (local: GameDocument) => void
+  /**
+   * The peer already serves this device's copy, so the other side accepted it
+   * as the conflict decision. The coordinator refreshes the local mirror.
+   */
+  onLocalAdopted?: () => void
+  /** A conflict was resolved by the other device or by its adoption of ours. */
+  onConflictResolved?: (outcome: 'local' | 'peer') => void
+  /** How often to poll the peer head while a conflict is open. */
+  conflictCheckMs?: number
+  /**
+   * An unresolved conflict (this peer or another) blocks automatic pulls and
+   * pushes, because the global mirror cannot advertise the unresolved local
+   * copy. Conflict checks and the explicit resolution actions bypass it.
+   */
+  isBlocked?: () => boolean
 }
 
 const PUSH_DELAY_MS = 1500
 const MAX_BACKOFF_MS = 60_000
+const CONFLICT_CHECK_MS = 2000
 
 interface StoredMeta {
   version: string
   updatedAt: string
   checksum: string | null
   conflict: boolean
+  /**
+   * This device's document hash when the conflict opened. Optional: metas
+   * written before this field existed keep the manual dialog on restart.
+   */
+  localChecksum: string | null
 }
 
 function readMeta(storage: LikeStorage, peerId: string): StoredMeta | null {
   try {
     const raw = storage.getItem(peerMetaKey(peerId))
     if (!raw) return null
-    const parsed = JSON.parse(raw) as { version?: unknown; updatedAt?: unknown; checksum?: unknown }
+    const parsed = JSON.parse(raw) as {
+      version?: unknown
+      updatedAt?: unknown
+      checksum?: unknown
+      localChecksum?: unknown
+    }
     if (typeof parsed.version !== 'string') return null
     return {
       version: parsed.version,
       updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : '',
       checksum: typeof parsed.checksum === 'string' ? parsed.checksum : null,
       conflict: (parsed as { conflict?: unknown }).conflict === true,
+      localChecksum:
+        typeof parsed.localChecksum === 'string' ? parsed.localChecksum : null,
     }
   } catch {
     return null
@@ -100,9 +133,13 @@ function writeMeta(
   updatedAt: string,
   checksum: string | null,
   conflict = false,
+  localChecksum: string | null = null,
 ): void {
   try {
-    storage.setItem(peerMetaKey(peerId), JSON.stringify({ version, updatedAt, checksum, conflict }))
+    storage.setItem(
+      peerMetaKey(peerId),
+      JSON.stringify({ version, updatedAt, checksum, conflict, localChecksum }),
+    )
   } catch {
     // Meta is best-effort; the in-memory version still drives the protocol.
   }
@@ -130,11 +167,13 @@ function writeBaseDocument(storage: LikeStorage, peerId: string, document: unkno
 export function createPeerSyncEngine(deps: PeerEngineDeps) {
   const getDevOffset = deps.getDevOffset ?? (() => 0)
   const isNearby = deps.isAvailable ?? (() => true)
+  const isBlocked = deps.isBlocked ?? (() => false)
   let forceAvailable = false
   const isAvailable = (): boolean => forceAvailable || isNearby()
   const now = deps.now ?? (() => new Date())
   const pushDelay = deps.pushDelayMs ?? PUSH_DELAY_MS
 
+  let disposed = false
   let state: PeerEngineState = {
     status: deps.peerId ? 'synced' : 'disabled',
     peerId: deps.peerId,
@@ -148,6 +187,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
   }
   let baseDocument: GameDocument | null = null
   let baseChecksum: string | null = null
+  let conflictLocalChecksum: string | null = null
   if (deps.peerId) {
     const meta = readMeta(deps.storage, deps.peerId)
     if (meta) {
@@ -157,12 +197,13 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         peerVersion: meta.version,
         updatedAt: meta.updatedAt,
         lastSyncedAt: meta.updatedAt || null,
-        lastError: meta.conflict ? 'A previous conflict needs review.' : null,
+        lastError: null,
         needsReview: meta.conflict,
       }
     }
     baseChecksum = meta?.checksum ?? null
     baseDocument = readBaseDocument(deps.storage, deps.peerId)
+    conflictLocalChecksum = meta?.conflict ? meta.localChecksum : null
   }
 
   const listeners = new Set<() => void>()
@@ -170,13 +211,16 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
     listeners.forEach((listener) => listener())
   }
   const setState = (patch: Partial<PeerEngineState>): void => {
+    if (disposed) return
     state = { ...state, ...patch }
+    syncConflictCheck()
     emit()
   }
 
   let pushTimer: ReturnType<typeof setTimeout> | null = null
   let backoffMs = 2000
   let pushInFlight = false
+  let localDecisionInFlight = false
   let mergeRetries = 0
   let autoEnabled = true
   let reviewInFlight = false
@@ -195,13 +239,115 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
     }
   }
 
+  const conflictCheckMs = deps.conflictCheckMs ?? CONFLICT_CHECK_MS
+  let conflictCheckTimer: ReturnType<typeof setTimeout> | null = null
+  let conflictCheckInFlight = false
+
+  const clearConflictCheck = (): void => {
+    if (conflictCheckTimer !== null) {
+      clearTimeout(conflictCheckTimer)
+      conflictCheckTimer = null
+    }
+  }
+
+  function syncConflictCheck(): void {
+    if (disposed) {
+      clearConflictCheck()
+      return
+    }
+    const waiting =
+      state.status === 'conflict' && (state.conflict !== null || state.needsReview)
+    if (!waiting || !state.peerId || !isAvailable() || getDevOffset() !== 0) {
+      clearConflictCheck()
+      return
+    }
+    if (conflictCheckTimer !== null || conflictCheckInFlight) return
+    const timer = setTimeout(() => {
+      conflictCheckTimer = null
+      void checkPeerDecision()
+    }, conflictCheckMs)
+    // Node/vitest should not stay alive just because a peer is conflicted.
+    ;(timer as unknown as { unref?: () => void }).unref?.()
+    conflictCheckTimer = timer
+  }
+
+  async function checkPeerDecision(): Promise<void> {
+    if (disposed || conflictCheckInFlight) return
+    // A local resolution is in flight: let its CAS outcome decide instead of
+    // racing it with a passive check.
+    if (pushInFlight || localDecisionInFlight) return
+    const peerId = state.peerId
+    if (!peerId || !state.needsReview || !isAvailable() || getDevOffset() !== 0) return
+    conflictCheckInFlight = true
+    const generation = pullGeneration
+    try {
+      if (!state.conflict) {
+        await openConflict()
+        return
+      }
+      const head = await deps.api.getInfo()
+      if (
+        disposed ||
+        generation !== pullGeneration ||
+        state.peerId !== peerId ||
+        state.status !== 'conflict'
+      ) {
+        return
+      }
+      if (head === null) {
+        // The peer has no save. The existing recovery path pushes ours.
+        await openConflict()
+        return
+      }
+      const local = deps.getLocalDocument()
+      const localHash = checksumDocument(local)
+      if (head.version === localHash) {
+        // The other device's node already holds this copy (accepted into its
+        // durable inbox). Close the dialog without applying anything and
+        // refresh the mirror of the resolved pair.
+        persistVersion(head.version, head.updatedAt, localHash, local)
+        setState({
+          status: 'synced',
+          conflict: null,
+          lastError: null,
+          lastSyncedAt: now().toISOString(),
+          needsReview: false,
+        })
+        deps.onLocalAdopted?.()
+        deps.onConflictResolved?.('local')
+        return
+      }
+      if (head.version !== state.conflict.remoteVersion) {
+        // The peer changed again: refresh both copies before asking anything.
+        await openConflict()
+      }
+    } catch (error) {
+      if (isSyncAuthFailure(error)) {
+        setState({
+          status: 'error',
+          lastError: toUserSyncError(
+            error,
+            'The other device no longer accepts this pairing. Forget it and pair both devices again.',
+          ),
+        })
+      }
+      // Other failures are transient; the explicit Sync now / resolve actions
+      // surface their friendly copy. The next tick retries while available.
+    } finally {
+      conflictCheckInFlight = false
+      syncConflictCheck()
+    }
+  }
+
   const persistVersion = (
     version: string,
     updatedAt: string,
     checksum: string,
     document: unknown,
   ): void => {
+    if (disposed) return
     baseChecksum = checksum
+    conflictLocalChecksum = null
     const peerId = state.peerId
     if (peerId) {
       writeMeta(deps.storage, peerId, version, updatedAt, checksum, false)
@@ -222,10 +368,25 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
    * pushed back: the CAS expects the peer's new version, while the 3-way base
    * must remain the old common ancestor.
    */
-  const persistCursor = (version: string, updatedAt: string, conflict = false): void => {
+  const persistCursor = (
+    version: string,
+    updatedAt: string,
+    conflict = false,
+    localChecksum: string | null = null,
+  ): void => {
+    if (disposed) return
+    conflictLocalChecksum = conflict ? localChecksum : null
     const peerId = state.peerId
     if (peerId) {
-      writeMeta(deps.storage, peerId, version, updatedAt, baseChecksum, conflict)
+      writeMeta(
+        deps.storage,
+        peerId,
+        version,
+        updatedAt,
+        baseChecksum,
+        conflict,
+        conflictLocalChecksum,
+      )
     }
     setState({ peerVersion: version, updatedAt, needsReview: conflict })
   }
@@ -254,8 +415,8 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
   }
 
   const flushPendingPull = (): void => {
-    if (!pendingPull) return
-    if (pullInFlight || state.status === 'pushing' || state.status === 'conflict') return
+    if (!pendingPull || disposed || isBlocked()) return
+    if (pullInFlight || state.needsReview || state.status === 'pushing') return
     const announce = pendingAnnounce
     pendingPull = false
     pendingAnnounce = false
@@ -287,7 +448,8 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       setState({ status: 'offline' })
       return
     }
-    if (state.status === 'conflict') return
+    if (state.needsReview || state.status === 'conflict') return
+    if (isBlocked()) return
 
     pushInFlight = true
     setState({ status: 'pushing', lastError: null })
@@ -299,6 +461,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           create: state.peerVersion ? undefined : true,
         }),
       )
+      if (disposed || isBlocked()) return
       backoffMs = 2000
       persistVersion(result.version, result.updatedAt, checksumDocument(document), document)
       mergeRetries = 0
@@ -319,7 +482,9 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           status: unreachable || !isAvailable() ? 'offline' : 'error',
           lastError: toUserSyncError(error, 'Sync failed.'),
         })
-        scheduleRetry()
+        // A revoked pairing will not heal by retrying; the row shows how to
+        // re-pair and a manual Sync now can still try after the user acts.
+        if (!isSyncAuthFailure(error)) scheduleRetry()
       }
     } finally {
       pushInFlight = false
@@ -337,6 +502,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
     clearPushTimer()
     if (checksumDocument(merged) === checksumDocument(remote)) {
       deps.applyRemoteDocument(merged)
+      deps.onDocumentApplied?.(merged)
       persistVersion(remoteVersion, remoteUpdatedAt, checksumDocument(merged), merged)
       setState({ status: 'synced', lastError: null, lastSyncedAt: now().toISOString() })
       return
@@ -354,6 +520,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       const result = await runWithLock(() =>
         deps.api.putSync(document, { ifMatch: remoteVersion }),
       )
+      if (disposed) return
       backoffMs = 2000
       persistVersion(result.version, result.updatedAt, checksumDocument(document), document)
       mergeRetries = 0
@@ -374,16 +541,24 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           await new Promise((resolve) => setTimeout(resolve, 150))
           await openConflict()
         } else {
+          const local = deps.getLocalDocument()
+          persistCursor(
+            remoteVersion,
+            remoteUpdatedAt,
+            true,
+            checksumDocument(local),
+          )
           setState({
             status: 'conflict',
             conflict: {
-              local: deps.getLocalDocument(),
+              local,
               remote,
               remoteVersion,
               remoteUpdatedAt,
               conflicts: ['the other device changed repeatedly; choose a copy'],
             },
             lastError: null,
+            needsReview: true,
           })
         }
       } else {
@@ -392,12 +567,13 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           status: unreachable ? 'offline' : 'error',
           lastError: toUserSyncError(error, 'Push failed.'),
         })
-        scheduleRetry()
+        if (!isSyncAuthFailure(error)) scheduleRetry()
       }
     }
   }
 
   const openConflictInner = async (): Promise<void> => {
+    if (disposed) return
     const generation = pullGeneration
     const peerId = state.peerId
     if (!peerId) return
@@ -407,7 +583,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
     }
     try {
       const snapshot: PeerSnapshot | null = await deps.api.getSync()
-      if (generation !== pullGeneration || state.peerId !== peerId) return
+      if (disposed || generation !== pullGeneration || state.peerId !== peerId) return
       if (!snapshot) {
         // The peer has no save (fresh install or cleared data). Drop the stale
         // cursor/base so the next push creates it instead of looping on 409.
@@ -427,6 +603,8 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           lastError: 'The other device has no save yet. Pushing this one.',
           needsReview: false,
         })
+        deps.onLocalAdopted?.()
+        deps.onConflictResolved?.('local')
         engine.markDirty()
         return
       }
@@ -437,6 +615,22 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         return
       }
       const remote = parsed.value
+      const localHash = checksumDocument(local)
+      if (checksumDocument(remote) === localHash) {
+        // The other device's node already holds this copy: its decision
+        // arrived before this dialog could open (restart, offline return).
+        persistVersion(snapshot.version, snapshot.updatedAt, localHash, local)
+        setState({
+          status: 'synced',
+          conflict: null,
+          lastError: null,
+          lastSyncedAt: now().toISOString(),
+          needsReview: false,
+        })
+        deps.onLocalAdopted?.()
+        deps.onConflictResolved?.('local')
+        return
+      }
       let conflicts: string[]
       try {
         const merged = tryAutoMerge(baseDocument, local, remote)
@@ -453,7 +647,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       } catch {
         conflicts = ['automatic merge failed unexpectedly']
       }
-      persistCursor(snapshot.version, snapshot.updatedAt, true)
+      persistCursor(snapshot.version, snapshot.updatedAt, true, localHash)
       setState({
         status: 'conflict',
         conflict: {
@@ -467,6 +661,17 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         needsReview: true,
       })
     } catch (error) {
+      if (isSyncAuthFailure(error)) {
+        setState({
+          status: 'error',
+          lastError: toUserSyncError(
+            error,
+            'The other device no longer accepts this pairing. Forget it and pair both devices again.',
+          ),
+          needsReview: true,
+        })
+        return
+      }
       setState({
         status: 'conflict',
         lastError: toUserSyncError(error, 'Could not read the other device.'),
@@ -496,6 +701,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
 
     setPeerId: (peerId: string | null): void => {
       clearPushTimer()
+      clearConflictCheck()
       pullGeneration += 1
       pullAgain = false
       pullAgainAnnounce = false
@@ -507,6 +713,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       if (!peerId) {
         baseChecksum = null
         baseDocument = null
+        conflictLocalChecksum = null
         state = {
           status: 'disabled',
           peerId: null,
@@ -525,13 +732,14 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       baseChecksum = meta?.checksum ?? null
       baseDocument = readBaseDocument(deps.storage, peerId)
       const needsReview = meta?.conflict === true
+      conflictLocalChecksum = needsReview ? (meta?.localChecksum ?? null) : null
       state = {
         status: needsReview ? 'conflict' : 'synced',
         peerId,
         peerVersion: meta?.version ?? null,
         updatedAt: meta?.updatedAt ?? null,
         conflict: null,
-        lastError: needsReview ? 'A previous conflict needs review.' : null,
+        lastError: null,
         lastSyncedAt: meta?.updatedAt ?? null,
         lastAutoMergeAt: null,
         needsReview,
@@ -550,6 +758,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         void openConflict()
         return
       }
+      if (isBlocked()) return
       let local: GameDocument
       try {
         local = deps.getLocalDocument()
@@ -601,14 +810,67 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       const incoming = parsed.value
       const local = deps.getLocalDocument()
       const incomingHash = checksumDocument(incoming)
-      if (incomingHash === checksumDocument(local)) {
+      const localHash = checksumDocument(local)
+      if (incomingHash === localHash) {
+        const wasReviewing = state.needsReview
         engine.adoptIncoming(incoming, incomingHash, updatedAt)
+        if (wasReviewing) {
+          deps.onLocalAdopted?.()
+          deps.onConflictResolved?.('local')
+        }
         return 'applied'
+      }
+      if (isBlocked() && !state.needsReview && !state.conflict) {
+        // Another peer is unresolved, so the global mirror cannot advertise
+        // this local copy and applying a normal remote here could overwrite
+        // it. Keep both copies and let the user review this peer too.
+        persistCursor(incomingHash, updatedAt, true, localHash)
+        setState({
+          status: 'conflict',
+          conflict: {
+            local,
+            remote: incoming,
+            remoteVersion: incomingHash,
+            remoteUpdatedAt: updatedAt,
+            conflicts: ['another paired device still has an unresolved change'],
+          },
+          lastError: null,
+          needsReview: true,
+        })
+        return 'conflict'
       }
       try {
         deps.onBeforeAutoMergePush?.(local)
       } catch {
         // A backup is best-effort; the document is already validated.
+      }
+      const decisionVersion =
+        state.conflict?.remoteVersion ?? (state.needsReview ? state.peerVersion : null)
+      const expectedLocal = state.conflict
+        ? checksumDocument(state.conflict.local)
+        : conflictLocalChecksum
+      if (
+        !localDecisionInFlight &&
+        decisionVersion !== null &&
+        incomingHash === decisionVersion &&
+        expectedLocal !== null &&
+        expectedLocal === localHash
+      ) {
+        // The other device pushed exactly the copy this conflict offered as
+        // "keep {peer}": its decision arrived first. The menu must not ask the
+        // user again on this device.
+        deps.applyRemoteDocument(incoming)
+        deps.onDocumentApplied?.(incoming)
+        persistVersion(incomingHash, updatedAt, incomingHash, incoming)
+        setState({
+          status: 'synced',
+          conflict: null,
+          lastError: null,
+          lastSyncedAt: now().toISOString(),
+          needsReview: false,
+        })
+        deps.onConflictResolved?.('peer')
+        return 'applied'
       }
       const base = baseDocument
       if (!base) {
@@ -624,7 +886,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
           engine.markDirty()
           return 'applied'
         }
-        persistCursor(incomingHash, updatedAt, true)
+        persistCursor(incomingHash, updatedAt, true, localHash)
         setState({
           status: 'conflict',
           conflict: {
@@ -639,10 +901,12 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         })
         return 'conflict'
       }
-      if (checksumDocument(local) === checksumDocument(base)) {
+      if (localHash === checksumDocument(base)) {
+        const wasReviewing = state.needsReview
         deps.applyRemoteDocument(incoming)
         deps.onDocumentApplied?.(incoming)
         engine.adoptIncoming(incoming, incomingHash, updatedAt)
+        if (wasReviewing) deps.onConflictResolved?.('peer')
         return 'applied'
       }
       let mergeResult: ReturnType<typeof tryAutoMerge>
@@ -672,7 +936,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         engine.markDirty()
         return 'applied'
       }
-      persistCursor(incomingHash, updatedAt, true)
+      persistCursor(incomingHash, updatedAt, true, localHash)
       setState({
         status: 'conflict',
         conflict: {
@@ -699,7 +963,8 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         setState({ status: 'offline' })
         return
       }
-      if (state.status === 'conflict' || state.status === 'pushing') return
+      if (state.needsReview || state.status === 'conflict' || state.status === 'pushing') return
+      if (isBlocked()) return
       setState({ status: 'dirty', lastError: null })
       clearPushTimer()
       pushTimer = setTimeout(() => {
@@ -711,12 +976,13 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
     pullNow: async (options: { announce?: boolean } = {}): Promise<void> => {
       const peerId = state.peerId
       if (!peerId || getDevOffset() !== 0 || !isAvailable()) return
+      if (isBlocked()) return
       if (pullInFlight) {
         pullAgain = true
         if (options.announce) pullAgainAnnounce = true
         return
       }
-      if (state.status === 'conflict' || state.status === 'pushing') {
+      if (state.needsReview || state.status === 'conflict' || state.status === 'pushing') {
         pendingPull = true
         if (options.announce) pendingAnnounce = true
         return
@@ -735,6 +1001,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       setState({ status: 'pulling' })
       try {
         const snapshot = await deps.api.getSync(state.peerVersion ?? undefined)
+        if (disposed || isBlocked()) return
         if (generation !== pullGeneration || state.peerId !== peerId) return
         const dirtyDuringPull = state.status === 'dirty'
         const wasDirty = previous === 'dirty' || dirtyDuringPull
@@ -789,13 +1056,15 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         }
       } finally {
         pullInFlight = false
-        if (pullAgain) {
-          const announce = pullAgainAnnounce
-          pullAgain = false
-          pullAgainAnnounce = false
-          void engine.pullNow({ announce })
-        } else {
-          flushPendingPull()
+        if (!disposed) {
+          if (pullAgain) {
+            const announce = pullAgainAnnounce
+            pullAgain = false
+            pullAgainAnnounce = false
+            void engine.pullNow({ announce })
+          } else {
+            flushPendingPull()
+          }
         }
       }
     },
@@ -804,11 +1073,13 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       const conflict = state.conflict
       if (!conflict || !state.peerId) return
       setState({ status: 'pushing' })
+      localDecisionInFlight = true
       try {
         const document = deps.getLocalDocument()
         const result = await runWithLock(() =>
           deps.api.putSync(document, { ifMatch: conflict.remoteVersion }),
         )
+        if (disposed) return
         backoffMs = 2000
         persistVersion(result.version, result.updatedAt, checksumDocument(document), document)
         mergeRetries = 0
@@ -816,6 +1087,7 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
         setState({
           status: changedDuringPush ? 'dirty' : 'synced',
           conflict: null,
+          lastError: null,
           lastSyncedAt: now().toISOString(),
           needsReview: false,
         })
@@ -831,6 +1103,9 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
             lastError: toUserSyncError(error, 'Push failed.'),
           })
         }
+      } finally {
+        localDecisionInFlight = false
+        syncConflictCheck()
       }
     },
 
@@ -863,7 +1138,8 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
      */
     syncNow: async (): Promise<void> => {
       if (!state.peerId) return
-      if (state.needsReview && !state.conflict) {
+      if (isBlocked() && !state.needsReview) return
+      if (state.needsReview) {
         forceAvailable = true
         try {
           await openConflict()
@@ -902,25 +1178,37 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
       setState({ status: 'conflict', needsReview: true })
     },
 
+    /** Foreground/manual nudge: has the other device already decided? */
+    checkConflictResolution: (): void => {
+      if (!state.peerId || !state.needsReview) return
+      void checkPeerDecision()
+    },
+
     /**
      * The coordinator calls this whenever discovery reports the peer as
      * present or gone. Coming online re-runs the dirty/pull decision.
      */
     setAvailable: (available: boolean): void => {
       if (!state.peerId) return
+      if (!available) clearConflictCheck()
       if (available) {
         if (state.needsReview) {
           void openConflict()
           return
         }
-        if (!autoEnabled) return
+        if (isBlocked() || !autoEnabled) return
         if (state.status === 'offline' || state.status === 'error') {
           setState({ status: localDiffersFromBase() ? 'dirty' : 'synced', lastError: null })
           void engine.pullNow()
         }
         return
       }
-      if (state.status === 'conflict' || state.status === 'pushing' || state.status === 'pulling') {
+      if (
+        state.needsReview ||
+        state.status === 'conflict' ||
+        state.status === 'pushing' ||
+        state.status === 'pulling'
+      ) {
         return
       }
       setState({ status: 'offline' })
@@ -932,7 +1220,10 @@ export function createPeerSyncEngine(deps: PeerEngineDeps) {
     },
 
     dispose: (): void => {
+      disposed = true
+      pullGeneration += 1
       clearPushTimer()
+      clearConflictCheck()
       listeners.clear()
     },
   }

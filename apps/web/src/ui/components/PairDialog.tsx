@@ -31,6 +31,7 @@ export function PairDialog({
   onClose: () => void
 }) {
   const pairing = useSyncStore((state) => state.pairing)
+  const pairingError = useSyncStore((state) => state.pairingError)
   const nearby = useSyncStore((state) => state.nearby)
   const peers = useSyncStore((state) => state.peers)
   const [tab, setTab] = useState<PairMode>(mode)
@@ -253,9 +254,9 @@ export function PairDialog({
           </details>
         </div>
       )}
-      {error ? (
+      {error ?? pairingError ? (
         <p className="field-error" role="alert">
-          {error}
+          {error ?? pairingError}
         </p>
       ) : null}
     </Dialog>

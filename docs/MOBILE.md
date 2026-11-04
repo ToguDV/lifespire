@@ -111,7 +111,11 @@ The Android app is a peer, not a client of a server. The node lives in
   pairing, the per-peer `peerEngine` (pull/push, CAS, `tryAutoMerge`, conflict)
   and the shared keep-mine/keep-peer dialog. Auto-sync is ON after pairing and
   can be disabled per device; the global Nearby sync switch stops advertising
-  and syncing.
+  and syncing. Conflict decisions are shared by the pair: the first committed
+  decision closes the other device’s dialog (push of the peer copy, or the
+  peer head matching the local copy while polling `/v1/info`). A toast confirms
+  it. Sync failures are mapped to curated copy before reaching the device row,
+  the pairing dialog or the conflict dialog.
 - **Constraints:** no background service, no remote wipe, and no cloud backup.
   Both apps must be open on the same Wi-Fi; guest Wi-Fi/AP isolation, VPNs and
   firewalls can block discovery, so the manual link/code pairing is the
@@ -501,8 +505,11 @@ EAS app signing key; see [`FDROID.md`](./FDROID.md).
 - **Pairing rejected or a peer stays away**: the code expires in 5 minutes; a
   reinstall changes the certificate fingerprint, so forget and pair again.
 - **Sync fails with 401/409**: the peer token was rotated by a re-pair, or the
-  other device changed while you were sending. Forget/re-pair; a 409 is retried
-  automatically up to 3 times before the conflict dialog.
+  other device changed while you were sending. The device row explains a
+  revoked pairing without showing the raw status; forget/re-pair. A 409 is
+  retried automatically up to 3 times before the conflict dialog. When one
+  device settles a conflict, the other dialog closes on its own (the copy is
+  applied and a toast confirms it); no second decision is requested.
 - **Notifications never fire**: confirm the channel exists, the permission is
   granted, reminders are enabled and the run has an unsealed day. The test
   notification bypasses the planner.

@@ -21,6 +21,7 @@ const EMPTY: LocalSyncState = {
   peers: {},
   conflicts: [],
   pairing: null,
+  pairingError: null,
   lastError: null,
 }
 
@@ -125,6 +126,13 @@ export const localSync = createLocalSyncEngine({
   },
   onRemoteApplied: (peerName) => {
     useAppStore.getState().showToast(`Updated from ${peerName}.`)
+  },
+  onConflictResolved: (peerName, outcome) => {
+    useAppStore.getState().showToast(
+      outcome === 'this-device'
+        ? `Conflict resolved. ${peerName} accepted this device's copy.`
+        : `Conflict resolved. Updated from ${peerName}.`,
+    )
   },
 })
 
