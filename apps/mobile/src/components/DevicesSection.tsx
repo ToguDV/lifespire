@@ -89,7 +89,8 @@ function PeerCard({
           onPress={() => onForget(peer)}
         />
       </View>
-      {peer.lastError && peer.status === 'error' ? (
+      {peer.lastError &&
+      (peer.status === 'error' || peer.status === 'offline' || peer.status === 'conflict') ? (
         <Text variant="caption" accessibilityRole="alert">
           {peer.lastError}
         </Text>
@@ -118,6 +119,7 @@ function PairSheet({
 }) {
   const { colors } = useTheme()
   const pairing = useSyncStore((state) => state.pairing)
+  const pairingError = useSyncStore((state) => state.pairingError)
   const nearby = useSyncStore((state) => state.nearby)
   const peers = useSyncStore((state) => state.peers)
   const [tab, setTab] = useState<PairMode>(mode)
@@ -377,9 +379,9 @@ function PairSheet({
           </Button>
         </View>
       )}
-      {error ? (
+      {error ?? pairingError ? (
         <Text variant="caption" accessibilityRole="alert">
-          {error}
+          {error ?? pairingError}
         </Text>
       ) : null}
     </Dialog>

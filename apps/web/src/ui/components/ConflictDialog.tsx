@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { toUserSyncError } from '@lifespire/app-core/sync/errors'
 import type { GameDocument } from '../../domain/types'
 import { summarizeDocument } from '../lib/importSave'
 import { dayKey } from '../../domain/dates'
@@ -71,6 +72,13 @@ export function ConflictDialog() {
   const conflicts = useSyncStore((state) => state.conflicts)
   const active = conflicts[0]
   const [busy, setBusy] = useState<'mine' | 'peer' | null>(null)
+  const [resolveError, setResolveError] = useState<string | null>(null)
+  const activePeerId = active?.peerId ?? null
+
+  useEffect(() => {
+    setResolveError(null)
+    setBusy(null)
+  }, [activePeerId])
 
   if (!active) return null
   const { conflict, peerId, peerName } = active
@@ -81,9 +89,23 @@ export function ConflictDialog() {
 
   const keepMine = async (): Promise<void> => {
     setBusy('mine')
+    setResolveError(null)
     try {
       documentStorage.backup()
       await localSync.resolveKeepMine(peerId)
+      const next = useSyncStore.getState()
+      if (next.conflicts.some((entry) => entry.peerId === peerId)) {
+        setResolveError(
+          toUserSyncError(
+            next.peers[peerId]?.lastError ?? next.lastError,
+            'This device copy could not be sent. Try again.',
+          ),
+        )
+      }
+    } catch (error) {
+      setResolveError(
+        toUserSyncError(error, 'This device copy could not be sent. Try again.'),
+      )
     } finally {
       setBusy(null)
     }
@@ -91,9 +113,16 @@ export function ConflictDialog() {
 
   const keepPeer = (): void => {
     setBusy('peer')
+    setResolveError(null)
     try {
       documentStorage.backup()
       localSync.resolveKeepPeer(peerId)
+      const next = useSyncStore.getState()
+      if (next.conflicts.some((entry) => entry.peerId === peerId)) {
+        setResolveError('The other copy could not be applied. Your device copy is still safe.')
+      }
+    } catch (error) {
+      setResolveError(toUserSyncError(error, 'The other copy could not be applied.'))
     } finally {
       setBusy(null)
     }
@@ -135,6 +164,11 @@ export function ConflictDialog() {
         <ConflictCopy title="This device" document={conflict.local} updatedAt={null} />
         <ConflictCopy title={peerName} document={conflict.remote} updatedAt={conflict.remoteUpdatedAt} />
       </div>
+      {resolveError ? (
+        <p className="field-error" role="alert">
+          {resolveError}
+        </p>
+      ) : null}
       {conflict.conflicts.length > 0 ? (
         <ul className="panel-note conflict-reasons">
           {conflict.conflicts.slice(0, 5).map((reason) => (

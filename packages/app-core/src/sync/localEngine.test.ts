@@ -43,7 +43,10 @@ function makeNearby(platform?: NearbyPeer['platform']): NearbyPeer {
   }
 }
 
-function createHarness(initial: GameDocument) {
+function createHarness(
+  initial: GameDocument,
+  options: { requestStatus?: number; requestError?: Error; pairError?: Error } = {},
+) {
   const local = { current: initial }
   const requests: Array<{ peerId: string; request: PeerRequest }> = []
   const acks: Array<{ id: string; ok: boolean }> = []
@@ -52,6 +55,7 @@ function createHarness(initial: GameDocument) {
   let startCount = 0
   let stopCount = 0
   let setDocumentCount = 0
+  let infoDocHash: string | null = null
   let peer: PeerRecord = {
     peerId: PEER_ID,
     name: 'Phone',
@@ -94,16 +98,29 @@ function createHarness(initial: GameDocument) {
       throw new Error('not used')
     },
     cancelPairing: async () => undefined,
-    pair: async () => peer,
-    pairWithCode: async () => peer,
+    pair: async () => {
+      if (options.pairError) throw options.pairError
+      return peer
+    },
+    pairWithCode: async () => {
+      if (options.pairError) throw options.pairError
+      return peer
+    },
     forget: async () => undefined,
     setAutoSync: async (_peerId, autoSync) => {
       peer = { ...peer, autoSync }
     },
     request: async (peerId, request) => {
       requests.push({ peerId, request })
+      if (options.requestError) throw options.requestError
+      if (options.requestStatus !== undefined) {
+        return {
+          status: options.requestStatus,
+          body: { message: 'Pairing token required.' },
+        }
+      }
       if (request.path === '/v1/info') {
-        return { status: 200, body: { docHash: null } }
+        return { status: 200, body: { docHash: infoDocHash } }
       }
       if (request.path === '/v1/document' && request.method === 'GET') {
         return { status: 404, body: {} }
@@ -160,6 +177,9 @@ function createHarness(initial: GameDocument) {
     setNearby: (peers: NearbyPeer[]) => {
       nearby = peers
       peerListeners.forEach((listener) => listener(peers))
+    },
+    setInfoDocHash: (hash: string | null) => {
+      infoDocHash = hash
     },
     emitIncoming: (item: IncomingDocument) => {
       incomingListeners.forEach((listener) => listener(item))
@@ -234,6 +254,119 @@ describe('local sync coordinator', () => {
     expect(harness.local.current.profile?.name).toBe('Mine')
     await new Promise((resolve) => setTimeout(resolve, 100))
     expect(harness.setDocumentCount()).toBe(before)
+  })
+
+  it('advertises the resolved copy after the other device decides', async () => {
+    const harness = createHarness(makeDocument('Wren'))
+    await harness.engine.start()
+    await harness.engine.setAutoSync(PEER_ID, true)
+    await harness.engine.syncNow(PEER_ID)
+
+    harness.local.current.profile = { ...harness.local.current.profile!, name: 'Mine' }
+    harness.engine.handleDocumentChange()
+    const incoming = makeDocument('Theirs')
+    harness.emitIncoming({
+      id: 'incoming-conflict',
+      fromPeerId: PEER_ID,
+      documentJson: JSON.stringify(incoming),
+      docHash: checksumDocument(incoming),
+      updatedAt: '2026-10-27T10:05:00.000Z',
+    })
+    await vi.waitFor(() => expect(harness.acks).toHaveLength(1))
+    expect(harness.engine.getState().conflicts).toHaveLength(1)
+    const before = harness.setDocumentCount()
+
+    harness.emitIncoming({
+      id: 'incoming-decision',
+      fromPeerId: PEER_ID,
+      documentJson: JSON.stringify(incoming),
+      docHash: checksumDocument(incoming),
+      updatedAt: '2026-10-27T10:06:00.000Z',
+    })
+    await vi.waitFor(() => expect(harness.acks).toHaveLength(2))
+    await vi.waitFor(() => expect(harness.setDocumentCount()).toBeGreaterThan(before))
+
+    expect(harness.engine.getState().conflicts).toHaveLength(0)
+    expect(harness.local.current.profile?.name).toBe('Theirs')
+  })
+
+  it('clears the conflict on refresh when the peer already serves this copy', async () => {
+    const harness = createHarness(makeDocument('Wren'))
+    await harness.engine.start()
+    await harness.engine.setAutoSync(PEER_ID, true)
+    await harness.engine.syncNow(PEER_ID)
+
+    harness.local.current.profile = { ...harness.local.current.profile!, name: 'Mine' }
+    harness.engine.handleDocumentChange()
+    const incoming = makeDocument('Theirs')
+    harness.emitIncoming({
+      id: 'incoming-conflict',
+      fromPeerId: PEER_ID,
+      documentJson: JSON.stringify(incoming),
+      docHash: checksumDocument(incoming),
+      updatedAt: '2026-10-27T10:05:00.000Z',
+    })
+    await vi.waitFor(() => expect(harness.acks).toHaveLength(1))
+    expect(harness.engine.getState().conflicts).toHaveLength(1)
+    const before = harness.setDocumentCount()
+
+    harness.setInfoDocHash(checksumDocument(harness.local.current))
+    await harness.engine.refresh()
+
+    await vi.waitFor(() => expect(harness.engine.getState().conflicts).toHaveLength(0))
+    expect(harness.local.current.profile?.name).toBe('Mine')
+    expect(harness.setDocumentCount()).toBeGreaterThan(before)
+  })
+
+  it('keeps a peer failure in its device row instead of duplicating it globally', async () => {
+    const harness = createHarness(makeDocument('Wren'), { requestStatus: 401 })
+    await harness.engine.start()
+    await harness.engine.setAutoSync(PEER_ID, true)
+    await harness.engine.syncNow(PEER_ID)
+
+    await vi.waitFor(() => {
+      expect(harness.engine.getState().peers[PEER_ID]?.status).toBe('error')
+    })
+    const state = harness.engine.getState()
+    expect(state.peers[PEER_ID]?.lastError).toMatch(/pair both devices again/i)
+    expect(state.peers[PEER_ID]?.lastError).not.toMatch(/401|pairing token/i)
+    expect(state.lastError).toBeNull()
+    expect(state.phase).toBe('error')
+  })
+
+  it('keeps offline guidance in the device row', async () => {
+    const unreachable = Object.assign(
+      new Error('connect EHOSTUNREACH 192.168.1.18:39741'),
+      { code: 'EHOSTUNREACH' },
+    )
+    const harness = createHarness(makeDocument('Wren'), { requestError: unreachable })
+    await harness.engine.start()
+    await harness.engine.setAutoSync(PEER_ID, true)
+    await harness.engine.syncNow(PEER_ID)
+
+    await vi.waitFor(() => {
+      expect(harness.engine.getState().peers[PEER_ID]?.status).toBe('offline')
+    })
+    const state = harness.engine.getState()
+    expect(state.peers[PEER_ID]?.lastError).toMatch(/Couldn't reach the other device/i)
+    expect(state.lastError).toBeNull()
+  })
+
+  it('keeps a pairing failure inside the pairing dialog', async () => {
+    const harness = createHarness(makeDocument('Wren'), {
+      pairError: new Error(
+        'java.lang.IllegalStateException: The pairing code is invalid or expired.',
+      ),
+    })
+    await harness.engine.start()
+
+    const peer = await harness.engine.pairWithCode(PEER_ID, 'ABCD2345')
+
+    expect(peer).toBeNull()
+    const state = harness.engine.getState()
+    expect(state.pairingError).toMatch(/that pairing code is invalid/i)
+    expect(state.pairingError).not.toMatch(/java|Exception/i)
+    expect(state.lastError).toBeNull()
   })
 
   it('shows the advertised platform for peers paired before the field existed', async () => {

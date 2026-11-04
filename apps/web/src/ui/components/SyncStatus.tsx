@@ -9,9 +9,12 @@ export function SyncStatus({ compact = false }: { compact?: boolean }) {
   const lastError = useSyncStore((state) => state.lastError)
 
   const peerList = Object.values(peers)
+  const peerError =
+    peerList.find((peer) => peer.status === 'error' && peer.lastError)?.lastError ?? null
+  const error = lastError ?? peerError
   const status = conflicts.length
     ? 'conflict'
-    : lastError
+    : error
       ? 'error'
       : phase === 'syncing'
         ? 'pushing'
@@ -22,7 +25,7 @@ export function SyncStatus({ compact = false }: { compact?: boolean }) {
             : 'synced'
   const label = conflicts.length
     ? 'Needs review'
-    : lastError
+    : error
       ? 'Sync error'
       : phase === 'syncing'
         ? 'Syncing…'
@@ -41,7 +44,7 @@ export function SyncStatus({ compact = false }: { compact?: boolean }) {
       className={`sync-status sync-status--${status}`}
       role="status"
       aria-live="polite"
-      title={lastError ?? label}
+      title={error ?? label}
     >
       <span className="sync-status__dot" aria-hidden="true" />
       {compact ? null : <span>{label}</span>}

@@ -14,44 +14,88 @@ const FAKE_PAIRING = {
   expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
 }
 
-async function seedDesktopBridge(page: import('@playwright/test').Page): Promise<void> {
-  await page.addInitScript((pairing) => {
-    const noop = () => () => undefined
-    ;(window as unknown as { lifespireDesktop: unknown }).lifespireDesktop = {
-      isDesktop: true,
-      platform: 'test',
-      localSync: {
-        start: async () => ({
-          deviceId: 'fake-device-1234',
-          name: 'Test desktop',
-          fingerprint: 'fake-fingerprint-abcdefghijklmnop',
-        }),
-        stop: async () => undefined,
-        setDiscoverable: async () => undefined,
-        setDocument: async () => undefined,
-        pendingIncoming: async () => [],
-        ackIncoming: async () => undefined,
-        listPeers: async () => [],
-        listNearby: async () => [],
-        startPairing: async () => pairing,
-        cancelPairing: async () => undefined,
-        pair: async () => {
-          throw new Error('not used')
+const FAKE_PEER = {
+  peerId: 'fake-phone-1234',
+  name: 'Test phone',
+  fingerprint: 'fake-phone-fingerprint-abcdefghijklmnop',
+  autoSync: true,
+  pairedAt: '2026-10-27T09:00:00.000Z',
+  lastSyncAt: null,
+  platform: 'android',
+}
+
+const FAKE_NEARBY = {
+  deviceId: 'fake-phone-1234',
+  name: 'Test phone',
+  host: '127.0.0.1',
+  port: 45555,
+  fingerprint: 'fake-phone-fingerprint-abcdefghijklmnop',
+  lastSeenAt: '2026-10-27T09:00:00.000Z',
+  platform: 'android',
+}
+
+interface BridgeOptions {
+  peers?: unknown[]
+  nearby?: unknown[]
+  requestStatus?: number
+  pairError?: string
+}
+
+async function seedDesktopBridge(
+  page: import('@playwright/test').Page,
+  options: BridgeOptions = {},
+): Promise<void> {
+  await page.addInitScript(
+    ({ pairing, peers, nearby, requestStatus, pairError }) => {
+      const noop = () => () => undefined
+      ;(window as unknown as { lifespireDesktop: unknown }).lifespireDesktop = {
+        isDesktop: true,
+        platform: 'test',
+        localSync: {
+          start: async () => ({
+            deviceId: 'fake-device-1234',
+            name: 'Test desktop',
+            fingerprint: 'fake-fingerprint-abcdefghijklmnop',
+          }),
+          stop: async () => undefined,
+          setDiscoverable: async () => undefined,
+          setDocument: async () => undefined,
+          pendingIncoming: async () => [],
+          ackIncoming: async () => undefined,
+          listPeers: async () => peers,
+          listNearby: async () => nearby,
+          startPairing: async () => pairing,
+          cancelPairing: async () => undefined,
+          pair: async () => {
+            if (pairError) throw new Error(pairError)
+            throw new Error('not used')
+          },
+          pairWithCode: async () => {
+            if (pairError) throw new Error(pairError)
+            throw new Error('not used')
+          },
+          forget: async () => undefined,
+          setAutoSync: async () => undefined,
+          request: async () => ({
+            status: requestStatus ?? 404,
+            body: requestStatus ? { message: 'Pairing token required.' } : {},
+          }),
+          persistence: async () => 'encrypted',
+          onPeersChanged: noop,
+          onPaired: noop,
+          onIncomingDocument: noop,
+          onError: noop,
         },
-        pairWithCode: async () => {
-          throw new Error('not used')
-        },
-        forget: async () => undefined,
-        setAutoSync: async () => undefined,
-        request: async () => ({ status: 404, body: {} }),
-        persistence: async () => 'encrypted',
-        onPeersChanged: noop,
-        onPaired: noop,
-        onIncomingDocument: noop,
-        onError: noop,
-      },
-    }
-  }, FAKE_PAIRING)
+      }
+    },
+    {
+      pairing: FAKE_PAIRING,
+      peers: options.peers ?? [],
+      nearby: options.nearby ?? [],
+      requestStatus: options.requestStatus,
+      pairError: options.pairError,
+    },
+  )
 }
 
 async function openSettings(page: import('@playwright/test').Page): Promise<void> {
@@ -92,5 +136,38 @@ test.describe('nearby devices', () => {
     await expect(
       page.getByText(/Nearby sync is available in the Android and desktop apps/i),
     ).toBeVisible()
+  })
+
+  test('shows a revoked pairing once without the raw status code', async ({ page }) => {
+    await seedDesktopBridge(page, {
+      peers: [FAKE_PEER],
+      nearby: [FAKE_NEARBY],
+      requestStatus: 401,
+    })
+    await openSettings(page)
+
+    const friendly = page.getByText(/no longer accepts this pairing/i)
+    await expect(friendly).toBeVisible({ timeout: 15_000 })
+    await expect(friendly).toHaveCount(1)
+    await expect(page.getByText(/401|Pairing token required/i)).toHaveCount(0)
+  })
+
+  test('unwraps a native pairing exception inside the dialog', async ({ page }) => {
+    await seedDesktopBridge(page, {
+      nearby: [FAKE_NEARBY],
+      pairError: 'java.lang.IllegalStateException: The pairing code is invalid or expired.',
+    })
+    await openSettings(page)
+
+    await page.getByRole('button', { name: 'Pair a device' }).click()
+    await page.getByRole('button', { name: 'Enter a code' }).click()
+    await page.getByRole('button', { name: /Test phone/ }).click()
+    await page.locator('#pair-code').fill('ABCD2345')
+    await page.getByRole('dialog').getByRole('button', { name: 'Pair', exact: true }).click()
+
+    await expect(
+      page.getByText(/That pairing code is invalid or has expired/i),
+    ).toBeVisible()
+    await expect(page.getByText(/java\.|Exception/i)).toHaveCount(0)
   })
 })

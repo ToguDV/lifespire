@@ -88,6 +88,12 @@ export interface PeerSnapshot {
   updatedAt: string
 }
 
+/** The peer's current head, without downloading the document. */
+export interface PeerHead {
+  version: string
+  updatedAt: string
+}
+
 export interface PeerPushResult {
   version: string
   updatedAt: string
@@ -95,6 +101,8 @@ export interface PeerPushResult {
 
 /** The slice of the old API client the per-peer engine actually needs. */
 export interface LocalPeerApi {
+  /** Head-only read used to notice that the peer resolved a conflict. */
+  getInfo(): Promise<PeerHead | null>
   getSync(ifMatch?: string): Promise<PeerSnapshot | null>
   putSync(
     document: unknown,

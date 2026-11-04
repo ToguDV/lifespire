@@ -76,7 +76,8 @@ function PeerRow({
         label={`Forget ${peer.name}`}
         onClick={() => onForget(peer)}
       />
-      {peer.lastError && peer.status === 'error' ? (
+      {peer.lastError &&
+      (peer.status === 'error' || peer.status === 'offline' || peer.status === 'conflict') ? (
         <span className="field-error device-row__error" role="alert">
           {peer.lastError}
         </span>
