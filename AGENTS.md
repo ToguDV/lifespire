@@ -44,13 +44,18 @@
   password or cloud copy. The browser is local-only and uses export/import.
 - **Android app:** [`docs/MOBILE.md`](./docs/MOBILE.md) defines the Expo
   architecture, SQLite persistence, the local LAN node, local notifications,
-  Android setup, testing and release checks. The app lives in `apps/mobile/`,
-  owns `modules/lifespire-lan/` and shares `packages/core` +
-  `packages/app-core` with web.
+  Android setup, testing, release checks and the in-app update check. The app
+  lives in `apps/mobile/`, owns `modules/lifespire-lan/` and shares
+  `packages/core` + `packages/app-core` with web.
+- **Android distribution and updates:** [`docs/FDROID.md`](./docs/FDROID.md) is
+  the runbook for the self-hosted F-Droid repository, the separate repo signing
+  key, the release/repair workflows, the ARM-only APK contract and the update
+  banner. The repository is published from the generated `fdroid` branch.
 - **Desktop app:** [`docs/DESKTOP.md`](./docs/DESKTOP.md) defines the Electron
   shell in `apps/desktop/` (custom `lifespire-app://app` origin over the web
-  build, security model, native save dialog, packaging and the tag-driven
-  release workflow), including the unsigned-installer and local-node limits.
+  build, security model, native save dialog, `electron-updater` channel,
+  packaging and the tag-driven release workflow), including the
+  unsigned-installer and local-node limits.
 - **Visual design:** the shipped application is the **accepted** visual
   reference, together with the design-system specification. Specifically:
   - [`design/DESIGN.md`](./design/DESIGN.md): design system (color, typography,
@@ -140,9 +145,16 @@ local node suite.
   compiles the Android app (including the LAN Kotlin module).
 - [`release.yml`](./.github/workflows/release.yml) runs only on `v*` tags:
   verify the tag against the manifests, run the quality gates, package the
-  Electron installers on Linux/Windows, build the Android APK on EAS cloud
-  (`EXPO_TOKEN` secret) and publish every artifact plus checksums to the GitHub
-  release. Windows installers are unsigned; there is no auto-update.
+  Electron installers on Linux/Windows with their `electron-updater` channel
+  files, build the Android APK on EAS cloud (`EXPO_TOKEN` secret), verify its
+  version/signature/ABIs, publish every artifact plus `version.json` and
+  checksums, and refresh the `fdroid` branch (see [`docs/FDROID.md`](./docs/FDROID.md)).
+  Windows installers are unsigned; the desktop app auto-updates from GitHub
+  Releases.
+- [`fdroid.yml`](./.github/workflows/fdroid.yml) is the manual repair workflow:
+  rebuild the F-Droid repository for an already published tag without moving the
+  tag. It shares the `fdroid-repo` concurrency group with the release publish
+  job.
 - Do not add E2E to every change: if you touch a critical path, also update
   `e2e/` to cover the new behavior.
 

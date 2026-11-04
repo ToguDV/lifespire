@@ -1,7 +1,8 @@
 # LifeSpire mobile (Android)
 
-> Status: first Android release candidate. Expo SDK 58, React Native 0.88,
-> local-first with the same versioned `GameDocument` as web.
+> Status: Android release with local LAN sync and self-hosted F-Droid updates.
+> Expo SDK 58, React Native 0.88, local-first with the same versioned
+> `GameDocument` as web.
 >
 > Scope: full daily-loop parity, the local LAN sync node and **local**
 > notifications. Push notifications, an iOS release and any cloud/account
@@ -23,7 +24,10 @@ apps/mobile/
     notifications/     prefs, pure planner, expo-notifications adapter
     platform/          SQLite KV storage and JSON file import/export
     sync/              LAN transport adapter and local-engine setup
-    state/             app store singleton and haptics feedback
+    state/             app store singleton, haptics and update state
+    lib/update.ts      F-Droid index/manifest reader and version comparison
+    lib/installedVersion.ts  installed version from expo-application
+    components/UpdateNotice.tsx  global update banner and Settings About
   modules/lifespire-lan/
     android/           Kotlin Expo module: UDP, HTTPS, pinning, identity, peers, inbox
     index.ts           requireNativeModule + event emitter
@@ -152,7 +156,48 @@ Implementation:
 Permission denied is non-blocking: Settings links to the system settings and
 the rest of the app remains fully usable.
 
-## 6. UI notes
+## 6. Updates (F-Droid)
+
+Android builds ship through a self-hosted F-Droid repository served from GitHub
+Pages; the release workflow and key setup live in [`FDROID.md`](./FDROID.md).
+The stable repository URL is
+`https://togudv.github.io/lifespire/fdroid/repo/`.
+
+- **Check:** `src/lib/update.ts` reads the F-Droid `index-v2.json` first and
+  compares the highest `versionCode` (then semver) with the installed build.
+  If Pages is unreachable, it falls back to the `version.json` attached to the
+  latest GitHub release and points the action at the GitHub release/APK instead
+  of F-Droid. A reachable index that has no newer package means "current"; it is
+  never overridden by a manifest whose repository step has not run yet. Every
+  failure is "no notice", never an error screen.
+- **Cadence:** on start, when the app returns to the foreground, every 6 hours
+  while it stays open, and on demand from Settings. `src/state/update.ts` owns
+  the throttle and the in-flight guard.
+- **UI:** a slim banner under the top bar when a newer build exists, plus
+  Settings → About with the installed version/build, latest F-Droid release,
+  last check, a manual check button and the repository entry points.
+- **No in-app installer:** the normal action opens F-Droid through an explicit
+  `market://details?id=com.lifespire.app` intent (`expo-intent-launcher`), with
+  the repository landing page as the fallback. When the notice came from the
+  GitHub manifest fallback (Pages unreachable), the action opens the release/APK
+  instead so a broken Pages deployment does not hide the update. There is no
+  `REQUEST_INSTALL_PACKAGES`, no installer intent and no `expo-updates`; F-Droid
+  verifies the APK signature and installs it like any other app update.
+- **Data:** updating through F-Droid replaces the APK but keeps the app data
+  (SQLite KV, peer bases and the native identity vault). The release APK must
+  keep the EAS signing lineage; CI verifies the certificate fingerprint before
+  publishing.
+- **Release APKs are ARM-only** (`arm64-v8a`, `armeabi-v7a`) so the repository
+  stays below GitHub's file-size limit. x86 emulators use development builds.
+- **Expo Go/dev builds:** the update check reports the embedded app config
+  version and treats the native build code as unknown, so it never presents
+  Expo Go's version as LifeSpire's. Real notices are meaningful on an installed
+  release APK with the F-Droid repo added.
+- **First updater release:** 0.3.1 and earlier have no update check; users
+  install the first F-Droid release once manually. Their save stays on the
+  device.
+
+## 7. UI notes
 
 - Tokens, palettes and type scale derive from the same web clamps in
   `design/DESIGN.md` and `apps/web/src/styles/tokens.css`, sampled at the
@@ -298,7 +343,7 @@ the rest of the app remains fully usable.
 - Every screen uses safe areas, 48 dp touch targets, TalkBack labels/state and
   reduced-motion handling for the wheel, counters and seals.
 
-## 7. Metro and the monorepo
+## 8. Metro and the monorepo
 
 Expo automatic monorepo detection handles workspaces. `packages/core` and
 `packages/app-core` use TypeScript's `.js` import specifiers (needed by the CJS
@@ -311,7 +356,7 @@ SDK 58 supports pnpm isolated dependencies; `pnpm why react-native` must show
 one version. If a native module is duplicated, switch `nodeLinker: hoisted` in
 `pnpm-workspace.yaml` and reinstall.
 
-## 8. Tests and verification
+## 9. Tests and verification
 
 ```bash
 pnpm --filter @lifespire/mobile typecheck
@@ -323,7 +368,9 @@ pnpm --filter @lifespire/mobile build     # Metro Android bundle
 The shared web suite continues to exercise the extracted store and UI helpers;
 `packages/app-core` covers the LAN engine, migration and protocol. Mobile Jest
 covers the notification planner, save files, draft helpers, map layout/state,
-the dev logger and the LAN transport adapter. The Kotlin module is compiled by
+the dev logger, the LAN transport adapter and the update channel (semver,
+F-Droid index parsing, manifest fallback, installed-version resolution and the
+store throttle). The Kotlin module is compiled by
 the `mobile-native` CI job. The CI quality job runs lint, typecheck, tests and
 build for every workspace, including the Android JS bundle.
 
@@ -342,8 +389,12 @@ Manual Android checklist before a release:
 6. Enable notifications, grant permission, verify the test notification, set a
    near-future time and confirm tap-to-map. Disable and confirm cancellation.
 7. Light/dark/system themes, 360 dp width, TalkBack and large font scale.
+8. Update check: add the F-Droid repository, publish a newer version, open
+   Settings → About and the banner, confirm "Open F-Droid" reaches the listing
+   (or the landing page without F-Droid), and update while checking that the
+   save survives.
 
-### 8.1 Development diagnostics
+### 9.1 Development diagnostics
 
 `apps/mobile/src/lib/devLogger.ts` installs one global development logger from
 the app entry point. It is a no-op when `__DEV__` is false:
@@ -377,7 +428,7 @@ adb logcat -b crash
 The console output is a development aid only. Release builds do not print
 these messages and never include the redacted context.
 
-## 9. Internal builds (EAS)
+## 10. Internal builds (EAS)
 
 ```bash
 pnpm package:android            # EAS preview APK -> apps/mobile/release/, no release cut
@@ -407,7 +458,16 @@ source: `app.config.ts` reads it and derives `android.versionCode` as
 releases. Bump that manifest together with the root and desktop ones before
 tagging; the release workflow verifies all three.
 
-## 10. Known follow-ups
+`expo-build-properties` writes
+`reactNativeArchitectures=arm64-v8a,armeabi-v7a` into the generated
+`android/gradle.properties`: the F-Droid repository lives in a Git branch, and
+GitHub rejects files over 100 MiB. The old universal APK (all four ABIs) was
+105 MB; the release APK must stay ARM-only. `scripts/verify-android-apk.sh` fails the release when the APK grows
+past the limit, contains x86 libraries, has the wrong version/tag or is signed
+with a different certificate. The F-Droid repository key is separate from the
+EAS app signing key; see [`FDROID.md`](./FDROID.md).
+
+## 11. Known follow-ups
 
 - Physical-device verification and screenshots (this repository's CI has no
   Android emulator).
@@ -433,7 +493,7 @@ tagging; the release workflow verifies all three.
 - Background sync via a foreground service (currently foreground-only).
 - A remote wipe/backup path for a lost device (there is no cloud copy).
 
-## 11. Troubleshooting
+## 12. Troubleshooting
 
 - **No nearby devices**: confirm both apps are open on the same Wi-Fi, Nearby
   sync is on and the network is not a guest/isolated SSID; a VPN or firewall can
