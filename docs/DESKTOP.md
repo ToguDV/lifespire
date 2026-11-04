@@ -170,6 +170,11 @@ packaged app fails to load if `apps/web/dist` is missing.
 Release checklist: bump `version` in the root, desktop and mobile `package.json`,
 commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
+Release notes are mandatory and must say what changed: the `publish` job builds
+a `### What changed` section from the commits since the previous `v*` tag and
+fails the release if the list is empty. Write descriptive squash commit/PR
+titles; do not replace the section with a generic downloads list.
+
 Installers are unsigned. Linux `.deb` installs without warnings; Windows shows the
 SmartScreen "unknown publisher" prompt. Adding code signing later only needs the
 `WINDOWS_CERT_PFX_BASE64`/`WINDOWS_CERT_PASSWORD` secrets and an
