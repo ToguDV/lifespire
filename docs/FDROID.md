@@ -42,6 +42,10 @@ npx eas-cli credentials --platform android
 # Keystore → Download existing keystore
 ```
 
+> **Status:** the EAS app keystore for `ToguDV/lifespire` has been downloaded
+> from EAS and backed up offline by the maintainer; its fingerprint matches the
+> value below. `ANDROID_APP_CERT_SHA256` is already configured.
+
 Store the keystore and its passwords offline. The current release certificate
 SHA-256 fingerprint is:
 
@@ -59,7 +63,16 @@ If that command prints a different digest, update `ANDROID_APP_CERT_SHA256` and
 the `AllowedAPKSigningKeys` entry only when the change is intentional; otherwise
 stop, because installed apps cannot accept the update.
 
-### 1.3 Create the repository key
+### 1.3 Repository key (already initialized for ToguDV/lifespire)
+
+> **Status:** the repository key for `ToguDV/lifespire` has been generated and
+> its four `FDROID_*` secrets are configured. Its SHA-256 fingerprint is
+> `43:F7:C5:B8:99:93:50:39:FA:F7:0E:04:39:A5:C2:EE:9E:22:3A:E9:48:3E:7F:6C:B8:10:45:56:C6:20:25:8F`. The keystore and password are backed up outside the
+> repository by the maintainer. **Do not generate a new key** unless you intend
+> to rotate the repository: every user would have to remove and re-add it.
+
+The historical instructions below are kept for forks or an intentional
+rotation:
 
 ```bash
 keytool -genkeypair -alias lifespire-repo -keyalg RSA -keysize 4096 -validity 10950 \
@@ -100,9 +113,11 @@ keytool -list -v -keystore lifespire-repo.keystore -alias lifespire-repo | grep 
 
 ### 1.4 Enable GitHub Pages
 
-The `fdroid` branch is created by the first release. After that first run,
-enable Pages once (UI: **Settings → Pages → Deploy from a branch → `fdroid` /
-`/ (root)`**), or:
+The `fdroid` branch and GitHub Pages are already initialized for this
+repository (the landing page is live; the repository index stays 404 until the
+first release). For a fork, the branch is created by the first release; after
+that first run, enable Pages once (UI: **Settings → Pages → Deploy from a branch
+→ `fdroid` / `/ (root)`**), or:
 
 ```bash
 gh api -X POST repos/ToguDV/lifespire/pages \
