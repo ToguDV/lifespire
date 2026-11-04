@@ -17,6 +17,14 @@ extraResources:
   - from: ../web/dist
     to: web
 
+# `electron-updater` reads `latest*.yml` from the latest GitHub release and
+# downloads the matching installer. `--publish never` in CI writes the metadata
+# locally so the release workflow can attach it.
+publish:
+  provider: github
+  owner: ToguDV
+  repo: lifespire
+
 asar: true
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 

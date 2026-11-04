@@ -5,6 +5,9 @@ const APP_NAME = 'LifeSpire'
 const APP_SLUG = 'lifespire'
 const ANDROID_PACKAGE = 'com.lifespire.app'
 const BASE_VERSION = '0.1.0'
+// Only the EAS release profile sets this; local/dev builds keep all ABIs so
+// x86 emulators can run the debug client.
+const RELEASE_ABIS = process.env.LIFESPIRE_RELEASE_ABIS === '1'
 
 /**
  * The APK version comes from `apps/mobile/package.json`, which travels with the
@@ -58,6 +61,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-sqlite',
     'expo-secure-store',
     'expo-font',
+    ...(RELEASE_ABIS
+      ? ([
+          [
+            'expo-build-properties',
+            {
+              // The F-Droid repository lives in a Git branch: GitHub refuses
+              // files over 100 MiB, so release APKs carry only the phone ABIs.
+              // Local/dev builds keep all four so x86 emulators work.
+              android: {
+                buildArchs: ['arm64-v8a', 'armeabi-v7a'],
+              },
+            },
+          ],
+        ] satisfies NonNullable<ExpoConfig['plugins']>)
+      : []),
     [
       'expo-splash-screen',
       {

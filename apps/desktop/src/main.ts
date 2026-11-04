@@ -13,6 +13,7 @@ import {
   shell,
   type IpcMainInvokeEvent,
 } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { registerLocalSyncIpc } from './localNode/ipc'
 import { createLocalNode } from './localNode/node'
 import { isTrustedIpcSender } from './localNode/trust'
@@ -25,6 +26,7 @@ import {
   PWA_SCRIPT_PATHS,
   resolveAssetPath,
 } from './protocol'
+import { setupAutoUpdater } from './updater'
 
 const APP_ID = 'app.lifespire.desktop'
 const APP_NAME = 'LifeSpire'
@@ -274,6 +276,16 @@ function watchResponsiveness(window: BrowserWindow): void {
   })
 }
 
+function showAbout(): void {
+  void dialog.showMessageBox({
+    type: 'info',
+    title: 'About LifeSpire',
+    message: `LifeSpire ${app.getVersion()}`,
+    detail: `Electron ${process.versions.electron}\nChromium ${process.versions.chrome}\nNode ${process.versions.node}`,
+    buttons: ['OK'],
+  })
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
@@ -295,7 +307,20 @@ if (!app.requestSingleInstanceLock()) {
   void app.whenReady().then(() => {
     app.setAppUserModelId(APP_ID)
     registerAppProtocol()
-    Menu.setApplicationMenu(buildMenu(app.isPackaged))
+    const updater = setupAutoUpdater({
+      isPackaged: app.isPackaged,
+      appVersion: app.getVersion(),
+      autoUpdater,
+      dialog,
+    })
+    Menu.setApplicationMenu(
+      buildMenu({
+        isPackaged: app.isPackaged,
+        onAbout: showAbout,
+        onCheckForUpdates: () => void updater.checkForUpdates(),
+      }),
+    )
+    app.on('before-quit', () => updater.dispose())
     registerDownloads()
     restrictPermissions()
     registerLocalSync()

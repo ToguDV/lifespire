@@ -73,6 +73,17 @@ jobs:
       - name: Check core parity
         run: bash scripts/check-core-parity.sh
 
+      - name: Check release scripts
+        run: |
+          for file in scripts/fdroid-repo.sh scripts/verify-android-apk.sh; do
+            bash -n "$file"
+          done
+
+      - name: Test release scripts
+        run: |
+          bash scripts/test-release-scripts.sh
+          node --test scripts/fdroid-index.test.mjs
+
       - name: Approve native builds
         run: pnpm approve-builds --all
 

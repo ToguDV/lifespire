@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>LifeSpire F-Droid repository</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --background: #f1f0ea;
+        --surface: #f8f7f2;
+        --ink: #20241e;
+        --muted: #61665b;
+        --accent: #4d6b5a;
+        --hairline: #d8d5c9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: #131511;
+          --surface: #191c17;
+          --ink: #e8e5d9;
+          --muted: #a3a598;
+          --accent: #9dbba8;
+          --hairline: #2c3028;
+        }
+      }
+      body {
+        margin: 2rem auto;
+        max-width: 42rem;
+        padding: 0 1rem;
+        background: var(--background);
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        line-height: 1.6;
+      }
+      main {
+        background: var(--surface);
+        border: 1px solid var(--hairline);
+        border-radius: 18px;
+        padding: 1.5rem;
+      }
+      h1 {
+        margin-top: 0;
+        color: var(--accent);
+      }
+      code {
+        overflow-wrap: anywhere;
+      }
+      a {
+        color: var(--accent);
+      }
+      .note {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>LifeSpire F-Droid repository</h1>
+      <p>Add this repository in <strong>F-Droid → Settings → Repositories</strong>:</p>
+      <p><code>https://togudv.github.io/lifespire/fdroid/repo/</code></p>
+      <p>
+        Or download the signed APK from
+        <a href="https://github.com/ToguDV/lifespire/releases/latest">GitHub Releases</a>.
+      </p>
+      <p class="note">
+        F-Droid shows the repository signing fingerprint when you add it; write it
+        down if you want to detect a future key change. The APK keeps its own
+        signing identity, so repository updates never reinstall the app.
+      </p>
+      <p class="note">
+        LifeSpire keeps your save on the device. Updating through F-Droid replaces the
+        app bundle but keeps your profile, runs, goals and history.
+      </p>
+    </main>
+  </body>
+</html>

@@ -6,6 +6,9 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "env": {
+        "LIFESPIRE_RELEASE_ABIS": "1"
+      },
       "android": {
         "buildType": "apk"
       }
