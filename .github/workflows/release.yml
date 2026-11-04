@@ -5,6 +5,11 @@ name: Release
 #   git tag v0.4.0 && git push origin v0.4.0
 # The Android job also refreshes the self-hosted F-Droid repo; see
 # docs/FDROID.md for the one-time secrets and Pages setup.
+#
+# Release notes are part of the release contract: the mandatory `What changed`
+# section is generated from the commits since the previous v* tag and must never
+# be replaced by a generic downloads list. Write descriptive squash commit/PR
+# titles.
 on:
   push:
     tags: ['v*']
@@ -260,6 +265,10 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The release notes list the commits since the previous v* tag, so the
+          # publish job needs the tag history, not just the current commit.
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v5
         with:
@@ -310,14 +319,35 @@ jobs:
           ls -lh
           sha256sum ./* > SHA256SUMS.txt
 
-      - name: Publish the GitHub release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
+      - name: Build the release notes
         run: |
+          # The `What changed` section is mandatory. It is generated from the
+          # commits since the previous v* tag; a generic downloads list is not a
+          # release record.
+          git fetch --tags --force origin
+          previous_tag="$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          if [ -n "$previous_tag" ]; then
+            git log --pretty=format:'- %s (%h)' --no-merges "${previous_tag}..${GITHUB_REF_NAME}" > changes.md
+          else
+            git log --pretty=format:'- %s (%h)' --no-merges --max-count=100 "$GITHUB_REF_NAME" > changes.md
+          fi
+          if [ ! -s changes.md ] && [ -n "$previous_tag" ]; then
+            # A merge-only range still has a change; use the merge subject.
+            git log --pretty=format:'- %s (%h)' "${previous_tag}..${GITHUB_REF_NAME}" > changes.md
+          fi
+          if [ ! -s changes.md ]; then
+            echo "::error::No commits found for the mandatory 'What changed' section."
+            exit 1
+          fi
+
           version="${GITHUB_REF_NAME#v}"
           {
             echo "LifeSpire ${version} — desktop and Android builds for this tag."
+            echo
+            echo "### What changed"
+            echo
+            cat changes.md
+            echo
             echo
             echo "### Downloads"
             echo
@@ -334,7 +364,19 @@ jobs:
             echo "- Saves stay on each device. Pair Android and desktop over the local network in Settings → Nearby devices; export and import also live in Settings."
             echo "- Verify downloads against \`SHA256SUMS.txt\`."
           } > release-notes.md
+          cat release-notes.md
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            # Keep enriched notes from a previous run or a maintainer edit; only
+            # backfill the section for an older release that lacks it.
+            if ! gh release view "$GITHUB_REF_NAME" --json body --jq .body | grep -q '^### What changed$'; then
+              gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
+            fi
             gh release upload "$GITHUB_REF_NAME" artifacts/* --clobber
           else
             gh release create "$GITHUB_REF_NAME" artifacts/* \

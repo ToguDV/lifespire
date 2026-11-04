@@ -164,7 +164,9 @@ The release workflow:
 5. `publish` creates the GitHub release with the APK, desktop assets,
    `version.json` and `SHA256SUMS.txt`, then runs
    [`scripts/fdroid-repo.sh`](../scripts/fdroid-repo.sh) to refresh the `fdroid`
-   branch and sign the index with the repository key.
+   branch and sign the index with the repository key. The release body always
+   carries a `### What changed` section generated from the commits since the
+   previous `v*` tag; the job fails if that section would be empty.
 
 The APK is attached as `LifeSpire-<version>.apk`; inside the repository it is
 `com.lifespire.app_<versionCode>.apk`.
