@@ -13,6 +13,7 @@ import { Icon } from './components/Icon'
 import { IconButton } from './components/IconButton'
 import { ThemeToggle } from './components/ThemeToggle'
 import { RewardToast, Toast } from './components/Toast'
+import { UpdateBanner } from './components/UpdateNotice'
 import { Text } from './components/Text'
 import { DaySummaryScreen } from './screens/DaySummaryScreen'
 import { GoalsScreen } from './screens/GoalsScreen'
@@ -26,6 +27,7 @@ import { RewardScreen } from './screens/RewardScreen'
 import { RunSummaryScreen } from './screens/RunSummaryScreen'
 import { SettingsScreen } from './screens/SettingsScreen'
 import { devError } from './lib/devLogger'
+import { useUpdatePolling } from './lib/useUpdatePolling'
 import { useNotificationSync } from './notifications/scheduler'
 import { useAppStore } from './state/store'
 
@@ -68,6 +70,7 @@ export function AppShell() {
   const profile = document.profile
   const day = currentDay(run)
   useNotificationSync()
+  useUpdatePolling(Boolean(profile) && !storageIssue)
   const summaryDay =
     view.name === 'day-summary'
       ? (run?.days.find((candidate) => candidate.id === view.dayId) ?? null)
@@ -256,6 +259,8 @@ export function AppShell() {
         </View>
       </View>
       ) : null}
+
+      {!immersive && guardedView.name !== 'settings' ? <UpdateBanner /> : null}
 
       {storageWarning === 'write-failed' && !storageIssue ? (
         <View style={[styles.warning, { backgroundColor: colors.surfaceSunken, borderColor: colors.hairlineStrong }]}>

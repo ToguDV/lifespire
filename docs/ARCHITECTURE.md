@@ -74,11 +74,14 @@ apps/web/src/
 apps/desktop/src/  main.ts (ventana, protocolo lifespire-app://app, descargas,
   IPC y safeStorage), preload.ts (puente acotado), localNode/ (identidad,
   descubrimiento UDP, servidor HTTPS, cliente pinneado, inbox y registro de
-  peers), menu.ts y protocol.ts; electron-builder.yml empaqueta el build web
-apps/mobile/src/        shell nativo, tokens, componentes (incl. DevicesSection),
-  pantallas, mapa SVG, notificaciones locales y adaptadores de plataforma
-  (ver MOBILE.md); modules/lifespire-lan/ es el nodo Kotlin (UDP, TLS,
-  identidad, peers, inbox)
+  peers), menu.ts, protocol.ts y updater.ts (electron-updater en el proceso
+  main); electron-builder.yml empaqueta el build web y publica los canales
+  latest*.yml en la GitHub Release
+apps/mobile/src/        shell nativo, tokens, componentes (incl. DevicesSection
+  y UpdateNotice), pantallas, mapa SVG, notificaciones locales, chequeo de
+  updates F-Droid (lib/update.ts, lib/installedVersion.ts, state/update.ts) y
+  adaptadores de plataforma (ver MOBILE.md); modules/lifespire-lan/ es el nodo
+  Kotlin (UDP, TLS, identidad, peers, inbox)
 apps/mobile/modules/lifespire-lan/
   android/         módulo Expo: LifespireLanModule, LanManager, LanServer,
                    LanDiscovery, PinnedClient, IdentityStore, PeerStore, inbox
@@ -1031,20 +1034,25 @@ prototipo retirado:
   de un peer emparejado.
 - **CI:** `.github/workflows/release.yml` solo corre en tags `v*`, valida la
   versión contra los manifiestos, empaqueta en runners Linux/Windows, compila
-  el APK en EAS y publica todo (más `SHA256SUMS.txt`) en la GitHub Release.
+  el APK en EAS, publica todo (más `latest*.yml`, `version.json` y
+  `SHA256SUMS.txt`) en la GitHub Release y refresca el repo F-Droid de la rama
+  `fdroid` (ver FDROID.md).
 
 ## 7. Tests obligatorios por módulo
 
 La app Android añade `apps/mobile/src/notifications/planner.test.ts` (Jest) para
-las reglas de recordatorios; el resto de la lógica compartida se cubre con la
-suite de web a través de los shims. Ver [`MOBILE.md`](./MOBILE.md) §8.
+las reglas de recordatorios, `src/lib/update.test.ts` para comparación de
+versiones/índice F-Droid/manifest y `src/lib/installedVersion.test.ts`; el resto
+de la lógica compartida se cubre con la suite de web a través de los shims. Ver
+[`MOBILE.md`](./MOBILE.md) §9.
 
 El shell de escritorio añade `apps/desktop/src/protocol.test.ts` (Vitest) para
 la resolución URL→fichero, el rechazo de rutas que escapan del build, la
 allow-list de navegación, los enlaces externos y los scripts del service worker,
 y `apps/desktop/src/localNode/localNode.test.ts` para identidad/fingerprint,
 registro de peers, inbox, descubrimiento, pairing QR/código, HTTPS, CAS y
-pinning (certificado/token incorrectos rechazados). La rama de escritorio del
+pinning (certificado/token incorrectos rechazados), y `src/updater.test.ts`
+para el ciclo de chequeo/descarga/reinicio de `electron-updater`. La rama de escritorio del
 cliente web se cubre con el puente mockeado en `apps/web/e2e/devices.spec.ts` y
 el adaptador `apps/web/src/sync/localTransport.ts`. El motor compartido se cubre
 en `packages/app-core/src/sync/{peerEngine,migration,protocol}.test.ts`. Ver

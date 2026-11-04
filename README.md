@@ -54,9 +54,17 @@ Open the printed web URL. For Android, open the project in Expo Go for UI work,
 but use a development build (`pnpm --filter @lifespire/mobile android:native`) or
 an EAS build for Nearby devices: Expo Go does not include the LAN Kotlin
 module. `docs/MOBILE.md` covers the SDK, local notifications and the release
-checklist. For desktop, `docs/DESKTOP.md` covers the packaged builds and the
-tag-driven release workflow. On first launch you can load **demo data** and
-start a run in one click, or create your own goals and trials.
+checklist. For desktop, `docs/DESKTOP.md` covers the packaged builds, the
+`electron-updater` channel and the tag-driven release workflow. On first launch
+you can load **demo data** and start a run in one click, or create your own goals
+and trials.
+
+Android updates ship through the self-hosted F-Droid repository at
+`https://togudv.github.io/lifespire/fdroid/repo/`; desktop builds update from
+GitHub Releases. The app checks for updates in the background and in
+Settings → About, but never downloads or installs an APK itself. See
+[`docs/FDROID.md`](./docs/FDROID.md) for the repository, signing keys and repair
+workflow. LifeSpire is MIT licensed.
 
 Nearby sync needs both apps open on the same Wi-Fi. On the desktop, Settings →
 Nearby devices → **Show my code**; on Android, scan the QR or enter the code.

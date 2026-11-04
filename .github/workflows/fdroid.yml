@@ -1,0 +1,82 @@
+name: F-Droid repo
+
+# Repair or rebuild the self-hosted F-Droid repository for an existing release.
+# Never move a published tag to fix the repo: run this workflow instead.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to republish (for example v0.4.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fdroid-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: fdroid-repo
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Ensure Android build-tools
+        run: |
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$BUILD_TOOLS" ] || [ ! -x "$BUILD_TOOLS/aapt" ] || [ ! -x "$BUILD_TOOLS/apksigner" ]; then
+            yes | sdkmanager --licenses >/dev/null 2>&1 || true
+            sdkmanager --install "build-tools;36.0.0" >/dev/null
+            BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          fi
+          echo "$BUILD_TOOLS" >> "$GITHUB_PATH"
+          "$BUILD_TOOLS/aapt" version
+
+      - name: Install fdroidserver
+        run: |
+          pip install --quiet 'fdroidserver==2.4.5'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Download the release APK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          version="${TAG#v}"
+          gh release download "$TAG" \
+            --pattern "LifeSpire-${version}.apk" \
+            --output "LifeSpire-${version}.apk"
+
+      - name: Verify the release APK
+        id: verify
+        env:
+          ANDROID_APP_CERT_SHA256: ${{ secrets.ANDROID_APP_CERT_SHA256 }}
+          TAG: ${{ inputs.tag }}
+        run: bash scripts/verify-android-apk.sh "LifeSpire-${TAG#v}.apk" "$TAG"
+
+      - name: Refresh the F-Droid repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          VERSION_CODE: ${{ steps.verify.outputs.version-code }}
+          APK_SOURCE: LifeSpire-${{ steps.verify.outputs.version-name }}.apk
+          FDROID_KEYSTORE_BASE64: ${{ secrets.FDROID_KEYSTORE_BASE64 }}
+          FDROID_KEYSTORE_PASSWORD: ${{ secrets.FDROID_KEYSTORE_PASSWORD }}
+          FDROID_KEY_ALIAS: ${{ secrets.FDROID_KEY_ALIAS }}
+          FDROID_KEY_PASSWORD: ${{ secrets.FDROID_KEY_PASSWORD }}
+        run: bash scripts/fdroid-repo.sh

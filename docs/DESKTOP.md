@@ -1,7 +1,7 @@
 # LifeSpire desktop (Electron)
 
 > Status: packaged desktop shell for Linux and Windows. Unsigned installers,
-> manual updates, no desktop notifications.
+> auto-updates from GitHub Releases, no desktop notifications.
 >
 > Scope: the same local-first daily loop as web and Android. The shell reuses the
 > web build unchanged; it adds no desktop-only screens. See [`SPEC.md`](../SPEC.md).
@@ -151,17 +151,21 @@ packaged app fails to load if `apps/web/dist` is missing.
 2. `quality` repeats the gates from `ci.yml` (lint, typecheck, E2E typecheck,
    tests, build).
 3. `desktop` packages on `ubuntu-latest` (`.deb`, `.AppImage`, `.tar.gz`) and
-   `windows-latest` (NSIS `.exe`, portable `.zip`).
+   `windows-latest` (NSIS `.exe`, portable `.zip`), and uploads the
+   `electron-updater` channel files (`latest-linux.yml`/`latest.yml` and the
+   `.blockmap` files) next to the installers.
 4. `android` builds the APK on EAS cloud with the `preview` profile. It needs the
    `EXPO_TOKEN` repository secret and a project that has been linked once with
    `eas init` (committed `extra.eas.projectId`) plus EAS-managed Android
    credentials. `app.config.ts` reads the version from
    `apps/mobile/package.json`, which travels to the builder; runner environment
    variables do not, so the tag never silently ships the wrong APK.
-5. `publish` attaches every artifact plus `SHA256SUMS.txt` to the GitHub release.
-   It waits for quality and the desktop builds but tolerates a failed `android`
-   job: the run stays red, a warning is printed and the installers are still
-   published. The release notes list whatever files ended up attached.
+5. `publish` attaches every artifact plus `version.json` and `SHA256SUMS.txt`
+   to the GitHub release, then refreshes the self-hosted F-Droid repository
+   (`fdroid` branch) when the Android job succeeded. It waits for quality and
+   the desktop builds but tolerates a failed `android` job: the run stays red, a
+   warning is printed and the installers are still published. The release notes
+   list whatever files ended up attached.
 
 Release checklist: bump `version` in the root, desktop and mobile `package.json`,
 commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
@@ -169,8 +173,54 @@ commit, then `git tag vX.Y.Z && git push origin vX.Y.Z`.
 Installers are unsigned. Linux `.deb` installs without warnings; Windows shows the
 SmartScreen "unknown publisher" prompt. Adding code signing later only needs the
 `WINDOWS_CERT_PFX_BASE64`/`WINDOWS_CERT_PASSWORD` secrets and an
-`electron-builder` `win.signtoolOptions` block. There is no auto-update: users
-download the next release manually.
+`electron-builder` `win.signtoolOptions` block.
+
+### 7.1 Auto-update
+
+The shell uses `electron-updater` in the main process. `electron-builder`'s
+`publish: github` block generates `app-update.yml` inside the package and the
+`latest*.yml` channel files, which the release workflow attaches to the latest
+GitHub release. There is no update IPC and the renderer never sees the updater.
+
+- **Checks:** 10 seconds after the app is ready and every 6 hours while it stays
+  open. Background failures are silent (an offline laptop never gets a modal).
+- **Download/install:** downloads automatically and asks before restarting.
+  "Later" installs on quit (`autoInstallOnAppQuit`). The menu entry
+  **Check for updates…** always answers with a dialog, including "up to date".
+- **About:** the menu shows the app, Electron, Chromium and Node versions.
+- **Channels:** AppImage and Windows NSIS update in place. electron-updater's
+  Debian updater can update a `.deb` but may ask for system authentication.
+  The Windows portable `.zip` is not a separate update channel: if it runs the
+  updater and the user accepts, electron-updater installs the normal NSIS
+  build. The Linux `.tar.gz` is manual: the updater only runs from an AppImage
+  or a `.deb` install. macOS is not built yet.
+- **First updater release:** installations created before the updater existed
+  (0.3.1 and earlier) do not check for updates. They need one manual install of
+  the first updater release; the saved data in `userData` is untouched. From
+  then on the newer releases are offered automatically.
+- **Unsigned builds:** auto-update verifies the SHA-512 from `latest*.yml` but
+  Windows cannot verify an Authenticode publisher; SmartScreen still applies to
+  the first manual install. Code signing remains a follow-up.
+
+### 7.2 Verifying an update locally
+
+Build and package a version, then point a throwaway copy at a local generic feed
+instead of GitHub:
+
+1. `pnpm --filter @lifespire/desktop package:linux` and copy
+   `release/linux-unpacked` to a temporary directory.
+2. Edit its `resources/app-update.yml` to `provider: generic` and a local URL,
+   or serve the generated `latest-linux.yml` plus a newer AppImage from a static
+   server.
+3. Launch the unpacked app with `APPIMAGE` pointing at the copied AppImage and a
+   throwaway `LIFESPIRE_USER_DATA` directory; confirm the download prompt,
+   choose "Later"/"Restart now", and check that the save folder is unchanged.
+4. Remove the temporary app, feed and user-data directory afterwards.
+
+The Linux AppImage path is testable this way. Windows NSIS is built on the
+Windows runner but cannot be launched in Linux CI; before relying on it, install
+the NSIS build on a Windows VM, publish a newer test feed and confirm the
+download/restart flow. macOS is not built.
 
 ## 8. Verification
 
@@ -214,7 +264,8 @@ manual pass on a desktop session:
 - A CSP for the custom origin (the shell relies on the existing web build and
   renderer hardening in this PR).
 - Code signing for Windows and a signed apt repository for Linux.
-- `electron-updater` once releases need silent updates.
+- Silent `.deb` updates (electron-updater may require system authentication) and
+  a signed Linux repository.
 - Desktop notifications and deep links (`lifespire://`) mirroring Android.
 - macOS (`dmg`/`zip`) builds and an Apple Developer ID, once there is a Mac
   runner budget.

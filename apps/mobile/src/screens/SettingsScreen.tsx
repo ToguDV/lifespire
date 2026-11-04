@@ -26,6 +26,7 @@ import {
 } from '../notifications/scheduler'
 import type { NotificationPermission } from '../notifications/scheduler'
 import { DevicesSection } from '../components/DevicesSection'
+import { UpdateAboutSection } from '../components/UpdateNotice'
 import { localSync, useSyncStore } from '../sync/setup'
 
 const THEMES = [
@@ -285,6 +286,8 @@ export function SettingsScreen() {
           Send a test notification
         </Button>
       </Panel>
+
+      <UpdateAboutSection />
 
       {__DEV__ ? <DevSection /> : null}
 

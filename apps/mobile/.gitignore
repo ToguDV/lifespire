@@ -42,3 +42,7 @@ yarn-error.*
 
 # EAS/local APK output (pnpm package:android)
 /release/
+
+# EAS local credentials (never commit)
+credentials.json
+credentials/

@@ -1,8 +1,10 @@
 name: Release
 
 # Artifacts are only produced from an explicit version tag. Bump the version in
-# the root and desktop manifests, commit, then:
-#   git tag v0.2.0 && git push origin v0.2.0
+# the root, desktop and mobile manifests, commit, then:
+#   git tag v0.4.0 && git push origin v0.4.0
+# The Android job also refreshes the self-hosted F-Droid repo; see
+# docs/FDROID.md for the one-time secrets and Pages setup.
 on:
   push:
     tags: ['v*']
@@ -48,6 +50,17 @@ jobs:
       - name: Check core parity
         run: bash scripts/check-core-parity.sh
 
+      - name: Check release scripts
+        run: |
+          for file in scripts/fdroid-repo.sh scripts/verify-android-apk.sh; do
+            bash -n "$file"
+          done
+
+      - name: Test release scripts
+        run: |
+          bash scripts/test-release-scripts.sh
+          node --test scripts/fdroid-index.test.mjs
+
       - name: Approve native builds
         run: pnpm approve-builds --all
 
@@ -79,18 +92,24 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            target: linux
             builder_args: --linux
             artifact: lifespire-linux
             files: |
               apps/desktop/release/*.deb
               apps/desktop/release/*.AppImage
               apps/desktop/release/*.tar.gz
+              apps/desktop/release/latest*.yml
+              apps/desktop/release/*.blockmap
           - os: windows-latest
+            target: win
             builder_args: --win
             artifact: lifespire-windows
             files: |
               apps/desktop/release/*.exe
               apps/desktop/release/*.zip
+              apps/desktop/release/latest*.yml
+              apps/desktop/release/*.blockmap
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -115,6 +134,18 @@ jobs:
       - name: Package
         run: pnpm --filter @lifespire/desktop exec electron-builder ${{ matrix.builder_args }} --publish never
 
+      - name: Verify the update channel files
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "linux" ]; then
+            test -f apps/desktop/release/latest-linux.yml
+            test -f apps/desktop/release/linux-unpacked/resources/app-update.yml
+          else
+            test -f apps/desktop/release/latest.yml
+            test -f apps/desktop/release/win-unpacked/resources/app-update.yml
+          fi
+          ls -la apps/desktop/release/latest*.yml
+
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
@@ -127,6 +158,9 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    outputs:
+      version-code: ${{ steps.verify.outputs.version-code }}
+      version-name: ${{ steps.verify.outputs.version-name }}
     steps:
       - uses: actions/checkout@v7
 
@@ -152,6 +186,24 @@ jobs:
             echo "::error::The Expo project is not linked. Run \`eas init\` in apps/mobile and commit extra.eas.projectId."
             exit 1
           fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+
+      - name: Ensure Android build-tools
+        run: |
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$BUILD_TOOLS" ] || [ ! -x "$BUILD_TOOLS/aapt" ] || [ ! -x "$BUILD_TOOLS/apksigner" ]; then
+            yes | sdkmanager --licenses >/dev/null 2>&1 || true
+            sdkmanager --install "build-tools;36.0.0" >/dev/null
+            BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          fi
+          echo "$BUILD_TOOLS" >> "$GITHUB_PATH"
+          "$BUILD_TOOLS/aapt" version
 
       - name: Build and download the APK (EAS cloud)
         working-directory: apps/mobile
@@ -181,6 +233,12 @@ jobs:
           curl --fail --location "$(cat "$RUNNER_TEMP/apk-url.txt")" \
             --output "$GITHUB_WORKSPACE/LifeSpire-${version}.apk"
 
+      - name: Verify the release APK
+        id: verify
+        env:
+          ANDROID_APP_CERT_SHA256: ${{ secrets.ANDROID_APP_CERT_SHA256 }}
+        run: bash scripts/verify-android-apk.sh "LifeSpire-${GITHUB_REF_NAME#v}.apk" "$GITHUB_REF_NAME"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -195,7 +253,14 @@ jobs:
     # EAS outage; the android job still turns the run red so the gap is visible.
     if: ${{ !cancelled() && needs.quality.result == 'success' && needs.desktop.result == 'success' }}
     runs-on: ubuntu-latest
+    concurrency:
+      # Serialize with the manual F-Droid repair workflow; the generated branch
+      # must never be force-pushed from two runs at once.
+      group: fdroid-repo
+      cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v5
         with:
           path: artifacts
@@ -203,7 +268,41 @@ jobs:
 
       - name: Note a missing APK
         if: ${{ needs.android.result != 'success' }}
-        run: echo "::warning::No Android APK for this tag (android=${{ needs.android.result }}). Check EXPO_TOKEN, eas init and the EAS credentials."
+        run: echo "::warning::No Android APK for this tag (android=${{ needs.android.result }}). Check EXPO_TOKEN, eas init, EAS credentials and ANDROID_APP_CERT_SHA256."
+
+      - name: Write the update manifest
+        env:
+          VERSION_CODE: ${{ needs.android.outputs.version-code }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          apk="LifeSpire-${version}.apk"
+          if [ -f "artifacts/$apk" ]; then
+            VERSION="$version" TAG="$GITHUB_REF_NAME" APK="$apk" VERSION_CODE="${VERSION_CODE:?}" node -e '
+              const fs = require("node:fs");
+              const manifest = {
+                version: process.env.VERSION,
+                tag: process.env.TAG,
+                publishedAt: new Date().toISOString(),
+                android: {
+                  versionCode: Number(process.env.VERSION_CODE),
+                  apk: process.env.APK,
+                },
+              };
+              fs.writeFileSync("artifacts/version.json", JSON.stringify(manifest, null, 2) + "\n");
+            '
+          else
+            VERSION="$version" TAG="$GITHUB_REF_NAME" node -e '
+              const fs = require("node:fs");
+              const manifest = {
+                version: process.env.VERSION,
+                tag: process.env.TAG,
+                publishedAt: new Date().toISOString(),
+                android: null,
+              };
+              fs.writeFileSync("artifacts/version.json", JSON.stringify(manifest, null, 2) + "\n");
+            '
+          fi
+          cat artifacts/version.json
 
       - name: Checksums
         working-directory: artifacts
@@ -228,9 +327,10 @@ jobs:
             echo
             echo "### Notes"
             echo
-            echo "- Linux: install the \`.deb\` with \`sudo apt install ./LifeSpire-*.deb\`, or \`chmod +x\` the AppImage and run it."
-            echo "- Windows: run the installer or unpack the portable zip. Installers are **unsigned**, so SmartScreen may warn (More info → Run anyway)."
-            echo "- Android: sideload the APK when it is attached."
+            echo "- Linux: install the \`.deb\` with \`sudo apt install ./LifeSpire-*.deb\`, or \`chmod +x\` the AppImage and run it. The AppImage updates in place from this release onward; the .deb may ask for system authentication."
+            echo "- Windows: run the installer or unpack the portable zip. Installers are **unsigned**, so SmartScreen may warn (More info → Run anyway). The NSIS installer updates in place from this release onward; the zip is portable — use the installer or AppImage for automatic updates."
+            echo "- Desktop users on an older version install this build once; later releases are offered automatically (Check for updates… in the menu)."
+            echo "- Android: add the F-Droid repository \`https://togudv.github.io/lifespire/fdroid/repo/\` in F-Droid → Settings → Repositories, or sideload the APK attached here. Existing installs keep their save on the device."
             echo "- Saves stay on each device. Pair Android and desktop over the local network in Settings → Nearby devices; export and import also live in Settings."
             echo "- Verify downloads against \`SHA256SUMS.txt\`."
           } > release-notes.md
@@ -242,3 +342,43 @@ jobs:
               --notes-file release-notes.md \
               --verify-tag
           fi
+
+      - uses: actions/setup-java@v4
+        if: ${{ needs.android.result == 'success' }}
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        if: ${{ needs.android.result == 'success' }}
+
+      - name: Ensure Android build-tools
+        if: ${{ needs.android.result == 'success' }}
+        run: |
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$BUILD_TOOLS" ] || [ ! -x "$BUILD_TOOLS/aapt" ] || [ ! -x "$BUILD_TOOLS/apksigner" ]; then
+            yes | sdkmanager --licenses >/dev/null 2>&1 || true
+            sdkmanager --install "build-tools;36.0.0" >/dev/null
+            BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          fi
+          echo "$BUILD_TOOLS" >> "$GITHUB_PATH"
+          "$BUILD_TOOLS/aapt" version
+
+      - name: Install fdroidserver
+        if: ${{ needs.android.result == 'success' }}
+        run: |
+          pip install --quiet 'fdroidserver==2.4.5'
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Refresh the F-Droid repository
+        if: ${{ needs.android.result == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          VERSION_CODE: ${{ needs.android.outputs.version-code }}
+          APK_SOURCE: artifacts/LifeSpire-${{ needs.android.outputs.version-name }}.apk
+          FDROID_KEYSTORE_BASE64: ${{ secrets.FDROID_KEYSTORE_BASE64 }}
+          FDROID_KEYSTORE_PASSWORD: ${{ secrets.FDROID_KEYSTORE_PASSWORD }}
+          FDROID_KEY_ALIAS: ${{ secrets.FDROID_KEY_ALIAS }}
+          FDROID_KEY_PASSWORD: ${{ secrets.FDROID_KEY_PASSWORD }}
+        run: bash scripts/fdroid-repo.sh

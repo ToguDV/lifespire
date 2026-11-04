@@ -1,0 +1,19 @@
+Categories:
+  - Sports & Health
+License: MIT
+AuthorName: ToguDV
+WebSite: https://github.com/ToguDV/lifespire
+SourceCode: https://github.com/ToguDV/lifespire
+IssueTracker: https://github.com/ToguDV/lifespire/issues
+AutoName: LifeSpire
+AllowedAPKSigningKeys:
+  - 209d9fd8e940df5a8bcdcc6f04ace0332ada901050559ef8e5b4bab5703e4c22
+Summary: A quiet ascent through your goals
+Description: |
+  LifeSpire turns your goals and routines into a daily node map. Pick a few
+  weekly targets, resolve the nodes that match your day, and close the run when
+  the week ends.
+
+  The app is local-first: saves stay on the device, nearby sync happens directly
+  over the local network between Android and desktop, and there is no account,
+  cloud copy or telemetry.
