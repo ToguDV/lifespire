@@ -197,7 +197,7 @@ function SummaryBody({
         {profile && leveledUp ? (
           <div className="level-up level-up--celebrate">
             <Icon name="star" />
-            <span>Rank {profile.level} reached.</span>
+            <span>Level {profile.level} reached.</span>
           </div>
         ) : null}
 

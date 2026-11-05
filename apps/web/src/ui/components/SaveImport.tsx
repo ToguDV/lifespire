@@ -137,7 +137,7 @@ export function SaveImport({
                 <dd>{pendingImport.summary.profileName ?? 'No wayfarer'}</dd>
               </div>
               <div>
-                <dt>Rank</dt>
+                <dt>Level</dt>
                 <dd>{pendingImport.summary.level ?? '—'}</dd>
               </div>
               <div>

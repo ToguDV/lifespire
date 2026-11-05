@@ -52,7 +52,7 @@ function ConflictCopy({
         <div>
           <dt>Progress</dt>
           <dd>
-            {summary.gold ?? 0} gold · rank {summary.level ?? 1} · {summary.goals} quests
+            {summary.gold ?? 0} gold · level {summary.level ?? 1} · {summary.goals} quests
           </dd>
         </div>
         <div>

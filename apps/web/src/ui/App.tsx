@@ -354,7 +354,7 @@ export default function App() {
                 <span className="profile-card__body">
                   <strong>{profile.name}</strong>
                   <span>
-                    Rank {profile.level} · {xpIntoLevel(profile.xp)} / 100
+                    Level {profile.level} · {xpIntoLevel(profile.xp)} / 100
                   </span>
                 </span>
               </button>

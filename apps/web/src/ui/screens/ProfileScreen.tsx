@@ -70,7 +70,7 @@ export function ProfileScreen() {
                 <div
                   className="xp-track__bar"
                   role="progressbar"
-                  aria-label="XP in this rank"
+                  aria-label="XP in this level"
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={xpNow}
