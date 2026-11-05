@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 15,
     lineHeight: 18,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ['lining-nums', 'tabular-nums'],
   },
   factNote: { fontSize: 10, lineHeight: 13 },
 })

@@ -73,8 +73,8 @@ export function tryAutoMerge(
 
   const settings = mergeSettings(base, local, remote, conflicts)
   const onboardingDraft = mergeDraft(base, local, remote, conflicts)
-  const goals = mergeEntities(base.goals, local.goals, remote.goals, 'goal', conflicts)
-  const tasks = mergeEntities(base.tasks, local.tasks, remote.tasks, 'task', conflicts)
+  const goals = mergeEntities(base.goals, local.goals, remote.goals, 'quest', conflicts)
+  const tasks = mergeEntities(base.tasks, local.tasks, remote.tasks, 'trial', conflicts)
   const run = mergeRun(base.run, local.run, remote.run, conflicts)
   if (!goals || !tasks || !run.ok) {
     return { ok: false, conflicts }
@@ -175,14 +175,14 @@ function mergeEntities<T extends { id: string }>(
       if (deepEqual(l, b)) {
         // Removed remotely, untouched locally.
       } else {
-        conflicts.push(`${label} "${id}" edited here but removed in the cloud`)
+        conflicts.push(`${label} "${id}" edited here but removed on the other device`)
         failed = true
       }
     } else if (b && !l && r) {
       if (deepEqual(r, b)) {
         // Removed locally, untouched remotely.
       } else {
-        conflicts.push(`${label} "${id}" removed here but edited in the cloud`)
+        conflicts.push(`${label} "${id}" removed here but edited on the other device`)
         failed = true
       }
     }
@@ -288,12 +288,12 @@ function mergeProfile(
       const localEvent = localEvents.get(key)!
       const remoteEvent = remoteEvents.get(key)!
       if (!eventsEqualIgnoringAt(localEvent, remoteEvent)) {
-        conflicts.push(`node "${localEvent.nodeId}" resolved differently on both devices`)
+        conflicts.push(`encounter "${localEvent.nodeId}" resolved differently on both devices`)
         return null
       }
     }
     if (deltaLocalXp !== deltaRemoteXp || deltaLocalGold !== deltaRemoteGold) {
-      conflicts.push('same nodes resolved on both devices but counters disagree')
+      conflicts.push('same encounters resolved on both devices but counters disagree')
       return null
     }
     xp = b.xp + deltaLocalXp
@@ -324,7 +324,7 @@ function mergeLoot(
       if (baseById.has(item.id)) {
         const current = merged.get(item.id)!
         if (!deepEqual(current, item)) {
-          conflicts.push(`loot "${item.id}" changed on ${side}`)
+          conflicts.push(`relic "${item.id}" changed on ${side}`)
           return false
         }
         continue
@@ -332,7 +332,7 @@ function mergeLoot(
       const existing = merged.get(item.id)
       if (existing) {
         if (!deepEqual(existing, item)) {
-          conflicts.push(`loot "${item.id}" added differently on both devices`)
+          conflicts.push(`relic "${item.id}" added differently on both devices`)
           return false
         }
         continue
@@ -348,7 +348,7 @@ function mergeLoot(
   for (const item of merged.values()) {
     const first = seenCatalogs.get(item.catalogId)
     if (first && first !== item.id) {
-      conflicts.push(`loot "${item.catalogId}" found twice after merging`)
+      conflicts.push(`relic "${item.catalogId}" found twice after merging`)
       return null
     }
     seenCatalogs.set(item.catalogId, item.id)
@@ -366,14 +366,14 @@ function mergeRun(
   if (deepEqual(local, base)) return { ok: true, value: clone(remote) }
   if (deepEqual(remote, base)) return { ok: true, value: clone(local) }
   if (base === null || local === null || remote === null) {
-    conflicts.push('run created or removed on one device only in a conflicting way')
+    conflicts.push('journey created or removed on one device only in a conflicting way')
     return { ok: false }
   }
   if (local.id !== base.id || remote.id !== base.id) {
     if (local.id === remote.id && deepEqual(local, remote)) {
       return { ok: true, value: clone(local) }
     }
-    conflicts.push('a new run started on one device while the other kept playing')
+    conflicts.push('a new journey started on one device while the other kept playing')
     return { ok: false }
   }
 
@@ -381,7 +381,7 @@ function mergeRun(
     if (!deepEqual(local[key], remote[key])) {
       if (deepEqual(local[key], base[key])) continue
       if (deepEqual(remote[key], base[key])) continue
-      conflicts.push(`run ${key} changed on both devices`)
+      conflicts.push(`journey ${key} changed on both devices`)
       return { ok: false }
     }
   }
@@ -426,12 +426,12 @@ function mergeRun(
   if (status === 'closed' && base.status === 'active') {
     // A close seals weekly bonuses; both sides closing differently is explicit.
     if (!daysEqualLocal && !daysEqualRemote) {
-      conflicts.push('run closed differently on both devices')
+      conflicts.push('journey closed differently on both devices')
       return { ok: false }
     }
   }
   if (base.status === 'closed' && (!daysEqualLocal || !deepEqual(objectives, base.objectives))) {
-    conflicts.push('closed run changed')
+    conflicts.push('closed journey changed')
     return { ok: false }
   }
 
@@ -478,14 +478,14 @@ function mergeObjectives(
       merged.push(clone(r))
     } else if (!b && l && r) {
       if (!deepEqual(l, r)) {
-        conflicts.push(`objective "${id}" added differently on both devices`)
+        conflicts.push(`vow "${id}" added differently on both devices`)
         return null
       }
       merged.push(clone(l))
     } else if (b && !l && !r) {
       // Removed on both sides.
     } else {
-      conflicts.push(`objective "${id}" added or removed on one device only in a conflicting way`)
+      conflicts.push(`vow "${id}" added or removed on one device only in a conflicting way`)
       return null
     }
   }
@@ -532,7 +532,7 @@ function mergeProgress(
 
 function mergeDays(base: Run, local: Run, remote: Run, conflicts: string[]): Day[] | null {
   if (base.days.length !== local.days.length || base.days.length !== remote.days.length) {
-    conflicts.push('run length changed')
+    conflicts.push('journey length changed')
     return null
   }
   const merged: Day[] = []
@@ -556,7 +556,7 @@ function nodeLayer(map: Day['map'], nodeId: string): number | null {
 
 function mergeDay(base: Day, local: Day, remote: Day, conflicts: string[]): Day | null {
   if (local.id !== base.id || remote.id !== base.id || local.id !== remote.id) {
-    conflicts.push(`day "${base.id}" belongs to different runs`)
+    conflicts.push(`day "${base.id}" belongs to different journeys`)
     return null
   }
   if (local.index !== base.index || remote.index !== base.index || local.date !== base.date || remote.date !== base.date) {

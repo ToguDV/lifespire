@@ -227,7 +227,7 @@ describe('import preview', () => {
     const closed = summarizeDocument(documentWithRun(true))
     expect(closed.runStatus).toBe('closed')
     expect(closed.daysPlayed).toBe(2)
-    expect(runPreviewLabel(closed)).toBe('Closed · 2 of 7 days played')
+    expect(runPreviewLabel(closed)).toBe('Closed · 2 of 7 days kept')
 
     const empty = summarizeDocument(createEmptyDocument())
     expect(empty).toMatchObject({
@@ -238,7 +238,7 @@ describe('import preview', () => {
       runStatus: null,
       runDay: null,
     })
-    expect(runPreviewLabel(empty)).toBe('No run')
+    expect(runPreviewLabel(empty)).toBe('No journey')
   })
 
   it('reads a valid exported document without changing it', () => {

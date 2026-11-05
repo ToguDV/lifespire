@@ -137,20 +137,21 @@ never synced):
 
 | Reminder | Default | Rule |
 |---|---|---|
-| Today’s map is ready | 09:00 | The run is active and the day is available (or a future day). |
-| Evening nudge | 20:00 | Today’s day is not completed or missed; future days get the “map ready” copy. |
-| Week-end reminder | 20:00 | Last day of the run, when it is still unplayed. |
+| Today’s map is ready | 09:00 | The journey is active and the day is available (or a future day). |
+| Evening nudge | 20:00 | Today’s day is not claimed or lost; future days get the “map ready” copy. |
+| Week-end reminder | 20:00 | Last day of the journey, when it is still unplayed. |
 
 Implementation:
 
 - `notifications/planner.ts` is pure and takes `{document, prefs, now,
   permission}`; it returns stable ids, trigger dates and
   `lifespire://map` deep-link data. Tested in `planner.test.ts`.
-- `notifications/scheduler.ts` creates the `daily-path` Android channel,
+- `notifications/scheduler.ts` creates the `daily-path` Android channel with
+  the visible name "Daily route",
   requests permission only when the user enables reminders (Android 13 needs
   the channel first), cancels app-owned notifications and reschedules them on
   document/pref changes and when the app returns to the foreground.
-- The schedule is canceled when there is no active run, when the day is
+- The schedule is canceled when there is no active journey, when the day is
   sealed, or when reminders are disabled.
 - Tapping a notification opens the map; the response listener also handles a
   cold start. No push service, APNs, FCM token or server registration is used.
@@ -206,58 +207,61 @@ The stable repository URL is
 - Tokens, palettes and type scale derive from the same web clamps in
   `design/DESIGN.md` and `apps/web/src/styles/tokens.css`, sampled at the
   320–480 px phone range: display 44/36/27, heading-lg 22.5, a 16 px horizontal
-  gutter and 18/21 tabular numerals. Alegreya/Alegreya Sans are self-loaded
+  gutter and 18/21 lining, tabular numerals. Alegreya/Alegreya Sans are self-loaded
   through `@expo-google-fonts` (OFL), the eight used weights including italics.
+  Alegreya defaults to old-style figures, so the shared `Text` component and the
+  numeric styles request `fontVariant: ['lining-nums', 'tabular-nums']` to keep
+  numbers aligned with the text.
 - There are no extra semantic colours on mobile: currency and gems use
   `accentDeep`, destructive actions and warnings use stone (`surfaceSunken`,
   `hairlineStrong`, `inkStrong`). `gold` remains a wheel-sector label, not a
   palette token; `danger` is not a token.
 - Home is one hero: kicker, one phase chip, `h1`, one state line and one
-  primary CTA. The seven-day strip and the weekly-goal rows sit in their own
+  primary CTA. The seven-day strip and the weekly-quest rows sit in their own
   panels; the traveller/stat panel, generic week note and duplicate phase chip
-  are retired, while the dynamic missed-days warning stays. The CTA and copy
-  follow the web state table, including the goals-not-ready branch.
+  are retired, while the dynamic lost-days warning stays. The CTA and copy
+  follow the web state table, including the quests-not-ready branch.
 - Onboarding keeps the web welcome copy and art: the copy comes first, followed
-  by the stroke-only `welcome-art` plate (spire, halo, dotted path, four nodes,
+  by the stroke-only `welcome-art` plate (spire, halo, dotted route, four encounters,
   pines and crescent) and the lock privacy line. The welcome no longer asks for
   a name, lists mechanic bullets or explains the demo size; the demo uses
   `Wayfarer` and the custom flow asks for an optional name in step 1. The
   wizard keeps the four steps, visual stepper, review summary and trial-based
-  target suggestions, but the kicker is just `Create your path`, the step
+  target suggestions, but the kicker is just `Create your route`, the step
   bodies are one line, and the review/map explanation hints are gone. Editing a
-  goal or trial inside the wizard opens a touch dialog instead of the web
+  quest or trial inside the wizard opens a touch dialog instead of the web
   inline fieldsets; the domain draft and validation stay shared. There is no
   account row: the local profile is the only identity.
 - The map mirrors the web state machine: the screen resolves the active day,
-  prefers today's completed or missed day, and derives sealed/locked/hasMap/
+  prefers today's claimed or lost day, and derives sealed/locked/hasMap/
   canOpen so the head title, line and chip all speak the same state. Sealed,
   locked and unopened days render the empty map frame (day meta, decorative
   contours, medallion, compass) with the single contextual action; the frame no
   longer repeats the head title or explanation.
 - The map uses `react-native-svg` plus absolutely positioned `Pressable`
-  nodes, reusing `packages/app-core/src/ui/mapLayout.ts`. Every normal node is a
-  54×54 dp target centred on its coordinate, whatever the visible medallion
-  (45/50; 40/44 on five-node layers). Labels cap at 78 dp (64 dp on layers of
-  three or more nodes)
-  and the boss label keeps 124 dp. Labels stay hidden at rest, including the
-  current node: the first tap reveals the title, the second opens the node.
-  Only available/current nodes reveal and open; the rest are `disabled`. The
+  encounters, reusing `packages/app-core/src/ui/mapLayout.ts`. Every normal
+  encounter is a 54×54 dp target centred on its coordinate, whatever the
+  visible medallion (45/50; 40/44 on five-encounter layers). Labels cap at
+  78 dp (64 dp on layers of three or more encounters) and the warden label
+  keeps 124 dp. Labels stay hidden at rest, including the current encounter:
+  the first tap reveals the title, the second opens the encounter. Only
+  available/current encounters reveal and open; the rest are `disabled`. The
   accessible name comes from `nodeAriaLabel` and the frame announces the group
-  as “Camp at the bottom, N layers above, and the boss at the top.” The current
-  node uses its ring as the only marker: the desktop-only HERE micro label is
-  not rendered on Android. Selecting a node plays the select haptic; the boss
-  opening plays `bossUnlock`.
-- The rail is stacked, not docked: Next step, a one-line weekly-goals summary
-  and a compact `Node key` disclosure follow the frame in the single screen
+  as “Camp at the bottom, N layers above, and the warden at the top.” The
+  current encounter uses its ring as the only marker: the desktop-only HERE
+  micro label is not rendered on Android. Selecting an encounter plays the
+  select haptic; the warden opening plays `bossUnlock`.
+- The rail is stacked, not docked: Next step, a one-line weekly-quests summary
+  and a compact `Encounter key` disclosure follow the frame in the single screen
   scroll at every Android width. The old floating dock is retired. Next step
   holds only the choice rows when choices exist; otherwise it shows one
-  no-choice line. There is no lede or foot paragraph. `Node key` is a local
-  `Pressable` disclosure with the six short reward lines, and the goals summary
-  links to `All goals` only when the run has objectives.
-- Node detail keeps the type kicker, one goal/type chip, the Effort / Reward / Goal
-  facts and one flavour line. The duplicate tag row, `NodeNotes`, the closing
-  bonus box and `All weekly goals` are retired; the boss skip warning is the
-  only visible skip note and other skip buttons expose it through
+  no-choice line. There is no lede or foot paragraph. `Encounter key` is a local
+  `Pressable` disclosure with the six short reward lines, and the quests summary
+  links to `All quests` only when the journey has objectives.
+- Encounter detail keeps the type kicker, one quest/type chip, the Difficulty /
+  Reward / Vow facts and one flavour line. The duplicate tag row, `NodeNotes`,
+  the closing bonus box and `All weekly vows` are retired; the warden passing
+  warning is the only visible pass note and other pass buttons expose it through
   `accessibilityHint`. The reward recap is a single `Outcome` fact plus `Done`,
   with its confirmation note moved to the button hint.
 - The wheel shares the web spin physics (`packages/app-core/src/ui/wheel.ts`) and mirrors the
@@ -265,7 +269,7 @@ The stable repository URL is
   sectors, 16px icons at radius 62, a fixed 52px hub, a 6px hairline-strong
   ring, a 9.1s four-turn easeOutQuart `Animated` rotation, a throttled haptic
   tick every two sector crossings and a 1.8s reveal before the recap. The wheel
-  sits after the node tags and before the facts so the primary action stays near
+  sits after the encounter tags and before the facts so the primary action stays near
   the first viewport on a 390×844 screen; the recap mirrors the web
   `node-spread`. No sound is bundled: wheel feedback is haptic only, and the
   haptics toggle already gates it.
@@ -276,25 +280,25 @@ The stable repository URL is
   Relics grid is two columns; `Toast`/`RewardToast` invert the palette (ink
   background, canvas text) and the plain toast adds a 44 dp Dismiss;
   `IconPicker` tiles are 54 dp with a visible label and a check badge.
-- Day and run summaries are one framed card with 24 dp sections and hairline
+- Day and journey summaries are one framed card with 24 dp sections and hairline
   dividers, not a stack of panels. The report header is the only screen
   heading: the day reads `Day N of 7 · Sealed`, `The day is sealed.`, its date
-  and boss chips, and the seal; the week reads `The week · Sealed`, `The week is
-  sealed.` and the seal. The day keeps one path list, one short closing-bonus
-  line, the XP / Gold / Relics totals, one progress meta per goal (`Target met`
-  or `N to go`), `No relics today.` for empty loot and the level-up strip only
+  and warden chips, and the seal; the week reads `The week · Sealed`, `The week is
+  sealed.` and the seal. The day keeps one route list, one short closing-bonus
+  line, the XP / Gold / Relics totals, one progress meta per quest (`Vow met`
+  or `N to go`), `No relics today.` for empty spoils and the level-up strip only
   when a level was reached. The weekly close keeps the record strip, the totals
-  with one `Weekly bonus included` line, the goal rows, the loot grid and the
-  Reliquary link; the old bonus explainer block, guaranteed-rare copy, profile
+  with one `Weekly bonus included` line, the quest rows, the relic grid and the
+  Reliquary link; the old bonus explainer block, guaranteed-rare copy, wayfarer
   line, retire note and visible wait notes are retired. The open week is the
-  header, the day pips, the goal rows and `Return to camp`. The new-run dialog
+  header, the day pips, the quest rows and `Return to camp`. The new-journey dialog
   uses `initialWeeklyTargets` / `validateNewRunSetup`, keeps the short
   retirement warning and one 1–7 range hint, and surfaces `startNewRun` errors
   locally.
-- Profile is titled **The Reliquary** (`Profile` kicker) and never uses the
+- The Reliquary is titled **The Reliquary** (`Wayfarer` kicker) and never uses the
   player name as the title; the header chip shows owned relics against
   `collection.length`. The profile strip is one panel with the 62 dp level
-  badge, name, `Wayfarer of the quiet path`, the experience bar and the Gold /
+  badge, name, `Wayfarer of the quiet route`, the XP bar and the Gold /
   Relics / Days kept totals. The collection has no `Found so far` or
   `Showing …` duplicates: the shared `SegmentedControl` filters carry their
   found counts and the two-column `LootCard` grid uses the catalogue length for
@@ -322,14 +326,14 @@ The stable repository URL is
 - Data safety matches web. The import preview names the chosen JSON file on a
   valid save and warns that replacing overwrites the keys under
   `lifespire:mvp0`; a rejected file reports the reason without the name. A sync
-  conflict shows both copies (profile, progress, run and saved time), lists up
+  conflict shows both copies (wayfarer, progress, journey and saved time), lists up
   to five merge reasons and can share this device and the peer copy as two
   separate `lifespire-this-device-<date>.json` / `lifespire-<peer>-<date>.json`
   files. A local backup is written before keeping either side, and “Export
   both” also keeps the conflict open until the player decides.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
-  recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.
+  recap. Tabbar: Map, Camp, Quests, Relics; Settings lives in the topbar.
 - The mobile topbar is the 56 dp shell header: 21 px spire mark plus wordmark on
   the left, gold (16 px coin), `Lv N`, the theme switch and Settings on the
   right. It does not show the day pips or `Day N of 7`; Home carries the week
@@ -381,11 +385,11 @@ build for every workspace, including the Android JS bundle.
 Manual Android checklist before a release:
 
 1. Fresh install → demo onboarding → open day 1 → resolve a task, a wheel and
-   the boss → read day and run summaries.
+   the warden → read day and journey summaries.
 2. Pair Android with the desktop app (scan the QR or enter the code) and with
    another Android device; confirm both sides show the peer with the right
    platform icon, auto-sync works and "Forget device" stops it.
-3. Force-stop during a day, reopen, confirm the map, path and rewards survive.
+3. Force-stop during a day, reopen, confirm the map, route and rewards survive.
 4. Export on web, import on Android; export on Android, import on web.
 5. Play one day on Android and one on the paired desktop/Android while the
    other app is closed; sync and verify the merge and the keep-mine/keep-peer
@@ -511,7 +515,7 @@ EAS app signing key; see [`FDROID.md`](./FDROID.md).
   device settles a conflict, the other dialog closes on its own (the copy is
   applied and a toast confirms it); no second decision is requested.
 - **Notifications never fire**: confirm the channel exists, the permission is
-  granted, reminders are enabled and the run has an unsealed day. The test
+  granted, reminders are enabled and the journey has an unsealed day. The test
   notification bypasses the planner.
 - **Metro cannot resolve `.js`**: use `--clear` once after changing the
   resolver; never add `.js` file copies to the TS packages.

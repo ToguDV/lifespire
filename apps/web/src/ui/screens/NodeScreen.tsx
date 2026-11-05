@@ -35,13 +35,13 @@ function NodeSkipNote({ boss }: { boss: boolean }) {
     return (
       <p className="node-note" id="node-skip-note">
         <Icon name="crown" />
-        <span>Skipping closes the day without the closing bonus.</span>
+        <span>Passing closes the day without the closing bonus.</span>
       </p>
     )
   }
   return (
     <span className="sr-only" id="node-skip-note">
-      Skipping grants no rewards; it only advances the path.
+      Passing grants no rewards; it only advances the route.
     </span>
   )
 }
@@ -56,10 +56,10 @@ function AimProgress({ run, node }: { run: Run; node: MapNode }) {
 
   return (
     <div className="node-aim">
-      {target > 0 ? <Pips value={before} max={target} label={`${node.task.goalTitle}: ${before} of ${target} complete`} /> : null}
+      {target > 0 ? <Pips value={before} max={target} label={`${node.task.goalTitle}: ${before} of ${target} kept`} /> : null}
       <p className="node-aim__after">
         <Icon name={met ? 'check' : 'plus'} />
-        {met ? 'Target met' : `After this step: ${after} of ${target}`}
+        {met ? 'Vow met' : `After this step: ${after} of ${target}`}
       </p>
     </div>
   )
@@ -72,8 +72,8 @@ function NodeTutorialCard() {
     <TutorialDialog
       card="node"
       icon="check"
-      title="Do it, then mark it"
-      body="Do the step in real life, then Complete it for XP, gold and quest progress. Skip moves on with nothing — no penalty."
+      title="Do it, then claim it"
+      body="Do the step in real life, then claim it for XP, gold and quest progress. Pass moves on with nothing — no penalty."
       primaryLabel="Got it"
       onPrimary={() => markTutorialSeen('node')}
       onHide={() => markTutorialSeen('node')}
@@ -204,9 +204,9 @@ export function NodeScreen() {
               <span className="empty-state__medallion">
                 <Icon name="compass" />
               </span>
-              <span className="micro">Node detail</span>
+              <span className="micro">Encounter detail</span>
               <h1 id="node-title">This step is not open.</h1>
-              <p>Return to the map to choose an available node.</p>
+              <p>Return to the map to choose an available encounter.</p>
               <Button variant="secondary" onClick={() => navigate({ name: 'map' })}>
                 Return to the map
                 <Icon name="chevron-right" />
@@ -348,7 +348,7 @@ export function NodeScreen() {
             <div className="node-medallion">
               <Icon name={goalCrest ?? NODE_TYPE_ICON[node.type]} />
             </div>
-            <span className="micro">{NODE_TYPE_LABEL[node.type]} node</span>
+            <span className="micro">{NODE_TYPE_LABEL[node.type]} encounter</span>
             <h1 id="node-title">{nodeTitle(node)}</h1>
             <p className="node-flavor">{nodeFlavor(node)}</p>
           </header>
@@ -361,13 +361,13 @@ export function NodeScreen() {
                   ? node.task.goalTitle
                   : isWheel
                     ? NODE_TYPE_LABEL[node.type]
-                    : `${NODE_TYPE_LABEL[node.type]} · no task`}
+                    : `${NODE_TYPE_LABEL[node.type]} · no trial`}
               </span>
             </div>
 
             <div className="node-facts">
               <div className="node-fact">
-                <span className="micro">Effort</span>
+                <span className="micro">Difficulty</span>
                 <strong>
                   {node.task ? EFFORT_LABEL[node.task.effort] : '—'}
                 </strong>
@@ -381,7 +381,7 @@ export function NodeScreen() {
                     <Icon name="wheel" />
                     Surprise
                   </strong>
-                  <small>Task, gold, XP or rest</small>
+                  <small>Trial, gold, XP or respite</small>
                 </div>
               ) : node.type === 'treasure' ? (
                 <div className="node-fact">
@@ -390,7 +390,7 @@ export function NodeScreen() {
                     <Icon name="coin" />
                     +{node.rewards.gold}
                   </strong>
-                  <small>{lootRolls} loot roll</small>
+                  <small>{lootRolls} spoils roll</small>
                 </div>
               ) : (
                 <div className="node-fact">
@@ -401,17 +401,17 @@ export function NodeScreen() {
                   </strong>
                   <small>
                     {node.rewards.gold > 0 ? `+${node.rewards.gold} gold` : 'A small recovery'}
-                    {lootRolls > 0 ? ` · ${lootRolls} loot roll` : ''}
+                    {lootRolls > 0 ? ` · ${lootRolls} spoils roll` : ''}
                     {node.type === 'boss' ? ' (includes closing bonus)' : ''}
                   </small>
                 </div>
               )}
 
               <div className="node-fact">
-                <span className="micro">Goal</span>
+                <span className="micro">Vow</span>
                 <strong>{weeklyProgress > 0 ? '+1' : '—'}</strong>
                 <small>
-                  {weeklyProgress > 0 ? 'This week' : 'No weekly progress'}
+                  {weeklyProgress > 0 ? 'This week' : 'No vow progress'}
                 </small>
               </div>
             </div>
@@ -422,7 +422,7 @@ export function NodeScreen() {
               ) : (
                 <p className="node-aim-empty">
                   <Icon name="banner" />
-                  <span>This step is outside this run's goals.</span>
+                  <span>This step is outside this journey's quests.</span>
                 </p>
               )
             ) : null}
@@ -430,7 +430,7 @@ export function NodeScreen() {
             {isWheel && !revealed ? (
               <p className="node-note">
                 <Icon name="wheel" />
-                <span>Spin to reveal: task, gold, XP or rest.</span>
+                <span>Spin to reveal: trial, gold, XP or respite.</span>
               </p>
             ) : null}
 
@@ -501,17 +501,17 @@ export function NodeScreen() {
                   >
                     <p className="wheel__result-line">
                       {rolledOutcome.outcome === 'task'
-                        ? `Task: ${rolledOutcome.task?.title ?? 'a task'}`
+                        ? `Trial: ${rolledOutcome.task?.title ?? 'a trial'}`
                         : rolledOutcome.outcome === 'gold'
                           ? `Gold`
                           : rolledOutcome.outcome === 'xp'
-                            ? `Experience`
-                            : `Rest`}
+                            ? `XP`
+                            : `Respite`}
                     </p>
                     <p className="wheel__result-reward">
                       {rolledOutcome.outcome === 'task'
                         ? `+${rolledOutcome.xp} XP · +${rolledOutcome.gold} gold${
-                            rolledOutcome.progress > 0 ? ' · +1 goal' : ''
+                            rolledOutcome.progress > 0 ? ' · +1 vow' : ''
                           }`
                         : rolledOutcome.outcome === 'gold'
                           ? `+${rolledOutcome.gold} gold`
@@ -535,7 +535,7 @@ export function NodeScreen() {
                     aria-describedby="node-skip-note"
                     onClick={() => record('skip')}
                   >
-                    Skip this step
+                    Pass this step
                   </Button>
                 </div>
               )
@@ -547,7 +547,7 @@ export function NodeScreen() {
                   onClick={() => record('complete')}
                 >
                   <Icon name="check" />
-                  Mark complete
+                  Claim
                 </Button>
                 <Button
                   variant="quiet"
@@ -555,7 +555,7 @@ export function NodeScreen() {
                   aria-describedby="node-skip-note"
                   onClick={() => record('skip')}
                 >
-                  Skip this step
+                  Pass this step
                 </Button>
               </div>
             )}

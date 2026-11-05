@@ -149,5 +149,5 @@ const styles = StyleSheet.create({
   levelBody: { flex: 1, gap: 5 },
   levelTrack: { height: 3, borderRadius: radius.full, overflow: 'hidden' },
   levelFill: { height: '100%', borderRadius: radius.full },
-  levelLabel: { fontVariant: ['tabular-nums'] },
+  levelLabel: { fontVariant: ['lining-nums', 'tabular-nums'] },
 })

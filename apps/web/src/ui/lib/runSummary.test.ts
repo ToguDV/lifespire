@@ -100,7 +100,7 @@ describe('weekly bonus copy', () => {
         bonusXp: OBJECTIVE_BONUS.xp,
         bonusGold: OBJECTIVE_BONUS.gold,
       }),
-    ).toBe('Kept · +50 XP · +50 gold · 1 loot roll')
+    ).toBe('Kept · +50 XP · +50 gold · 1 spoils roll')
     expect(
       objectiveBonusCopy({ met: false, bonusXp: 0, bonusGold: 0 }),
     ).toBe('Not kept · no bonus')
@@ -109,7 +109,7 @@ describe('weekly bonus copy', () => {
       `+${ALL_OBJECTIVES_BONUS.xp} XP · +${ALL_OBJECTIVES_BONUS.gold} gold · one guaranteed rare`,
     )
     expect(allAimsBonusCopy(false)).toBe(
-      'Not granted · every weekly target must be kept',
+      'Not granted · every weekly vow must be kept',
     )
   })
 
@@ -127,6 +127,6 @@ describe('weekly bonus copy', () => {
   it('explains the guaranteed rare when it is kept or converted', () => {
     expect(guaranteedRareCopy(true, rare)).toBe('Guaranteed rare · Silverbark Ring')
     expect(guaranteedRareCopy(true, null)).toContain('became gold')
-    expect(guaranteedRareCopy(false, null)).toContain('only when every weekly target')
+    expect(guaranteedRareCopy(false, null)).toContain('only when every weekly vow')
   })
 })

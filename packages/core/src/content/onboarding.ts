@@ -36,7 +36,7 @@ export function suggestedWeeklyObjective(goalId: string, tasks: readonly Task[])
   return clampObjective(trials + 1)
 }
 
-/** Applies the routine-based suggestion to every goal in the draft. */
+/** Applies the trial-based suggestion to every goal in the draft. */
 export function withSuggestedObjectives(
   goals: readonly Goal[],
   tasks: readonly Task[],

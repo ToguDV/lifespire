@@ -23,20 +23,20 @@ export interface ContentActionResult {
 const EFFORTS: readonly Effort[] = ['light', 'medium', 'high']
 
 export const CONTENT_MESSAGES = {
-  goalTitle: 'Give this goal a title.',
+  goalTitle: 'Give this quest a title.',
   goalDescription: `Keep the description under ${MAX_GOAL_DESCRIPTION_LENGTH} characters.`,
-  goalIcon: 'Choose an icon for this goal.',
-  weeklyObjective: `Set the weekly target between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
-  tooManyGoals: `A run can hold at most ${MAX_GOALS} active goals. Archive one before adding another.`,
-  lastGoal: 'Keep at least one active goal while the run is underway.',
-  fewRoutines: `Keep at least ${MIN_ACTIVE_TASKS} active trials while the run is underway.`,
+  goalIcon: 'Choose an icon for this quest.',
+  weeklyObjective: `Set the weekly vow between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
+  tooManyGoals: `A journey can hold at most ${MAX_GOALS} active quests. Archive one before adding another.`,
+  lastGoal: 'Keep at least one active quest while the journey is underway.',
+  fewRoutines: `Keep at least ${MIN_ACTIVE_TASKS} active trials while the journey is underway.`,
   aimWithoutRoutine:
-    'Keep at least one active trial under every active goal while the run is underway.',
+    'Keep at least one active trial under every active quest while the journey is underway.',
   taskTitle: 'Give this trial a title.',
-  taskGoal: 'Choose an active goal for this trial.',
-  taskEffort: 'Choose light, medium or heavy effort.',
-  orphanTask: 'Every trial needs an active goal.',
-  missingGoal: 'That goal no longer exists. Refresh and try again.',
+  taskGoal: 'Choose an active quest for this trial.',
+  taskEffort: 'Choose Easy, Standard or Hard difficulty.',
+  orphanTask: 'Every trial needs an active quest.',
+  missingGoal: 'That quest no longer exists. Refresh and try again.',
   missingTask: 'That trial no longer exists. Refresh and try again.',
 } as const
 

@@ -86,15 +86,15 @@ function SealedBody({
           <div className="section-block__head">
             <h2 id="run-record-title">The week recorded</h2>
           </div>
-          <StatStrip label="Run record">
+          <StatStrip label="Journey record">
             <Stat
               value={totals.daysPlayed}
-              label="Days played"
+              label="Days kept"
               progress={percent(totals.daysPlayed, 7)}
             />
             <Stat
               value={totals.daysMissed}
-              label="Days missed"
+              label="Days lost"
               progress={percent(totals.daysMissed, 7)}
             />
             <Stat
@@ -105,12 +105,12 @@ function SealedBody({
           </StatStrip>
         </section>
 
-        <div className="summary-totals" aria-label="Run totals">
+        <div className="summary-totals" aria-label="Journey totals">
           <div className="total">
             <strong>
               <Icon name="star" />+<AnimatedNumber value={totals.xp} />
             </strong>
-            <span>Experience</span>
+            <span>XP</span>
           </div>
           <div className="total">
             <strong>
@@ -126,19 +126,19 @@ function SealedBody({
           </div>
         </div>
         <p className="panel-note">
-          Weekly bonus included: +{summary.bonusXp} XP · +{summary.bonusGold} gold.
+          Vow bonus included: +{summary.bonusXp} XP · +{summary.bonusGold} gold.
         </p>
 
         <section className="summary-loot summary-aims-block" aria-labelledby="run-aims-title">
           <div className="section-block__head">
-            <h2 id="run-aims-title">Weekly goals</h2>
+            <h2 id="run-aims-title">Weekly quests</h2>
             <span className="mini-note">
               {aggregate.met} of {aggregate.total} kept
               {aggregate.total > 0 ? ` · ${aggregate.progress} / ${aggregate.target}` : ''}
             </span>
           </div>
           {aggregate.total === 0 ? (
-            <p className="panel-note">No weekly goals were set for this run.</p>
+            <p className="panel-note">No weekly quests were set for this journey.</p>
           ) : (
             <ul className="summary-aims">
               {summary.objectives.map((objective, index) => (
@@ -162,7 +162,7 @@ function SealedBody({
                     </p>
                   ) : objective.met ? (
                     <p className="summary-aim__loot">
-                      The loot roll became gold; the relic was already owned.
+                      The spoils roll became gold; the relic was already owned.
                     </p>
                   ) : null}
                 </li>
@@ -200,7 +200,7 @@ function SealedBody({
 
         <div className="summary-actions">
           <Button variant="primary" onClick={onNewRun}>
-            Begin a new run
+            Begin a new journey
             <Icon name="chevron-right" />
           </Button>
           <Button variant="quiet" onClick={onProfile}>
@@ -234,13 +234,13 @@ function OpenWeek({ run, onCamp }: { run: Run; onCamp: () => void }) {
 
         <section className="summary-loot summary-aims-block" aria-labelledby="open-aims-title">
           <div className="section-block__head">
-            <h2 id="open-aims-title">Weekly goals</h2>
+            <h2 id="open-aims-title">Weekly quests</h2>
             <span className="mini-note">
               {met} of {total} kept
             </span>
           </div>
           {total === 0 ? (
-            <p className="panel-note">No weekly goals were set for this run.</p>
+            <p className="panel-note">No weekly quests were set for this journey.</p>
           ) : (
             <ul className="summary-aims">
               {run.objectives.map((objective) => (
@@ -295,7 +295,7 @@ export function RunSummaryScreen() {
           kicker="The week"
           title="Returning to camp."
           titleId="run-summary-empty-title"
-          sub="A run summary appears after a seven-day run has been recorded."
+          sub="A journey summary appears after a seven-day journey has been recorded."
           meta={
             <Button variant="secondary" size="sm" onClick={() => navigate({ name: 'home' })}>
               Go to camp
@@ -317,7 +317,7 @@ export function RunSummaryScreen() {
           kicker="The week"
           title="Sealing the week."
           titleId="run-summary-sealing-title"
-          sub="The weekly bonus is being calculated."
+          sub="The vow bonus is being calculated."
           meta={
             <Button variant="secondary" size="sm" onClick={() => navigate({ name: 'home' })}>
               Go to camp

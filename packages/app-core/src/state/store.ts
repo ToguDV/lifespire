@@ -271,7 +271,7 @@ export function createAppStore(
         completeOnboarding: (setup, at = nowProvider()) => {
           const validation = validateSetup(setup.goals, setup.tasks)
           if (!validation.ok) {
-            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            set({ toast: validation.errors[0] ?? 'This route cannot begin yet.' })
             return
           }
 
@@ -307,7 +307,7 @@ export function createAppStore(
         beginJourney: (setup, at = nowProvider()) => {
           const validation = validateSetup(setup.goals, setup.tasks)
           if (!validation.ok) {
-            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            set({ toast: validation.errors[0] ?? 'This route cannot begin yet.' })
             return false
           }
 
@@ -345,7 +345,7 @@ export function createAppStore(
           try {
             next = openDayDocument(seeded, { now: at })
           } catch (error) {
-            set({ toast: errorMessage(error, 'This path cannot begin yet.') })
+            set({ toast: errorMessage(error, 'This route cannot begin yet.') })
             return false
           }
 
@@ -361,11 +361,11 @@ export function createAppStore(
         startRun: (setup, at = nowProvider()) => {
           const current = get().document
           if (!current.profile) {
-            set({ toast: 'Finish onboarding before you begin a run.' })
+            set({ toast: 'Finish onboarding before you begin a journey.' })
             return
           }
           if (current.run?.status === 'active') {
-            set({ toast: 'Finish the current run before starting a new one.' })
+            set({ toast: 'Finish the current journey before starting a new one.' })
             return
           }
 
@@ -373,7 +373,7 @@ export function createAppStore(
           const tasks = setup ? setup.tasks : current.tasks
           const validation = validateSetup(goals, tasks)
           if (!validation.ok) {
-            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            set({ toast: validation.errors[0] ?? 'This route cannot begin yet.' })
             return
           }
 
@@ -428,7 +428,7 @@ export function createAppStore(
               toast: 'Today is unwritten. Its rewards were taken back.',
             })
           } catch (error) {
-            set({ toast: errorMessage(error, 'Today cannot be reset.') })
+            set({ toast: errorMessage(error, 'Today cannot be abandoned.') })
           }
         },
 
@@ -440,7 +440,7 @@ export function createAppStore(
             const next = selectNodeDocument(current, nodeId)
             set({ document: next, toast: null })
           } catch (error) {
-            set({ toast: errorMessage(error, 'That node cannot be chosen.') })
+            set({ toast: errorMessage(error, 'That encounter cannot be chosen.') })
           }
         },
 
@@ -487,7 +487,7 @@ export function createAppStore(
             })
             return true
           } catch (error) {
-            set({ toast: errorMessage(error, 'A new run cannot begin yet.') })
+            set({ toast: errorMessage(error, 'A new journey cannot begin yet.') })
             return false
           }
         },
@@ -687,7 +687,7 @@ export function createAppStore(
 
           const imported = withSyncedLevel(parsed.value)
           if (imported.run && !imported.profile) {
-            set({ toast: 'That save has a run but no profile.' })
+            set({ toast: 'That save has a journey but no wayfarer.' })
             return false
           }
 
@@ -700,7 +700,7 @@ export function createAppStore(
               imported.tasks,
             )
             if (!constraint.ok) {
-              set({ toast: constraint.errors[0] ?? 'That save cannot continue this run.' })
+              set({ toast: constraint.errors[0] ?? 'That save cannot continue this journey.' })
               return false
             }
           }
@@ -823,20 +823,20 @@ export function createAppStore(
               run,
               onboardingDraft: null,
             },
-            toast: 'Demo run ready.',
+            toast: 'Demo journey ready.',
           })
         },
 
         devRestartRun: (at = nowProvider()) => {
           const current = get().document
           if (!current.profile) {
-            set({ toast: 'Finish onboarding before you begin a run.' })
+            set({ toast: 'Finish onboarding before you begin a journey.' })
             return
           }
 
           const validation = validateSetup(current.goals, current.tasks)
           if (!validation.ok) {
-            set({ toast: validation.errors[0] ?? 'This path cannot begin yet.' })
+            set({ toast: validation.errors[0] ?? 'This route cannot begin yet.' })
             return
           }
 
@@ -849,7 +849,7 @@ export function createAppStore(
 
           set({
             document: { ...current, run, onboardingDraft: null },
-            toast: 'A new run begins.',
+            toast: 'A new journey begins.',
           })
         },
 

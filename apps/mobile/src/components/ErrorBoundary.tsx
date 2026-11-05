@@ -35,7 +35,7 @@ function CrashScreen({ error, onReset }: { error: Error; onReset: () => void }) 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <Panel>
-        <Text variant="headingMd">Something broke on the path</Text>
+        <Text variant="headingMd">Something broke on the route</Text>
         <Text variant="bodySm" tone="muted" style={styles.copy}>
           Your save is safe. Try again; if this keeps happening, export the save from Settings on
           another device.

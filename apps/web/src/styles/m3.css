@@ -201,7 +201,7 @@
   background: var(--surface-sunken);
   color: var(--ink-muted);
   font-size: 0.58rem;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .onboarding-step[aria-current="step"] {

@@ -133,8 +133,8 @@ export function SaveImport({
           <>
             <dl className="import-preview">
               <div>
-                <dt>Profile</dt>
-                <dd>{pendingImport.summary.profileName ?? 'No profile'}</dd>
+                <dt>Wayfarer</dt>
+                <dd>{pendingImport.summary.profileName ?? 'No wayfarer'}</dd>
               </div>
               <div>
                 <dt>Level</dt>
@@ -145,7 +145,7 @@ export function SaveImport({
                 <dd>{pendingImport.summary.gold ?? '—'}</dd>
               </div>
               <div>
-                <dt>Run</dt>
+                <dt>Journey</dt>
                 <dd>{runPreviewLabel(pendingImport.summary)}</dd>
               </div>
               <div>
@@ -160,7 +160,7 @@ export function SaveImport({
             <p className="import-warning">
               <Icon name="lock" />
               <span>
-                Replacing overwrites the profile, goals, trials, run and collection currently
+                Replacing overwrites the wayfarer, quests, trials, journey and collection currently
                 under <code>{STORAGE_KEY}</code>. File: <strong>{pendingImport.fileName}</strong>.
               </span>
             </p>

@@ -76,7 +76,7 @@ function SummaryBody({
               </span>
               <span className={`chip ${summary.bossCompleted ? 'chip--accent' : 'chip--quiet'}`}>
                 <Icon name={summary.bossCompleted ? 'crown' : 'lock'} />
-                {summary.bossCompleted ? 'Boss completed' : 'Boss skipped'}
+                {summary.bossCompleted ? 'Warden claimed' : 'Warden passed'}
               </span>
             </div>
           </div>
@@ -89,7 +89,7 @@ function SummaryBody({
           </div>
         </header>
 
-        <ol className="summary-path" aria-label="Path taken">
+        <ol className="summary-path" aria-label="Route taken">
           {rows.length === 0 ? (
             <li className="panel-note">No steps were recorded on this day.</li>
           ) : (
@@ -110,7 +110,7 @@ function SummaryBody({
                       {NODE_TYPE_LABEL[row.type]}
                       {row.goalTitle ? ` · ${row.goalTitle}` : ''}
                       {' · '}
-                      {done ? 'Completed' : 'Skipped'}
+                      {done ? 'Claimed' : 'Passed'}
                     </span>
                   </span>
                   <span className="path-row__rewards">
@@ -131,8 +131,8 @@ function SummaryBody({
 
         <p className="panel-note">
           {summary.bossCompleted
-            ? `Includes boss closing bonus +${summary.closingBonusXp} XP · +${summary.closingBonusGold} gold.`
-            : 'Boss skipped: no closing bonus.'}
+            ? `Includes warden closing bonus +${summary.closingBonusXp} XP · +${summary.closingBonusGold} gold.`
+            : 'Warden passed: no closing bonus.'}
         </p>
 
         <div className="summary-totals" aria-label="Rewards earned">
@@ -140,7 +140,7 @@ function SummaryBody({
             <strong>
               <Icon name="star" />+<AnimatedNumber value={summary.xp} />
             </strong>
-            <span>Experience</span>
+            <span>XP</span>
           </div>
           <div className="total">
             <strong>
@@ -167,7 +167,7 @@ function SummaryBody({
               />
               <p className="summary-aim__bonus">
                 {objective.after >= objective.target
-                  ? 'Target met'
+                  ? 'Vow met'
                   : `${objective.target - objective.after} to go`}
               </p>
             </div>
@@ -215,7 +215,7 @@ function SummaryBody({
               variant="quiet"
               disabled
               aria-describedby={waitNoteId}
-              title="The next path opens at midnight."
+              title="The next route opens at midnight."
             >
               Wait for tomorrow
             </Button>
@@ -254,7 +254,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
           kicker="Day summary"
           title="Returning to camp."
           titleId="summary-missing-title"
-          sub="That day is not part of this run."
+          sub="That day is not part of this journey."
           meta={
             <Button variant="secondary" onClick={() => navigate({ name: 'home' })}>
               Return to camp
@@ -275,13 +275,13 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
         aria-labelledby="summary-open-title"
       >
         <ScreenHead
-          kicker={`Day ${day.index + 1} · ${missed ? 'Missed' : 'Open'}`}
+          kicker={`Day ${day.index + 1} · ${missed ? 'Lost' : 'Open'}`}
           title={missed ? 'The day passed unclaimed.' : 'The day is still open.'}
           titleId="summary-open-title"
           sub={
             missed
               ? 'No summary was sealed for this day.'
-              : 'Complete the daily boss to seal the day.'
+              : 'Claim the daily warden to seal the day.'
           }
           meta={
             <>

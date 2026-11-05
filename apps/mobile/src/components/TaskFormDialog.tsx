@@ -66,11 +66,11 @@ export function TaskFormDialog({
 
   const submit = () => {
     if (!title.trim()) {
-      setError('Give this routine a name.')
+      setError('Give this trial a name.')
       return
     }
     if (!goalId) {
-      setError('Choose a goal for this routine.')
+      setError('Choose a quest for this trial.')
       return
     }
     onSubmit({
@@ -86,8 +86,8 @@ export function TaskFormDialog({
   return (
     <Dialog
       visible={visible}
-      eyebrow="Routines"
-      title={task ? 'Edit routine' : 'Add a routine'}
+      eyebrow="Trials"
+      title={task ? 'Edit trial' : 'Add a trial'}
       description="Edits shape future maps."
       onClose={onClose}
       actions={
@@ -96,7 +96,7 @@ export function TaskFormDialog({
             Cancel
           </Button>
           <Button onPress={submit} disabled={noActiveGoals}>
-            Save routine
+            Save trial
           </Button>
         </>
       }
@@ -111,7 +111,7 @@ export function TaskFormDialog({
             ]}
           >
             <Text variant="caption" style={{ color: colors.inkStrong }}>
-              This routine was not saved
+              This trial was not saved
             </Text>
             <Text variant="bodySm" style={{ color: colors.inkStrong }}>
               {submitError}
@@ -120,10 +120,10 @@ export function TaskFormDialog({
         ) : null}
         {noActiveGoals ? (
           <Text variant="bodySm" tone="muted">
-            Add an active goal first. Every routine needs an active goal.
+            Add an active quest first. Every trial needs an active quest.
           </Text>
         ) : null}
-        <Field label="Routine title" error={error}>
+        <Field label="Trial title" error={error}>
           <Input
             value={title}
             onChangeText={(value) => {
@@ -173,7 +173,7 @@ export function TaskFormDialog({
             })}
           </ScrollView>
         </Field>
-        <Field label="Effort">
+        <Field label="Difficulty">
           <View style={styles.efforts}>
             {(['light', 'medium', 'high'] as const).map((value) => {
               const selected = value === effort

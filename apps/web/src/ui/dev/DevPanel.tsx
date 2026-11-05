@@ -7,20 +7,20 @@ type PendingAction = 'demo' | 'restart' | 'reset'
 
 const CONFIRM_COPY: Record<PendingAction, { title: string; description: string; body: string; confirm: string }> = {
   demo: {
-    title: 'Start a demo run?',
-    description: 'This replaces the current profile, goals and run with fresh demo content.',
+    title: 'Start a demo journey?',
+    description: 'This replaces the current wayfarer, quests and journey with fresh demo content.',
     body: 'The clock offset is kept, but any local progress is discarded. This action cannot be undone.',
-    confirm: 'Start demo run',
+    confirm: 'Start demo journey',
   },
   restart: {
-    title: 'Restart the current run?',
-    description: 'The run and its days are discarded. The profile, XP, gold and collection stay.',
-    body: 'A new seven-day run begins today with the current goals and trials.',
-    confirm: 'Restart run',
+    title: 'Restart the current journey?',
+    description: 'The journey and its days are discarded. The wayfarer, XP, gold and collection stay.',
+    body: 'A new seven-day journey begins today with the current quests and trials.',
+    confirm: 'Restart journey',
   },
   reset: {
     title: 'Reset all data?',
-    description: 'This removes the profile, goals, trials, run and collection.',
+    description: 'This removes the wayfarer, quests, trials, journey and collection.',
     body: 'The development clock also returns to zero. Export first if you need a copy.',
     confirm: 'Reset everything',
   },
@@ -107,7 +107,7 @@ export default function DevPanel({ open, onClose }: { open: boolean; onClose: ()
           <div className="dev-actions">
             <Button variant="secondary" full onClick={() => setPending('demo')}>
               <Icon name="star" />
-              Start demo run
+              Start demo journey
             </Button>
             <Button
               variant="secondary"
@@ -122,7 +122,7 @@ export default function DevPanel({ open, onClose }: { open: boolean; onClose: ()
             </Button>
             <Button variant="secondary" full onClick={() => setPending('restart')}>
               <Icon name="map" />
-              Restart run
+              Restart journey
             </Button>
             <Button variant="danger" full onClick={() => setPending('reset')}>
               <Icon name="flame" />

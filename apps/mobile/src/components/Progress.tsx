@@ -69,7 +69,7 @@ export function DayPips({
 }) {
   const { colors } = useTheme()
   return (
-    <View style={styles.dayPips} accessibilityLabel="Seven-day run">
+    <View style={styles.dayPips} accessibilityLabel="Seven-day journey">
       {days.map((day) => {
         const done = day.status === 'completed'
         const current = day.index === currentIndex
@@ -77,7 +77,7 @@ export function DayPips({
           <View
             key={day.id}
             style={styles.dayPipSlot}
-            accessibilityLabel={`Day ${day.index + 1}, ${done ? 'kept' : current ? 'today' : 'ahead'}`}
+            accessibilityLabel={`Day ${day.index + 1}, ${done ? 'kept' : day.status === 'missed' ? 'lost' : current ? 'today' : 'ahead'}`}
           >
             {current ? <View style={[styles.dayPipRing, { borderColor: colors.accentSoft }]} /> : null}
             <View

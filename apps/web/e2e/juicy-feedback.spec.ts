@@ -24,7 +24,7 @@ test.describe('quiet juice', () => {
 
     await page.locator(ACTIONABLE_NODE).first().click()
     const spin = page.getByRole('button', { name: /Spin the wheel/i })
-    const mark = page.getByRole('button', { name: /Mark complete/i })
+    const mark = page.getByRole('button', { name: /Claim/i })
     await expect(spin.or(mark)).toBeVisible()
     if (await spin.isVisible()) {
       await spin.click()
@@ -35,7 +35,7 @@ test.describe('quiet juice', () => {
 
     const toast = page.locator('.reward-toast')
     await expect(toast).toBeVisible()
-    await expect(toast).toContainText(/\+.*(XP|gold)|weekly/i)
+    await expect(toast).toContainText(/\+.*(XP|gold)|vow/i)
 
     await toast.getByRole('button', { name: /Dismiss/i }).click()
     await expect(toast).toBeHidden()
@@ -76,7 +76,7 @@ test.describe('quiet juice', () => {
       const actionable = page.locator(ACTIONABLE_NODE).first()
       await actionable.click()
       const spin = page.getByRole('button', { name: /Spin the wheel/i })
-      const mark = page.getByRole('button', { name: /Mark complete/i })
+      const mark = page.getByRole('button', { name: /Claim/i })
       await expect(spin.or(mark)).toBeVisible()
       if (await spin.isVisible()) {
         await spin.click()

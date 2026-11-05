@@ -73,15 +73,15 @@ export function SaveImportDialog({
       }
     >
       <View style={styles.rows}>
-        <Row label="Profile" value={summary.profileName ?? 'No profile'} />
+        <Row label="Wayfarer" value={summary.profileName ?? 'No wayfarer'} />
         <Row label="Level" value={String(summary.level ?? '—')} />
         <Row label="Gold" value={String(summary.gold ?? '—')} />
         <Row
-          label="Run"
+          label="Journey"
           value={
             summary.runStatus
               ? `${summary.runStatus} · day ${summary.runDay ?? '—'}`
-              : 'No run'
+              : 'No journey'
           }
         />
         <Row label="Relics" value={`${summary.relics} of ${LOOT_CATALOG.length}`} />
@@ -117,8 +117,8 @@ function ImportWarning({ fileName }: { fileName: string }) {
     >
       <Icon name="archive" size={15} color={colors.accentDeep} />
       <Text variant="bodySm" tone="muted" style={styles.warningText}>
-        Replacing overwrites the profile, goals, routines, run and collection in los datos
-        de este dispositivo. File: {fileName}.
+        Replacing overwrites the wayfarer, quests, trials, journey and collection on this
+        device. File: {fileName}.
       </Text>
     </View>
   )

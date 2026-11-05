@@ -34,7 +34,7 @@ import { useAppStore } from './state/store'
 const TABS: Array<{ view: AppView; label: string; icon: 'map' | 'tent' | 'banner' | 'gem' }> = [
   { view: { name: 'map' }, label: 'Map', icon: 'map' },
   { view: { name: 'home' }, label: 'Camp', icon: 'tent' },
-  { view: { name: 'goals' }, label: 'Goals', icon: 'banner' },
+  { view: { name: 'goals' }, label: 'Quests', icon: 'banner' },
   { view: { name: 'profile' }, label: 'Relics', icon: 'gem' },
 ]
 

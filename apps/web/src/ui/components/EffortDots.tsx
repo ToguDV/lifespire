@@ -1,9 +1,9 @@
 import type { Effort } from '../../domain/types'
 
 const LABELS: Record<Effort, string> = {
-  light: 'Light effort',
-  medium: 'Medium effort',
-  high: 'Heavy effort',
+  light: 'Easy difficulty',
+  medium: 'Standard difficulty',
+  high: 'Hard difficulty',
 }
 
 const FILLED: Record<Effort, number> = {
@@ -17,7 +17,7 @@ export interface EffortDotsProps {
   label?: string
 }
 
-/** Three-dot effort indicator used in goals and node details. */
+/** Three-dot difficulty indicator used in quests and encounter details. */
 export function EffortDots({ effort, label }: EffortDotsProps) {
   return (
     <div className="effort-dots" aria-label={label ?? LABELS[effort]}>

@@ -209,7 +209,7 @@ button.text-link:hover {
   color: var(--ink-muted);
   font-size: 0.64rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Skip link ------------------------------------------------- */
@@ -752,9 +752,10 @@ button.text-link:hover {
   display: block;
   padding: 0 0 3px 40px;
   color: var(--ink-soft);
-  font-size: 0.62rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
   text-transform: uppercase;
 }
 
@@ -1277,17 +1278,17 @@ button.text-link {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 2px;
-  min-width: 0;
+  gap: 3px;
+  min-width: 8.5rem;
   max-width: 46%;
 }
 
 .path-row__loot {
   color: var(--ink-soft);
-  font-size: 0.56rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  line-height: 1.3;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
   text-align: right;
   text-transform: uppercase;
 }
@@ -1343,7 +1344,7 @@ button.text-link {
 
 .summary-bonus__body strong {
   font-family: var(--font-display);
-  font-size: 1.02rem;
+  font-size: 1.12rem;
   font-weight: 600;
   color: var(--ink-strong);
 }
@@ -1351,8 +1352,8 @@ button.text-link {
 .summary-bonus__body p {
   max-width: 54ch;
   color: var(--ink-soft);
-  font-size: 0.68rem;
-  line-height: 1.45;
+  font-size: 0.84rem;
+  line-height: 1.5;
 }
 
 .summary-loot {
@@ -1411,15 +1412,19 @@ button.text-link {
 @media (max-width: 560px) {
   .path-row {
     grid-template-columns: 36px minmax(0, 1fr);
+    row-gap: 4px;
   }
 
   .path-row__rewards {
     grid-column: 2;
     align-items: flex-start;
+    min-width: 0;
     max-width: none;
     margin-top: 2px;
+    text-align: left;
   }
 
+  .path-row__reward,
   .path-row__loot {
     text-align: left;
   }
@@ -1470,7 +1475,7 @@ button.text-link {
   font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .collection-filters button[aria-pressed="true"] small {
@@ -1591,7 +1596,7 @@ button.text-link {
   font-size: 1rem;
   font-weight: 600;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .duplicate-row__gold .micro {

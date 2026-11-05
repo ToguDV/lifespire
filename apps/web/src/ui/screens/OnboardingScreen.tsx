@@ -127,9 +127,9 @@ export function OnboardingScreen() {
 
   const aimsErrors = (): string[] => {
     const errors: string[] = []
-    if (goals.length < 1) errors.push('Choose at least one goal to begin.')
+    if (goals.length < 1) errors.push('Choose at least one quest to begin.')
     if (goals.length > MAX_GOALS) {
-      errors.push(`A run can hold at most ${MAX_GOALS} goals.`)
+      errors.push(`A journey can hold at most ${MAX_GOALS} quests.`)
     }
     for (const goal of goals) errors.push(...unique(Object.values(validateGoalInput(goal))))
     return unique(errors)
@@ -223,7 +223,7 @@ export function OnboardingScreen() {
             />
           </div>
           <div className="field">
-            <label htmlFor={`goal-${goal.id}-weekly`}>Weekly target</label>
+            <label htmlFor={`goal-${goal.id}-weekly`}>Weekly vow</label>
             <input
               className="input"
               id={`goal-${goal.id}-weekly`}
@@ -333,7 +333,7 @@ export function OnboardingScreen() {
           )}
           <div className="field">
             <span className="field__label" id={`task-${task.id}-effort-label`}>
-              Effort
+              Difficulty
             </span>
             <div
               className="segmented segmented--form"
@@ -431,9 +431,9 @@ export function OnboardingScreen() {
 
         <div className="welcome-grid">
           <div className="welcome-copy">
-            <span className="kicker">A seven-day run</span>
+            <span className="kicker">A seven-day journey</span>
             <h1 id="welcome-title">
-              A day is a <em>path</em>.
+              A day is a <em>route</em>.
             </h1>
             <p>
               Turn the trials that matter into a seven-day climb. Choose a route, keep a
@@ -453,7 +453,7 @@ export function OnboardingScreen() {
                   <Icon name="chevron-right" />
                 </Button>
                 <Button variant="secondary" onClick={startCustom}>
-                  Create my own path
+                  Create my own route
                 </Button>
               </div>
             </form>
@@ -464,7 +464,7 @@ export function OnboardingScreen() {
                   <Icon name="banner" />
                 </span>
                 <strong>1 · Pick a quest</strong>
-                <p>One goal, one reason. Two quests are plenty to start.</p>
+                <p>One quest, one reason. Two quests are plenty to start.</p>
               </div>
               <div className="tutorial-card">
                 <span className="tutorial-card__icon">
@@ -477,8 +477,8 @@ export function OnboardingScreen() {
                 <span className="tutorial-card__icon">
                   <Icon name="compass" />
                 </span>
-                <strong>3 · Climb one path</strong>
-                <p>Each day is a map. Complete nodes, seal the boss, gather loot.</p>
+                <strong>3 · Climb one route</strong>
+                <p>Each day is a map. Claim encounters, seal the warden, gather spoils.</p>
               </div>
             </div>
 
@@ -547,17 +547,17 @@ export function OnboardingScreen() {
     1: {
       title: 'Chapter I — Who climbs?',
       body: 'A name is optional. Your quests are not.',
-      tip: 'This is a 2-minute setup. You can change everything later from Goals.',
+      tip: 'This is a 2-minute setup. You can change everything later from Quests.',
     },
     2: {
-      title: 'Chapter II — Forge quests & training',
-      body: `One screen, no going back: name a quest, add its small trials, set the weekly target. Need ${MIN_ACTIVE_TASKS}+ trials to begin.`,
+      title: 'Chapter II — Forge quests & trials',
+      body: `One screen, no going back: name a quest, add its small trials, set the weekly vow. Need ${MIN_ACTIVE_TASKS}+ trials to begin.`,
       tip: 'Tip: one quest with 4 tiny trials beats four vague quests.',
     },
     3: {
       title: 'Chapter III — Review the week',
-      body: 'One last look. Tomorrow each quest becomes paths on your map.',
-      tip: 'New quests join next map — or today if you reset the day.',
+      body: 'One last look. Tomorrow each quest becomes a route on your map.',
+      tip: 'New quests join next map — or today if you abandon the day.',
     },
   } as const
   const copy = stepCopy[step as keyof typeof stepCopy] ?? stepCopy[1]
@@ -578,7 +578,7 @@ export function OnboardingScreen() {
 
       <div className="onboarding-shell">
         <div className="onboarding-head">
-          <span className="kicker">Tutorial · Create your path</span>
+          <span className="kicker">Tutorial · Create your route</span>
           <h1 id="onboarding-title" ref={headingRef} tabIndex={-1}>
             {copy.title}
           </h1>
@@ -651,7 +651,7 @@ export function OnboardingScreen() {
               <div className="draft-list">
                 {goals.length === 0 ? (
                   <p className="panel-note">
-                    No quests yet. Add the first one — a goal with one tiny trial is enough to
+                    No quests yet. Add the first one — a quest with one tiny trial is enough to
                     start.
                   </p>
                 ) : (
@@ -702,8 +702,8 @@ export function OnboardingScreen() {
                   </span>
                 </div>
                 <p className="panel-note">
-                  Tomorrow each quest becomes paths on your map. You can edit everything later
-                  from Goals.
+                  Tomorrow each quest becomes a route on your map. You can edit everything later
+                  from Quests.
                 </p>
               </div>
 
@@ -726,7 +726,7 @@ export function OnboardingScreen() {
                         </div>
                       </div>
                       <div className="field review-goal__objective">
-                        <label htmlFor={`review-${goal.id}-weekly`}>Weekly target</label>
+                        <label htmlFor={`review-${goal.id}-weekly`}>Weekly vow</label>
                         <input
                           className="input"
                           id={`review-${goal.id}-weekly`}
@@ -751,7 +751,7 @@ export function OnboardingScreen() {
                             <li key={task.id}>
                               <span>
                                 <strong>{task.title || 'Untitled trial'}</strong>
-                                <small>{EFFORT_LABEL[task.effort]} effort</small>
+                                <small>{EFFORT_LABEL[task.effort]} difficulty</small>
                               </span>
                               <span className={task.active ? 'chip chip--accent' : 'chip chip--quiet'}>
                                 {task.active ? 'Active' : 'Inactive'}
@@ -777,7 +777,7 @@ export function OnboardingScreen() {
                   Back
                 </Button>
                 <Button type="submit" variant="primary">
-                  Begin the run
+                  Begin the journey
                   <Icon name="chevron-right" />
                 </Button>
               </div>

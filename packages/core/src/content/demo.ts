@@ -8,7 +8,7 @@ import type { Goal, OnboardingSetup, Task } from '../domain/types.js'
 
 export const DEMO_NAME = 'Wren'
 
-export const AIM_WITHOUT_ROUTINE = 'Every active goal needs at least one active trial.'
+export const AIM_WITHOUT_ROUTINE = 'Every active quest needs at least one active trial.'
 
 export interface SetupValidation {
   ok: boolean
@@ -29,10 +29,10 @@ export function validateSetup(
   const activeTasks = tasks.filter((task) => task.active)
 
   if (activeGoals.length < 1) {
-    errors.push('Choose at least one goal to begin.')
+    errors.push('Choose at least one quest to begin.')
   }
   if (activeGoals.length > MAX_GOALS) {
-    errors.push(`A run can hold at most ${MAX_GOALS} goals.`)
+    errors.push(`A journey can hold at most ${MAX_GOALS} quests.`)
   }
   if (activeTasks.length < MIN_ACTIVE_TASKS) {
     errors.push(`Add at least ${MIN_ACTIVE_TASKS} trials to light the week.`)
@@ -40,7 +40,7 @@ export function validateSetup(
 
   for (const goal of activeGoals) {
     if (!goal.title.trim()) {
-      errors.push('Give every goal a name.')
+      errors.push('Give every quest a name.')
     }
     if (
       !Number.isInteger(goal.weeklyObjective) ||
@@ -48,7 +48,7 @@ export function validateSetup(
       goal.weeklyObjective > MAX_WEEKLY_OBJECTIVE
     ) {
       errors.push(
-        `Set each weekly target between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
+        `Set each weekly vow between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`,
       )
     }
     if (!activeTasks.some((task) => task.goalId === goal.id)) {
@@ -61,7 +61,7 @@ export function validateSetup(
       errors.push('Give every trial a name.')
     }
     if (!activeGoalIds.has(task.goalId)) {
-      errors.push('Every trial needs a goal in this run.')
+      errors.push('Every trial needs a quest in this journey.')
     }
   }
 

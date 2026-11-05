@@ -22,10 +22,10 @@ function outcomeTitle(outcome: {
   outcome: WheelOutcome
   task: { title: string } | null
 }): string {
-  if (outcome.outcome === 'task') return outcome.task?.title ?? 'A task'
-  if (outcome.outcome === 'gold') return 'A gold cache'
-  if (outcome.outcome === 'xp') return 'A surge of experience'
-  return 'A quiet rest'
+  if (outcome.outcome === 'task') return outcome.task?.title ?? 'A trial'
+  if (outcome.outcome === 'gold') return 'A gold hoard'
+  if (outcome.outcome === 'xp') return 'A surge of XP'
+  return 'A quiet respite'
 }
 
 /**
@@ -121,7 +121,7 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
       <Screen bottomInset={false}>
         <Panel>
           <EmptyState icon="wheel" title="No reward is waiting.">
-            Return to the map to choose an available node.
+            Return to the map to choose an available encounter.
           </EmptyState>
           <Button variant="secondary" onPress={() => finishReward({ name: 'map' })} full>
             Return to the map
@@ -135,14 +135,14 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
   const rewards = [
     ...(outcome.xp > 0 ? [`+${outcome.xp} XP`] : []),
     ...(outcome.gold > 0 ? [`+${outcome.gold} gold`] : []),
-    ...(outcome.progress > 0 ? ['+1 goal'] : []),
+    ...(outcome.progress > 0 ? ['+1 vow'] : []),
     ...(outcome.task ? [outcome.task.goalTitle] : []),
   ]
 
   return (
     <Screen bottomInset={false}>
       <Panel pad={false} style={styles.spread}>
-        <HeroArt icon="wheel" kicker="Wheel reward" title="Your reward" />
+        <HeroArt icon="wheel" kicker="Wheel of Fortune reward" title="Your reward" />
 
         <View style={styles.body}>
           <FactsRow>
@@ -154,7 +154,7 @@ export function RewardScreen({ nodeId }: { nodeId: string }) {
               icon="check"
               onPress={confirm}
               disabled={confirming}
-              accessibilityHint="Keeping the step records the reward and advances the path."
+              accessibilityHint="Claiming the step records the reward and advances the route."
               full
             >
               Done

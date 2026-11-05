@@ -27,7 +27,7 @@ function RewardBits({ event }: { event: RewardEvent }) {
       {event.progress > 0 ? (
         <span className="reward-toast__bit reward-toast__bit--progress">
           <Icon name="plus" />
-          +1 weekly
+          +1 vow
         </span>
       ) : null}
       {event.lootItem ? (
@@ -42,7 +42,7 @@ function RewardBits({ event }: { event: RewardEvent }) {
         </span>
       ) : null}
       {event.xp === 0 && event.gold === 0 && !event.lootItem ? (
-        <span className="reward-toast__bit">Step kept</span>
+        <span className="reward-toast__bit">Step claimed</span>
       ) : null}
     </span>
   )
@@ -62,13 +62,13 @@ export function RewardToast({ event, onDismiss, duration = 5200 }: RewardToastPr
   const title =
     event.nodeType === 'wheel'
       ? event.wheelOutcome === 'task'
-        ? `Wheel · ${event.taskTitle ?? 'a task'}`
+        ? `Wheel · ${event.taskTitle ?? 'a trial'}`
         : event.wheelOutcome === 'gold'
-          ? 'Wheel · gold cache'
+          ? 'Wheel · gold hoard'
           : event.wheelOutcome === 'xp'
-            ? 'Wheel · surge of experience'
-            : 'Wheel · quiet rest'
-      : (event.taskTitle ?? 'Step kept')
+            ? 'Wheel · surge of XP'
+            : 'Wheel · quiet respite'
+      : (event.taskTitle ?? 'Step claimed')
 
   return (
     <div className="reward-toast" role="status" aria-live="polite">

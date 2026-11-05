@@ -45,7 +45,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
     const started = startNewRun(undefined, validation.goals)
     if (!started) {
       setTransitionError(
-        useAppStore.getState().toast ?? 'A new run cannot begin yet.',
+        useAppStore.getState().toast ?? 'A new journey cannot begin yet.',
       )
       return
     }
@@ -60,9 +60,9 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
   return (
     <Dialog
       open
-      eyebrow="The next run"
-      title="Begin a new run?"
-      description="The previous week is retired. Your profile, level, XP, gold and relics stay."
+      eyebrow="The next journey"
+      title="Begin a new journey?"
+      description="The previous week is retired. Your wayfarer, level, XP, gold and relics stay."
       onClose={onClose}
       footer={
         <>
@@ -70,7 +70,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
             Cancel
           </Button>
           <Button type="submit" form={formId} variant="primary">
-            Begin a new run
+            Begin a new journey
             <Icon name="chevron-right" />
           </Button>
         </>
@@ -86,7 +86,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
       >
         {errors.length > 0 ? (
           <div className="form-alert" role="alert">
-            <strong>This run cannot begin yet</strong>
+            <strong>This journey cannot begin yet</strong>
             <ul>
               {errors.map((message) => (
                 <li key={message}>{message}</li>
@@ -96,13 +96,13 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
         ) : null}
 
         <fieldset className="new-run-goals">
-          <legend className="micro">Weekly targets for the new run</legend>
+          <legend className="micro">Weekly vows for the new journey</legend>
           <p className="field-hint" id={targetsHintId}>
-            Targets run from {MIN_WEEKLY_OBJECTIVE} to {MAX_WEEKLY_OBJECTIVE}.
+            Vows run from {MIN_WEEKLY_OBJECTIVE} to {MAX_WEEKLY_OBJECTIVE}.
           </p>
           {validation.activeGoals.length === 0 ? (
             <p className="panel-note">
-              There are no active goals. Restore one from Goals before beginning.
+              There are no active quests. Restore one from Quests before beginning.
             </p>
           ) : (
             validation.activeGoals.map((goal, index) => {
@@ -123,7 +123,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
                     </div>
                   </div>
                   <div className="field new-run-goal__field">
-                    <label htmlFor={fieldId}>Weekly target</label>
+                    <label htmlFor={fieldId}>Weekly vow</label>
                     <input
                       className="input"
                       id={fieldId}
@@ -154,7 +154,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
         {validation.activeRoutines < 4 ? (
           <p className="form-alert" role="status">
             <strong>Trials needed</strong>
-            A run needs at least four active trials. This setup has{' '}
+            A journey needs at least four active trials. This setup has{' '}
             {validation.activeRoutines}.
           </p>
         ) : null}

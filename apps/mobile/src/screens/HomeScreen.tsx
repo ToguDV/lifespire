@@ -15,11 +15,11 @@ import { Text } from '../components/Text'
 import { useAppStore } from '../state/store'
 
 const PHASE_META: Record<HomePhase, { label: string; icon: 'moon' | 'compass' | 'check' | 'lock' | 'crown' }> = {
-  'no-run': { label: 'Before the run', icon: 'moon' },
+  'no-run': { label: 'Before the journey', icon: 'moon' },
   'day-available': { label: 'Day open', icon: 'compass' },
   'day-in-progress': { label: 'In progress', icon: 'check' },
   'day-completed': { label: 'Day sealed', icon: 'check' },
-  'day-missed': { label: 'Day missed', icon: 'moon' },
+  'day-missed': { label: 'Day lost', icon: 'moon' },
   'day-locked': { label: 'Ahead', icon: 'lock' },
   'run-closed': { label: 'Week sealed', icon: 'crown' },
   'no-open-day': { label: 'Week spent', icon: 'crown' },
@@ -68,38 +68,38 @@ export function HomeScreen() {
     switch (state.phase) {
       case 'no-run':
         return setupReady
-          ? { title: 'No run yet.', line: 'Your goals are ready.' }
-          : { title: 'The path needs goals.', line: 'A run needs one goal and four routines.' }
+          ? { title: 'No journey yet.', line: 'Your quests are ready.' }
+          : { title: 'The route needs quests.', line: 'A journey needs one quest and four trials.' }
       case 'day-available':
-        return { title: 'Today’s path is ready.', line: 'Open it once; the map will not change.' }
+        return { title: 'Today’s route is ready.', line: 'Open it once; the map will not change.' }
       case 'day-in-progress':
         return {
           title: `Day ${dayNumber} is open.`,
           line: state.hasSelection
             ? 'One step is chosen.'
             : state.availableChoices > 0
-              ? `${state.availableChoices} paths ahead.`
+              ? `${state.availableChoices} routes ahead.`
               : 'No step is open.',
         }
       case 'day-completed':
-        return { title: 'The day is sealed.', line: 'The next path opens at midnight.' }
+        return { title: 'The day is sealed.', line: 'The next route opens at midnight.' }
       case 'day-missed':
-        return { title: 'The day passed unclaimed.', line: 'Missed days are not recovered.' }
+        return { title: 'The day passed unclaimed.', line: 'Lost days are not recovered.' }
       case 'day-locked':
         return { title: 'The next day is sealed.', line: 'Only today can be played.' }
       case 'run-closed':
         return { title: 'The week is sealed.', line: 'The totals are yours.' }
       case 'no-open-day':
-        return { title: 'The week is spent.', line: 'Begin a new run from the week summary.' }
+        return { title: 'The week is spent.', line: 'Begin a new journey from the week summary.' }
     }
   })()
 
   const cta = (() => {
     switch (state.cta) {
       case 'begin-run':
-        return setupReady ? 'Begin a run' : 'Review your goals'
+        return setupReady ? 'Begin a journey' : 'Review your quests'
       case 'open-day':
-        return 'Open today’s path'
+        return 'Open today’s route'
       case 'continue-day':
         return 'Continue the ascent'
       case 'review-day':
@@ -114,7 +114,7 @@ export function HomeScreen() {
   const kicker = (() => {
     switch (state.phase) {
       case 'no-run':
-        return 'Camp · Before the run'
+        return 'Camp · Before the journey'
       case 'run-closed':
         return 'Camp · Week sealed'
       case 'no-open-day':
@@ -180,8 +180,8 @@ export function HomeScreen() {
           {daysMissed > 0 ? (
             <Text variant="bodySm" tone="soft" style={styles.missedNote}>
               {daysMissed === 1
-                ? '1 day was missed and is not recovered.'
-                : `${daysMissed} days were missed and are not recovered.`}
+                ? '1 day was lost and is not recovered.'
+                : `${daysMissed} days were lost and are not recovered.`}
             </Text>
           ) : null}
         </Panel>
@@ -190,10 +190,10 @@ export function HomeScreen() {
       {goalRows.length > 0 ? (
         <Panel>
           <PanelHead
-            label="Weekly goals"
+            label="Weekly quests"
             aside={
               <Button small variant="ghost" onPress={() => navigate({ name: 'goals' })}>
-                All goals
+                All quests
               </Button>
             }
           />
@@ -216,7 +216,7 @@ export function HomeScreen() {
 
 const WEEK_WORD: Record<WeekMarker, string> = {
   completed: 'kept',
-  missed: 'missed',
+  missed: 'lost',
   today: 'today',
   locked: 'ahead',
 }

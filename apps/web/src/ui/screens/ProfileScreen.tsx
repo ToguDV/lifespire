@@ -43,7 +43,7 @@ export function ProfileScreen() {
       aria-labelledby="reliquary-title"
     >
       <ScreenHead
-        kicker="Profile"
+        kicker="Wayfarer"
         title="The Reliquary"
         titleId="reliquary-title"
         sub="Tokens found along the climb."
@@ -57,20 +57,20 @@ export function ProfileScreen() {
 
       <div className="reliquary-body">
         {profile ? (
-          <Panel className="profile-strip" aria-label="Profile">
+          <Panel className="profile-strip" aria-label="Wayfarer">
             <div className="profile-level">{profile.level}</div>
             <div className="profile-strip__id">
               <h2>{profile.name}</h2>
-              <p>Wayfarer of the quiet path</p>
+              <p>Wayfarer of the quiet route</p>
               <div className="xp-track">
                 <div className="xp-track__meta">
-                  <span>Experience</span>
+                  <span>XP</span>
                   <span>{xpNow} / 100</span>
                 </div>
                 <div
                   className="xp-track__bar"
                   role="progressbar"
-                  aria-label="Experience in this level"
+                  aria-label="XP in this level"
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={xpNow}
@@ -101,10 +101,10 @@ export function ProfileScreen() {
           </Panel>
         ) : (
           <Panel pad className="reliquary-empty">
-            <PanelHead label="No profile yet" />
+            <PanelHead label="No wayfarer yet" />
             <p className="panel-note">
               The catalogue below is complete from the start. Relics are revealed as they are
-              found during a run.
+              found during a journey.
             </p>
             <Button variant="primary" onClick={() => navigate({ name: 'onboarding' })}>
               Begin the journey

@@ -581,14 +581,14 @@ describe('startNewRun', () => {
 
     expect(() =>
       startNewRun({ ...document, run: null }, { runId: 'run_x', now: end }),
-    ).toThrow(/no closed run/i)
+    ).toThrow(/no closed journey/i)
 
     expect(() =>
       startNewRun(
         { ...document, run: { ...run, status: 'active' } },
         { runId: 'run_x', now: end },
       ),
-    ).toThrow(/finish the current run/i)
+    ).toThrow(/finish the current journey/i)
 
     const unsealed = { ...document, run: { ...run, summary: null } }
     expect(() =>
@@ -606,6 +606,6 @@ describe('startNewRun', () => {
 
     expect(() =>
       startNewRun({ ...document, goals: [] }, { runId: 'run_x', now: end }),
-    ).toThrow(/at least one goal/i)
+    ).toThrow(/at least one quest/i)
   })
 })

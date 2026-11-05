@@ -61,7 +61,7 @@ export function LevelResource({ level, xpIntoLevel, xpToNext }: LevelResourcePro
   return (
     <span
       className="resource resource--level"
-      aria-label={`Level ${level}, ${xpIntoLevel} of ${total} experience`}
+      aria-label={`Level ${level}, ${xpIntoLevel} of ${total} XP`}
     >
       <span className="level-num">Lv {level}</span>
       <span className="xp-mini" aria-hidden="true">

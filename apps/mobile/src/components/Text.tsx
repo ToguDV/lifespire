@@ -35,13 +35,27 @@ export function Text({
             : tone === 'inverse'
               ? colors.onAccent
               : colors.ink
+  const variantStyle = typography[variant]
+  // Alegreya defaults to old-style figures; ask for lining figures everywhere so
+  // numbers keep the cap height even in styles that override the font family.
+  const numericStyle: TextStyle = {
+    fontVariant: [
+      ...new Set(['lining-nums', ...(variantStyle.fontVariant ?? [])]),
+    ] as TextStyle['fontVariant'],
+  }
 
   return (
     <RNText
       {...rest}
       allowFontScaling
       maxFontSizeMultiplier={2}
-      style={[typography[variant], { color: toneColor }, align ? { textAlign: align } : null, style]}
+      style={[
+        variantStyle,
+        numericStyle,
+        { color: toneColor },
+        align ? { textAlign: align } : null,
+        style,
+      ]}
     >
       {children}
     </RNText>

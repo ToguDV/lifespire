@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native'
 import type { Effort } from '@lifespire/core'
+import { EFFORT_LABEL } from '@lifespire/app-core/ui/format'
 import { useTheme } from '../theme/ThemeProvider'
 import { radius, space } from '../theme/tokens'
 import { Text } from './Text'
@@ -12,7 +13,7 @@ export function EffortDots({ effort, showLabel = true }: { effort: Effort; showL
   return (
     <View
       style={styles.row}
-      accessibilityLabel={`Effort ${effort === 'high' ? 'heavy' : effort}`}
+      accessibilityLabel={`Difficulty ${EFFORT_LABEL[effort].toLowerCase()}`}
     >
       <View style={styles.dots}>
         {[1, 2, 3].map((dot) => (
@@ -30,7 +31,7 @@ export function EffortDots({ effort, showLabel = true }: { effort: Effort; showL
       </View>
       {showLabel ? (
         <Text variant="caption" tone="muted">
-          {effort === 'high' ? 'Heavy' : effort === 'medium' ? 'Medium' : 'Light'}
+          {EFFORT_LABEL[effort]}
         </Text>
       ) : null}
     </View>

@@ -46,18 +46,18 @@ function ConflictCopy({
       <h3>{title}</h3>
       <dl className="conflict-meta">
         <div>
-          <dt>Profile</dt>
-          <dd>{summary.profileName ?? 'No profile'}</dd>
+          <dt>Wayfarer</dt>
+          <dd>{summary.profileName ?? 'No wayfarer'}</dd>
         </div>
         <div>
           <dt>Progress</dt>
           <dd>
-            {summary.gold ?? 0} gold · level {summary.level ?? 1} · {summary.goals} goals
+            {summary.gold ?? 0} gold · level {summary.level ?? 1} · {summary.goals} quests
           </dd>
         </div>
         <div>
-          <dt>Run</dt>
-          <dd>{summary.runStatus ? `${summary.runStatus} · day ${summary.runDay ?? '—'}` : 'No run'}</dd>
+          <dt>Journey</dt>
+          <dd>{summary.runStatus ? `${summary.runStatus} · day ${summary.runDay ?? '—'}` : 'No journey'}</dd>
         </div>
         <div>
           <dt>Saved</dt>

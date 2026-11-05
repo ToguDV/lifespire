@@ -42,7 +42,7 @@ const DevPanel = import.meta.env.DEV
 const SIDEBAR_ITEMS: Array<{ view: View; label: string; icon: IconName }> = [
   { view: { name: 'map' }, label: 'Map', icon: 'map' },
   { view: { name: 'home' }, label: 'Camp', icon: 'tent' },
-  { view: { name: 'goals' }, label: 'Goals', icon: 'banner' },
+  { view: { name: 'goals' }, label: 'Quests', icon: 'banner' },
   { view: { name: 'profile' }, label: 'Reliquary', icon: 'gem' },
   { view: { name: 'settings' }, label: 'Settings', icon: 'settings' },
 ]
@@ -50,7 +50,7 @@ const SIDEBAR_ITEMS: Array<{ view: View; label: string; icon: IconName }> = [
 const TAB_ITEMS: Array<{ view: View; label: string; icon: IconName }> = [
   { view: { name: 'map' }, label: 'Map', icon: 'map' },
   { view: { name: 'home' }, label: 'Camp', icon: 'tent' },
-  { view: { name: 'goals' }, label: 'Goals', icon: 'banner' },
+  { view: { name: 'goals' }, label: 'Quests', icon: 'banner' },
   { view: { name: 'profile' }, label: 'Relics', icon: 'gem' },
 ]
 
@@ -78,13 +78,13 @@ function screenNameFor(view: View): string {
 }
 
 const VIEW_TITLES: Record<string, string> = {
-  welcome: 'A day is a path · LifeSpire',
+  welcome: 'A day is a route · LifeSpire',
   camp: 'Camp · LifeSpire',
   map: 'Map · LifeSpire',
-  node: 'Node detail · LifeSpire',
+  node: 'Encounter detail · LifeSpire',
   reward: 'Reward · LifeSpire',
   summary: 'Summary · LifeSpire',
-  aims: 'Goals · LifeSpire',
+  aims: 'Quests · LifeSpire',
   reliquary: 'Reliquary · LifeSpire',
   settings: 'Settings · LifeSpire',
   recovery: 'Recovery · LifeSpire',
@@ -263,7 +263,7 @@ export default function App() {
   const dayLabel = labelDay
     ? `Day ${labelDay.index + 1} of 7`
     : !run
-      ? 'No run yet'
+      ? 'No journey yet'
       : run.status === 'closed'
         ? 'Week sealed'
         : 'Week spent'
@@ -323,7 +323,7 @@ export default function App() {
           </div>
 
           <nav className="sidebar__nav" aria-label="Primary">
-            <span className="micro sidebar__label">The run</span>
+            <span className="micro sidebar__label">The journey</span>
             {SIDEBAR_ITEMS.map((item) => {
               const active =
                 activeTab === tabForView(item.view) ||
@@ -399,7 +399,7 @@ export default function App() {
                   <span className="micro">{dayLabel}</span>
                 </>
               ) : (
-                <span className="micro">No run yet</span>
+                <span className="micro">No journey yet</span>
               )}
             </div>
 

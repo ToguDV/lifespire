@@ -158,7 +158,7 @@
   font-size: 0.72rem;
   font-weight: 500;
   opacity: 0.92;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .reward-toast__bit {
@@ -273,7 +273,7 @@
 }
 
 [data-animated-number] {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Settings switches ---------------------------------------------- */

@@ -384,24 +384,24 @@ export function syncObjectives(run: Run, goals: readonly Goal[]): Run {
 export function resetCurrentDay(document: GameDocument, now: Date): GameDocument {
   const run = document.run
   if (!run || run.status !== 'active') {
-    throw new DomainError('There is no active run to reset.')
+    throw new DomainError('There is no active journey to abandon.')
   }
   const today = dayKey(now, run.timeZone ?? null)
   const day = run.days.find((candidate) => candidate.date === today)
   if (!day) {
-    throw new DomainError('There is no open day to reset.')
+    throw new DomainError('There is no open day to abandon.')
   }
   if (day.status === 'locked') {
     throw new DomainError('That day has not arrived yet.')
   }
   if (day.status === 'missed') {
-    throw new DomainError('Missed days cannot be replayed.')
+    throw new DomainError('Lost days cannot be replayed.')
   }
   if (day.map === null && day.path.length === 0 && day.rewards.length === 0) {
     return document
   }
   if (!document.profile) {
-    throw new DomainError('A profile is required to reset the day.')
+    throw new DomainError('A wayfarer is required to abandon the day.')
   }
 
   let xp = 0
@@ -459,13 +459,13 @@ export function resetCurrentDay(document: GameDocument, now: Date): GameDocument
 export function openDay(document: GameDocument, options: OpenDayOptions): GameDocument {
   const run = document.run
   if (!run || run.status !== 'active') {
-    throw new DomainError('There is no active run to open.')
+    throw new DomainError('There is no active journey to open.')
   }
 
   const today = dayKey(options.now, run.timeZone ?? null)
   const day = currentDay(run)
   if (!day) {
-    throw new DomainError('Every day in this run is already closed.')
+    throw new DomainError('Every day in this journey is already closed.')
   }
   if (day.date > today) {
     throw new DomainError('That day has not arrived yet.')
@@ -476,7 +476,7 @@ export function openDay(document: GameDocument, options: OpenDayOptions): GameDo
 
   if (options.dayId !== undefined && options.dayId !== day.id) {
     const requested = run.days.find((candidate) => candidate.id === options.dayId)
-    if (!requested) throw new DomainError('That day does not belong to this run.')
+    if (!requested) throw new DomainError('That day does not belong to this journey.')
     throw new DomainError('Only today can be opened.')
   }
 
@@ -516,26 +516,26 @@ export function openDay(document: GameDocument, options: OpenDayOptions): GameDo
 export function selectNode(document: GameDocument, nodeId: string): GameDocument {
   const run = document.run
   if (!run || run.status !== 'active') {
-    throw new DomainError('There is no active run.')
+    throw new DomainError('There is no active journey.')
   }
 
   const day = currentDay(run)
-  if (!day) throw new DomainError('Every day in this run is already closed.')
+  if (!day) throw new DomainError('Every day in this journey is already closed.')
   if (day.status !== 'in_progress' || !day.map) {
-    throw new DomainError('Open the day before choosing a node.')
+    throw new DomainError('Open the day before choosing an encounter.')
   }
 
   const map = day.map
   if (!resolveNodeById(map, nodeId)) {
-    throw new DomainError('That node is not part of today’s map.')
+    throw new DomainError('That encounter is not part of today’s map.')
   }
 
   const available = availableNodeIds(map, day)
   if (!available.includes(nodeId)) {
     if (map.currentNodeId !== null && map.currentNodeId !== nodeId) {
-      throw new DomainError('A node is already chosen for this day.')
+      throw new DomainError('An encounter is already chosen for this day.')
     }
-    throw new DomainError('That node is not available from the current path.')
+    throw new DomainError('That encounter is not available from the current route.')
   }
 
   if (map.currentNodeId === nodeId) return document
@@ -666,7 +666,7 @@ function applyCompletion(input: {
 }): ResolutionResult {
   const startingProfile = input.profile
   if (!startingProfile) {
-    throw new DomainError('A profile is required to record rewards.')
+    throw new DomainError('A wayfarer is required to record rewards.')
   }
 
   const { node } = input
@@ -794,15 +794,15 @@ export function resolveNode(
 ): GameDocument {
   const run = document.run
   if (!run || run.status !== 'active') {
-    throw new DomainError('There is no active run.')
+    throw new DomainError('There is no active journey.')
   }
 
   const day = currentDay(run)
-  if (!day) throw new DomainError('Every day in this run is already closed.')
+  if (!day) throw new DomainError('Every day in this journey is already closed.')
 
   if (options.dayId !== undefined && options.dayId !== day.id) {
     const requested = run.days.find((candidate) => candidate.id === options.dayId)
-    if (!requested) throw new DomainError('That day does not belong to this run.')
+    if (!requested) throw new DomainError('That day does not belong to this journey.')
     throw new DomainError('Only today can be played.')
   }
 
@@ -810,23 +810,23 @@ export function resolveNode(
   if (day.date < today) throw new DomainError('That day has already passed.')
   if (day.date > today) throw new DomainError('That day has not arrived yet.')
   if (day.status !== 'in_progress' || !day.map) {
-    throw new DomainError('Open the day before resolving a node.')
+    throw new DomainError('Open the day before resolving an encounter.')
   }
 
   const map = day.map
   const node = resolveNodeById(map, options.nodeId)
-  if (!node) throw new DomainError('That node is not part of today’s map.')
+  if (!node) throw new DomainError('That encounter is not part of today’s map.')
   if (day.path.some((entry) => entry.nodeId === node.id)) {
-    throw new DomainError('That node has already been resolved.')
+    throw new DomainError('That encounter has already been resolved.')
   }
   if (map.currentNodeId !== null && map.currentNodeId !== node.id) {
-    throw new DomainError('A node is already chosen for this day.')
+    throw new DomainError('An encounter is already chosen for this day.')
   }
   if (
     map.currentNodeId === null &&
     !availableNodeIds(map, day).includes(node.id)
   ) {
-    throw new DomainError('That node is not available from the current path.')
+    throw new DomainError('That encounter is not available from the current route.')
   }
 
   const at = options.now.toISOString()

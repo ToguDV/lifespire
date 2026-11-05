@@ -103,7 +103,7 @@ export function RewardScreen() {
               </span>
               <span className="micro">Reward</span>
               <h1 id="reward-title">No reward is waiting.</h1>
-              <p>Return to the map to choose an available node.</p>
+              <p>Return to the map to choose an available encounter.</p>
               <Button variant="secondary" onClick={() => finishReward({ name: 'map' })}>
                 Return to the map
                 <Icon name="chevron-right" />
@@ -118,18 +118,18 @@ export function RewardScreen() {
   const rewardParts = [
     ...(outcome.xp > 0 ? [`+${outcome.xp} XP`] : []),
     ...(outcome.gold > 0 ? [`+${outcome.gold} gold`] : []),
-    ...(outcome.progress > 0 ? ['+1 goal'] : []),
+    ...(outcome.progress > 0 ? ['+1 vow'] : []),
     ...(outcome.task ? [outcome.task.goalTitle] : []),
   ]
 
   const outcomeTitle =
     outcome.outcome === 'task'
-      ? (outcome.task?.title ?? 'A task')
+      ? (outcome.task?.title ?? 'A trial')
       : outcome.outcome === 'gold'
-        ? 'A gold cache'
+        ? 'A gold hoard'
         : outcome.outcome === 'xp'
-          ? 'A surge of experience'
-          : 'A quiet rest'
+          ? 'A surge of XP'
+          : 'A quiet respite'
 
   return (
     <section className="screen screen--node" data-screen="reward" aria-labelledby="reward-title">
@@ -139,7 +139,7 @@ export function RewardScreen() {
             <div className="node-medallion">
               <Icon name="wheel" />
             </div>
-            <span className="micro">Wheel reward</span>
+            <span className="micro">Wheel of Fortune reward</span>
             <h1 id="reward-title">Your reward</h1>
           </header>
 
@@ -153,7 +153,7 @@ export function RewardScreen() {
             </div>
 
             <span className="sr-only" id="reward-confirm-note">
-              Keeping the step records the reward and advances the path.
+              Claiming the step records the reward and advances the route.
             </span>
 
             <div className="node-actions" aria-busy={confirming}>

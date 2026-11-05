@@ -46,8 +46,8 @@ function AimProgress({ run, node }: { run: Run; node: MapNode }) {
       accessible
       accessibilityLabel={
         target > 0
-          ? `${node.task.goalTitle}: ${before} of ${target} complete. ${
-              met ? 'Target met' : `After this step: ${after} of ${target}`
+          ? `${node.task.goalTitle}: ${before} of ${target} kept. ${
+              met ? 'Vow met' : `After this step: ${after} of ${target}`
             }`
           : node.task.goalTitle
       }
@@ -56,7 +56,7 @@ function AimProgress({ run, node }: { run: Run; node: MapNode }) {
       <View style={styles.aimAfter}>
         <Icon name={met ? 'check' : 'plus'} size={13} color={colors.accentDeep} />
         <Text variant="micro" tone={met ? 'accent' : 'soft'}>
-          {met ? 'Target met' : `After this step: ${after} of ${target}`}
+          {met ? 'Vow met' : `After this step: ${after} of ${target}`}
         </Text>
       </View>
     </View>
@@ -114,9 +114,9 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
     return (
       <Screen>
         <ScreenHead
-          kicker="Node detail"
+          kicker="Encounter detail"
           title="This step is not open."
-          subtitle="Return to the map to choose an available node."
+          subtitle="Return to the map to choose an available encounter."
           aside={
             <Button small variant="secondary" onPress={() => navigate({ name: 'map' })}>
               Return to the map
@@ -178,7 +178,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
   const goalCrest = node.task ? (goalIconFor(document.goals, node.task.goalId) ?? 'banner') : null
   const crest = goalCrest ?? NODE_TYPE_ICON[node.type]
   const lootRolls = node.rewards.lootRolls
-  const skipHint = 'Skipping grants no rewards; it only advances the path.'
+  const skipHint = 'Passing grants no rewards; it only advances the route.'
 
   return (
     <Screen>
@@ -186,7 +186,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
       <Panel pad={false} style={styles.spread}>
         <HeroArt
           icon={crest}
-          kicker={`${NODE_TYPE_LABEL[node.type]} node`}
+          kicker={`${NODE_TYPE_LABEL[node.type]} encounter`}
           title={nodeTitle(node)}
           flavor={nodeFlavor(node)}
         />
@@ -198,7 +198,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
                 ? node.task.goalTitle
                 : isWheel
                   ? NODE_TYPE_LABEL[node.type]
-                  : `${NODE_TYPE_LABEL[node.type]} · no task`}
+                  : `${NODE_TYPE_LABEL[node.type]} · no trial`}
             </Chip>
           </View>
 
@@ -223,41 +223,41 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
 
           <FactsRow style={styles.factsMargin}>
             <FactCell
-              label="Effort"
+              label="Difficulty"
               value={node.task ? EFFORT_LABEL[node.task.effort] : '—'}
               note={effortNote(node)}
             />
             {node.type === 'wheel' ? (
-              <FactCell label="Reward" icon="wheel" value="Surprise" note="Task, gold, XP or rest" />
+              <FactCell label="Reward" icon="wheel" value="Surprise" note="Trial, gold, XP or respite" />
             ) : node.type === 'treasure' ? (
               <FactCell
                 label="Reward"
                 icon="coin"
                 value={`+${node.rewards.gold}`}
-                note={`${lootRolls} loot roll${lootRolls === 1 ? '' : 's'}`}
+                note={`${lootRolls} spoils roll${lootRolls === 1 ? '' : 's'}`}
               />
             ) : (
               <FactCell
                 label="Reward"
                 icon="star"
                 value={`+${node.rewards.xp}`}
-                note={`${node.rewards.gold > 0 ? `+${node.rewards.gold} gold` : 'A small recovery'}${lootRolls > 0 ? ` · ${lootRolls} loot roll${lootRolls === 1 ? '' : 's'}` : ''}${node.type === 'boss' ? ' (includes closing bonus)' : ''}`}
+                note={`${node.rewards.gold > 0 ? `+${node.rewards.gold} gold` : 'A small recovery'}${lootRolls > 0 ? ` · ${lootRolls} spoils roll${lootRolls === 1 ? '' : 's'}` : ''}${node.type === 'boss' ? ' (includes closing bonus)' : ''}`}
               />
             )}
             <FactCell
-              label="Goal"
+              label="Vow"
               value={weeklyProgress > 0 ? '+1' : '—'}
-              note={weeklyProgress > 0 ? 'This week' : 'No weekly progress'}
+              note={weeklyProgress > 0 ? 'This week' : 'No vow progress'}
               last
             />
           </FactsRow>
 
           {node.task ? <AimProgress run={run} node={node} /> : null}
           {isWheel && wheelPhase !== 'revealed' ? (
-            <Hint icon="wheel">Spin to reveal: task, gold, XP or rest.</Hint>
+            <Hint icon="wheel">Spin to reveal: trial, gold, XP or respite.</Hint>
           ) : null}
           {node.type === 'boss' ? (
-            <Hint icon="crown">Skipping closes the day without the closing bonus.</Hint>
+            <Hint icon="crown">Passing closes the day without the closing bonus.</Hint>
           ) : null}
 
           {isWheel ? (
@@ -270,14 +270,14 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
                   onPress={() => record('skip')}
                   full
                 >
-                  Skip this step
+                  Pass this step
                 </Button>
               </View>
             )
           ) : (
             <View style={styles.actions}>
               <Button icon="check" onPress={() => record('complete')} full>
-                Mark complete
+                Claim
               </Button>
               <Button
                 variant="quiet"
@@ -285,7 +285,7 @@ export function NodeScreen({ nodeId }: { nodeId: string }) {
                 onPress={() => record('skip')}
                 full
               >
-                Skip this step
+                Pass this step
               </Button>
             </View>
           )}

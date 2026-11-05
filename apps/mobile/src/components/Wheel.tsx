@@ -54,16 +54,16 @@ const SECTOR_ICON: Record<WheelOutcome, IconName> = {
 }
 
 function outcomeLine(result: WheelResult): string {
-  if (result.outcome === 'task') return `Task: ${result.taskTitle ?? 'a task'}`
+  if (result.outcome === 'task') return `Trial: ${result.taskTitle ?? 'a trial'}`
   if (result.outcome === 'gold') return 'Gold'
-  if (result.outcome === 'xp') return 'Experience'
-  return 'Rest'
+  if (result.outcome === 'xp') return 'XP'
+  return 'Respite'
 }
 
 function rewardLine(result: WheelResult): string {
   if (result.outcome === 'task') {
     return `+${result.xp} XP · +${result.gold} gold${
-      result.progress > 0 ? ' · +1 goal' : ''
+      result.progress > 0 ? ' · +1 vow' : ''
     }`
   }
   if (result.outcome === 'gold') return `+${result.gold} gold`
@@ -158,7 +158,7 @@ export function Wheel({
   const spin = async () => {
     if (started.current || phaseRef.current !== 'idle') return
     started.current = true
-    // Block "Skip this step" as soon as the player asks for a spin, before the
+    // Block "Pass this step" as soon as the player asks for a spin, before the
     // async native preference check below.
     onPhaseChangeRef.current?.('spinning')
 

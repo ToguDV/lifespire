@@ -76,7 +76,7 @@ test.describe('architecture fixes', () => {
     // The empty onboarding must not be offered as a fallback for a save the
     // schema rejected: the app has to keep the blocked document recoverable.
     await expect(page.locator('section[data-screen="welcome"]')).toHaveCount(0)
-    await expect(page.getByRole('heading', { name: /A day is a path/i })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: /A day is a route/i })).toHaveCount(0)
 
     expect(await readRawSave(page)).toBe(raw)
   })

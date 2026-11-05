@@ -38,7 +38,7 @@ test.describe('wheel node', () => {
     const wheelId = await forceWheelCurrent(page)
 
     await expect(page.getByRole('button', { name: /Spin the wheel/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Skip this step/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Pass this step/i })).toBeVisible()
 
     await page.getByRole('button', { name: /Spin the wheel/i }).click()
     await expect(page.getByRole('status').filter({ hasText: /Spinning/i }).first()).toBeVisible()
@@ -68,7 +68,7 @@ test.describe('wheel node', () => {
     const wheelId = await forceWheelCurrent(page)
 
     await expect(page.getByRole('button', { name: /Spin the wheel/i })).toBeVisible()
-    await page.getByRole('button', { name: /Skip this step/i }).click()
+    await page.getByRole('button', { name: /Pass this step/i }).click()
 
     await expect(page.locator(`button[data-node-id="${wheelId}"]`)).toHaveAttribute(
       'data-status',
