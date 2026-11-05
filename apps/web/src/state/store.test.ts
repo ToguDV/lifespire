@@ -1967,8 +1967,12 @@ describe('goal descriptions and day reset', () => {
     onboardAndStart(store, base)
     store.getState().openDay(undefined, base)
     const day = store.getState().document.run?.days[0]
-    const firstId = day?.map?.layers[0]?.[0]?.id
-    if (!firstId) throw new Error('expected a first node')
+    // The map seed is derived from the random run id, so a layer-0 slot can be
+    // a rest, treasure or wheel node. Rewards only come from task-bearing
+    // nodes, so pick one explicitly instead of assuming layers[0][0].
+    const firstNode = day?.map?.layers[0]?.find((node) => node.type === 'task')
+    const firstId = firstNode?.id
+    if (!firstId) throw new Error('expected a first task node')
     store.getState().selectNode(firstId)
     store.getState().resolveNode(firstId, 'complete', base)
     expect(store.getState().document.profile?.xp).toBeGreaterThan(0)
