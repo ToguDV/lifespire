@@ -373,14 +373,25 @@ pnpm --filter @lifespire/mobile test      # Jest + jest-expo
 pnpm --filter @lifespire/mobile build     # Metro Android bundle
 ```
 
+The LAN module's Kotlin tests run on the JVM against the generated native
+project (no emulator needed). `apps/mobile/android/` is not committed, so
+prebuild it once:
+
+```bash
+pnpm --filter @lifespire/mobile exec expo prebuild --platform android --no-install
+cd apps/mobile/android && ./gradlew :lifespire-lan:testDebugUnitTest
+```
+
 The shared web suite continues to exercise the extracted store and UI helpers;
 `packages/app-core` covers the LAN engine, migration and protocol. Mobile Jest
 covers the notification planner, save files, draft helpers, map layout/state,
 the dev logger, the LAN transport adapter and the update channel (semver,
 F-Droid index parsing, manifest fallback, installed-version resolution and the
-store throttle). The Kotlin module is compiled by
-the `mobile-native` CI job. The CI quality job runs lint, typecheck, tests and
-build for every workspace, including the Android JS bundle.
+store throttle). The Kotlin module is compiled, and its JVM tests
+(`RequestBodyTest.kt`: charset decoding of the LAN body, UTF-8 by default instead
+of NanoHTTPD's US-ASCII fallback) are run, by the `mobile-native` CI job. The CI
+quality job runs lint, typecheck, tests and build for every workspace,
+including the Android JS bundle.
 
 Manual Android checklist before a release:
 

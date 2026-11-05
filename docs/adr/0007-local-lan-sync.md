@@ -105,10 +105,11 @@ export/import.
   overwritten.
 - Requests are limited to 512 KB of document JSON and 2 MB of body; only
   private source addresses are accepted.
-- Bodies are UTF-8 JSON and the `Content-Type` must declare `charset=utf-8`.
-  Receivers treat an absent or unknown charset as UTF-8 (RFC 8259), never as
-  US-ASCII: NanoHTTPD's ASCII fallback turned every accented character into
-  `U+FFFD`.
+- Bodies are UTF-8 JSON and senders must declare `charset=utf-8` in the
+  `Content-Type`. The Android node decodes with the declared charset and falls
+  back to UTF-8 when it is absent or unknown (RFC 8259); the desktop node always
+  decodes UTF-8. NanoHTTPD's US-ASCII fallback for a missing `charset` is never
+  used: it turned every accented character into `U+FFFD`.
 
 ### Sync algorithm
 
