@@ -106,9 +106,9 @@ export function goalIconFor(
 }
 
 export const EFFORT_LABEL: Record<Effort, string> = {
-  light: 'Light',
-  medium: 'Medium',
-  high: 'Heavy',
+  light: 'Easy',
+  medium: 'Standard',
+  high: 'Hard',
 }
 
 export const RARITY_LABEL: Record<Rarity, string> = {
@@ -118,12 +118,12 @@ export const RARITY_LABEL: Record<Rarity, string> = {
 }
 
 export const NODE_TYPE_LABEL: Record<NodeType, string> = {
-  task: 'Task',
+  task: 'Trial',
   elite: 'Elite',
-  rest: 'Rest',
-  treasure: 'Treasure',
-  boss: 'Boss',
-  wheel: 'Wheel',
+  rest: 'Respite',
+  treasure: 'Hoard',
+  boss: 'Warden',
+  wheel: 'Wheel of Fortune',
 }
 
 export const NODE_TYPE_ICON: Record<NodeType, IconName> = {

@@ -33,12 +33,12 @@ import { playFeedback } from '../lib/feedback'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
 const LEGEND: Array<{ type: NodeType; icon?: IconName; copy: string }> = [
-  { type: 'task', icon: 'banner', copy: '+1 goal · XP/gold by effort' },
-  { type: 'elite', icon: 'star', copy: '+1 goal · double reward · loot roll' },
-  { type: 'rest', copy: '+5 XP' },
-  { type: 'treasure', copy: '+15 gold · loot roll' },
-  { type: 'wheel', copy: 'task, gold, XP or rest' },
-  { type: 'boss', copy: '+1 goal · closing bonus' },
+  { type: 'task', icon: 'banner', copy: '+1 vow · Renown/gold by difficulty' },
+  { type: 'elite', icon: 'star', copy: '+1 vow · double reward · spoils roll' },
+  { type: 'rest', copy: '+5 Renown' },
+  { type: 'treasure', copy: '+15 gold · spoils roll' },
+  { type: 'wheel', copy: 'trial, gold, Renown or respite' },
+  { type: 'boss', copy: '+1 vow · closing bonus' },
 ]
 
 function ChoiceButton({
@@ -55,7 +55,7 @@ function ChoiceButton({
   onChoose: (nodeId: string) => void
 }) {
   const meta = [NODE_TYPE_LABEL[node.type]]
-  if (node.task) meta.push(`${EFFORT_LABEL[node.task.effort]} effort`)
+  if (node.task) meta.push(`${EFFORT_LABEL[node.task.effort]} difficulty`)
   meta.push(nodeRewardLine(node, progress))
 
   return (
@@ -108,7 +108,7 @@ function MapRail({
   const totalGoals = run.objectives.length
 
   return (
-    <aside className="map-rail" aria-label="Path details">
+    <aside className="map-rail" aria-label="Route details">
       <Panel pad>
         <PanelHead
           label="Next step"
@@ -136,17 +136,17 @@ function MapRail({
             No step can be chosen on this day.
           </p>
         ) : (
-          <p className="map-rail__lede">No step is open on this path.</p>
+          <p className="map-rail__lede">No step is open on this route.</p>
         )}
       </Panel>
 
       {totalGoals > 0 ? (
         <Panel pad>
           <PanelHead
-            label={`${onTrack} of ${totalGoals} goals on track`}
+            label={`${onTrack} of ${totalGoals} quests on track`}
             aside={
               <button type="button" className="text-link" onClick={onGoals}>
-                All goals
+                All quests
               </button>
             }
           />
@@ -154,8 +154,8 @@ function MapRail({
       ) : null}
 
       <details className="legend legend--key">
-        <summary>Node key</summary>
-        <div className="legend--detailed" aria-label="Node legend">
+        <summary>Encounter key</summary>
+        <div className="legend--detailed" aria-label="Encounter legend">
           {LEGEND.map((item) => (
             <span key={item.type}>
               <Icon name={item.icon ?? NODE_TYPE_ICON[item.type]} />
@@ -229,10 +229,10 @@ export function MapScreen() {
     return (
       <section className="screen screen--camp" data-screen="camp" aria-labelledby="map-empty-title">
         <ScreenHead
-          kicker="The run"
-          title="No run yet."
+          kicker="The journey"
+          title="No journey yet."
           titleId="map-empty-title"
-          sub="The map opens when day 1 begins. Start a run from camp first."
+          sub="The map opens when day 1 begins. Start a journey from camp first."
           meta={
             <Button variant="secondary" size="sm" onClick={() => navigate({ name: 'home' })}>
               Go to camp
@@ -259,7 +259,7 @@ export function MapScreen() {
   const closedRun = run.status === 'closed' || !day
 
   // One state, one title, one line, one chip.
-  let title = 'The path is veiled.'
+  let title = 'The route is veiled.'
   let sub = 'Open it once; it will not change.'
   let chipIcon: IconName = 'compass'
   let chipLabel = 'Veiled'
@@ -271,10 +271,10 @@ export function MapScreen() {
     chipLabel = 'Sealed'
   } else if (sealedDay && day) {
     const missed = day.status === 'missed'
-    title = missed ? 'The day was missed.' : 'The day is sealed.'
-    sub = missed ? 'No path was kept.' : 'Read what it granted.'
+    title = missed ? 'The day was lost.' : 'The day is sealed.'
+    sub = missed ? 'No route was kept.' : 'Read what it granted.'
     chipIcon = missed ? 'moon' : 'check'
-    chipLabel = missed ? 'Missed' : 'Sealed'
+    chipLabel = missed ? 'Lost' : 'Sealed'
   } else if (lockedDay) {
     title = 'The next day is sealed.'
     sub = 'Only today can be played.'
@@ -286,7 +286,7 @@ export function MapScreen() {
     sub = map.currentNodeId
       ? 'One step is chosen.'
       : availableCount > 0
-        ? `${availableCount} ${availableCount === 1 ? 'path' : 'paths'} ahead.`
+        ? `${availableCount} ${availableCount === 1 ? 'route' : 'routes'} ahead.`
         : 'No step is open.'
     chipIcon = 'check'
     chipLabel = `${resolvedCount} of ${map.layers.length + 1} resolved`
@@ -340,7 +340,7 @@ export function MapScreen() {
     if (canOpen && day) {
       return (
         <Button variant="primary" onClick={() => openDay(day.id)}>
-          Open today’s path
+          Open today’s route
           <Icon name="compass" />
         </Button>
       )
@@ -375,7 +375,7 @@ export function MapScreen() {
             {canResetDay ? (
               <Button variant="quiet" size="sm" onClick={() => setConfirmResetDay(true)}>
                 <Icon name="archive" />
-                Reset today
+                Abandon today
               </Button>
             ) : null}
           </>
@@ -386,13 +386,13 @@ export function MapScreen() {
         <TutorialDialog
           card="map"
           icon="map"
-          title="Pick a glowing path"
+          title="Pick a glowing route"
           body={
             canOpen
-              ? 'Open today’s path first — the map locks once drawn, so choose calmly.'
-              : 'Tap a glowing node to preview it. Tasks move a quest forward; treasures pay at once; elites pay double.'
+              ? 'Open today’s route first — the map locks once drawn, so choose calmly.'
+              : 'Tap a glowing encounter to preview it. Trials move a quest forward; hoards pay at once; elites pay double.'
           }
-          primaryLabel={canOpen ? 'Open today’s path' : 'Got it'}
+          primaryLabel={canOpen ? 'Open today’s route' : 'Got it'}
           onPrimary={() => {
             if (canOpen) {
               markTutorialSeen('map')
@@ -410,7 +410,7 @@ export function MapScreen() {
           card="sealed"
           icon="crown"
           title="Day sealed — well climbed"
-          body="Rewards are already yours: XP, gold, loot and quest progress. A new path opens tomorrow."
+          body="Rewards are already yours: Renown, gold, spoils and quest progress. A new route opens tomorrow."
           primaryLabel="Finish the tour"
           onPrimary={() => {
             markTutorialSeen('sealed')
@@ -451,8 +451,8 @@ export function MapScreen() {
       <Dialog
         open={confirmResetDay}
         eyebrow="The ascent"
-        title="Reset today?"
-        description="Today returns to unwritten: its map, path, XP, gold, loot and weekly progress are taken back."
+        title="Abandon today?"
+        description="Today returns to unwritten: its map, route, Renown, gold, spoils and vow progress are taken back."
         onClose={() => setConfirmResetDay(false)}
         footer={
           <>
@@ -468,7 +468,7 @@ export function MapScreen() {
               }}
             >
               <Icon name="archive" />
-              Reset today
+              Abandon today
             </Button>
           </>
         }

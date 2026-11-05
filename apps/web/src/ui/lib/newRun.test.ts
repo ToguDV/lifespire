@@ -59,7 +59,7 @@ describe('validateNewRunSetup', () => {
       targets,
     )
     expect(noGoals.ok).toBe(false)
-    expect(noGoals.errors).toContain('Choose at least one goal to begin.')
+    expect(noGoals.errors).toContain('Choose at least one quest to begin.')
 
     const fewRoutines = validateNewRunSetup(setup.goals, setup.tasks.slice(0, 3), targets)
     expect(fewRoutines.ok).toBe(false)
@@ -81,7 +81,7 @@ describe('validateNewRunSetup', () => {
     }))
     const result = validateNewRunSetup(setup.goals, allInOneAim, targets)
     expect(result.ok).toBe(false)
-    expect(result.errors).toContain('Every active goal needs at least one active trial.')
+    expect(result.errors).toContain('Every active quest needs at least one active trial.')
   })
 
   it('reuses the same setup rules as onboarding', () => {

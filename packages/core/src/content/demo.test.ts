@@ -90,7 +90,7 @@ describe('validateSetup', () => {
   })
 
   it('accepts ten active goals and rejects an eleventh', () => {
-    expect(validateSetup([], fourTasks()).errors).toContain('Choose at least one goal to begin.')
+    expect(validateSetup([], fourTasks()).errors).toContain('Choose at least one quest to begin.')
 
     const goals = Array.from({ length: MAX_GOALS }, (_, index) =>
       makeGoal({ id: `goal_${index}`, weeklyObjective: 2 }),
@@ -109,7 +109,7 @@ describe('validateSetup', () => {
       makeTask({ id: `task_${MAX_GOALS}`, goalId: `goal_${MAX_GOALS}` }),
     ]
     expect(validateSetup(tooManyGoals, tooManyTasks).errors).toContain(
-      `A run can hold at most ${MAX_GOALS} goals.`,
+      `A journey can hold at most ${MAX_GOALS} quests.`,
     )
   })
 
@@ -154,10 +154,10 @@ describe('validateSetup', () => {
 
   it('rejects weekly objectives outside 1..7', () => {
     expect(validateSetup([makeGoal({ weeklyObjective: 0 })], fourTasks()).errors).toContain(
-      'Set each weekly target between 1 and 7.',
+      'Set each weekly vow between 1 and 7.',
     )
     expect(validateSetup([makeGoal({ weeklyObjective: 8 })], fourTasks()).errors).toContain(
-      'Set each weekly target between 1 and 7.',
+      'Set each weekly vow between 1 and 7.',
     )
   })
 
@@ -165,7 +165,7 @@ describe('validateSetup', () => {
     const tasks = fourTasks()
     tasks[0] = { ...tasks[0]!, goalId: 'missing_goal' }
     expect(validateSetup([makeGoal()], tasks).errors).toContain(
-      'Every trial needs a goal in this run.',
+      'Every trial needs a quest in this journey.',
     )
 
     const archivedGoal = makeGoal({ id: 'goal_2', active: false })
@@ -176,7 +176,7 @@ describe('validateSetup', () => {
 
   it('rejects unnamed goals and trials', () => {
     expect(validateSetup([makeGoal({ title: ' ' })], fourTasks()).errors).toContain(
-      'Give every goal a name.',
+      'Give every quest a name.',
     )
     const tasks = fourTasks()
     tasks[0] = { ...tasks[0]!, title: '' }

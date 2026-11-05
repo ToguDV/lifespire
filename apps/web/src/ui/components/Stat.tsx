@@ -54,16 +54,16 @@ export interface LevelResourceProps {
   xpToNext: number
 }
 
-/** Level counter with the mini XP track shown on desktop. */
+/** Rank counter with the mini Renown track shown on desktop. */
 export function LevelResource({ level, xpIntoLevel, xpToNext }: LevelResourceProps) {
   const total = Math.max(1, xpIntoLevel + xpToNext)
   const percent = (xpIntoLevel / total) * 100
   return (
     <span
       className="resource resource--level"
-      aria-label={`Level ${level}, ${xpIntoLevel} of ${total} experience`}
+      aria-label={`Rank ${level}, ${xpIntoLevel} of ${total} Renown`}
     >
-      <span className="level-num">Lv {level}</span>
+      <span className="level-num">Rk {level}</span>
       <span className="xp-mini" aria-hidden="true">
         <span style={{ width: `${percent}%` }} />
       </span>

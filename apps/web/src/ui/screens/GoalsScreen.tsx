@@ -79,18 +79,18 @@ export function GoalsScreen() {
     ? run.status === 'active'
       ? 'The week'
       : 'The week · Sealed'
-    : 'Profile · Goals'
+    : 'Wayfarer · Quests'
 
   return (
     <section className="screen screen--aims" data-screen="aims" aria-labelledby="aims-title">
       <ScreenHead
         kicker={kicker}
-        title="Goals"
+        title="Quests"
         titleId="aims-title"
         meta={
           <>
             <span className="chip chip--quiet">
-              {activeGoals.length} goals · {activeTasks.length} trials
+              {activeGoals.length} quests · {activeTasks.length} trials
             </span>
             <span className="micro" style={{ color: 'var(--accent-deep)' }}>
               {totalProgress} / {totalTarget} this week
@@ -102,7 +102,7 @@ export function GoalsScreen() {
                 onClick={() => openTaskDialog(null, activeGoals[0]?.id ?? '')}
                 disabled={activeGoals.length === 0}
                 title={
-                  activeGoals.length === 0 ? 'Add an active goal first.' : undefined
+                  activeGoals.length === 0 ? 'Add an active quest first.' : undefined
                 }
               >
                 <Icon name="plus" />
@@ -110,7 +110,7 @@ export function GoalsScreen() {
               </Button>
               <Button variant="secondary" size="sm" onClick={() => openGoalDialog(null)}>
                 <Icon name="plus" />
-                Add goal
+                Add quest
               </Button>
             </div>
           </>
@@ -125,10 +125,10 @@ export function GoalsScreen() {
                 <span className="empty-state__medallion">
                   <Icon name="banner" />
                 </span>
-                <h2>No active goals yet.</h2>
+                <h2>No active quests yet.</h2>
                 <Button variant="primary" onClick={() => openGoalDialog(null)}>
                   <Icon name="plus" />
-                  Add your first goal
+                  Add your first quest
                 </Button>
               </div>
             </Panel>
@@ -149,7 +149,7 @@ export function GoalsScreen() {
                         {goal.category.trim() || 'General'} ·{' '}
                         {objective
                           ? `this week ${objective.target}`
-                          : `${goal.weeklyObjective} each week next run`}
+                          : `${goal.weeklyObjective} vow each week next journey`}
                       </p>
                       {goal.description.trim() ? (
                         <p className="panel-note">{goal.description.trim()}</p>
@@ -182,7 +182,7 @@ export function GoalsScreen() {
                     </div>
                     <IconButton
                       icon="edit"
-                      label={`Edit goal ${goal.title}`}
+                      label={`Edit quest ${goal.title}`}
                       className="aim-group__edit"
                       onClick={() => openGoalDialog(goal)}
                     />
@@ -191,14 +191,14 @@ export function GoalsScreen() {
                   <div className="routine-list">
                     {goalTasks.length === 0 ? (
                       <p className="panel-note routine-list__empty">
-                        No active trials under this goal yet.
+                        No active trials under this quest yet.
                       </p>
                     ) : (
                       goalTasks.map((task) => (
                         <div className="routine" key={task.id}>
                           <div className="routine__body">
                             <strong>{task.title}</strong>
-                            <span>{EFFORT_LABEL[task.effort]} effort</span>
+                            <span>{EFFORT_LABEL[task.effort]} difficulty</span>
                           </div>
                           <EffortDots effort={task.effort} />
                           <div className="routine__actions">
@@ -223,7 +223,7 @@ export function GoalsScreen() {
                         onClick={() => openTaskDialog(null, goal.id)}
                       >
                         <Icon name="plus" />
-                        Add trial to this goal
+                        Add trial to this quest
                       </Button>
                     </div>
                   </div>
@@ -240,13 +240,13 @@ export function GoalsScreen() {
 
                 {archivedGoals.length > 0 ? (
                   <div className="archived-group">
-                    <h3 className="micro">Goals</h3>
+                    <h3 className="micro">Quests</h3>
                     {archivedGoals.map((goal) => (
                       <div className="archived-row" key={goal.id}>
                         <span className="archived-row__body">
-                          <strong>{goal.title || 'Untitled goal'}</strong>
+                          <strong>{goal.title || 'Untitled quest'}</strong>
                           <small>
-                            {goal.category.trim() || 'General'} · {goal.weeklyObjective} each
+                            {goal.category.trim() || 'General'} · {goal.weeklyObjective} vow each
                             week
                           </small>
                         </span>
@@ -257,11 +257,11 @@ export function GoalsScreen() {
                           disabled={activeGoals.length >= MAX_GOALS}
                           title={
                             activeGoals.length >= MAX_GOALS
-                              ? 'Archive an active goal before restoring another.'
+                              ? 'Archive an active quest before restoring another.'
                               : undefined
                           }
                         >
-                          Restore goal
+                          Restore quest
                         </Button>
                       </div>
                     ))}
@@ -279,8 +279,8 @@ export function GoalsScreen() {
                           <span className="archived-row__body">
                             <strong>{task.title || 'Untitled trial'}</strong>
                             <small>
-                              {EFFORT_LABEL[task.effort]} effort ·{' '}
-                              {goal?.title ?? 'Goal no longer present'}
+                              {EFFORT_LABEL[task.effort]} difficulty ·{' '}
+                              {goal?.title ?? 'Quest no longer present'}
                             </small>
                           </span>
                           <Button
@@ -291,7 +291,7 @@ export function GoalsScreen() {
                             title={
                               goalActive
                                 ? undefined
-                                : 'Restore its goal before restoring this trial.'
+                                : 'Restore its quest before restoring this trial.'
                             }
                           >
                             Restore trial

@@ -52,32 +52,32 @@ export function rewardFeedback(
     Partial<Pick<RewardEvent, 'nodeType' | 'wheelOutcome' | 'taskTitle'>>,
 ): string {
   if (event.action === 'skip') {
-    return 'Step skipped · no XP, gold, loot or weekly progress.'
+    return 'Step passed · no Renown, gold, spoils or vow progress.'
   }
 
   if (event.nodeType === 'wheel') {
     if (event.wheelOutcome === 'task') {
       const parts = [
-        `Wheel: ${event.taskTitle ?? 'a task'}`,
-        `+${event.xp} XP`,
+        `Wheel: ${event.taskTitle ?? 'a trial'}`,
+        `+${event.xp} Renown`,
         `+${event.gold} gold`,
       ]
-      if (event.progress > 0) parts.push('+1 toward weekly target')
+      if (event.progress > 0) parts.push('+1 toward the weekly vow')
       return parts.join(' · ')
     }
     if (event.wheelOutcome === 'gold') return `Wheel: +${event.gold} gold`
-    if (event.wheelOutcome === 'xp') return `Wheel: +${event.xp} XP`
-    if (event.wheelOutcome === 'rest') return `Wheel: rest · +${event.xp} XP`
+    if (event.wheelOutcome === 'xp') return `Wheel: +${event.xp} Renown`
+    if (event.wheelOutcome === 'rest') return `Wheel: respite · +${event.xp} Renown`
   }
 
-  const parts: string[] = ['Step kept']
-  if (event.xp > 0) parts.push(`+${event.xp} XP`)
+  const parts: string[] = ['Step claimed']
+  if (event.xp > 0) parts.push(`+${event.xp} Renown`)
   if (event.gold > 0) parts.push(`+${event.gold} gold`)
   if (event.lootItem) parts.push(`found ${event.lootItem.name}`)
   if (event.duplicateCatalogId && event.duplicateGold > 0) {
     parts.push(`incl. +${event.duplicateGold} gold duplicate`)
   }
-  if (event.progress > 0) parts.push('+1 toward weekly target')
+  if (event.progress > 0) parts.push('+1 toward the weekly vow')
   if (parts.length === 1) parts.push('the step is recorded')
   return parts.join(' · ')
 }
@@ -86,14 +86,14 @@ export function rewardFeedback(
 export function dayPathReward(row: Pick<DayPathRow, 'action' | 'xp' | 'gold' | 'loot' | 'duplicateGold'>): string {
   if (row.action === 'skip') return 'No reward'
   const parts: string[] = []
-  if (row.xp > 0) parts.push(`+${row.xp} XP`)
+  if (row.xp > 0) parts.push(`+${row.xp} Renown`)
   if (row.gold > 0) parts.push(`+${row.gold} g`)
   if (row.loot) parts.push(row.loot.name)
   return parts.length > 0 ? parts.join(' · ') : 'No reward'
 }
 
-/** Text for the boss closing bonus block. */
+/** Text for the warden closing bonus block. */
 export function closingBonusCopy(bossCompleted: boolean, bonusXp: number, bonusGold: number): string {
   if (!bossCompleted) return 'Forfeited'
-  return `+${bonusXp} XP · +${bonusGold} gold`
+  return `+${bonusXp} Renown · +${bonusGold} gold`
 }

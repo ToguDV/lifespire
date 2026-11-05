@@ -16,11 +16,11 @@ import {
 } from '../lib/format'
 
 const PHASE_META: Record<HomePhase, { label: string; icon: IconName }> = {
-  'no-run': { label: 'Before the run', icon: 'moon' },
+  'no-run': { label: 'Before the journey', icon: 'moon' },
   'day-available': { label: 'Day open', icon: 'compass' },
   'day-in-progress': { label: 'In progress', icon: 'check' },
   'day-completed': { label: 'Day sealed', icon: 'check' },
-  'day-missed': { label: 'Day missed', icon: 'moon' },
+  'day-missed': { label: 'Day lost', icon: 'moon' },
   'day-locked': { label: 'Ahead', icon: 'lock' },
   'run-closed': { label: 'Week sealed', icon: 'crown' },
   'no-open-day': { label: 'Week spent', icon: 'crown' },
@@ -35,7 +35,7 @@ const WEEK_CLASS = {
 
 const WEEK_WORD = {
   completed: 'kept',
-  missed: 'missed',
+  missed: 'lost',
   today: 'today',
   locked: 'ahead',
 } as const
@@ -43,7 +43,7 @@ const WEEK_WORD = {
 function WeekStrip({ run, today }: { run: Run; today: Day | null }) {
   const todayKey = today?.date ?? ''
   return (
-    <ol className="week-strip" aria-label="Seven-day run">
+    <ol className="week-strip" aria-label="Seven-day journey">
       {run.days.map((day) => {
         const marker = weekMarker(day, todayKey)
         const label = `Day ${day.index + 1}, ${WEEK_WORD[marker]}`
@@ -98,17 +98,17 @@ function ObjectivesPanel({
           }))
 
   return (
-    <Panel pad aria-label="Weekly goals">
+    <Panel pad aria-label="Weekly quests">
       <PanelHead
-        label="Weekly goals"
+        label="Weekly quests"
         aside={
           <button type="button" className="text-link" onClick={onViewAll}>
-            All goals
+            All quests
           </button>
         }
       />
       {rows.length === 0 ? (
-        <p className="panel-note">No goals yet. They appear after onboarding.</p>
+        <p className="panel-note">No quests yet. They appear after onboarding.</p>
       ) : (
         rows.map((row) => (
           <AimRow
@@ -206,19 +206,19 @@ export function HomeScreen() {
       case 'begin-run':
         return setupReady ? (
           <Button variant="primary" onClick={() => startRun()}>
-            Begin a run
+            Begin a journey
             <Icon name="chevron-right" />
           </Button>
         ) : (
           <Button variant="secondary" onClick={() => navigate({ name: 'goals' })}>
-            Review your goals
+            Review your quests
             <Icon name="chevron-right" />
           </Button>
         )
       case 'open-day':
         return (
           <Button variant="primary" onClick={openToday}>
-            Open today’s path
+            Open today’s route
             <Icon name="compass" />
           </Button>
         )
@@ -254,7 +254,7 @@ export function HomeScreen() {
   const kicker = (() => {
     switch (home.phase) {
       case 'no-run':
-        return 'Camp · Before the run'
+        return 'Camp · Before the journey'
       case 'run-closed':
         return 'Camp · Week sealed'
       case 'no-open-day':
@@ -268,29 +268,29 @@ export function HomeScreen() {
     switch (home.phase) {
       case 'no-run':
         return setupReady
-          ? { title: 'No run yet.', line: 'Your goals are ready.' }
-          : { title: 'The path needs goals.', line: 'A run needs one goal and four trials.' }
+          ? { title: 'No journey yet.', line: 'Your quests are ready.' }
+          : { title: 'The route needs quests.', line: 'A journey needs one quest and four trials.' }
       case 'day-available':
-        return { title: 'Today’s path is ready.', line: 'Open it once; the map will not change.' }
+        return { title: 'Today’s route is ready.', line: 'Open it once; the map will not change.' }
       case 'day-in-progress':
         return {
           title: `Day ${dayNumber} is open.`,
           line: home.hasSelection
             ? 'One step is chosen.'
             : home.availableChoices > 0
-              ? `${home.availableChoices} paths ahead.`
+              ? `${home.availableChoices} routes ahead.`
               : 'No step is open.',
         }
       case 'day-completed':
-        return { title: 'The day is sealed.', line: 'The next path opens at midnight.' }
+        return { title: 'The day is sealed.', line: 'The next route opens at midnight.' }
       case 'day-missed':
-        return { title: 'The day passed unclaimed.', line: 'Missed days are not recovered.' }
+        return { title: 'The day passed unclaimed.', line: 'Lost days are not recovered.' }
       case 'day-locked':
         return { title: 'The next day is sealed.', line: 'Only today can be played.' }
       case 'run-closed':
         return { title: 'The week is sealed.', line: 'The totals are yours.' }
       case 'no-open-day':
-        return { title: 'The week is spent.', line: 'Begin a new run from the week summary.' }
+        return { title: 'The week is spent.', line: 'Begin a new journey from the week summary.' }
     }
   })()
 
@@ -350,7 +350,7 @@ export function HomeScreen() {
                 <p style={{ marginTop: 10 }}>
                   <Button variant="quiet" size="sm" onClick={() => setConfirmResetDay(true)}>
                     <Icon name="archive" />
-                    Reset today
+                    Abandon today
                   </Button>
                 </p>
               ) : null}
@@ -359,7 +359,7 @@ export function HomeScreen() {
                   card="camp"
                   icon="tent"
                   title="The camp is your base"
-                  body="Each morning a new path opens on the map. Complete nodes, gather loot, and seal the boss before midnight."
+                  body="Each morning a new route opens on the map. Claim encounters, gather spoils, and seal the warden before midnight."
                   primaryLabel="See the map"
                   onPrimary={() => {
                     markTutorialSeen('camp')
@@ -383,21 +383,21 @@ export function HomeScreen() {
                 {daysMissed > 0 ? (
                   <p className="panel-note week-missed-note">
                     {daysMissed === 1
-                      ? '1 day was missed and is not recovered.'
-                      : `${daysMissed} days were missed and are not recovered.`}
+                      ? '1 day was lost and is not recovered.'
+                      : `${daysMissed} days were lost and are not recovered.`}
                   </p>
                 ) : null}
               </>
             ) : (
               <p className="quiet-note">
                 <Icon name="moon" />
-                <span>The week begins when you start a run.</span>
+                <span>The week begins when you start a journey.</span>
               </p>
             )}
           </section>
         </div>
 
-        <aside className="camp-rail" aria-label="Run overview">
+        <aside className="camp-rail" aria-label="Journey overview">
           <ObjectivesPanel
             objectives={objectives}
             goals={document.goals}
@@ -408,8 +408,8 @@ export function HomeScreen() {
       <Dialog
         open={confirmResetDay}
         eyebrow="Camp"
-        title="Reset today?"
-        description="Today returns to unwritten: its map, path, XP, gold, loot and weekly progress are taken back. Yesterday and tomorrow are untouched."
+        title="Abandon today?"
+        description="Today returns to unwritten: its map, route, Renown, gold, spoils and vow progress are taken back. Yesterday and tomorrow are untouched."
         onClose={() => setConfirmResetDay(false)}
         footer={
           <>
@@ -424,13 +424,13 @@ export function HomeScreen() {
               }}
             >
               <Icon name="archive" />
-              Reset today
+              Abandon today
             </Button>
           </>
         }
       >
         <p className="panel-note">
-          Use this to replay the day with the current goals. New goals join the week tomorrow, or
+          Use this to replay the day with the current quests. New quests join the week tomorrow, or
           today after the reset.
         </p>
       </Dialog>

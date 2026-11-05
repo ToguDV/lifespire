@@ -19,8 +19,8 @@ const FLAVOR: Record<MapNode['type'], string> = {
   boss: 'The gate of the day. Finish here and the week takes its shape.',
 }
 
-const REST_TITLE = 'A quiet rest'
-const TREASURE_TITLE = 'A hidden cache'
+const REST_TITLE = 'A quiet respite'
+const TREASURE_TITLE = 'A hidden hoard'
 const WHEEL_TITLE = 'A turn of the wheel'
 
 export function nodeTitle(node: MapNode): string {
@@ -33,10 +33,10 @@ export function nodeTitle(node: MapNode): string {
 export function nodeTypeLine(node: MapNode): string {
   const type = NODE_TYPE_LABEL[node.type]
   if (node.type === 'rest' || node.type === 'treasure' || node.type === 'wheel') {
-    return `${type} node · no task`
+    return `${type} encounter · no trial`
   }
   const effort = node.task ? EFFORT_LABEL[node.task.effort] : 'Unknown'
-  return `${type} node · ${effort} effort`
+  return `${type} encounter · ${effort} difficulty`
 }
 
 export function nodeFlavor(node: MapNode): string {
@@ -44,19 +44,19 @@ export function nodeFlavor(node: MapNode): string {
 }
 
 function pluralRolls(count: number): string {
-  return `${count} loot roll${count === 1 ? '' : 's'}`
+  return `${count} spoils roll${count === 1 ? '' : 's'}`
 }
 
 export function nodeRewardLine(
   node: MapNode,
   progress: 0 | 1 = node.rewards.progress,
 ): string {
-  if (node.type === 'wheel') return 'A surprise: task, gold, XP or rest'
+  if (node.type === 'wheel') return 'A surprise: trial, gold, Renown or respite'
   const parts: string[] = []
-  if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} XP`)
+  if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} Renown`)
   if (node.rewards.gold > 0) parts.push(`+${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
-  if (progress > 0) parts.push('+1 toward weekly target')
+  if (progress > 0) parts.push('+1 toward the weekly vow')
   if (node.type === 'boss') parts.push('closing bonus')
   return parts.join(' · ')
 }
@@ -66,13 +66,13 @@ export function nodeRewardSummary(
   progress: 0 | 1 = node.rewards.progress,
 ): string {
   const parts: string[] = []
-  if (node.rewards.xp > 0) parts.push(`plus ${node.rewards.xp} experience`)
+  if (node.rewards.xp > 0) parts.push(`plus ${node.rewards.xp} Renown`)
   if (node.rewards.gold > 0) parts.push(`plus ${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
-  if (progress > 0) parts.push('plus one toward the weekly target')
+  if (progress > 0) parts.push('plus one toward the weekly vow')
   if (node.type === 'boss') {
     parts.push(
-      `includes a closing bonus of ${BOSS_CLOSING_BONUS.xp} experience and ${BOSS_CLOSING_BONUS.gold} gold`,
+      `includes a closing bonus of ${BOSS_CLOSING_BONUS.xp} Renown and ${BOSS_CLOSING_BONUS.gold} gold`,
     )
   }
   return parts.join(', ')
@@ -88,26 +88,26 @@ export function nodeAriaLabel(
 
   if (status === 'completed' || status === 'skipped') {
     const goal = node.task ? ` for ${node.task.goalTitle}` : ''
-    return `${title}, ${type} node, ${status}${goal}.`
+    return `${title}, ${type} encounter, ${status}${goal}.`
   }
 
   if (status === 'locked' && node.type !== 'boss') {
-    return `A veiled ${type} node, locked.`
+    return `A veiled ${type} encounter, locked.`
   }
 
   const reward = nodeRewardSummary(node, progress)
   if (status === 'current') {
-    return `${title}, ${type} node, ${reward}. Current step. Open details.`
+    return `${title}, ${type} encounter, ${reward}. Current step. Open details.`
   }
   if (status === 'available') {
-    return `${title}, ${type} node, ${reward}. Open details.`
+    return `${title}, ${type} encounter, ${reward}. Open details.`
   }
-  return `${title}, ${type} node, locked.`
+  return `${title}, ${type} encounter, locked.`
 }
 
 export function effortNote(node: MapNode): string {
-  if (!node.task) return 'No task is attached'
-  if (node.task.effort === 'light') return '1 of 3 · gentle'
-  if (node.task.effort === 'medium') return '2 of 3 · steady'
-  return '3 of 3 · demanding'
+  if (!node.task) return 'No trial is attached'
+  if (node.task.effort === 'light') return '1 of 3 · easy'
+  if (node.task.effort === 'medium') return '2 of 3 · standard'
+  return '3 of 3 · hard'
 }

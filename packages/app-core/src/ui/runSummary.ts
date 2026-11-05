@@ -48,20 +48,20 @@ export function objectiveBonusCopy(
   >,
 ): string {
   if (!objective.met) return 'Not kept · no bonus'
-  return `Kept · +${objective.bonusXp} XP · +${objective.bonusGold} gold · 1 loot roll`
+  return `Kept · +${objective.bonusXp} Renown · +${objective.bonusGold} gold · 1 spoils roll`
 }
 
-/** All-aims bonus line, including the exact guaranteed-rare promise. */
+/** All-vows bonus line, including the exact guaranteed-rare promise. */
 export function allAimsBonusCopy(allComplete: boolean): string {
-  if (!allComplete) return 'Not granted · every weekly target must be kept'
-  return `+${ALL_OBJECTIVES_BONUS.xp} XP · +${ALL_OBJECTIVES_BONUS.gold} gold · one guaranteed rare`
+  if (!allComplete) return 'Not granted · every weekly vow must be kept'
+  return `+${ALL_OBJECTIVES_BONUS.xp} Renown · +${ALL_OBJECTIVES_BONUS.gold} gold · one guaranteed rare`
 }
 
 /** Total weekly bonus, including duplicate conversions folded into the gold. */
 export function weeklyBonusTotalCopy(
   summary: Pick<RunSummary, 'bonusXp' | 'bonusGold' | 'duplicateGold'>,
 ): string {
-  const base = `+${summary.bonusXp} XP · +${summary.bonusGold} gold`
+  const base = `+${summary.bonusXp} Renown · +${summary.bonusGold} gold`
   if (summary.duplicateGold <= 0) return base
   return `${base} (includes ${summary.duplicateGold} gold from duplicates)`
 }
@@ -69,7 +69,7 @@ export function weeklyBonusTotalCopy(
 /** What happened to the guaranteed rare, without implying it was lost. */
 export function guaranteedRareCopy(allComplete: boolean, rare: LootItem | null): string {
   if (!allComplete) {
-    return 'A guaranteed rare is granted only when every weekly target is kept.'
+    return 'A guaranteed rare is granted only when every weekly vow is kept.'
   }
   if (rare) return `Guaranteed rare · ${rare.name}`
   return 'The guaranteed rare duplicated a relic already found or owned, so it became gold.'

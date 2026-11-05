@@ -61,7 +61,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
   const alert =
     failures.length > 0 ? (
       <div className="form-alert" role="alert">
-        <strong>This goal was not saved</strong>
+        <strong>This quest was not saved</strong>
         <ul>
           {failures.map((message) => (
             <li key={message}>{message}</li>
@@ -73,12 +73,12 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
   return (
     <Dialog
       open
-      eyebrow="Goals"
-      title={goal ? 'Edit goal' : 'Add a goal'}
+      eyebrow="Quests"
+      title={goal ? 'Edit quest' : 'Add a quest'}
       description={
         goal
           ? 'Edits apply from tomorrow, or today if you reset the day.'
-          : 'A goal holds the trials that move it. It joins the week tomorrow.'
+          : 'A quest holds the trials that move it. It joins the week tomorrow.'
       }
       onClose={onClose}
       footer={
@@ -86,14 +86,14 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
           {goal ? (
             <Button variant="danger" onClick={() => { onClose(); onArchive(goal) }}>
               <Icon name="archive" />
-              Archive goal
+              Archive quest
             </Button>
           ) : null}
           <Button variant="quiet" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" form={formId} variant="primary">
-            Save goal
+            Save quest
           </Button>
         </>
       }
@@ -108,7 +108,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       >
         {alert}
         <div className="field">
-          <label htmlFor={`${formId}-title`}>Goal title</label>
+          <label htmlFor={`${formId}-title`}>Quest title</label>
           <input
             className="input"
             id={`${formId}-title`}
@@ -171,7 +171,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
           ) : null}
         </div>
         <div className="field">
-          <label htmlFor={`${formId}-weekly`}>Weekly target</label>
+          <label htmlFor={`${formId}-weekly`}>Weekly vow</label>
           <input
             className="input"
             id={`${formId}-weekly`}
@@ -187,7 +187,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
             onChange={(event) => setWeeklyObjective(event.target.value)}
           />
           <p className="field-hint" id={`${formId}-weekly-hint`}>
-            How many trials of this goal you want to complete this week (1–7).
+            How many trials of this quest you want to complete this week (1–7).
           </p>
           {fieldErrors.weeklyObjective ? (
             <p className="field-error" id={`${formId}-weekly-error`}>
@@ -297,7 +297,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
         {alert}
         {activeGoals.length === 0 ? (
           <p className="panel-note">
-            Add an active goal first. Every trial needs an active goal.
+            Add an active quest first. Every trial needs an active quest.
           </p>
         ) : null}
         <div className="field">
@@ -342,7 +342,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
         </div>
         <div className="field">
           <span className="field__label" id={`${formId}-effort-label`}>
-            Effort
+            Difficulty
           </span>
           <div
             className="segmented segmented--form"
@@ -398,18 +398,18 @@ export function ArchiveDialog({ kind, id, title, onClose }: ArchiveDialogProps) 
   return (
     <Dialog
       open
-      eyebrow={kind === 'goal' ? 'Goals' : 'Trials'}
+      eyebrow={kind === 'goal' ? 'Quests' : 'Trials'}
       title={`Archive “${title}”?`}
       description={
         kind === 'goal'
-          ? 'This goal and its trials leave the week from tomorrow, or today if you reset the day. Maps already drawn keep their original steps.'
+          ? 'This quest and its trials leave the week from tomorrow, or today if you reset the day. Maps already drawn keep their original steps.'
           : 'This trial leaves the week from tomorrow, or today if you reset the day. Maps already drawn keep their original step.'
       }
       onClose={onClose}
       footer={
         <>
           <Button variant="quiet" onClick={onClose}>
-            Keep {kind === 'goal' ? 'goal' : 'trial'}
+            Keep {kind === 'goal' ? 'quest' : 'trial'}
           </Button>
           <Button variant="danger" onClick={confirm}>
             <Icon name="archive" />

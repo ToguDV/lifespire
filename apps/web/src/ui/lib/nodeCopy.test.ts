@@ -29,8 +29,8 @@ describe('nodeRewardLine', () => {
     const line = nodeRewardLine(node, 0)
 
     expect(line).not.toContain('+1')
-    expect(line).not.toContain('weekly target')
-    expect(line).toContain('+20 XP')
+    expect(line).not.toContain('weekly vow')
+    expect(line).toContain('+20 Renown')
     expect(line).toContain('+7 gold')
   })
 
@@ -38,12 +38,12 @@ describe('nodeRewardLine', () => {
     const node = taskNode(0)
     const line = nodeRewardLine(node, 1)
 
-    expect(line).toContain('+1 toward weekly target')
+    expect(line).toContain('+1 toward the weekly vow')
   })
 
   it('defaults to the node reward progress', () => {
-    expect(nodeRewardLine(taskNode(1))).toContain('+1 toward weekly target')
-    expect(nodeRewardLine(taskNode(0))).not.toContain('+1 toward weekly target')
+    expect(nodeRewardLine(taskNode(1))).toContain('+1 toward the weekly vow')
+    expect(nodeRewardLine(taskNode(0))).not.toContain('+1 toward the weekly vow')
   })
 })
 
@@ -53,20 +53,20 @@ describe('nodeRewardSummary', () => {
     const summary = nodeRewardSummary(node, 0)
 
     expect(summary).not.toContain('plus one')
-    expect(summary).not.toContain('weekly target')
-    expect(summary).toContain('plus 20 experience')
+    expect(summary).not.toContain('weekly vow')
+    expect(summary).toContain('plus 20 Renown')
   })
 
   it('includes weekly progress when the node grants it', () => {
     const node = taskNode(0)
     const summary = nodeRewardSummary(node, 1)
 
-    expect(summary).toContain('plus one toward the weekly target')
+    expect(summary).toContain('plus one toward the weekly vow')
   })
 
   it('defaults to the node reward progress', () => {
     expect(nodeRewardSummary(taskNode(1))).toContain(
-      'plus one toward the weekly target',
+      'plus one toward the weekly vow',
     )
     expect(nodeRewardSummary(taskNode(0))).not.toContain('plus one')
   })
@@ -79,17 +79,17 @@ describe('nodeAriaLabel', () => {
 
     for (const status of ['available', 'current'] as const) {
       expect(nodeAriaLabel(withoutProgress, status, 0)).not.toContain(
-        'plus one toward the weekly target',
+        'plus one toward the weekly vow',
       )
       expect(nodeAriaLabel(withProgress, status, 1)).toContain(
-        'plus one toward the weekly target',
+        'plus one toward the weekly vow',
       )
     }
   })
 
   it('defaults to the node reward progress', () => {
     expect(nodeAriaLabel(taskNode(1), 'available')).toContain(
-      'plus one toward the weekly target',
+      'plus one toward the weekly vow',
     )
     expect(nodeAriaLabel(taskNode(0), 'available')).not.toContain('plus one')
   })

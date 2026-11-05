@@ -152,7 +152,7 @@ describe('reward feedback', () => {
       duplicateCatalogId: null,
       progress: 0,
     })
-    expect(text).toContain('no XP, gold, loot or weekly progress')
+    expect(text).toContain('no Renown, gold, spoils or vow progress')
   })
 
   it('reports XP, gold, loot, duplicate conversion and progress', () => {
@@ -165,10 +165,10 @@ describe('reward feedback', () => {
       duplicateCatalogId: 'brass-lantern',
       progress: 1,
     })
-    expect(text).toContain('+40 XP')
+    expect(text).toContain('+40 Renown')
     expect(text).toContain('+50 gold')
     expect(text).toContain('incl. +10 gold duplicate')
-    expect(text).toContain('+1 toward weekly target')
+    expect(text).toContain('+1 toward the weekly vow')
   })
 
   it('does not promise weekly progress for a wheel task outside the run goals', () => {
@@ -185,9 +185,9 @@ describe('reward feedback', () => {
       progress: 0,
     })
     expect(text).toContain('Wheel: Walk the north trail')
-    expect(text).toContain('+10 XP')
+    expect(text).toContain('+10 Renown')
     expect(text).toContain('+10 gold')
-    expect(text).not.toContain('+1 toward weekly target')
+    expect(text).not.toContain('+1 toward the weekly vow')
   })
 
   it('reports weekly progress for a wheel task that advances a goal', () => {
@@ -203,7 +203,7 @@ describe('reward feedback', () => {
       duplicateCatalogId: null,
       progress: 1,
     })
-    expect(text).toContain('+1 toward weekly target')
+    expect(text).toContain('+1 toward the weekly vow')
   })
 })
 
@@ -214,8 +214,8 @@ describe('summary reward copy', () => {
     )
     expect(
       dayPathReward({ action: 'complete', xp: 20, gold: 35, loot: null, duplicateGold: 15 }),
-    ).toBe('+20 XP · +35 g')
+    ).toBe('+20 Renown · +35 g')
     expect(closingBonusCopy(false, 0, 0)).toBe('Forfeited')
-    expect(closingBonusCopy(true, 20, 20)).toBe('+20 XP · +20 gold')
+    expect(closingBonusCopy(true, 20, 20)).toBe('+20 Renown · +20 gold')
   })
 })

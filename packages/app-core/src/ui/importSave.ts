@@ -103,9 +103,9 @@ export function saveFileName(localDayKey: string): string {
 export function runPreviewLabel(
   summary: Pick<ImportSummary, 'runStatus' | 'runDay' | 'daysPlayed'>,
 ): string {
-  if (!summary.runStatus) return 'No run'
+  if (!summary.runStatus) return 'No journey'
   if (summary.runStatus === 'closed') {
-    return `Closed · ${summary.daysPlayed} of 7 days played`
+    return `Closed · ${summary.daysPlayed} of 7 days kept`
   }
   return summary.runDay ? `Active · day ${summary.runDay} of 7` : 'Active · no open day'
 }
