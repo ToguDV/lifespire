@@ -1,0 +1,5 @@
+repo_url: "https://togudv.github.io/lifespire/fdroid/repo"
+repo_name: "LifeSpire"
+repo_icon: "icon.png"
+repo_keyalias: "lifespire-repo"
+keystore: "repo.keystore"
