@@ -131,7 +131,7 @@ function SummaryBody({
 
         <p className="panel-note">
           {summary.bossCompleted
-            ? `Includes warden closing bonus +${summary.closingBonusXp} Renown · +${summary.closingBonusGold} gold.`
+            ? `Includes warden closing bonus +${summary.closingBonusXp} XP · +${summary.closingBonusGold} gold.`
             : 'Warden passed: no closing bonus.'}
         </p>
 
@@ -140,7 +140,7 @@ function SummaryBody({
             <strong>
               <Icon name="star" />+<AnimatedNumber value={summary.xp} />
             </strong>
-            <span>Renown</span>
+            <span>XP</span>
           </div>
           <div className="total">
             <strong>

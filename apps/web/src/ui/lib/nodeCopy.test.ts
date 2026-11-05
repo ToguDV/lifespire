@@ -30,7 +30,7 @@ describe('nodeRewardLine', () => {
 
     expect(line).not.toContain('+1')
     expect(line).not.toContain('weekly vow')
-    expect(line).toContain('+20 Renown')
+    expect(line).toContain('+20 XP')
     expect(line).toContain('+7 gold')
   })
 
@@ -54,7 +54,7 @@ describe('nodeRewardSummary', () => {
 
     expect(summary).not.toContain('plus one')
     expect(summary).not.toContain('weekly vow')
-    expect(summary).toContain('plus 20 Renown')
+    expect(summary).toContain('plus 20 XP')
   })
 
   it('includes weekly progress when the node grants it', () => {

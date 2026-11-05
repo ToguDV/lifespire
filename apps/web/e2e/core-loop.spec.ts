@@ -47,7 +47,7 @@ function firstSteadyNode(page: import('@playwright/test').Page) {
 async function completeFirstNode(page: import('@playwright/test').Page) {
   await page.locator(ACTIONABLE_NODE).first().click()
   const spin = page.getByRole('button', { name: /Spin the wheel/i })
-  const mark = page.getByRole('button', { name: /Mark complete/i })
+  const mark = page.getByRole('button', { name: /Claim/i })
   await expect(spin.or(mark)).toBeVisible()
   if (await spin.isVisible()) {
     await spin.click()
@@ -63,13 +63,13 @@ test.describe('core loop', () => {
     await page.goto('/')
     await page.evaluate(() => window.localStorage.clear())
     await page.reload()
-    await page.getByRole('button', { name: /Create my own path/i }).click()
+    await page.getByRole('button', { name: /Create my own route/i }).click()
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.getByRole('button', { name: 'Add quest' }).click()
 
     const title = page.getByRole('textbox', { name: 'Quest name' })
     const category = page.getByRole('textbox', { name: 'Category' })
-    const weeklyTarget = page.getByRole('spinbutton', { name: 'Weekly target' })
+    const weeklyTarget = page.getByRole('spinbutton', { name: 'Weekly vow' })
     const remove = page.getByRole('button', { name: 'Remove quest' })
     const [titleBox, categoryBox, targetBox, removeBox] = await Promise.all([
       title.boundingBox(),
@@ -112,10 +112,10 @@ test.describe('core loop', () => {
       page.locator('button[data-node-id][data-node-icon="compass"]').first(),
     ).toBeVisible()
 
-    await page.getByRole('button', { name: 'Goals', exact: true }).first().click()
-    await page.getByRole('button', { name: 'Edit goal Wayfarer' }).click()
+    await page.getByRole('button', { name: 'Quests', exact: true }).first().click()
+    await page.getByRole('button', { name: 'Edit quest Wayfarer' }).click()
     await page.locator('.icon-picker__tile').filter({ hasText: 'Heart' }).click()
-    await page.getByRole('button', { name: 'Save goal' }).click()
+    await page.getByRole('button', { name: 'Save quest' }).click()
     await page.getByRole('button', { name: 'Map', exact: true }).first().click()
 
     await expect(
@@ -152,7 +152,7 @@ test.describe('core loop', () => {
     const node = page.locator(ACTIONABLE_NODE).first()
     const nodeId = await node.getAttribute('data-node-id')
     await node.click()
-    await page.getByRole('button', { name: /Skip this step/i }).click()
+    await page.getByRole('button', { name: /Pass this step/i }).click()
 
     await expect(page.locator(`button[data-node-id="${nodeId}"]`)).toHaveAttribute(
       'data-status',
@@ -250,6 +250,6 @@ test.describe('mobile map labels', () => {
     await expect(page.getByRole('group', { name: /Day map/i })).toBeVisible()
 
     await node.tap()
-    await expect(page.getByRole('button', { name: /Mark complete/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Claim/i })).toBeVisible()
   })
 })

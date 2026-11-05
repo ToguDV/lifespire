@@ -16,7 +16,7 @@ function RewardBits({ event }: { event: RewardEvent }) {
     <span className="reward-toast__bits">
       {event.xp > 0 ? (
         <span className="reward-toast__bit">
-          <Icon name="star" />+{xp} Renown
+          <Icon name="star" />+{xp} XP
         </span>
       ) : null}
       {event.gold > 0 ? (
@@ -66,7 +66,7 @@ export function RewardToast({ event, onDismiss, duration = 5200 }: RewardToastPr
         : event.wheelOutcome === 'gold'
           ? 'Wheel · gold hoard'
           : event.wheelOutcome === 'xp'
-            ? 'Wheel · surge of Renown'
+            ? 'Wheel · surge of XP'
             : 'Wheel · quiet respite'
       : (event.taskTitle ?? 'Step claimed')
 

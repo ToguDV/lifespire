@@ -33,11 +33,11 @@ import { playFeedback } from '../lib/feedback'
 import { nodeRewardLine, nodeTitle } from '../lib/nodeCopy'
 
 const LEGEND: Array<{ type: NodeType; icon?: IconName; copy: string }> = [
-  { type: 'task', icon: 'banner', copy: '+1 vow · Renown/gold by difficulty' },
+  { type: 'task', icon: 'banner', copy: '+1 vow · XP/gold by difficulty' },
   { type: 'elite', icon: 'star', copy: '+1 vow · double reward · spoils roll' },
-  { type: 'rest', copy: '+5 Renown' },
+  { type: 'rest', copy: '+5 XP' },
   { type: 'treasure', copy: '+15 gold · spoils roll' },
-  { type: 'wheel', copy: 'trial, gold, Renown or respite' },
+  { type: 'wheel', copy: 'trial, gold, XP or respite' },
   { type: 'boss', copy: '+1 vow · closing bonus' },
 ]
 
@@ -410,7 +410,7 @@ export function MapScreen() {
           card="sealed"
           icon="crown"
           title="Day sealed — well climbed"
-          body="Rewards are already yours: Renown, gold, spoils and quest progress. A new route opens tomorrow."
+          body="Rewards are already yours: XP, gold, spoils and quest progress. A new route opens tomorrow."
           primaryLabel="Finish the tour"
           onPrimary={() => {
             markTutorialSeen('sealed')
@@ -452,7 +452,7 @@ export function MapScreen() {
         open={confirmResetDay}
         eyebrow="The ascent"
         title="Abandon today?"
-        description="Today returns to unwritten: its map, route, Renown, gold, spoils and vow progress are taken back."
+        description="Today returns to unwritten: its map, route, XP, gold, spoils and vow progress are taken back."
         onClose={() => setConfirmResetDay(false)}
         footer={
           <>

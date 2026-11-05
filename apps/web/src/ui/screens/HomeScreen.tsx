@@ -409,7 +409,7 @@ export function HomeScreen() {
         open={confirmResetDay}
         eyebrow="Camp"
         title="Abandon today?"
-        description="Today returns to unwritten: its map, route, Renown, gold, spoils and vow progress are taken back. Yesterday and tomorrow are untouched."
+        description="Today returns to unwritten: its map, route, XP, gold, spoils and vow progress are taken back. Yesterday and tomorrow are untouched."
         onClose={() => setConfirmResetDay(false)}
         footer={
           <>

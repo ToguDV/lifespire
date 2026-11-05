@@ -51,9 +51,9 @@ export function nodeRewardLine(
   node: MapNode,
   progress: 0 | 1 = node.rewards.progress,
 ): string {
-  if (node.type === 'wheel') return 'A surprise: trial, gold, Renown or respite'
+  if (node.type === 'wheel') return 'A surprise: trial, gold, XP or respite'
   const parts: string[] = []
-  if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} Renown`)
+  if (node.rewards.xp > 0) parts.push(`+${node.rewards.xp} XP`)
   if (node.rewards.gold > 0) parts.push(`+${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
   if (progress > 0) parts.push('+1 toward the weekly vow')
@@ -66,13 +66,13 @@ export function nodeRewardSummary(
   progress: 0 | 1 = node.rewards.progress,
 ): string {
   const parts: string[] = []
-  if (node.rewards.xp > 0) parts.push(`plus ${node.rewards.xp} Renown`)
+  if (node.rewards.xp > 0) parts.push(`plus ${node.rewards.xp} XP`)
   if (node.rewards.gold > 0) parts.push(`plus ${node.rewards.gold} gold`)
   if (node.rewards.lootRolls > 0) parts.push(pluralRolls(node.rewards.lootRolls))
   if (progress > 0) parts.push('plus one toward the weekly vow')
   if (node.type === 'boss') {
     parts.push(
-      `includes a closing bonus of ${BOSS_CLOSING_BONUS.xp} Renown and ${BOSS_CLOSING_BONUS.gold} gold`,
+      `includes a closing bonus of ${BOSS_CLOSING_BONUS.xp} XP and ${BOSS_CLOSING_BONUS.gold} gold`,
     )
   }
   return parts.join(', ')

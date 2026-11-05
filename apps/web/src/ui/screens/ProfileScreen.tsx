@@ -64,13 +64,13 @@ export function ProfileScreen() {
               <p>Wayfarer of the quiet route</p>
               <div className="xp-track">
                 <div className="xp-track__meta">
-                  <span>Renown</span>
+                  <span>XP</span>
                   <span>{xpNow} / 100</span>
                 </div>
                 <div
                   className="xp-track__bar"
                   role="progressbar"
-                  aria-label="Renown in this rank"
+                  aria-label="XP in this rank"
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={xpNow}

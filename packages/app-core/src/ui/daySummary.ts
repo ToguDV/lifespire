@@ -52,26 +52,26 @@ export function rewardFeedback(
     Partial<Pick<RewardEvent, 'nodeType' | 'wheelOutcome' | 'taskTitle'>>,
 ): string {
   if (event.action === 'skip') {
-    return 'Step passed · no Renown, gold, spoils or vow progress.'
+    return 'Step passed · no XP, gold, spoils or vow progress.'
   }
 
   if (event.nodeType === 'wheel') {
     if (event.wheelOutcome === 'task') {
       const parts = [
         `Wheel: ${event.taskTitle ?? 'a trial'}`,
-        `+${event.xp} Renown`,
+        `+${event.xp} XP`,
         `+${event.gold} gold`,
       ]
       if (event.progress > 0) parts.push('+1 toward the weekly vow')
       return parts.join(' · ')
     }
     if (event.wheelOutcome === 'gold') return `Wheel: +${event.gold} gold`
-    if (event.wheelOutcome === 'xp') return `Wheel: +${event.xp} Renown`
-    if (event.wheelOutcome === 'rest') return `Wheel: respite · +${event.xp} Renown`
+    if (event.wheelOutcome === 'xp') return `Wheel: +${event.xp} XP`
+    if (event.wheelOutcome === 'rest') return `Wheel: respite · +${event.xp} XP`
   }
 
   const parts: string[] = ['Step claimed']
-  if (event.xp > 0) parts.push(`+${event.xp} Renown`)
+  if (event.xp > 0) parts.push(`+${event.xp} XP`)
   if (event.gold > 0) parts.push(`+${event.gold} gold`)
   if (event.lootItem) parts.push(`found ${event.lootItem.name}`)
   if (event.duplicateCatalogId && event.duplicateGold > 0) {
@@ -86,7 +86,7 @@ export function rewardFeedback(
 export function dayPathReward(row: Pick<DayPathRow, 'action' | 'xp' | 'gold' | 'loot' | 'duplicateGold'>): string {
   if (row.action === 'skip') return 'No reward'
   const parts: string[] = []
-  if (row.xp > 0) parts.push(`+${row.xp} Renown`)
+  if (row.xp > 0) parts.push(`+${row.xp} XP`)
   if (row.gold > 0) parts.push(`+${row.gold} g`)
   if (row.loot) parts.push(row.loot.name)
   return parts.length > 0 ? parts.join(' · ') : 'No reward'
@@ -95,5 +95,5 @@ export function dayPathReward(row: Pick<DayPathRow, 'action' | 'xp' | 'gold' | '
 /** Text for the warden closing bonus block. */
 export function closingBonusCopy(bossCompleted: boolean, bonusXp: number, bonusGold: number): string {
   if (!bossCompleted) return 'Forfeited'
-  return `+${bonusXp} Renown · +${bonusGold} gold`
+  return `+${bonusXp} XP · +${bonusGold} gold`
 }

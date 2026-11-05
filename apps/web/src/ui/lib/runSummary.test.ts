@@ -100,13 +100,13 @@ describe('weekly bonus copy', () => {
         bonusXp: OBJECTIVE_BONUS.xp,
         bonusGold: OBJECTIVE_BONUS.gold,
       }),
-    ).toBe('Kept · +50 Renown · +50 gold · 1 spoils roll')
+    ).toBe('Kept · +50 XP · +50 gold · 1 spoils roll')
     expect(
       objectiveBonusCopy({ met: false, bonusXp: 0, bonusGold: 0 }),
     ).toBe('Not kept · no bonus')
 
     expect(allAimsBonusCopy(true)).toBe(
-      `+${ALL_OBJECTIVES_BONUS.xp} Renown · +${ALL_OBJECTIVES_BONUS.gold} gold · one guaranteed rare`,
+      `+${ALL_OBJECTIVES_BONUS.xp} XP · +${ALL_OBJECTIVES_BONUS.gold} gold · one guaranteed rare`,
     )
     expect(allAimsBonusCopy(false)).toBe(
       'Not granted · every weekly vow must be kept',
@@ -116,10 +116,10 @@ describe('weekly bonus copy', () => {
   it('names the duplicate gold inside the total rather than adding it twice', () => {
     expect(
       weeklyBonusTotalCopy({ bonusXp: 200, bonusGold: 215, duplicateGold: 15 }),
-    ).toBe('+200 Renown · +215 gold (includes 15 gold from duplicates)')
+    ).toBe('+200 XP · +215 gold (includes 15 gold from duplicates)')
     expect(
       weeklyBonusTotalCopy({ bonusXp: 50, bonusGold: 50, duplicateGold: 0 }),
-    ).toBe('+50 Renown · +50 gold')
+    ).toBe('+50 XP · +50 gold')
     expect(duplicateGoldCopy(0)).toBe('No duplicate relics were converted this week.')
     expect(duplicateGoldCopy(25)).toContain('25 gold came from duplicate relics')
   })

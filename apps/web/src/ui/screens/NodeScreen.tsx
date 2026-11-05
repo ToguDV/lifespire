@@ -73,7 +73,7 @@ function NodeTutorialCard() {
       card="node"
       icon="check"
       title="Do it, then mark it"
-      body="Do the step in real life, then Claim it for Renown, gold and quest progress. Pass moves on with nothing — no penalty."
+      body="Do the step in real life, then Claim it for XP, gold and quest progress. Pass moves on with nothing — no penalty."
       primaryLabel="Got it"
       onPrimary={() => markTutorialSeen('node')}
       onHide={() => markTutorialSeen('node')}
@@ -381,7 +381,7 @@ export function NodeScreen() {
                     <Icon name="wheel" />
                     Surprise
                   </strong>
-                  <small>Trial, gold, Renown or respite</small>
+                  <small>Trial, gold, XP or respite</small>
                 </div>
               ) : node.type === 'treasure' ? (
                 <div className="node-fact">
@@ -430,7 +430,7 @@ export function NodeScreen() {
             {isWheel && !revealed ? (
               <p className="node-note">
                 <Icon name="wheel" />
-                <span>Spin to reveal: trial, gold, Renown or respite.</span>
+                <span>Spin to reveal: trial, gold, XP or respite.</span>
               </p>
             ) : null}
 
@@ -505,19 +505,19 @@ export function NodeScreen() {
                         : rolledOutcome.outcome === 'gold'
                           ? `Gold`
                           : rolledOutcome.outcome === 'xp'
-                            ? `Experience`
+                            ? `XP`
                             : `Respite`}
                     </p>
                     <p className="wheel__result-reward">
                       {rolledOutcome.outcome === 'task'
-                        ? `+${rolledOutcome.xp} Renown · +${rolledOutcome.gold} gold${
+                        ? `+${rolledOutcome.xp} XP · +${rolledOutcome.gold} gold${
                             rolledOutcome.progress > 0 ? ' · +1 vow' : ''
                           }`
                         : rolledOutcome.outcome === 'gold'
                           ? `+${rolledOutcome.gold} gold`
                           : rolledOutcome.outcome === 'xp'
-                            ? `+${rolledOutcome.xp} Renown`
-                            : `+${rolledOutcome.xp} Renown`}
+                            ? `+${rolledOutcome.xp} XP`
+                            : `+${rolledOutcome.xp} XP`}
                     </p>
                   </div>
                 ) : null}

@@ -116,7 +116,7 @@ export function RewardScreen() {
   }
 
   const rewardParts = [
-    ...(outcome.xp > 0 ? [`+${outcome.xp} Renown`] : []),
+    ...(outcome.xp > 0 ? [`+${outcome.xp} XP`] : []),
     ...(outcome.gold > 0 ? [`+${outcome.gold} gold`] : []),
     ...(outcome.progress > 0 ? ['+1 vow'] : []),
     ...(outcome.task ? [outcome.task.goalTitle] : []),
@@ -128,7 +128,7 @@ export function RewardScreen() {
       : outcome.outcome === 'gold'
         ? 'A gold hoard'
         : outcome.outcome === 'xp'
-          ? 'A surge of Renown'
+          ? 'A surge of XP'
           : 'A quiet respite'
 
   return (

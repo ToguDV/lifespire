@@ -110,7 +110,7 @@ function SealedBody({
             <strong>
               <Icon name="star" />+<AnimatedNumber value={totals.xp} />
             </strong>
-            <span>Renown</span>
+            <span>XP</span>
           </div>
           <div className="total">
             <strong>
@@ -126,7 +126,7 @@ function SealedBody({
           </div>
         </div>
         <p className="panel-note">
-          Weekly bonus included: +{summary.bonusXp} Renown · +{summary.bonusGold} gold.
+          Weekly bonus included: +{summary.bonusXp} XP · +{summary.bonusGold} gold.
         </p>
 
         <section className="summary-loot summary-aims-block" aria-labelledby="run-aims-title">

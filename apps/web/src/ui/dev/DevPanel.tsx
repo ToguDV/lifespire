@@ -14,7 +14,7 @@ const CONFIRM_COPY: Record<PendingAction, { title: string; description: string; 
   },
   restart: {
     title: 'Restart the current journey?',
-    description: 'The journey and its days are discarded. The profile, Renown, gold and collection stay.',
+    description: 'The journey and its days are discarded. The profile, XP, gold and collection stay.',
     body: 'A new seven-day journey begins today with the current quests and trials.',
     confirm: 'Restart journey',
   },
