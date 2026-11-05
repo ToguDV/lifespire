@@ -6,6 +6,9 @@
 /* Atmosphere ------------------------------------------------- */
 
 body {
+  /* Alegreya defaults to old-style figures; lining figures keep numbers
+     aligned with the text and readable at small sizes. */
+  font-variant-numeric: lining-nums;
   background:
     radial-gradient(1100px 600px at 50% -12%, var(--accent-wash), transparent 68%),
     var(--canvas);
@@ -409,7 +412,7 @@ html:not([data-theme]) .theme-glyph--sun {
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--ink);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .resource .icon {
@@ -1250,7 +1253,7 @@ html:not([data-theme]) .theme-glyph--sun {
   color: var(--ink-muted);
   font-size: 0.78rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   letter-spacing: 0.03em;
 }
 
@@ -1522,7 +1525,7 @@ html:not([data-theme]) .theme-glyph--sun {
   font-weight: 600;
   line-height: 1.1;
   color: var(--ink-strong);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .stat__label {
@@ -1701,7 +1704,7 @@ html:not([data-theme]) .theme-glyph--sun {
   color: var(--ink-muted);
   font-size: 0.68rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .routine-list {
@@ -1787,7 +1790,7 @@ html:not([data-theme]) .theme-glyph--sun {
   color: var(--ink);
   font-size: 0.7rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .mini-progress {
@@ -2138,7 +2141,7 @@ html:not([data-theme]) .theme-glyph--sun {
   font-size: 1.02rem;
   font-weight: 600;
   color: var(--ink-strong);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .profile-stat strong .icon {
@@ -2479,7 +2482,7 @@ html:not([data-theme]) .theme-glyph--sun {
   letter-spacing: 0.01em;
   line-height: 1.3;
   text-align: right;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
   white-space: normal;
 }
 
@@ -2513,7 +2516,7 @@ html:not([data-theme]) .theme-glyph--sun {
   font-size: 1.3rem;
   font-weight: 600;
   color: var(--ink-strong);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .total strong .icon {
@@ -2762,7 +2765,7 @@ html:not([data-theme]) .theme-glyph--sun {
   font-weight: 600;
   line-height: 1.15;
   color: var(--ink-strong);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .node-fact strong .icon {

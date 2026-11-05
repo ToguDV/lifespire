@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.display,
     fontSize: 21.6,
     lineHeight: 24,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ['lining-nums', 'tabular-nums'],
   },
   totalLabel: {
     fontSize: 9.4,

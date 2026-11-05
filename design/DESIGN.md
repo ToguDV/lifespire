@@ -122,6 +122,14 @@ typography:
     lineHeight: 1.4
     letterSpacing: 0.02em
 
+numerals:
+  fontVariantNumeric: lining-nums
+  tabularColumns: lining-nums tabular-nums
+  note: >-
+    Alegreya defaults to old-style figures, which look smaller than the surrounding
+    text. LifeSpire always opts into lining figures so numbers keep the cap height;
+    counters and tables also enable tabular figures so columns stay aligned.
+
 rounded:
   xs: 4px
   sm: 8px

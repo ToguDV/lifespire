@@ -97,6 +97,6 @@ const styles = StyleSheet.create({
     fontSize: 9.3,
     lineHeight: 11,
     letterSpacing: 0.45,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ['lining-nums', 'tabular-nums'],
   },
 })

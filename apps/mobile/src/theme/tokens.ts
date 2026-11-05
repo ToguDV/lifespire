@@ -145,12 +145,46 @@ export type TextVariant =
   | 'level'
 
 export const type: Record<TextVariant, TextStyle> = {
-  displayXl: { fontFamily: fonts.display, fontSize: 44, lineHeight: 48, letterSpacing: -0.66 },
-  displayLg: { fontFamily: fonts.display, fontSize: 36, lineHeight: 39, letterSpacing: -0.54 },
-  displayMd: { fontFamily: fonts.display, fontSize: 27, lineHeight: 29, letterSpacing: -0.4 },
-  headingLg: { fontFamily: fonts.display, fontSize: 22.5, lineHeight: 25, letterSpacing: -0.22 },
-  headingMd: { fontFamily: fonts.display, fontSize: 20, lineHeight: 25 },
-  headingSm: { fontFamily: fonts.display, fontSize: 16.8, lineHeight: 22 },
+  displayXl: {
+    fontFamily: fonts.display,
+    fontSize: 44,
+    lineHeight: 48,
+    letterSpacing: -0.66,
+    fontVariant: ['lining-nums'],
+  },
+  displayLg: {
+    fontFamily: fonts.display,
+    fontSize: 36,
+    lineHeight: 39,
+    letterSpacing: -0.54,
+    fontVariant: ['lining-nums'],
+  },
+  displayMd: {
+    fontFamily: fonts.display,
+    fontSize: 27,
+    lineHeight: 29,
+    letterSpacing: -0.4,
+    fontVariant: ['lining-nums'],
+  },
+  headingLg: {
+    fontFamily: fonts.display,
+    fontSize: 22.5,
+    lineHeight: 25,
+    letterSpacing: -0.22,
+    fontVariant: ['lining-nums'],
+  },
+  headingMd: {
+    fontFamily: fonts.display,
+    fontSize: 20,
+    lineHeight: 25,
+    fontVariant: ['lining-nums'],
+  },
+  headingSm: {
+    fontFamily: fonts.display,
+    fontSize: 16.8,
+    lineHeight: 22,
+    fontVariant: ['lining-nums'],
+  },
   bodyLg: { fontFamily: fonts.ui, fontSize: 17, lineHeight: 27 },
   bodyMd: { fontFamily: fonts.ui, fontSize: 15, lineHeight: 23 },
   bodySm: { fontFamily: fonts.ui, fontSize: 13.5, lineHeight: 20 },
@@ -167,7 +201,7 @@ export const type: Record<TextVariant, TextStyle> = {
     fontSize: 18,
     lineHeight: 21,
     letterSpacing: 0,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ['lining-nums', 'tabular-nums'],
   },
   brand: {
     fontFamily: fonts.display,
@@ -175,6 +209,7 @@ export const type: Record<TextVariant, TextStyle> = {
     lineHeight: 18,
     letterSpacing: 2.07,
     textTransform: 'uppercase',
+    fontVariant: ['lining-nums'],
   },
   tab: {
     fontFamily: fonts.uiBold,
@@ -188,7 +223,7 @@ export const type: Record<TextVariant, TextStyle> = {
     fontSize: 12.8,
     lineHeight: 16,
     letterSpacing: 0,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ['lining-nums', 'tabular-nums'],
   },
   level: {
     fontFamily: fonts.uiBold,

@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, minWidth: 0, gap: 5 },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  count: { marginLeft: 'auto', fontVariant: ['tabular-nums'] },
+  count: { marginLeft: 'auto', fontVariant: ['lining-nums', 'tabular-nums'] },
 })

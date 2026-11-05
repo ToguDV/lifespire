@@ -206,8 +206,11 @@ The stable repository URL is
 - Tokens, palettes and type scale derive from the same web clamps in
   `design/DESIGN.md` and `apps/web/src/styles/tokens.css`, sampled at the
   320–480 px phone range: display 44/36/27, heading-lg 22.5, a 16 px horizontal
-  gutter and 18/21 tabular numerals. Alegreya/Alegreya Sans are self-loaded
+  gutter and 18/21 lining, tabular numerals. Alegreya/Alegreya Sans are self-loaded
   through `@expo-google-fonts` (OFL), the eight used weights including italics.
+  Alegreya defaults to old-style figures, so the shared `Text` component and the
+  numeric styles request `fontVariant: ['lining-nums', 'tabular-nums']` to keep
+  numbers aligned with the text.
 - There are no extra semantic colours on mobile: currency and gems use
   `accentDeep`, destructive actions and warnings use stone (`surfaceSunken`,
   `hairlineStrong`, `inkStrong`). `gold` remains a wheel-sector label, not a

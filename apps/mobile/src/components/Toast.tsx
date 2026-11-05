@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.ui,
     fontSize: 11.5,
     lineHeight: 16,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ['lining-nums', 'tabular-nums'],
     flexShrink: 1,
   },
   bitBold: { fontFamily: fonts.uiBold },

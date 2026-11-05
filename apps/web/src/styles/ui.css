@@ -209,7 +209,7 @@ button.text-link:hover {
   color: var(--ink-muted);
   font-size: 0.64rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* Skip link ------------------------------------------------- */
@@ -1471,7 +1471,7 @@ button.text-link {
   font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .collection-filters button[aria-pressed="true"] small {
@@ -1592,7 +1592,7 @@ button.text-link {
   font-size: 1rem;
   font-weight: 600;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .duplicate-row__gold .micro {

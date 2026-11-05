@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     letterSpacing: 0.2,
     textAlign: 'right',
-    fontVariant: ['tabular-nums'],
+    fontVariant: ['lining-nums', 'tabular-nums'],
   },
   pathDuplicate: {
     fontFamily: fonts.ui,
