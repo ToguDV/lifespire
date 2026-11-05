@@ -321,11 +321,11 @@ describe('openDay', () => {
 
   it('refuses to open a day without an active run or active trials', () => {
     const empty = createEmptyDocument()
-    expect(() => openDay(empty, { now })).toThrow(/no active run/i)
+    expect(() => openDay(empty, { now })).toThrow(/no active journey/i)
 
     const closed = makeDocument()
     if (closed.run) closed.run = { ...closed.run, status: 'closed' }
-    expect(() => openDay(closed, { now })).toThrow(/no active run/i)
+    expect(() => openDay(closed, { now })).toThrow(/no active journey/i)
 
     const routineLess = makeDocument()
     routineLess.tasks = []
@@ -665,7 +665,7 @@ describe('resolveNode complete and skip', () => {
 
     expect(() =>
       resolveNode(document, { nodeId: locked.id, action: 'complete', now }),
-    ).toThrow(/not available from the current path/i)
+    ).toThrow(/not available from the current route/i)
     expect(() =>
       resolveNode(document, { nodeId: 'missing', action: 'complete', now }),
     ).toThrow(/not part of today/i)
@@ -1015,7 +1015,7 @@ describe('day lifecycle boundaries', () => {
         { ...finished, run },
         { nodeId: day.map?.boss.id ?? 'n4_0', action: 'complete', now: day7 },
       ),
-    ).toThrow(/no active run/i)
+    ).toThrow(/no active journey/i)
   })
 
   it('closes the run after day 7 is missed and stays idempotent', () => {

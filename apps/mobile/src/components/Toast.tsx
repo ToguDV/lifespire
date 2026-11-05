@@ -119,8 +119,8 @@ export function RewardToast({
   if (!event) return null
   const isSkip = event.action === 'skip'
   const title = isSkip
-    ? `${NODE_TYPE_LABEL[event.nodeType]} skipped`
-    : (event.taskTitle ?? event.goalTitle ?? 'The path moves on')
+    ? `${NODE_TYPE_LABEL[event.nodeType]} passed`
+    : (event.taskTitle ?? event.goalTitle ?? 'The route moves on')
   return (
     <Animated.View
       pointerEvents="box-none"
@@ -129,7 +129,7 @@ export function RewardToast({
       <Pressable
         accessibilityRole="summary"
         accessibilityLiveRegion="polite"
-        accessibilityLabel={`${NODE_TYPE_LABEL[event.nodeType]} ${isSkip ? 'skipped' : 'completed'}`}
+        accessibilityLabel={`${NODE_TYPE_LABEL[event.nodeType]} ${isSkip ? 'passed' : 'claimed'}`}
         onPress={onDismiss}
         style={[
           styles.reward,
@@ -159,7 +159,7 @@ export function RewardToast({
               {event.progress > 0 ? (
                 <Bit
                   icon="plus"
-                  label={`+${event.progress} target`}
+                  label={`+${event.progress} vow`}
                   color={colors.background}
                   bold
                 />

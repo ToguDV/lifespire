@@ -431,7 +431,7 @@ export function HomeScreen() {
       >
         <p className="panel-note">
           Use this to replay the day with the current quests. New quests join the week tomorrow, or
-          today after the reset.
+          today after abandoning it.
         </p>
       </Dialog>
     </section>

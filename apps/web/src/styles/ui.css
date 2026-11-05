@@ -1412,15 +1412,19 @@ button.text-link {
 @media (max-width: 560px) {
   .path-row {
     grid-template-columns: 36px minmax(0, 1fr);
+    row-gap: 4px;
   }
 
   .path-row__rewards {
     grid-column: 2;
     align-items: flex-start;
+    min-width: 0;
     max-width: none;
     margin-top: 2px;
+    text-align: left;
   }
 
+  .path-row__reward,
   .path-row__loot {
     text-align: left;
   }

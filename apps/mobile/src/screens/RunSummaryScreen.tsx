@@ -88,7 +88,7 @@ export function RunSummaryScreen() {
       <EmptyWeekState
         kicker="The week"
         title="Returning to camp."
-        body="A run summary appears after a seven-day run has been recorded."
+        body="A journey summary appears after a seven-day journey has been recorded."
         onCamp={() => navigate({ name: 'home' })}
       />
     )
@@ -103,7 +103,7 @@ export function RunSummaryScreen() {
       <EmptyWeekState
         kicker="The week"
         title="Sealing the week."
-        body="The weekly bonus is being calculated."
+        body="The vow bonus is being calculated."
         onCamp={() => navigate({ name: 'home' })}
       />
     )
@@ -160,7 +160,7 @@ export function RunSummaryScreen() {
       closeNewRun()
       return
     }
-    setNewRunError(useAppStore.getState().toast ?? 'A new run cannot begin yet.')
+    setNewRunError(useAppStore.getState().toast ?? 'A new journey cannot begin yet.')
   }
 
   return (
@@ -192,12 +192,12 @@ export function RunSummaryScreen() {
           <StatStrip>
             <Stat
               value={totals.daysPlayed}
-              label="Days played"
+              label="Days kept"
               progress={totals.daysPlayed / RUN_DAYS}
             />
             <Stat
               value={totals.daysMissed}
-              label="Days missed"
+              label="Days lost"
               progress={totals.daysMissed / RUN_DAYS}
             />
             <Stat
@@ -209,15 +209,15 @@ export function RunSummaryScreen() {
         </ReportSection>
 
         <ReportSection>
-          <ReportTotals xp={totals.xp} gold={totals.gold} relics={totals.lootCount} accessibilityLabel="Run totals" />
+          <ReportTotals xp={totals.xp} gold={totals.gold} relics={totals.lootCount} accessibilityLabel="Journey totals" />
           <Text variant="bodySm" tone="soft" style={styles.note}>
-            {`Weekly bonus included: +${summary.bonusXp} XP · +${summary.bonusGold} gold.`}
+            {`Vow bonus included: +${summary.bonusXp} XP · +${summary.bonusGold} gold.`}
           </Text>
         </ReportSection>
 
         <ReportSection>
           <ReportSectionHead
-            title="Weekly goals"
+            title="Weekly quests"
             aside={
               <Text variant="caption" tone="soft">
                 {`${aggregate.met} of ${aggregate.total} kept`}
@@ -229,7 +229,7 @@ export function RunSummaryScreen() {
           />
           {aggregate.total === 0 ? (
             <Text variant="bodySm" tone="muted">
-              No weekly goals were set for this run.
+              No weekly quests were set for this journey.
             </Text>
           ) : (
             <View style={styles.aims}>
@@ -257,7 +257,7 @@ export function RunSummaryScreen() {
                     </Text>
                   ) : objective.met ? (
                     <Text variant="caption" tone="muted" style={styles.aimLoot}>
-                      The loot roll became gold; the relic was already owned.
+                      The spoils roll became gold; the relic was already owned.
                     </Text>
                   ) : null}
                 </View>
@@ -288,7 +288,7 @@ export function RunSummaryScreen() {
         <ReportSection last>
           <View style={styles.actions}>
             <Button onPress={openNewRun} full>
-              Begin a new run
+              Begin a new journey
             </Button>
             <Button
               variant="quiet"
@@ -307,16 +307,16 @@ export function RunSummaryScreen() {
 
       <Dialog
         visible={newRunOpen}
-        title="Begin a new run?"
-        eyebrow="The next run"
-        description="The previous week is retired. Your profile, level, XP, gold and relics stay."
+        title="Begin a new journey?"
+        eyebrow="The next journey"
+        description="The previous week is retired. Your wayfarer, level, XP, gold and relics stay."
         onClose={closeNewRun}
         actions={
           <>
             <Button variant="quiet" onPress={closeNewRun}>
               Cancel
             </Button>
-            <Button onPress={begin}>Begin a new run</Button>
+            <Button onPress={begin}>Begin a new journey</Button>
           </>
         }
       >
@@ -329,7 +329,7 @@ export function RunSummaryScreen() {
             ]}
           >
             <Text variant="caption" style={{ color: colors.inkStrong }}>
-              This run cannot begin yet
+              This journey cannot begin yet
             </Text>
             {errors.map((message) => (
               <Text key={message} variant="bodySm" style={{ color: colors.inkStrong }}>
@@ -340,12 +340,12 @@ export function RunSummaryScreen() {
         ) : null}
 
         <Text variant="bodySm" tone="muted">
-          {`Targets run from ${MIN_WEEKLY_OBJECTIVE} to ${MAX_WEEKLY_OBJECTIVE}.`}
+          {`Vows run from ${MIN_WEEKLY_OBJECTIVE} to ${MAX_WEEKLY_OBJECTIVE}.`}
         </Text>
 
         {validation.activeGoals.length === 0 ? (
           <Text variant="bodySm" tone="muted">
-            There are no active goals. Restore one from Goals before beginning.
+            There are no active quests. Restore one from Quests before beginning.
           </Text>
         ) : (
           <View style={styles.targets}>
@@ -361,7 +361,7 @@ export function RunSummaryScreen() {
                         {goal.title}
                       </Text>
                       <Text variant="caption" tone="muted">
-                        {`${routines} active ${routines === 1 ? 'routine' : 'routines'}`}
+                        {`${routines} active ${routines === 1 ? 'trial' : 'trials'}`}
                       </Text>
                       {error ? (
                         <Text variant="caption" tone="default">
@@ -374,7 +374,7 @@ export function RunSummaryScreen() {
                     <Button
                       variant="secondary"
                       small
-                      accessibilityLabel={`Decrease target for ${goal.title}`}
+                      accessibilityLabel={`Decrease vow for ${goal.title}`}
                       onPress={() => stepTarget(goal, -1)}
                     >
                       −
@@ -383,7 +383,7 @@ export function RunSummaryScreen() {
                     <Button
                       variant="secondary"
                       small
-                      accessibilityLabel={`Increase target for ${goal.title}`}
+                      accessibilityLabel={`Increase vow for ${goal.title}`}
                       onPress={() => stepTarget(goal, 1)}
                     >
                       +
@@ -397,7 +397,7 @@ export function RunSummaryScreen() {
 
         {validation.activeRoutines < 4 ? (
           <Text variant="bodySm" tone="default">
-            {`A run needs at least four active routines. This setup has ${validation.activeRoutines}.`}
+            {`A journey needs at least four active trials. This setup has ${validation.activeRoutines}.`}
           </Text>
         ) : null}
       </Dialog>
@@ -428,7 +428,7 @@ function ActiveRun({ run }: { run: Run }) {
 
         <ReportSection>
           <ReportSectionHead
-            title="Weekly goals"
+            title="Weekly quests"
             aside={
               <Text variant="caption" tone="soft">
                 {`${met} of ${total} kept`}
@@ -437,7 +437,7 @@ function ActiveRun({ run }: { run: Run }) {
           />
           {total === 0 ? (
             <Text variant="bodySm" tone="muted">
-              No weekly goals were set for this run.
+              No weekly quests were set for this journey.
             </Text>
           ) : (
             <View style={styles.aims}>
@@ -482,9 +482,9 @@ const styles = StyleSheet.create({
     // 6px keeps the web aim-meta rhythm; no token covers it.
     paddingBottom: 6,
     fontFamily: fonts.uiBold,
-    fontSize: 10,
-    lineHeight: 13,
-    letterSpacing: 0.5,
+    fontSize: 11.5,
+    lineHeight: 15,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   aimLoot: { paddingLeft: space.xxxl, paddingBottom: space.xxs },

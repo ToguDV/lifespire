@@ -2,7 +2,7 @@
 version: alpha
 name: LifeSpire — The Quiet Ascent
 description: >-
-  LifeSpire is a calm, near-monochrome daily path game. The design reads as a field journal rather
+  LifeSpire is a calm, near-monochrome daily route game. The design reads as a field journal rather
   than a dashboard: warm stone paper, deep ink, one moss accent, and a single vertical map that
   carries every choice. Alegreya supplies the medieval, literary voice; Alegreya Sans keeps small
   labels and controls legible. The shell is mobile-first, with bottom tabs and the map rail stacked
@@ -394,16 +394,16 @@ components:
 
 ## Overview
 
-LifeSpire is a daily path game about small promises. It borrows the silhouette of a deck-building roguelike — a branched route, a handful of choices, a run that ends — but replaces combat with the routines a person actually keeps. The interface is a field journal: warm stone paper, deep ink, and a single moss accent. The map is the largest surface and the strongest state change. Everything else exists to help the player read it.
+LifeSpire is a daily route game about small promises. It borrows the silhouette of a deck-building roguelike — a branched route, a handful of choices, a journey that ends — but replaces combat with the trials a person actually keeps. The interface is a field journal: warm stone paper, deep ink, and a single moss accent. The map is the largest surface and the strongest state change. Everything else exists to help the player read it.
 
 Alegreya carries the literary, slightly medieval voice. Its italic is used for place names, seals, and the emotional line; the roman is used for titles and numbers. Alegreya Sans handles body copy, controls, and micro labels, so the old face never has to compromise legibility. The palette is near-monochrome: five stone/ink roles per theme, one moss signal. There are no gradients, purple, brass, or parchment textures. The grain is a 3.5%–5% noise overlay, not a brand colour.
 
 **Key Characteristics:**
-- One vertical map per day, read bottom-to-top from camp to a locked boss gate.
+- One vertical map per day, read bottom-to-top from camp to a locked warden gate.
 - One accent (`{colors.accent}`) reserved for open choices, the current step, gain, and one display italic.
 - Two complete palettes: `Day` and `Night`, mapped through CSS custom properties.
 - Alegreya display + Alegreya Sans interface; no third typeface.
-- Stone shapes: circles for nodes, 14–24px rounding for surfaces, 1px hairlines.
+- Stone shapes: circles for encounters, 14–24px rounding for surfaces, 1px hairlines.
 - A mobile shell (topbar + scrolling viewport + four tabs) that becomes a 240px sidebar at 960px; the map and camp rails join at 1200px.
 - Motion is short and calm: 180ms ease-out for controls, one 260ms screen entry, both removed under `prefers-reduced-motion`.
 
@@ -414,20 +414,20 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 ### Day
 - **Canvas** ({colors.canvas}): The page floor and the colour of paper in daylight.
 - **Surface** ({colors.surface}): Panels, cards, and the map frame. A half-step lighter than canvas.
-- **Surface Raised** ({colors.surface-raised}): Raised cards, inputs, open node medallions.
+- **Surface Raised** ({colors.surface-raised}): Raised cards, inputs, open encounter medallions.
 - **Surface Sunken** ({colors.surface-sunken}): Sidebar floor, inset wells, quiet controls.
 - **Ink** ({colors.ink}): Primary text and filled actions.
 - **Ink Strong** ({colors.ink-strong}): Display headings and the smallest high-emphasis labels.
 - **Ink Muted** ({colors.ink-muted}): Body copy and secondary labels. Approximately 5.2:1 on canvas.
 - **Ink Soft** ({colors.ink-soft}): Captions, metadata, and disabled-adjacent text. Approximately 4.9:1 on canvas.
 - **Hairline** ({colors.hairline}): The default 1px divider and surface border.
-- **Hairline Strong** ({colors.hairline-strong}): Input borders, medallion rims, veiled paths.
-- **Done Fill** ({colors.done-fill}): Completed nodes. Day is deep stone: the past is solid.
-- **Done Rim** ({colors.done-rim}): The 1px edge of a completed medallion and the boss frame.
+- **Hairline Strong** ({colors.hairline-strong}): Input borders, medallion rims, veiled routes.
+- **Done Fill** ({colors.done-fill}): Claimed encounters. Day is deep stone: the past is solid.
+- **Done Rim** ({colors.done-rim}): The 1px edge of a claimed medallion and the warden frame.
 - **Done Ink** ({colors.done-ink}): The icon inside a completed medallion.
 - **Moss** ({colors.accent}): The only accent. Open choices, current state, gain, progress.
 - **Moss Deep** ({colors.accent-deep}): Text on moss-soft backgrounds and italic display accents.
-- **Moss Soft** ({colors.accent-soft}): The current-day wash, active goal rows, quiet emphasis.
+- **Moss Soft** ({colors.accent-soft}): The current-day wash, active quest rows, quiet emphasis.
 - **Moss Wash** ({colors.accent-wash}): Atmospheric radial wash on the map and welcome art.
 - **On Accent** ({colors.on-accent}): Text and icons placed on filled moss or ink.
 - **Scrim** ({colors.scrim}): The only overlay, used behind modal surfaces if added.
@@ -443,7 +443,7 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 - **Night Ink Soft** ({colors.ink-soft-night}): Metadata, approximately 5.6:1 on canvas.
 - **Night Hairline** ({colors.hairline-night}): 1px dividers that disappear before they distract.
 - **Night Hairline Strong** ({colors.hairline-strong-night}): Inputs and medallion rims.
-- **Night Done Fill** ({colors.done-fill-night}): Quiet stone for completed nodes. A bright disc would glare on the night canvas, so the medallion never reaches the lightness of text ink.
+- **Night Done Fill** ({colors.done-fill-night}): Quiet stone for claimed encounters. A bright disc would glare on the night canvas, so the medallion never reaches the lightness of text ink.
 - **Night Done Rim** ({colors.done-rim-night}): The 1px edge of a completed medallion.
 - **Night Done Ink** ({colors.done-ink-night}): The icon inside a completed medallion.
 - **Night Moss** ({colors.accent-night}): Open choices and current state. Lifted to sage for contrast.
@@ -455,9 +455,9 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 
 ### Rules
 - **Moss never decorates.** If an element is not open, current, a gain, or the single welcome italic, it stays stone.
-- **Completed nodes are stone, not moss.** The past is solid; the possible is green. Day fills the medallion with deep ink; Night uses Done Fill so a finished node never glares.
+- **Claimed encounters are stone, not moss.** The past is solid; the possible is green. Day fills the medallion with deep ink; Night uses Done Fill so a claimed encounter never glares.
 - **Locked states are transparent with a dashed rim.** They never use a red or a warning icon.
-- **No second semantic colour.** Boss, rest, task, and elite are distinguished by shape, icon, and label — not hue.
+- **No second semantic colour.** Warden, respite, trial, and elite are distinguished by shape, icon, and label — not hue.
 - **Gold and danger are not system roles.** The palette is ink, moss, and stone only. Currency and gems use moss-deep; destructive actions and warnings use stone surfaces with `hairline-strong` borders and ink text. "Gold" survives only as a wheel-sector label, never as a colour token.
 
 ### Mobile Type Ramp
@@ -465,7 +465,7 @@ Alegreya carries the literary, slightly medieval voice. Its italic is used for p
 The Android app derives its ramp from the same web clamps at 320–480px:
 `display-xl` 44/48, `display-lg` 36/39, `display-md` 27/29, `heading-lg`
 22.5/25, with a 16px horizontal gutter. Numerals use Alegreya at 18/21 with
-tabular figures so counters do not jitter while animating.
+lining, tabular figures so counters do not jitter while animating.
 
 ## Typography
 
@@ -482,10 +482,10 @@ Fallbacks: `Iowan Old Style`, `Palatino Linotype`, Georgia for display; `Gill Sa
 |---|---|---|---|---|---|
 | `{typography.display-xl}` | 84px | 600 | 1.08 | -0.015em | Welcome title, hero display |
 | `{typography.display-lg}` | 60px | 600 | 1.08 | -0.015em | Screen titles, large map name |
-| `{typography.display-md}` | 40px | 600 | 1.06 | -0.015em | Node title, welcome section |
+| `{typography.display-md}` | 40px | 600 | 1.06 | -0.015em | Encounter title, welcome section |
 | `{typography.heading-lg}` | 28.8px | 600 | 1.12 | -0.01em | Section headings, summary title |
-| `{typography.heading-md}` | 20px | 600 | 1.25 | 0 | Panel titles, goal group names |
-| `{typography.heading-sm}` | 16.8px | 600 | 1.3 | 0 | Card titles, node names |
+| `{typography.heading-md}` | 20px | 600 | 1.25 | 0 | Panel titles, quest group names |
+| `{typography.heading-sm}` | 16.8px | 600 | 1.3 | 0 | Card titles, encounter names |
 | `{typography.body-lg}` | 17px | 400 | 1.6 | 0 | Long-form welcome copy |
 | `{typography.body-md}` | 15px | 400 | 1.5 | 0 | Primary body copy |
 | `{typography.body-sm}` | 13.5px | 400 | 1.5 | 0 | Secondary body, list rows |
@@ -512,19 +512,20 @@ contextual help, never in summaries, settings or empty states.
 2. **One fact, one place.** If the topbar, a chip or a pip already shows it, it
    is not written again. Counters, XP, gold, levels, dates and totals belong to
    the chrome that owns them.
-3. **Mechanics only in onboarding and contextual help.** Node types, effort,
-   loot rolls and closing bonuses are explained once (the node key, the
+3. **Mechanics only in onboarding and contextual help.** Encounter types, difficulty,
+   spoils rolls and closing bonuses are explained once (the encounter key, the
    onboarding steps), never in a summary, a settings panel or an empty state.
 4. **Empty and error states:** one sentence plus one action. Do not explain the
    system to justify the absence of data.
-5. **No internal language.** "Daily loop", "milestone", "Run I" and "node" in
-   user-facing copy are forbidden; say "step" when the player acts on it.
+5. **No internal language.** "Daily loop", "milestone", "run", "node" and "boss"
+   in user-facing copy are forbidden; use "journey", "encounter" and "warden".
+   Say "step" when the player acts on it.
 6. **Numbers and rewards are facts.** They are chips, pips or facts
-   (`+20 XP · +7 gold · +1 goal`), not sentences.
+   (`+20 XP · +7 gold · +1 vow`), not sentences.
 7. **Literary voice is a single line per screen**, only on Home (the hero) and
-   the node detail (the flavour line). Settings, summaries and dialogs use a
+   the encounter detail (the flavour line). Settings, summaries and dialogs use a
    functional tone.
-8. **Buttons carry a concrete verb:** "Open today's path", "Read the day",
+8. **Buttons carry a concrete verb:** "Open today's route", "Read the day",
    "Read the week", "Return to camp". Avoid "Done" except in the wheel recap.
 
 ## Layout
@@ -540,11 +541,11 @@ contextual help, never in summaries, settings or empty states.
 - **Desktop shell**: 240px sidebar (256px at 1280px and above) plus a fluid main column. At 1440px the content area is approximately 1184px wide.
 - **Map**: a height-led canvas whose 560px-wide viewBox grows with the day's layer count (570–2130px tall), centered in its frame and scrolling vertically when it does not fit. Below 1200px the shipped web and Android both stack the rail under the frame; from 1200–1279px it becomes a 312px side rail and 336px at 1280px and above.
 - **Camp**: a two-column grid, `minmax(0, 1fr)` + 340px rail, with a 24px gap. Below 960px the rail and week strip are removed. From 960–1199px the rail is removed but the week strip remains in a full-width camp. At 1200px the rail returns.
-- **Goals**: a 3-column weekly grid plus a 300px right rail on desktop; one column on mobile.
-- **Summary**: a 720px maximum card, centered in the main area, with a two-column totals row and a compact goal list.
+- **Quests**: a 3-column weekly grid plus a 300px right rail on desktop; one column on mobile.
+- **Summary**: a 720px maximum card, centered in the main area, with a two-column totals row and a compact quest list.
 
 ### Whitespace Philosophy
-Negative space is part of the calm. Screens use generous top padding and quiet endings rather than filling every pixel. On desktop, content may end well above the fold; that is intentional paper margin. On mobile, partial next sections are acceptable because the viewport scrolls, but the first view should always show the next action: the map nodes and the Next step panel, the camp CTA, the node's primary button.
+Negative space is part of the calm. Screens use generous top padding and quiet endings rather than filling every pixel. On desktop, content may end well above the fold; that is intentional paper margin. On mobile, partial next sections are acceptable because the viewport scrolls, but the first view should always show the next action: the map encounters and the Next step panel, the camp CTA, the encounter's primary button.
 
 ## Elevation & Depth
 
@@ -570,17 +571,17 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 | Token | Value | Use |
 |---|---|---|
 | `{rounded.xs}` | 4px | Tiny chips, grain tiles, map dots |
-| `{rounded.sm}` | 8px | Small controls, path labels |
+| `{rounded.sm}` | 8px | Small controls, route labels |
 | `{rounded.md}` | 10px | Inputs, map choice rows |
 | `{rounded.lg}` | 14px | Panels, plates, sidebar active state |
 | `{rounded.xl}` | 18px | Map frame, summary card |
 | `{rounded.xxl}` | 24px | Welcome art, phone frame |
-| `{rounded.full}` | 9999px | All buttons, chips, pips, node medallions, seals |
+| `{rounded.full}` | 9999px | All buttons, chips, pips, encounter medallions, seals |
 
 ### Geometry
-- **Nodes are circles.** The visible medallion is 40–50px (45/50, or 40/44 on five-node layers); the button target is always 54px. The current node gets a 3px surface gap and a 4.5px moss ring. On Android the ring is the only current marker; the micro `HERE` label stays desktop-only.
-- **The boss is a hexagon.** A 76×82px dashed outline contains a crown. It is the only non-circular node, so it reads before a label.
-- **Paths are 1.5–1.7px lines.** Walked paths are solid ink; open paths are 3/7 moss dashes; veiled paths are 1/8 hairline dashes.
+- **Encounters are circles.** The visible medallion is 40–50px (45/50, or 40/44 on five-encounter layers); the button target is always 54px. The current encounter gets a 3px surface gap and a 4.5px moss ring. On Android the ring is the only current marker; the micro `HERE` label stays desktop-only.
+- **The warden is a hexagon.** A 76×82px dashed outline contains a crown. It is the only non-circular encounter, so it reads before a label.
+- **Routes are 1.5–1.7px lines.** Walked routes are solid ink; open routes are 3/7 moss dashes; veiled routes are 1/8 hairline dashes.
 - **Day pips are diamonds.** Six-pixel squares rotated 45°; moss for completed days, hairline for the remainder.
 - **Two radii in one view.** The map frame and summary card use 18px; the plates inside use 14px. No card is nested more than one level.
 
@@ -599,7 +600,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`button-quiet`** — Secondary action that should not compete.
 - Transparent background, text `{colors.ink-muted}`, 1px `{colors.hairline}` border, `{rounded.full}`, height 44px.
-- Used for "Skip this step", "Choose another path", "Create my own path".
+- Used for "Pass this step", "Choose another route", "Create my own route".
 
 **`button-ghost`** — Tertiary, text-only action. Transparent; no border; 40px height; used for "View the week" and small route controls.
 
@@ -609,16 +610,16 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 ### Navigation
 
-**`topbar`** — Run header.
+**`topbar`** — Journey header.
 - Background `{colors.canvas}`, height 56px on phones, 14px horizontal gutter, bottom border `{colors.hairline}`.
 - Mobile: left, the 21px spire mark plus the wordmark; right, gold (16px coin), `Lv N`, the theme switch and Settings.
 - The day pips and `Day 3 of 7` are **not** in the mobile topbar: Home carries the week strip and Map carries the day in its kicker; the other screens do not show day context.
-- At 960px and above the same bar adds the run label, pips, day label and XP meter.
+- At 960px and above the same bar adds the journey label, pips, day label and XP meter.
 
-**`sidebar`** — Desktop run rail.
+**`sidebar`** — Desktop journey rail.
 - Width 240px from 960–1279px and 256px at 1280px and above; background `{colors.surface-sunken}`, right border `{colors.hairline}`.
-- Top: wordmark, "a quiet ascent", "The run" micro label. Primary nav: Map, Camp, Goals, Reliquary.
-- Bottom: profile card (level badge, name, level/XP), appearance label, theme switch.
+- Top: wordmark, "a quiet ascent", "The journey" micro label. Primary nav: Map, Camp, Quests, Reliquary.
+- Bottom: wayfarer card (level badge, name, level/XP), appearance label, theme switch.
 
 **`sidebar-item-active`** — Current section.
 - Background `{colors.surface-raised}`, text `{colors.ink-strong}`, border `{colors.hairline}`, rounded `{rounded.lg}`. A 2px moss inset on the left is optional; the raised surface is the primary signal.
@@ -635,7 +636,7 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 - A second inset 1px border sits 7px inside; it is decorative and low opacity.
 - Frame meta: `THE ASCENT · 2 OF N RESOLVED` on the left, where N is the day's
   decision layers + 1 (4–16); `Day III` in Alegreya italic on the right.
-- Empty variant (sealed or locked day, or a path not drawn yet): the same frame,
+- Empty variant (sealed or locked day, or a route not drawn yet): the same frame,
   border and inset, with `THE ASCENT · BEYOND THE VEIL` and the day numeral (or
   `—`), decorative contour lines, a centered `EmptyState` and the compass. It is
   a map frame, never a generic panel.
@@ -647,13 +648,13 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 **`map-node-button`** — 54×54px transparent button with a concentric medallion. The button, not the medallion, is the touch target.
 - Completed: done-fill medallion, done-ink icon, 15px moss seal with a check at bottom-right. A small 3px surface gap keeps seals legible.
 - Current: surface-raised medallion with a 3px surface gap and 4.5px moss ring, plus a `HERE` micro label on desktop only (web at 960px and above). Android never renders `HERE`; the ring is the sole marker.
-- Available: 50px surface-raised medallion (44px on five-node layers), moss border, 4px moss-soft halo, moss-deep icon; a second 1px moss ring at 1.2 scale. These are the only nodes with a filled surface and a pointer.
-- Locked: 45px transparent medallion (40px on five-node layers) with a dashed `{colors.hairline-strong}` rim, 52% opacity, and the future node icon. No lock glyph on the map; the dashed rim is the lock.
-- Task, elite, and boss medallions show the goal's crest instead of the type glyph. Elite adds a 15px star mark at top-right in every state (completed, skipped, locked and open); the boss keeps its hexagon frame. `rest` and `treasure` keep campfire and chest icons because they have no goal.
-- Labels: 78px maximum width (64px on dense layers of three or more nodes), 124px above the boss. Labels stay hidden at rest — including the current node — so the map stays quiet. On touch screens the first tap reveals the title and the second tap selects the node; only available and current nodes reveal.
+- Available: 50px surface-raised medallion (44px on five-encounter layers), moss border, 4px moss-soft halo, moss-deep icon; a second 1px moss ring at 1.2 scale. These are the only encounters with a filled surface and a pointer.
+- Locked: 45px transparent medallion (40px on five-encounter layers) with a dashed `{colors.hairline-strong}` rim, 52% opacity, and the future encounter icon. No lock glyph on the map; the dashed rim is the lock.
+- Trial, elite, and warden medallions show the quest's crest instead of the type glyph. Elite adds a 15px star mark at top-right in every state (claimed, passed, locked and open); the warden keeps its hexagon frame. `rest` and `treasure` keep campfire and chest icons because they have no quest.
+- Labels: 78px maximum width (64px on dense layers of three or more encounters), 124px above the warden. Labels stay hidden at rest — including the current encounter — so the map stays quiet. On touch screens the first tap reveals the title and the second tap selects the encounter; only available and current encounters reveal.
 - Start: 38px dashed medallion with a tent, canvas fill. The label sits below at 10.5px uppercase.
-- Boss: 76×82px dashed hexagon, surface-raised fill, goal crest, `{colors.ink-soft}`. Its label sits above the gate.
-- The frame exposes the group label “Day map. Camp at the bottom, N layers above, and the boss at the top.” to TalkBack without grouping or hiding the node buttons.
+- Warden: 76×82px dashed hexagon, surface-raised fill, quest crest, `{colors.ink-soft}`. Its label sits above the gate.
+- The frame exposes the group label “Day map. Camp at the bottom, N layers above, and the warden at the top.” to TalkBack without grouping or hiding the encounter buttons.
 
 **`map-dock` (retired)** — The floating mobile next-step chooser is gone.
 - No screen pins a dock above the tab bar; Android stacks the full `map-rail`
@@ -663,24 +664,24 @@ The system is predominantly flat. Surfaces separate through one hairline and a v
 
 **`map-rail`** — The map companion, stacked under the frame below 1200px and shown beside the map from 1200px.
 - Surface panels with 16–20px padding, rounded `{rounded.lg}`, hairline border, 12–14px gap.
-- Three compact sections: Next step (only choice rows when choices exist; otherwise one no-choice line), a one-line `N of M goals on track` summary with an `All goals` link, and a `Node key` disclosure (Task, Elite, Rest, Treasure, Wheel, Boss). The contextual day action (read the summary, return to camp, open the path) lives in the empty map frame, never in the rail.
+- Three compact sections: Next step (only choice rows when choices exist; otherwise one no-choice line), a one-line `N of M quests on track` summary with an `All quests` link, and an `Encounter key` disclosure (Trial, Elite, Respite, Hoard, Wheel of Fortune, Warden). The contextual day action (read the summary, return to camp, open the route) lives in the empty map frame, never in the rail.
 - On Android the rail is never hidden: it follows the frame in the same vertical scroll. The shipped web keeps the same stacked layout below 1200px.
 
-**Paths**
+**Routes**
 - Walked: 1.7px solid `{colors.ink}` at 78% opacity.
 - Open: 1.5px moss dashed 3/7.
 - Veiled: 1.5px `{colors.hairline-strong}` dashed 1/8.
-- Boss halo: dashed hairline ellipse with `{colors.accent-wash}` fill.
+- Warden halo: dashed hairline ellipse with `{colors.accent-wash}` fill.
 
 ### Wheel
 
-**`wheel`** — The wheel node's one-shot outcome picker. Web and Android share
+**`wheel`** — The wheel of fortune encounter's one-shot outcome picker. Web and Android share
 the spin physics (`packages/app-core/src/ui/wheel.ts`); the canonical visual
 geometry below is mirrored by `apps/mobile/src/components/wheelGeometry.ts`.
-On Android the wheel sits right after the node tags and before the facts so the
+On Android the wheel sits right after the encounter tags and before the facts so the
 primary action stays near the first viewport on a 390×844 screen.
 
-- Disc 200×200 with ten 36° sectors: 5 task, 2 gold, 2 xp, 1 rest. Every wedge
+- Disc 200×200 with ten 36° sectors: 5 trial, 2 gold, 2 XP, 1 respite. Every wedge
   spans `wheelSectorCenter(i) ± 18°`; separators are 1px `{colors.wheel-stroke}`.
 - Outer ring: 6px `{colors.hairline-strong}` plus the soft `0 12px 30px
   rgba(0,0,0,.35)` shadow (elevation on Android).
@@ -705,7 +706,7 @@ primary action stays near the first viewport on a 390×844 screen.
   12px radius, 12px padding and 8px gap: outcome line in display 20px
   `{colors.ink-strong}`, rewards in UI `{colors.ink}`, with a 400ms one-shot
   scale/fade entry.
-- Reduced motion skips the spin and opens the recap immediately. "Skip this
+- Reduced motion skips the spin and opens the recap immediately. "Pass this
   step" and its note show before the spin, disable while spinning and disappear
   once the outcome is revealed.
 - The wheel is theme-invariant: Day and Night use the same wheel-task,
@@ -713,41 +714,41 @@ primary action stays near the first viewport on a 390×844 screen.
 
 ### Chips, Pips, and Signals
 
-**`chip`** — Metadata pill for node type, effort, or state.
+**`chip`** — Metadata pill for encounter type, difficulty, or state.
 - Surface, hairline border, rounded `{rounded.full}`, 26px minimum height, 3px 10px padding, caption 700.
 - Small icon optional at 12–13px.
 
-**`chip-accent`** — Moss-soft background, moss-deep text, moss border. Used for weekly target deltas and current-day markers.
+**`chip-accent`** — Moss-soft background, moss-deep text, moss border. Used for weekly vow deltas and current-day markers.
 
 **`day-pip`** — 7px diamond. Active `{colors.accent}`; completed days filled; future days `{colors.hairline-strong}`. Day 3 is a filled current pip in the screen head; the mobile topbar omits the pips and the `Day 3 of 7` label.
 
-**`progress-pip`** — 6×13px rounded bar for weekly goals. Filled `{colors.accent}`, empty `{colors.hairline}`. Pips are always paired with a numeric `3 / 5` label; they are not the only signal.
+**`progress-pip`** — 6×13px rounded bar for weekly quests. Filled `{colors.accent}`, empty `{colors.hairline}`. Pips are always paired with a numeric `3 / 5` label; they are not the only signal.
 
 **`resource-counter`** — 14px coin/level icon + display-face number. Gold, level, and XP never rely on colour; each has an icon and a label.
 
 ### Forms
 
-**`text-input`** — Name field and future routine input.
+**`text-input`** — Name field and future trial input.
 - Surface background, 1px `{colors.hairline-strong}`, rounded `{rounded.md}`, 44px height, 10px 12px padding, body-md.
 - Placeholder uses `{colors.ink-soft}`. Focus ring is the global moss ring, not a new border colour.
 - Labels are micro, 700, tracked; they sit above the field, never inside as placeholder-only.
 
-**`segmented-control`** — Effort selector (Light / Medium / Deep).
+**`segmented-control`** — Difficulty selector (Easy / Standard / Hard).
 - Surface-sunken track, hairline border, rounded `{rounded.full}`, 3px inner padding.
 - Active segment is filled surface-raised with ink text and a `0 1px 2px` shadow; inactive is transparent with muted text. The active state is also announced with `aria-pressed`/group semantics if implemented.
 
-**`icon-picker`** — Goal crest selector.
+**`icon-picker`** — Quest crest selector.
 - Native radio group inside a fieldset; every tile is at least 44×44px and keeps the visible label (or an `sr-only` label in compact mode).
 - Tile: surface, 1px hairline, rounded `{rounded.md}`, 20px line icon centered above a 9.6px label. Hover raises the border to hairline-strong.
-- Selected: moss border, moss-soft fill, a 2px moss-soft ring and a 13px check badge at top-right. The check keeps the selection legible in forced-colors mode, where the moss fill is suppressed. Focus-visible adds the global moss outline. The crest also previews in the goal header and weekly rails.
+- Selected: moss border, moss-soft fill, a 2px moss-soft ring and a 13px check badge at top-right. The check keeps the selection legible in forced-colors mode, where the moss fill is suppressed. Focus-visible adds the global moss outline. The crest also previews in the quest header and weekly rails.
 
 ### Cards and Panels
 
 **`summary-card`** — Sealed day report.
 - Surface, 1px hairline, rounded `{rounded.xl}`, 24–30px padding, shadow level 1.
 - Head: place name in micro caps, display title, italic subtitle, and a round `seal` on the right.
-- Five path rows: 36px icon, title + type micro, reward right. Skipped rows use a dashed medallion and "No reward".
-- Totals row: three equal cells with icon, display number, and micro label. A dashed `level-up` strip below, then the goals and actions.
+- Five route rows: 36px icon, title + type micro, reward right. Passed rows use a dashed medallion and "No reward".
+- Totals row: three equal cells with icon, display number, and micro label. A dashed `level-up` strip below, then the quests and actions.
 
 **`seal`** — Day seal.
 - 70px circle (82px at wide breakpoints), `{colors.accent-wash}` fill, moss border, double ring inset, day numeral in display 600, `DAY` micro beneath.
@@ -757,27 +758,27 @@ primary action stays near the first viewport on a 390×844 screen.
 
 ### Welcome
 
-**`welcome-art`** — A single custom SVG plate: a slender spire on a mound, a halo, a dotted path, four small trail nodes, pines, and a crescent. Stroke only, no fills except the halo wash. It is decorative (`role="presentation"`) and never carries information.
+**`welcome-art`** — A single custom SVG plate: a slender spire on a mound, a halo, a dotted route, four small trail encounters, pines, and a crescent. Stroke only, no fills except the halo wash. It is decorative (`role="presentation"`) and never carries information.
 
-**Welcome form** — One name input, a primary "Begin with demo data", a quiet "Create my own path", and a privacy line with a lock icon. On mobile the copy comes first; the art follows below the fold. On desktop the art sits on the right and the copy is vertically centered.
+**Welcome form** — One name input, a primary "Begin with demo data", a quiet "Create my own route", and a privacy line with a lock icon. On mobile the copy comes first; the art follows below the fold. On desktop the art sits on the right and the copy is vertically centered.
 
 ## Do's and Don'ts
 
 ### Do
 - Keep the map as the largest and most contrasted surface on the screen.
 - Reserve `{colors.accent}` for open choices, current position, gain, and at most one display italic per screen. If a use is none of those, make it ink or hairline.
-- Use `{rounded.full}` for buttons, chips, pips, and node medallions; use 14–18px for panels and 24px for the welcome art.
-- Pair every visual state with a shape or text cue: dashed rim for locked, check seal for completed, numeric pips for progress.
+- Use `{rounded.full}` for buttons, chips, pips, and encounter medallions; use 14–18px for panels and 24px for the welcome art.
+- Pair every visual state with a shape or text cue: dashed rim for locked, check seal for claimed, numeric pips for progress.
 - Set display type in Alegreya and controls in Alegreya Sans. Use the italic for one emphasis per screen.
-- Let a node's first tap reveal its title and keep the label quiet at rest; the map stays legible through shape, ring and icon.
-- Keep tap targets at 44px minimum; the map node button is 54px even when the visible medallion is 40px.
+- Let an encounter's first tap reveal its title and keep the label quiet at rest; the map stays legible through shape, ring and icon.
+- Keep tap targets at 44px minimum; the map encounter button is 54px even when the visible medallion is 40px.
 - Use hairline borders and one soft shadow. Depth should be felt, not seen.
 
 ### Don't
 - Don't use purple, brass, heavy parchment, leather, or metallic gradients. The medieval note comes from type and hairlines, not props.
-- Don't use moss on completed nodes or decorative headings; it would stop meaning "open".
-- Don't fill a completed node medallion with text ink. A medallion is a surface, not a glyph: use Done Fill so a finished node stays a quiet stone in both themes.
-- Don't introduce a red error palette for locked nodes. Locked is a permission state, not a failure.
+- Don't use moss on claimed encounters or decorative headings; it would stop meaning "open".
+- Don't fill a claimed encounter medallion with text ink. A medallion is a surface, not a glyph: use Done Fill so a claimed encounter stays a quiet stone in both themes.
+- Don't introduce a red error palette for locked encounters. Locked is a permission state, not a failure.
 - Don't nest cards more than one level. A card may contain rows; it must not contain another bordered card.
 - Don't set body copy below 13.5px or micro labels below 10.5px.
 - Don't use more than one accent per viewport or more than one italic display line per screen.
@@ -789,14 +790,14 @@ primary action stays near the first viewport on a 390×844 screen.
 ### Breakpoints
 | Name | Width | Key Changes |
 |---|---|---|
-| Small mobile | 320–479px | Single column. Map labels move beside open nodes; frame meta hidden below 700px height; stacked rail and bottom tabs. |
-| Mobile | 480–959px | Single column with 16–20px gutters. Bottom tabs; camp rail hidden; Goals rail stacks below. Map keeps its layer-derived aspect ratio. |
+| Small mobile | 320–479px | Single column. Map labels move beside open encounters; frame meta hidden below 700px height; stacked rail and bottom tabs. |
+| Mobile | 480–959px | Single column with 16–20px gutters. Bottom tabs; camp rail hidden; Quests rail stacks below. Map keeps its layer-derived aspect ratio. |
 | Compact desktop | 960–1199px | 240px sidebar; full-width content column; no side rails. Map takes the full main column; week strip visible. |
 | Desktop | 1200–1279px | Sidebar plus 312px map rail and camp rail; the three-column layout returns. |
 | Wide desktop | ≥ 1280px | 40px outer gutters; 336px map rail; wider camp grid; larger display type. |
 
 ### Touch Targets
-- Map node buttons: 54×54px; visible medallion 40–50px (45/50, 40/44 on five-node layers).
+- Map encounter buttons: 54×54px; visible medallion 40–50px (45/50, 40/44 on five-encounter layers).
 - Primary/secondary buttons: 44–46px height.
 - Tab bar items: full 64px height; icon + label.
 - Icon buttons: 36px visible; expand hit area to 44px with padding or a pseudo-element.
@@ -805,8 +806,8 @@ primary action stays near the first viewport on a 390×844 screen.
 ### Collapsing Strategy
 - **Map dock**: retired. No platform ships the floating dock; Android and the shipped web stack the `map-rail` below the frame. The full-width map and its labels remain the direct actions from 960–1199px, and the rail returns beside the map at 1200px.
 - **Map rail**: stacked below the frame on Android at every width and on the shipped web below 1200px; at 960–1199 the full-width map and its labels do the work.
-- **Camp rail**: hidden below 1200px. From 960–1199px the week strip carries the overview; below 960px the Goals tab does. The topbar carries gold/level in both cases.
-- **Goals rail**: stacks below the three goal groups below 1200px; "Add a routine" becomes a full-width form. At 1200px it returns as a right rail.
+- **Camp rail**: hidden below 1200px. From 960–1199px the week strip carries the overview; below 960px the Quests tab does. The topbar carries gold/level in both cases.
+- **Quests rail**: stacks below the three quest groups below 1200px; "Add a trial" becomes a full-width form. At 1200px it returns as a right rail.
 - **Summary**: card stays single-column; the totals row stays three columns; actions wrap if needed.
 - **Welcome**: copy first on mobile, art below; two columns at 960px.
 - **Typography**: fluid clamps; display 44–84px, heading 20–28.8px, body 15px, micro 10.5px.
@@ -820,14 +821,14 @@ primary action stays near the first viewport on a 390×844 screen.
 
 ## Iteration Guide
 
-1. Start from the map. Any change to node state must survive at 320px wide, 960px with the sidebar, and 1200px with the rail visible.
+1. Start from the map. Any change to encounter state must survive at 320px wide, 960px with the sidebar, and 1200px with the rail visible.
 2. Reference tokens directly (`{colors.accent}`, `{typography.display-md}`, `{rounded.xl}`); do not invent one-off hexes or sizes.
 3. Prefer a shape or text change over a new colour. The system has exactly one accent and one warning-adjacent state (locked), and locked is not red.
 4. When adding a screen, give it one primary action and one quiet exit. Reuse `map-frame`, `summary-card`, or `map-rail` before inventing a container.
 5. Keep the mobile first view action-led. If a new panel pushes the primary action below the fold, collapse the panel into a tab or a disclosure.
 6. Test both themes at 390×844 and 1440×900, then check 320×700 for label collisions, 960×900 for the sidebar, and 1200×900 for the rails.
 7. Run the app in Day, Night and system themes (`pnpm dev`, then the theme control) to confirm the pre-paint theme and the switch stay in sync.
-8. If a new state is added, document it in the node grammar and add a text label; never rely on opacity alone.
+8. If a new state is added, document it in the encounter grammar and add a text label; never rely on opacity alone.
 
 ## Known Gaps
 

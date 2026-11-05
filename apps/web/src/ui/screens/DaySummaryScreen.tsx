@@ -76,7 +76,7 @@ function SummaryBody({
               </span>
               <span className={`chip ${summary.bossCompleted ? 'chip--accent' : 'chip--quiet'}`}>
                 <Icon name={summary.bossCompleted ? 'crown' : 'lock'} />
-                {summary.bossCompleted ? 'Warden completed' : 'Warden passed'}
+                {summary.bossCompleted ? 'Warden claimed' : 'Warden passed'}
               </span>
             </div>
           </div>

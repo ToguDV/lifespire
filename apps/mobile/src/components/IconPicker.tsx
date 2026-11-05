@@ -10,7 +10,7 @@ import { Text } from './Text'
 export function IconPicker({
   value,
   onChange,
-  label = 'Goal icon',
+  label = 'Quest icon',
 }: {
   value: GoalIconId
   onChange: (icon: GoalIconId) => void

@@ -37,7 +37,7 @@ pnpm preview --port 4173
    the 192/512/maskable icons; Application → Service Workers should show the
    worker as activated.
 5. Export a save, reset local data, import the file and confirm that the profile,
-   run and collection return unchanged.
+   journey and collection return unchanged.
 
 `localhost` is treated as a secure context by Chromium, so installation can be
 tested there without HTTPS. The browser's install prompt is environment-driven;

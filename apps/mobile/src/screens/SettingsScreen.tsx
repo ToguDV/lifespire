@@ -144,7 +144,7 @@ export function SettingsScreen() {
   return (
     <Screen>
       <ScreenHead
-        kicker="Profile · Local data"
+        kicker="Wayfarer · Local data"
         title="Settings"
         subtitle="Appearance, nearby sync and local data."
       />
@@ -417,8 +417,8 @@ function DevSection() {
       <PanelHead label="Development" aside={<Text variant="caption" tone="soft">dev only</Text>} />
       <View style={styles.actions}>
         <Button variant="secondary" small onPress={() => devAdvanceDay(1)}>Advance a day</Button>
-        <Button variant="secondary" small onPress={() => devRestartRun()}>Restart run</Button>
-        <Button variant="secondary" small onPress={() => devStartDemoRun()}>Demo run</Button>
+        <Button variant="secondary" small onPress={() => devRestartRun()}>Restart journey</Button>
+        <Button variant="secondary" small onPress={() => devStartDemoRun()}>Demo journey</Button>
         <Button variant="danger" small onPress={() => devResetAll()}>Reset everything</Button>
       </View>
     </Panel>

@@ -160,7 +160,7 @@ export function SaveImport({
             <p className="import-warning">
               <Icon name="lock" />
               <span>
-                Replacing overwrites the profile, quests, trials, journey and collection currently
+                Replacing overwrites the wayfarer, quests, trials, journey and collection currently
                 under <code>{STORAGE_KEY}</code>. File: <strong>{pendingImport.fileName}</strong>.
               </span>
             </p>

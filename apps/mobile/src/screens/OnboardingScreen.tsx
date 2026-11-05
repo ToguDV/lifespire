@@ -32,7 +32,7 @@ import { ThemeToggle } from '../components/ThemeToggle'
 import { upsertDraftGoal, upsertDraftTask } from '../lib/draftContent'
 import { useAppStore } from '../state/store'
 
-const STEP_LABELS = ['Name', 'Goals', 'Routines', 'Review'] as const
+const STEP_LABELS = ['Name', 'Quests', 'Trials', 'Review'] as const
 
 export function OnboardingScreen() {
   const { colors } = useTheme()
@@ -99,7 +99,7 @@ export function OnboardingScreen() {
     }
     if (step === 2) {
       if (draft.goals.length === 0) {
-        setFormError('Add at least one goal to continue.')
+        setFormError('Add at least one quest to continue.')
         return
       }
       patch({ step: 3 })
@@ -108,7 +108,7 @@ export function OnboardingScreen() {
     if (step === 3) {
       const active = draft.tasks.filter((task) => task.active)
       if (active.length < MIN_ACTIVE_TASKS) {
-        setFormError(`Add at least ${MIN_ACTIVE_TASKS} active routines to continue.`)
+        setFormError(`Add at least ${MIN_ACTIVE_TASKS} active trials to continue.`)
         return
       }
       patch({
@@ -131,7 +131,7 @@ export function OnboardingScreen() {
 
   const finish = () => {
     const result = beginJourney(draftToSetup(draft))
-    if (!result) setFormError('This path cannot begin yet.')
+    if (!result) setFormError('This route cannot begin yet.')
   }
 
   const applySuggestions = () => {
@@ -153,15 +153,15 @@ export function OnboardingScreen() {
           <View style={styles.kicker}>
             <View style={[styles.kickerMark, { backgroundColor: colors.accent }]} />
             <Text variant="micro" tone="muted">
-              A SEVEN-DAY RUN
+              A SEVEN-DAY JOURNEY
             </Text>
           </View>
           <Text variant="displayLg" accessibilityRole="header">
             A day is a{' '}
-            <Text style={[styles.pathWord, { color: colors.accentDeep }]}>path</Text>.
+            <Text style={[styles.pathWord, { color: colors.accentDeep }]}>route</Text>.
           </Text>
           <Text variant="bodyLg" tone="muted">
-            Turn the routines that matter into a seven-day climb. Choose a route, keep a small
+            Turn the trials that matter into a seven-day climb. Choose a route, keep a small
             promise, gather what you find.
           </Text>
         </View>
@@ -188,18 +188,18 @@ export function OnboardingScreen() {
   const copy =
     step === 1
       ? {
-          title: 'Who walks this path?',
+          title: 'Who walks this route?',
           body: 'A name is optional.',
         }
       : step === 2
         ? {
             title: 'What are you climbing toward?',
-            body: `Choose ${MIN_GOALS}–${MAX_GOALS} goals.`,
+            body: `Choose ${MIN_GOALS}–${MAX_GOALS} quests.`,
           }
         : step === 3
           ? {
               title: 'Which small steps will you keep?',
-              body: `Add at least ${MIN_ACTIVE_TASKS} active routines.`,
+              body: `Add at least ${MIN_ACTIVE_TASKS} active trials.`,
             }
           : {
               title: 'Ready to begin?',
@@ -285,7 +285,7 @@ export function OnboardingScreen() {
                 <View style={styles.goalBody}>
                   <Text variant="headingSm">{goal.title}</Text>
                   <Text variant="caption" tone="muted">
-                    {goal.category} · target {goal.weeklyObjective} · {GOAL_ICON_LABEL[goal.icon]}
+                    {goal.category} · vow {goal.weeklyObjective} · {GOAL_ICON_LABEL[goal.icon]}
                   </Text>
                 </View>
                 <IconButton
@@ -308,10 +308,10 @@ export function OnboardingScreen() {
             disabled={draft.goals.length >= MAX_GOALS}
             full
           >
-            Add goal
+            Add quest
           </Button>
           <Text variant="caption" tone="soft">
-            {`${draft.goals.length} / ${MAX_GOALS} goals`}
+            {`${draft.goals.length} / ${MAX_GOALS} quests`}
           </Text>
           {formError ? (
             <Text variant="caption" tone="default" accessibilityRole="alert">
@@ -331,7 +331,7 @@ export function OnboardingScreen() {
                   <View style={styles.taskBody}>
                     <Text variant="headingSm">{task.title}</Text>
                     <Text variant="caption" tone="muted">
-                      {goal?.title ?? 'No goal'} · {EFFORT_LABEL[task.effort]}
+                      {goal?.title ?? 'No quest'} · {EFFORT_LABEL[task.effort]}
                     </Text>
                   </View>
                   <EffortDots effort={task.effort} showLabel={false} />
@@ -356,10 +356,10 @@ export function OnboardingScreen() {
             disabled={draft.goals.length === 0}
             full
           >
-            Add routine
+            Add trial
           </Button>
           <Text variant="caption" tone="muted">
-            Active routines: {activeRoutineCount} · minimum {MIN_ACTIVE_TASKS}
+            Active trials: {activeRoutineCount} · minimum {MIN_ACTIVE_TASKS}
           </Text>
           {formError ? (
             <Text variant="caption" tone="default" accessibilityRole="alert">
@@ -374,8 +374,8 @@ export function OnboardingScreen() {
           <Panel>
             <Text variant="headingLg">{draft.name.trim() || 'Wayfarer'}</Text>
             <Text variant="caption" tone="muted" style={styles.reviewCounts}>
-              {draft.goals.length} {draft.goals.length === 1 ? 'goal' : 'goals'} ·{' '}
-              {activeRoutineCount} active {activeRoutineCount === 1 ? 'routine' : 'routines'} ·{' '}
+              {draft.goals.length} {draft.goals.length === 1 ? 'quest' : 'quests'} ·{' '}
+              {activeRoutineCount} active {activeRoutineCount === 1 ? 'trial' : 'trials'} ·{' '}
               {RUN_DAYS} days
             </Text>
           </Panel>
@@ -396,14 +396,14 @@ export function OnboardingScreen() {
                   <View style={styles.goalBody}>
                     <Text variant="headingSm">{goal.title}</Text>
                     <Text variant="caption" tone="muted">
-                      {routines.length} {routines.length === 1 ? 'routine' : 'routines'}
+                      {routines.length} {routines.length === 1 ? 'trial' : 'trials'}
                     </Text>
                   </View>
                   <View style={styles.stepper}>
                     <Button
                       variant="secondary"
                       small
-                      accessibilityLabel={`Decrease target for ${goal.title}`}
+                      accessibilityLabel={`Decrease vow for ${goal.title}`}
                       onPress={() =>
                         patch({
                           goals: draft.goals.map((candidate) =>
@@ -426,7 +426,7 @@ export function OnboardingScreen() {
                     <Button
                       variant="secondary"
                       small
-                      accessibilityLabel={`Increase target for ${goal.title}`}
+                      accessibilityLabel={`Increase vow for ${goal.title}`}
                       onPress={() =>
                         patch({
                           goals: draft.goals.map((candidate) =>
@@ -459,7 +459,7 @@ export function OnboardingScreen() {
           })}
 
           <Button variant="secondary" onPress={applySuggestions} full>
-            Use routine-based suggestions
+            Use trial-based suggestions
           </Button>
 
           {!validation.ok ? (
@@ -488,7 +488,7 @@ export function OnboardingScreen() {
         </Button>
         {step === 4 ? (
           <Button onPress={finish} disabled={!validation.ok}>
-            Begin the run
+            Begin the journey
           </Button>
         ) : (
           <Button onPress={goNext}>Continue</Button>
@@ -526,7 +526,7 @@ function CreatePathButton({ onPress }: { onPress: () => void }) {
       ]}
     >
       <Text variant="button" style={{ color: colors.ink }}>
-        Create my own path
+        Create my own route
       </Text>
       <Icon name="chevron-right" size={17} color={colors.inkMuted} />
     </Pressable>

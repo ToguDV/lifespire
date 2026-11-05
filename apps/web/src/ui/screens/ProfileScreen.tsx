@@ -101,7 +101,7 @@ export function ProfileScreen() {
           </Panel>
         ) : (
           <Panel pad className="reliquary-empty">
-            <PanelHead label="No profile yet" />
+            <PanelHead label="No wayfarer yet" />
             <p className="panel-note">
               The catalogue below is complete from the start. Relics are revealed as they are
               found during a journey.

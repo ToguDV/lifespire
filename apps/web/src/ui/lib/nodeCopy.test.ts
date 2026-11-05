@@ -4,6 +4,7 @@ import {
   nodeAriaLabel,
   nodeRewardLine,
   nodeRewardSummary,
+  nodeTypeLine,
 } from './nodeCopy'
 
 function taskNode(progress: 0 | 1): MapNode {
@@ -87,10 +88,23 @@ describe('nodeAriaLabel', () => {
     }
   })
 
+  it('uses the claim/pass actions for resolved encounters', () => {
+    expect(nodeAriaLabel(taskNode(1), 'completed')).toContain('claimed')
+    expect(nodeAriaLabel(taskNode(1), 'completed')).not.toContain('completed')
+    expect(nodeAriaLabel(taskNode(1), 'skipped')).toContain('passed')
+    expect(nodeAriaLabel(taskNode(1), 'skipped')).not.toContain('skipped')
+  })
+
   it('defaults to the node reward progress', () => {
     expect(nodeAriaLabel(taskNode(1), 'available')).toContain(
       'plus one toward the weekly vow',
     )
     expect(nodeAriaLabel(taskNode(0), 'available')).not.toContain('plus one')
+  })
+})
+
+describe('nodeTypeLine', () => {
+  it('names the encounter type and difficulty', () => {
+    expect(nodeTypeLine(taskNode(1))).toBe('Trial encounter · Easy difficulty')
   })
 })

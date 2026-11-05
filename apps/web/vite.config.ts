@@ -15,7 +15,7 @@ export default defineConfig({
         name: 'LifeSpire — A Quiet Ascent',
         short_name: 'LifeSpire',
         description:
-          'Turn your goals and routines into a seven-day path. Local-first, quiet, and kept in your browser.',
+          'Turn your quests and trials into a seven-day journey. Local-first, quiet, and kept in your browser.',
         lang: 'en',
         theme_color: '#131511',
         background_color: '#131511',

@@ -66,7 +66,7 @@ export function GoalsScreen() {
     ? run.status === 'active'
       ? 'The week'
       : 'The week · Sealed'
-    : 'Profile · Goals'
+    : 'Wayfarer · Quests'
 
   const openGoalDialog = (goal: Goal | null) => {
     setGoalError(null)
@@ -139,11 +139,11 @@ export function GoalsScreen() {
 
   return (
     <Screen>
-      <ScreenHead kicker={kicker} title="Goals" />
+      <ScreenHead kicker={kicker} title="Quests" />
 
       <View style={styles.headMeta}>
         <Chip variant="quiet">
-          {`${activeGoals.length} ${activeGoals.length === 1 ? 'goal' : 'goals'} · ${activeTasks.length} ${activeTasks.length === 1 ? 'routine' : 'routines'}`}
+          {`${activeGoals.length} ${activeGoals.length === 1 ? 'quest' : 'quests'} · ${activeTasks.length} ${activeTasks.length === 1 ? 'trial' : 'trials'}`}
         </Chip>
         <Text variant="micro" tone="deep">
           {`${totalProgress} / ${totalTarget} this week`}
@@ -157,12 +157,12 @@ export function GoalsScreen() {
           icon="plus"
           onPress={() => openTaskDialog(null, activeGoals[0]?.id)}
           disabled={activeGoals.length === 0}
-          accessibilityHint={activeGoals.length === 0 ? 'Add an active goal first.' : undefined}
+          accessibilityHint={activeGoals.length === 0 ? 'Add an active quest first.' : undefined}
         >
-          Add routine
+          Add trial
         </Button>
         <Button small variant="secondary" icon="plus" onPress={() => openGoalDialog(null)}>
-          Add goal
+          Add quest
         </Button>
       </View>
 
@@ -180,10 +180,10 @@ export function GoalsScreen() {
               </View>
             </View>
             <Text variant="bodySm" tone="muted">
-              No active goals yet.
+              No active quests yet.
             </Text>
             <Button icon="plus" onPress={() => openGoalDialog(null)}>
-              Add your first goal
+              Add your first quest
             </Button>
           </View>
         </Panel>
@@ -214,17 +214,17 @@ export function GoalsScreen() {
                       {goal.category.trim() || 'General'} ·{' '}
                       {objective
                         ? `this week ${objective.target}`
-                        : `${goal.weeklyObjective} each week next run`}
+                        : `${goal.weeklyObjective} ${goal.weeklyObjective === 1 ? 'vow' : 'vows'} each week next journey`}
                     </Text>
                   </View>
                   <IconButton
                     icon="edit"
-                    label={`Edit goal ${goal.title}`}
+                    label={`Edit quest ${goal.title}`}
                     onPress={() => openGoalDialog(goal)}
                   />
                   <IconButton
                     icon="archive"
-                    label={`Archive goal ${goal.title}`}
+                    label={`Archive quest ${goal.title}`}
                     onPress={() => requestArchive('goal', goal.id, goal.title)}
                   />
                 </View>
@@ -238,7 +238,7 @@ export function GoalsScreen() {
                       </Text>
                     </>
                   ) : run ? (
-                    <Chip variant="quiet">Not in this run</Chip>
+                    <Chip variant="quiet">Not in this journey</Chip>
                   ) : (
                     <>
                       <Pips total={goal.weeklyObjective} filled={0} />
@@ -250,7 +250,7 @@ export function GoalsScreen() {
                 <View style={styles.routines}>
                   {routines.length === 0 ? (
                     <Text variant="caption" tone="soft">
-                      No active routines under this goal yet.
+                      No active trials under this quest yet.
                     </Text>
                   ) : (
                     routines.map((task) => (
@@ -260,7 +260,7 @@ export function GoalsScreen() {
                       >
                         <Pressable
                           accessibilityRole="button"
-                          accessibilityLabel={`Edit routine ${task.title}`}
+                          accessibilityLabel={`Edit trial ${task.title}`}
                           onPress={() => openTaskDialog(task, goal.id)}
                           android_ripple={{ color: colors.accentWash }}
                           style={({ pressed }) => [
@@ -273,14 +273,14 @@ export function GoalsScreen() {
                               {task.title}
                             </Text>
                             <Text variant="caption" tone="muted">
-                              {EFFORT_LABEL[task.effort]} effort
+                              {EFFORT_LABEL[task.effort]} difficulty
                             </Text>
                           </View>
                           <EffortDots effort={task.effort} showLabel={false} />
                         </Pressable>
                         <IconButton
                           icon="archive"
-                          label={`Archive routine ${task.title}`}
+                          label={`Archive trial ${task.title}`}
                           onPress={() => requestArchive('task', task.id, task.title)}
                         />
                       </View>
@@ -292,7 +292,7 @@ export function GoalsScreen() {
                     icon="plus"
                     onPress={() => openTaskDialog(null, goal.id)}
                   >
-                    Add routine to this goal
+                    Add trial to this quest
                   </Button>
                 </View>
               </Panel>
@@ -309,8 +309,8 @@ export function GoalsScreen() {
             accessibilityState={{ expanded: showArchived }}
             accessibilityHint={
               showArchived
-                ? 'Hide archived goals and routines.'
-                : 'Show archived goals and routines.'
+                ? 'Hide archived quests and trials.'
+                : 'Show archived quests and trials.'
             }
             onPress={() => setShowArchived((value) => !value)}
           >
@@ -337,16 +337,16 @@ export function GoalsScreen() {
               {archivedGoals.length > 0 ? (
                 <View style={styles.archivedGroup}>
                   <Text variant="micro" tone="muted">
-                    GOALS
+                    QUESTS
                   </Text>
                   {archivedGoals.map((goal) => {
                     const blocked = activeGoals.length >= MAX_GOALS
                     return (
                       <View key={goal.id} style={styles.archivedRow}>
                         <View style={styles.goalBody}>
-                          <Text variant="bodySm">{goal.title || 'Untitled goal'}</Text>
+                          <Text variant="bodySm">{goal.title || 'Untitled quest'}</Text>
                           <Text variant="caption" tone="soft">
-                            {goal.category.trim() || 'General'} · {goal.weeklyObjective} each week
+                            {goal.category.trim() || 'General'} · {goal.weeklyObjective} {goal.weeklyObjective === 1 ? 'vow' : 'vows'} each week
                           </Text>
                         </View>
                         <Button
@@ -356,11 +356,11 @@ export function GoalsScreen() {
                           disabled={blocked}
                           accessibilityHint={
                             blocked
-                              ? 'Archive an active goal before restoring another.'
+                              ? 'Archive an active quest before restoring another.'
                               : undefined
                           }
                         >
-                          Restore goal
+                          Restore quest
                         </Button>
                       </View>
                     )
@@ -371,7 +371,7 @@ export function GoalsScreen() {
               {archivedTasks.length > 0 ? (
                 <View style={styles.archivedGroup}>
                   <Text variant="micro" tone="muted">
-                    ROUTINES
+                    TRIALS
                   </Text>
                   {archivedTasks.map((task) => {
                     const goal = document.goals.find(
@@ -381,10 +381,10 @@ export function GoalsScreen() {
                     return (
                       <View key={task.id} style={styles.archivedRow}>
                         <View style={styles.goalBody}>
-                          <Text variant="bodySm">{task.title || 'Untitled routine'}</Text>
+                          <Text variant="bodySm">{task.title || 'Untitled trial'}</Text>
                           <Text variant="caption" tone="soft">
-                            {EFFORT_LABEL[task.effort]} effort ·{' '}
-                            {goal?.title ?? 'Goal no longer present'}
+                            {EFFORT_LABEL[task.effort]} difficulty ·{' '}
+                            {goal?.title ?? 'Quest no longer present'}
                           </Text>
                         </View>
                         <Button
@@ -395,10 +395,10 @@ export function GoalsScreen() {
                           accessibilityHint={
                             goalActive
                               ? undefined
-                              : 'Restore its goal before restoring this routine.'
+                              : 'Restore its quest before restoring this trial.'
                           }
                         >
-                          Restore routine
+                          Restore trial
                         </Button>
                       </View>
                     )
@@ -431,12 +431,12 @@ export function GoalsScreen() {
 
       <Dialog
         visible={archiveTarget !== null}
-        eyebrow={archiveTarget?.type === 'goal' ? 'Goals' : 'Routines'}
+        eyebrow={archiveTarget?.type === 'goal' ? 'Quests' : 'Trials'}
         title={`Archive “${archiveTarget?.title ?? ''}”?`}
         description={
           archiveTarget?.type === 'goal'
-            ? 'This goal and its routines leave future maps. Maps already drawn keep their original steps, and this week’s targets do not change.'
-            : 'This routine leaves future maps. Maps already drawn keep their original step, and this week’s targets do not change.'
+            ? 'This quest and its trials leave future maps. Maps already drawn keep their original steps, and this week’s vows do not change.'
+            : 'This trial leaves future maps. Maps already drawn keep their original step, and this week’s vows do not change.'
         }
         onClose={() => {
           setArchiveTarget(null)
@@ -451,7 +451,7 @@ export function GoalsScreen() {
                 setArchiveError(null)
               }}
             >
-              Keep {archiveTarget?.type === 'goal' ? 'goal' : 'routine'}
+              Keep {archiveTarget?.type === 'goal' ? 'quest' : 'trial'}
             </Button>
             <Button variant="danger" icon="archive" onPress={confirmArchive}>
               Archive

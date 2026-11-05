@@ -15,7 +15,7 @@ const FLAVOR: Record<MapNode['type'], string> = {
   elite: 'A harder climb, and a richer prize. The trail will not ask twice.',
   rest: 'Not every step is a climb. Let the fire burn low and take what quiet gives.',
   treasure: 'A cache left by another traveller. It asks nothing of the week.',
-  wheel: 'A turn of fate. It may ask for a task, or simply give.',
+  wheel: 'A turn of fate. It may ask for a trial, or simply give.',
   boss: 'The gate of the day. Finish here and the week takes its shape.',
 }
 
@@ -88,7 +88,8 @@ export function nodeAriaLabel(
 
   if (status === 'completed' || status === 'skipped') {
     const goal = node.task ? ` for ${node.task.goalTitle}` : ''
-    return `${title}, ${type} encounter, ${status}${goal}.`
+    const action = status === 'completed' ? 'claimed' : 'passed'
+    return `${title}, ${type} encounter, ${action}${goal}.`
   }
 
   if (status === 'locked' && node.type !== 'boss') {

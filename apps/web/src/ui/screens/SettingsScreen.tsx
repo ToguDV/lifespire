@@ -52,7 +52,7 @@ export function SettingsScreen() {
     anchor.click()
     anchor.remove()
     window.setTimeout(() => URL.revokeObjectURL(url), 0)
-    showToast('Save exported. It includes your profile, quests, trials, journey and collection.')
+    showToast('Save exported. It includes your wayfarer, quests, trials, journey and collection.')
   }
 
   const closeReset = () => {
@@ -178,7 +178,7 @@ export function SettingsScreen() {
       <Dialog
         open={confirmReset}
         title="Reset local data?"
-        description="This removes the profile, quests, trials, journey and collection from this device."
+        description="This removes the wayfarer, quests, trials, journey and collection from this device."
         onClose={closeReset}
         footer={
           <>

@@ -312,7 +312,7 @@ describe('starting a run', () => {
     const { store, base } = makeHarness()
     store.getState().startRun(undefined, base)
     expect(store.getState().document.run).toBeNull()
-    expect(store.getState().toast).toBe('Finish onboarding before you begin a run.')
+    expect(store.getState().toast).toBe('Finish onboarding before you begin a journey.')
   })
 
   it('rejects a new run with too few trials', () => {
@@ -335,7 +335,7 @@ describe('starting a run', () => {
     expect(store.getState().document).toBe(active)
     expect(store.getState().document.run?.id).toBe(activeRunId)
     expect(store.getState().toast).toBe(
-      'Finish the current run before starting a new one.',
+      'Finish the current journey before starting a new one.',
     )
   })
 })
@@ -419,7 +419,7 @@ describe('opening a day and choosing a path node', () => {
     expect(store.getState().document.run?.days[0]?.map).toBeNull()
 
     store.getState().openDay('missing-day', base)
-    expect(store.getState().toast).toBe('That day does not belong to this run.')
+    expect(store.getState().toast).toBe('That day does not belong to this journey.')
 
     store.getState().openDay(undefined, new Date(2026, 9, 21, 8, 0, 0))
     const days = store.getState().document.run?.days
@@ -441,7 +441,7 @@ describe('opening a day and choosing a path node', () => {
     if (!map || !first || !other || !locked) throw new Error('expected a generated map')
 
     store.getState().selectNode(locked.id)
-    expect(store.getState().toast).toBe('That node is not available from the current path.')
+    expect(store.getState().toast).toBe('That encounter is not available from the current route.')
     expect(store.getState().document.run?.days[0]?.map?.currentNodeId).toBeNull()
 
     store.getState().selectNode(first.id)
@@ -449,7 +449,7 @@ describe('opening a day and choosing a path node', () => {
     expect(storedDocument(memory).run?.days[0]?.map?.currentNodeId).toBe(first.id)
 
     store.getState().selectNode(other.id)
-    expect(store.getState().toast).toBe('A node is already chosen for this day.')
+    expect(store.getState().toast).toBe('An encounter is already chosen for this day.')
     expect(store.getState().document.run?.days[0]?.map?.currentNodeId).toBe(first.id)
   })
 
@@ -457,7 +457,7 @@ describe('opening a day and choosing a path node', () => {
     const { store, base } = makeHarness()
     onboardAndStart(store, base)
     store.getState().selectNode('n0_0')
-    expect(store.getState().toast).toBe('Open the day before choosing a node.')
+    expect(store.getState().toast).toBe('Open the day before choosing an encounter.')
   })
 
   it('survives a reload with the same map and current node', () => {
@@ -490,7 +490,7 @@ describe('opening a day and choosing a path node', () => {
       run: { ...run, status: 'closed' },
     })
     store.getState().openDay(undefined, base)
-    expect(store.getState().toast).toBe('There is no active run to open.')
+    expect(store.getState().toast).toBe('There is no active journey to open.')
   })
 })
 
@@ -506,7 +506,7 @@ describe('development actions', () => {
     expect(document.tasks).toHaveLength(5)
     expect(document.run?.days).toHaveLength(7)
     expect(document.onboardingDraft).toBeNull()
-    expect(store.getState().toast).toBe('Demo run ready.')
+    expect(store.getState().toast).toBe('Demo journey ready.')
   })
 
   it('restarts the run while keeping the profile, XP, gold and loot', () => {
@@ -590,7 +590,7 @@ describe('import, recovery and reset', () => {
 
     expect(store.getState().importDocument(document)).toBe(false)
     expect(store.getState().document).toBe(before)
-    expect(store.getState().toast).toBe('That save has a run but no profile.')
+    expect(store.getState().toast).toBe('That save has a journey but no wayfarer.')
     expect(memory.getItem(STORAGE_KEY)).toBe(rawBefore)
   })
 
@@ -1005,7 +1005,7 @@ describe('resolving a node', () => {
 
     store.getState().resolveNode(locked.id, 'complete', base)
     expect(store.getState().toast).toBe(
-      'That node is not available from the current path.',
+      'That encounter is not available from the current route.',
     )
 
     store.getState().selectNode(node.id)
@@ -1013,7 +1013,7 @@ describe('resolving a node', () => {
     const profile = store.getState().document.profile
 
     store.getState().resolveNode(node.id, 'complete', base)
-    expect(store.getState().toast).toBe('That node has already been resolved.')
+    expect(store.getState().toast).toBe('That encounter has already been resolved.')
     expect(store.getState().document.profile).toBe(profile)
     expect(store.getState().document.run?.days[0]?.path).toHaveLength(1)
   })
@@ -1269,7 +1269,7 @@ describe('starting a new run from the store', () => {
     const active = store.getState().document
     store.getState().startNewRun(base)
     expect(store.getState().toast).toBe(
-      'Finish the current run before starting a new one.',
+      'Finish the current journey before starting a new one.',
     )
     expect(store.getState().document).toBe(active)
 

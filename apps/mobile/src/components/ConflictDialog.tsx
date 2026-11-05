@@ -55,17 +55,17 @@ function ConflictCopy({
     >
       <Text variant="headingSm">{title}</Text>
       <View style={styles.meta}>
-        <MetaRow label="Profile" value={summary.profileName ?? 'No profile'} />
+        <MetaRow label="Wayfarer" value={summary.profileName ?? 'No wayfarer'} />
         <MetaRow
           label="Progress"
-          value={`${summary.gold ?? 0} gold · level ${summary.level ?? 1} · ${summary.goals} goals`}
+          value={`${summary.gold ?? 0} gold · level ${summary.level ?? 1} · ${summary.goals} quests`}
         />
         <MetaRow
-          label="Run"
+          label="Journey"
           value={
             summary.runStatus
               ? `${summary.runStatus} · day ${summary.runDay ?? '—'}`
-              : 'No run'
+              : 'No journey'
           }
         />
         <MetaRow label="Saved" value={saved} />

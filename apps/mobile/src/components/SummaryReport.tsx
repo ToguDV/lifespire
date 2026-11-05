@@ -102,7 +102,7 @@ export function ReportTotals({
   const { colors } = useTheme()
   return (
     <View style={styles.totals} accessible accessibilityLabel={accessibilityLabel}>
-      <ReportTotal icon="star" value={xp} label="Experience" />
+      <ReportTotal icon="star" value={xp} label="XP" />
       <View style={[styles.totalDivider, { borderColor: colors.hairline }]}>
         <View style={styles.totalDividerInner}>
           <ReportTotal icon="coin" value={gold} label="Gold" />
@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
   },
   sealLabel: {
     fontFamily: fonts.uiBold,
-    fontSize: 7.4,
-    lineHeight: 9,
+    fontSize: 9,
+    lineHeight: 11,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
   },
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
     fontVariant: ['lining-nums', 'tabular-nums'],
   },
   totalLabel: {
-    fontSize: 9.4,
-    lineHeight: 12,
+    fontSize: 11.5,
+    lineHeight: 15,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
   },

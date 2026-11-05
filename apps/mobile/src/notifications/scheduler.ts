@@ -25,7 +25,7 @@ Notifications.setNotificationHandler({
 export async function ensureNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return
   await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
-    name: 'Daily path',
+    name: 'Daily route',
     description: 'A quiet reminder for today’s map and an unfinished day.',
     importance: Notifications.AndroidImportance.DEFAULT,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,

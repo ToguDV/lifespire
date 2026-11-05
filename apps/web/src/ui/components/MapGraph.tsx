@@ -229,7 +229,7 @@ export function MapGraph({ map, day, goals, run, onSelect }: MapGraphProps) {
         <div
           className="map-canvas"
           role="group"
-          aria-label={`Day map. Camp at the bottom, ${layout.layers.length} layers above, and the boss at the top.`}
+          aria-label={`Day map. Camp at the bottom, ${layout.layers.length} layers above, and the warden at the top.`}
           style={{ aspectRatio: `${layout.width} / ${layout.height}` }}
         >
           <svg

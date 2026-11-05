@@ -2555,26 +2555,6 @@ html:not([data-theme]) .theme-glyph--sun {
   flex: 1;
 }
 
-@media (max-width: 520px) {
-  .path-row {
-    grid-template-columns: 36px minmax(0, 1fr);
-    row-gap: 4px;
-  }
-
-  .path-row__rewards {
-    grid-column: 2;
-    align-items: flex-start;
-    min-width: 0;
-    max-width: none;
-    text-align: left;
-  }
-
-  .path-row__reward,
-  .path-row__loot {
-    text-align: left;
-  }
-}
-
 .level-up {
   display: flex;
   align-items: center;

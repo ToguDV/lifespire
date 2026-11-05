@@ -292,7 +292,7 @@ export function generateMap(input: GenerateMapInput): GameMap {
   const objectivesByGoal = new Map(input.objectives.map((objective) => [objective.goalId, objective] as const))
   if (pool.length === 0) {
     throw new MapGenerationError(
-      'A map needs at least one active trial. Add a trial to an active goal and try again.',
+      'A map needs at least one active trial. Add a trial to an active quest and try again.',
     )
   }
 

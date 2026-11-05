@@ -62,7 +62,7 @@ export function NewRunDialog({ onClose }: NewRunDialogProps) {
       open
       eyebrow="The next journey"
       title="Begin a new journey?"
-      description="The previous week is retired. Your profile, level, XP, gold and relics stay."
+      description="The previous week is retired. Your wayfarer, level, XP, gold and relics stay."
       onClose={onClose}
       footer={
         <>

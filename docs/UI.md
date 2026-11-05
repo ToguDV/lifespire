@@ -12,7 +12,7 @@ system.
 | Canonical tokens | `apps/web/src/styles/tokens.css` (font URLs point to `/fonts/`) |
 | Shell and component styles | `apps/web/src/styles/app.css` |
 | Dialogs, toast, empty states, dev panel, recovery, settings | `apps/web/src/styles/ui.css` |
-| Onboarding and goal/trial editors | `apps/web/src/styles/m3.css` |
+| Onboarding and quest/trial editors | `apps/web/src/styles/m3.css` |
 | Alegreya + Alegreya Sans WOFF2 | `public/fonts/*.woff2` |
 | Icon adapter (`IconName` → Lucide) | `apps/web/src/ui/components/Icon.tsx`, `iconMap.ts`; `apps/mobile/src/components/Icon.tsx`, `iconMap.ts` |
 | Android tokens and components | `apps/mobile/src/theme/tokens.ts`, `apps/mobile/src/components/` |
@@ -29,13 +29,13 @@ link, `<main id="main-content">`, theme controls and the current screen. The
 view is a discriminated union in `apps/web/src/domain/types.ts`; `view` and `history`
 are transient store state and are never persisted.
 
-Navigation targets: Map, Camp (home), Goals, Reliquary and Settings. Node detail,
-day summary and run summary are reached from Map or Camp. Without a profile the
+Navigation targets: Map, Camp (home), Quests, Reliquary and Settings. Encounter
+detail, day summary and journey summary are reached from Map or Camp. Without a wayfarer the
 shell is hidden by `body[data-screen="welcome"]` and onboarding is shown. A
-blocked save forces recovery. Map, node and day-summary views fall back to camp
-(or the run summary when the run is closed). Profile-without-run lands on camp,
-which shows the honest "No run yet" state and a real start button; map remains
-unreachable until a run exists.
+blocked save forces recovery. Map, encounter and day-summary views fall back to camp
+(or the journey summary when the journey is closed). Wayfarer-without-journey
+lands on camp, which shows the honest "No journey yet" state and a real start
+button; map remains unreachable until a journey exists.
 
 ## Reliquary and local data
 
@@ -60,9 +60,9 @@ reset also requires typing `RESET` before its final button enables.
 
 The Android app reuses the same `view` union and store navigation, not a router.
 `AppShell.tsx` renders a compact topbar (brand, day label, gold/level, settings)
-and a four-item tabbar (Map, Camp, Goals, Relics); Settings is a full screen
-from the topbar. The node detail, wheel recap, day summary and run summary are
-reached from Map/Camp with the same guards. The hardware back button maps to
+and a four-item tabbar (Map, Camp, Quests, Relics); Settings is a full screen
+from the topbar. The encounter detail, wheel recap, day summary and journey
+summary are reached from Map/Camp with the same guards. The hardware back button maps to
 `back()` and is blocked on the wheel recap. Safe areas are handled once at the
 root; `Screen` only adds padding and the scroll container.
 
@@ -106,9 +106,10 @@ rules in `tokens.css` apply. Screen changes move focus to `<main>`.
 Every component emits the ported classes (`btn`, `panel`, `chip`, `pips`,
 `screen-head`, etc.), so custom CSS is only needed for new UI states.
 
-`AimRow` keeps the old "aim" name on purpose: the interface says **goal**,
-**trial** and **weekly target**, while identifiers, CSS classes and DOM
-hooks keep the "aim" family. See [`../GLOSARY.md`](../GLOSARY.md).
+`AimRow` keeps the old "aim" name on purpose: the interface says **quest**,
+**trial**, **weekly vow**, **journey**, **encounter**, **route** and **warden**,
+while identifiers, CSS classes, DOM hooks and the persisted schema keep the
+older families. See [`../GLOSARY.md`](../GLOSARY.md).
 
 ## Accessibility
 

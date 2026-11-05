@@ -72,7 +72,7 @@ export function GoalFormDialog({
 
   const submit = () => {
     if (!title.trim()) {
-      setError('Give this goal a name.')
+      setError('Give this quest a name.')
       return
     }
     onSubmit({
@@ -89,10 +89,10 @@ export function GoalFormDialog({
   return (
     <Dialog
       visible={visible}
-      eyebrow="Goals"
-      title={goal ? 'Edit goal' : 'Add a goal'}
+      eyebrow="Quests"
+      title={goal ? 'Edit quest' : 'Add a quest'}
       description={
-        goal ? 'Edits shape future maps.' : 'A goal holds the routines that move it.'
+        goal ? 'Edits shape future maps.' : 'A quest holds the trials that move it.'
       }
       onClose={onClose}
       actions={
@@ -106,13 +106,13 @@ export function GoalFormDialog({
                 onArchive(goal)
               }}
             >
-              Archive goal
+              Archive quest
             </Button>
           ) : null}
           <Button variant="quiet" onPress={onClose}>
             Cancel
           </Button>
-          <Button onPress={submit}>Save goal</Button>
+          <Button onPress={submit}>Save quest</Button>
         </>
       }
     >
@@ -126,14 +126,14 @@ export function GoalFormDialog({
             ]}
           >
             <Text variant="caption" style={{ color: colors.inkStrong }}>
-              This goal was not saved
+              This quest was not saved
             </Text>
             <Text variant="bodySm" style={{ color: colors.inkStrong }}>
               {submitError}
             </Text>
           </View>
         ) : null}
-        <Field label="Goal title" error={error}>
+        <Field label="Quest title" error={error}>
           <Input
             value={title}
             onChangeText={(value) => {
@@ -148,18 +148,18 @@ export function GoalFormDialog({
         <Field label="Category">
           <Input value={category} onChangeText={setCategory} placeholder="e.g. Movement" />
         </Field>
-        <Field label="Goal icon">
+        <Field label="Quest icon">
           <IconPicker value={icon} onChange={setIcon} />
         </Field>
         <Field
-          label="Weekly target"
-          hint="How many routines of this goal you want to complete this week (1–7)."
+          label="Weekly vow"
+          hint="How many trials of this quest you want to complete this week (1–7)."
         >
           <View style={styles.stepper}>
             <Button
               variant="secondary"
               small
-              accessibilityLabel="Decrease weekly target"
+              accessibilityLabel="Decrease weekly vow"
               onPress={() => setWeeklyObjective((value) => Math.max(1, value - 1))}
             >
               −
@@ -168,7 +168,7 @@ export function GoalFormDialog({
             <Button
               variant="secondary"
               small
-              accessibilityLabel="Increase weekly target"
+              accessibilityLabel="Increase weekly vow"
               onPress={() => setWeeklyObjective((value) => Math.min(7, value + 1))}
             >
               +

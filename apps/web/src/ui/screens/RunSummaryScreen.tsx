@@ -126,7 +126,7 @@ function SealedBody({
           </div>
         </div>
         <p className="panel-note">
-          Weekly bonus included: +{summary.bonusXp} XP · +{summary.bonusGold} gold.
+          Vow bonus included: +{summary.bonusXp} XP · +{summary.bonusGold} gold.
         </p>
 
         <section className="summary-loot summary-aims-block" aria-labelledby="run-aims-title">

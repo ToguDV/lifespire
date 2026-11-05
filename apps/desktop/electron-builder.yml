@@ -40,9 +40,9 @@ linux:
   icon: build/icon.png
   syncDesktopName: true
   maintainer: LifeSpire contributors <noreply@lifespire.app>
-  synopsis: A quiet ascent through your goals
+  synopsis: A quiet ascent through your quests
   description: >-
-    LifeSpire turns your goals and routines into a daily node map. Local-first,
+    LifeSpire turns your quests and trials into a daily encounter map. Local-first,
     offline, and kept on your device.
 
 nsis:

@@ -77,7 +77,7 @@ export function GoalDialog({ goal, onClose, onArchive }: GoalDialogProps) {
       title={goal ? 'Edit quest' : 'Add a quest'}
       description={
         goal
-          ? 'Edits apply from tomorrow, or today if you reset the day.'
+          ? 'Edits apply from tomorrow, or today if you abandon the day.'
           : 'A quest holds the trials that move it. It joins the week tomorrow.'
       }
       onClose={onClose}
@@ -262,7 +262,7 @@ export function TaskDialog({ task, goalId, onClose, onArchive }: TaskDialogProps
       open
       eyebrow="Trials"
       title={task ? 'Edit trial' : 'Add a trial'}
-      description="Edits apply from tomorrow, or today if you reset the day."
+      description="Edits apply from tomorrow, or today if you abandon the day."
       onClose={onClose}
       footer={
         <>
@@ -402,8 +402,8 @@ export function ArchiveDialog({ kind, id, title, onClose }: ArchiveDialogProps) 
       title={`Archive “${title}”?`}
       description={
         kind === 'goal'
-          ? 'This quest and its trials leave the week from tomorrow, or today if you reset the day. Maps already drawn keep their original steps.'
-          : 'This trial leaves the week from tomorrow, or today if you reset the day. Maps already drawn keep their original step.'
+          ? 'This quest and its trials leave the week from tomorrow, or today if you abandon the day. Maps already drawn keep their original steps.'
+          : 'This trial leaves the week from tomorrow, or today if you abandon the day. Maps already drawn keep their original step.'
       }
       onClose={onClose}
       footer={

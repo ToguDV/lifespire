@@ -72,8 +72,8 @@ function NodeTutorialCard() {
     <TutorialDialog
       card="node"
       icon="check"
-      title="Do it, then mark it"
-      body="Do the step in real life, then Claim it for XP, gold and quest progress. Pass moves on with nothing — no penalty."
+      title="Do it, then claim it"
+      body="Do the step in real life, then claim it for XP, gold and quest progress. Pass moves on with nothing — no penalty."
       primaryLabel="Got it"
       onPrimary={() => markTutorialSeen('node')}
       onHide={() => markTutorialSeen('node')}

@@ -223,23 +223,23 @@ export function startNewRun(
   options: StartNewRunOptions,
 ): GameDocument {
   if (!document.profile) {
-    throw new DomainError('Finish onboarding before you begin a run.')
+    throw new DomainError('Finish onboarding before you begin a journey.')
   }
 
   const previous = document.run
   if (!previous) {
-    throw new DomainError('There is no closed run to replace.')
+    throw new DomainError('There is no closed journey to replace.')
   }
   if (previous.status !== 'closed') {
-    throw new DomainError('Finish the current run before starting a new one.')
+    throw new DomainError('Finish the current journey before starting a new one.')
   }
   if (previous.summary === null) {
-    throw new DomainError('Seal this week before starting a new one so its bonus is not lost.')
+    throw new DomainError('Seal this week before starting a new journey so its bonus is not lost.')
   }
 
   const validation = validateSetup(document.goals, document.tasks)
   if (!validation.ok) {
-    throw new DomainError(validation.errors[0] ?? 'This path cannot begin yet.')
+    throw new DomainError(validation.errors[0] ?? 'This route cannot begin yet.')
   }
 
   const run = createRun({

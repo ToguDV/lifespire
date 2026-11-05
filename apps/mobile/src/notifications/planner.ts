@@ -32,13 +32,13 @@ function atTime(day: string, time: string): Date {
 function dayOpenCopy(day: Day): { title: string; body: string } {
   if (day.status === 'in_progress') {
     return {
-      title: 'Your path is waiting',
+      title: 'Your route is waiting',
       body: 'One step is enough. Continue today’s climb before midnight.',
     }
   }
   return {
     title: 'Today’s map is ready',
-    body: 'Choose a path and keep one small promise.',
+    body: 'Choose a route and keep one small promise.',
   }
 }
 
@@ -52,7 +52,7 @@ function eveningCopy(day: Day): { title: string; body: string } {
   if (day.status === 'in_progress') {
     return {
       title: 'The day is still open',
-      body: 'Your path is unfinished. One small step before midnight is enough.',
+      body: 'Your route is unfinished. One small step before midnight is enough.',
     }
   }
   return {
@@ -118,7 +118,7 @@ export function buildNotificationPlan({
         id: `lifespire:run-end:${run.id}`,
         kind: 'run-end',
         title: 'The week ends today',
-        body: 'Close the day to seal the run and receive its weekly bonus.',
+        body: 'Close the day to seal the journey and receive its vow bonus.',
         triggerAt,
         data: { app: 'lifespire', kind: 'run-end', url: 'lifespire://map' },
       })

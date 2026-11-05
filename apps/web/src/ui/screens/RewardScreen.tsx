@@ -139,7 +139,7 @@ export function RewardScreen() {
             <div className="node-medallion">
               <Icon name="wheel" />
             </div>
-            <span className="micro">Wheel reward</span>
+            <span className="micro">Wheel of Fortune reward</span>
             <h1 id="reward-title">Your reward</h1>
           </header>
 

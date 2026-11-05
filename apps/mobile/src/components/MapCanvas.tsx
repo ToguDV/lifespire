@@ -138,7 +138,7 @@ export function MapCanvas({
 
   const toX = (leftPercent: number) => (leftPercent / 100) * canvasWidth
   const toY = (topPercent: number) => (topPercent / 100) * canvasHeight
-  const groupLabel = `Day map. Camp at the bottom, ${layout.layers.length} layers above, and the boss at the top.`
+  const groupLabel = `Day map. Camp at the bottom, ${layout.layers.length} layers above, and the warden at the top.`
   // Stable id-keyed callbacks so the memoized node views only re-render when
   // their own props change instead of on every parent render.
   const handleReveal = useCallback((id: string) => setRevealed(id), [])

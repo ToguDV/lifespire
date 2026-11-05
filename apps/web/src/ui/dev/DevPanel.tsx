@@ -8,19 +8,19 @@ type PendingAction = 'demo' | 'restart' | 'reset'
 const CONFIRM_COPY: Record<PendingAction, { title: string; description: string; body: string; confirm: string }> = {
   demo: {
     title: 'Start a demo journey?',
-    description: 'This replaces the current profile, quests and journey with fresh demo content.',
+    description: 'This replaces the current wayfarer, quests and journey with fresh demo content.',
     body: 'The clock offset is kept, but any local progress is discarded. This action cannot be undone.',
     confirm: 'Start demo journey',
   },
   restart: {
     title: 'Restart the current journey?',
-    description: 'The journey and its days are discarded. The profile, XP, gold and collection stay.',
+    description: 'The journey and its days are discarded. The wayfarer, XP, gold and collection stay.',
     body: 'A new seven-day journey begins today with the current quests and trials.',
     confirm: 'Restart journey',
   },
   reset: {
     title: 'Reset all data?',
-    description: 'This removes the profile, quests, trials, journey and collection.',
+    description: 'This removes the wayfarer, quests, trials, journey and collection.',
     body: 'The development clock also returns to zero. Export first if you need a copy.',
     confirm: 'Reset everything',
   },

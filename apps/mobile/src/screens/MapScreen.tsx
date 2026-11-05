@@ -34,12 +34,12 @@ import { Text } from '../components/Text'
 import { useAppStore } from '../state/store'
 
 const LEGEND: Array<{ type: NodeType; icon?: IconName; copy: string }> = [
-  { type: 'task', icon: 'banner', copy: '+1 goal · XP/gold by effort' },
-  { type: 'elite', icon: 'star', copy: '+1 goal · double reward · loot roll' },
+  { type: 'task', icon: 'banner', copy: '+1 vow · XP/gold by difficulty' },
+  { type: 'elite', icon: 'star', copy: '+1 vow · double reward · spoils roll' },
   { type: 'rest', copy: '+5 XP' },
-  { type: 'treasure', copy: '+15 gold · loot roll' },
-  { type: 'wheel', copy: 'task, gold, XP or rest' },
-  { type: 'boss', icon: 'crown', copy: '+1 goal · closing bonus' },
+  { type: 'treasure', copy: '+15 gold · spoils roll' },
+  { type: 'wheel', copy: 'trial, gold, XP or respite' },
+  { type: 'boss', icon: 'crown', copy: '+1 vow · closing bonus' },
 ]
 
 /** Decorative silhouettes behind the empty frame, from the web map. */
@@ -71,7 +71,7 @@ function ChoiceRow({
   const node = resolveNodeById(map, nodeId)
   if (!node) return null
   const meta = [NODE_TYPE_LABEL[node.type]]
-  if (node.task) meta.push(`${EFFORT_LABEL[node.task.effort]} effort`)
+  if (node.task) meta.push(`${EFFORT_LABEL[node.task.effort]} difficulty`)
   meta.push(nodeRewardLine(node, nodeProgress(run, node)))
   return (
     <Pressable
@@ -179,7 +179,7 @@ function MapRail({
           <View style={styles.foot}>
             <Icon name={footIcon} size={13} color={colors.inkSoft} />
             <Text variant="caption" tone="soft" style={styles.footText}>
-              {noChoiceState ? 'No step can be chosen on this day.' : 'No step is open on this path.'}
+              {noChoiceState ? 'No step can be chosen on this day.' : 'No step is open on this route.'}
             </Text>
           </View>
         )}
@@ -188,10 +188,10 @@ function MapRail({
       {totalGoals > 0 ? (
         <Panel>
           <PanelHead
-            label={`${onTrack} of ${totalGoals} goals on track`}
+            label={`${onTrack} of ${totalGoals} quests on track`}
             aside={
               <Button small variant="ghost" onPress={onGoals}>
-                All goals
+                All quests
               </Button>
             }
           />
@@ -201,14 +201,14 @@ function MapRail({
       <Panel>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Node key"
+          accessibilityLabel="Encounter key"
           accessibilityState={{ expanded: legendOpen }}
-          accessibilityHint={legendOpen ? 'Hide the node key.' : 'Show the node key.'}
+          accessibilityHint={legendOpen ? 'Hide the encounter key.' : 'Show the encounter key.'}
           onPress={() => setLegendOpen((value) => !value)}
           style={styles.legendToggle}
         >
           <Text variant="micro" tone="muted">
-            NODE KEY
+            ENCOUNTER KEY
           </Text>
           <View style={legendOpen ? styles.chevronOpen : undefined}>
             <Icon name="chevron-right" size={15} color={colors.inkMuted} />
@@ -321,9 +321,9 @@ export function MapScreen() {
     return (
       <Screen>
         <ScreenHead
-          kicker="The run"
-          title="No run yet."
-          subtitle="The map opens when day 1 begins. Start a run from camp first."
+          kicker="The journey"
+          title="No journey yet."
+          subtitle="The map opens when day 1 begins. Start a journey from camp first."
           aside={
             <Button small variant="secondary" onPress={() => navigate({ name: 'home' })}>
               Go to camp
@@ -346,7 +346,7 @@ export function MapScreen() {
   } = deriveMapDayState(run, today)
 
   // One state, one title, one line, one chip.
-  let title = 'The path is veiled.'
+  let title = 'The route is veiled.'
   let sub = 'Open it once; it will not change.'
   let chipIcon: IconName = 'compass'
   let chipLabel = 'Veiled'
@@ -358,10 +358,10 @@ export function MapScreen() {
     chipLabel = 'Sealed'
   } else if (sealedDay && day) {
     const missed = day.status === 'missed'
-    title = missed ? 'The day was missed.' : 'The day is sealed.'
-    sub = missed ? 'No path was kept.' : 'Read what it granted.'
+    title = missed ? 'The day was lost.' : 'The day is sealed.'
+    sub = missed ? 'No route was kept.' : 'Read what it granted.'
     chipIcon = missed ? 'moon' : 'check'
-    chipLabel = missed ? 'Missed' : 'Sealed'
+    chipLabel = missed ? 'Lost' : 'Sealed'
   } else if (lockedDay) {
     title = 'The next day is sealed.'
     sub = 'Only today can be played.'
@@ -373,7 +373,7 @@ export function MapScreen() {
     sub = map.currentNodeId
       ? 'One step is chosen.'
       : availableCount > 0
-        ? `${availableCount} ${availableCount === 1 ? 'path' : 'paths'} ahead.`
+        ? `${availableCount} ${availableCount === 1 ? 'route' : 'routes'} ahead.`
         : 'No step is open.'
     chipIcon = 'check'
     chipLabel = `${resolvedCount} of ${map.layers.length + 1} resolved`
@@ -410,7 +410,7 @@ export function MapScreen() {
   } else if (canOpen && day) {
     action = (
       <Button variant="primary" onPress={() => openDay(day.id)}>
-        Open today’s path
+        Open today’s route
       </Button>
     )
   }

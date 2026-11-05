@@ -43,7 +43,7 @@ export function ProfileScreen() {
     return (
       <Screen>
         <ScreenHead
-          kicker="Profile"
+          kicker="Wayfarer"
           title="The Reliquary"
           subtitle="Your level, gold and collection appear after onboarding."
           aside={
@@ -61,7 +61,7 @@ export function ProfileScreen() {
   return (
     <Screen>
       <ScreenHead
-        kicker="Profile"
+        kicker="Wayfarer"
         title="The Reliquary"
         subtitle="Tokens found along the climb."
         aside={
@@ -85,14 +85,14 @@ export function ProfileScreen() {
           <View style={styles.stripId}>
             <Text variant="headingLg">{profile.name}</Text>
             <Text style={[styles.wayfarer, { color: colors.inkSoft }]}>
-              Wayfarer of the quiet path
+              Wayfarer of the quiet route
             </Text>
             <View style={styles.xpMeta}>
-              <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>Experience</Text>
+              <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>XP</Text>
               <Text style={[styles.xpMetaText, { color: colors.inkSoft }]}>{xpNow} / {XP_PER_LEVEL}</Text>
             </View>
             <View style={styles.xpBar}>
-              <Progress value={xpNow} max={XP_PER_LEVEL} height={4} label="Experience in this level" />
+              <Progress value={xpNow} max={XP_PER_LEVEL} height={4} label="XP in this level" />
             </View>
           </View>
         </View>

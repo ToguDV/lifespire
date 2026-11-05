@@ -43,7 +43,7 @@ function parseTarget(raw: unknown): number {
 }
 
 function weeklyTargetError(goal: Goal): string {
-  const name = goal.title.trim() || 'this goal'
+  const name = goal.title.trim() || 'this quest'
   return `Set ${name} between ${MIN_WEEKLY_OBJECTIVE} and ${MAX_WEEKLY_OBJECTIVE}.`
 }
 

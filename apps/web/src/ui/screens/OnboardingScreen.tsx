@@ -556,8 +556,8 @@ export function OnboardingScreen() {
     },
     3: {
       title: 'Chapter III — Review the week',
-      body: 'One last look. Tomorrow each quest becomes routes on your map.',
-      tip: 'New quests join next map — or today if you reset the day.',
+      body: 'One last look. Tomorrow each quest becomes a route on your map.',
+      tip: 'New quests join next map — or today if you abandon the day.',
     },
   } as const
   const copy = stepCopy[step as keyof typeof stepCopy] ?? stepCopy[1]
@@ -578,7 +578,7 @@ export function OnboardingScreen() {
 
       <div className="onboarding-shell">
         <div className="onboarding-head">
-          <span className="kicker">Tutorial · Create your path</span>
+          <span className="kicker">Tutorial · Create your route</span>
           <h1 id="onboarding-title" ref={headingRef} tabIndex={-1}>
             {copy.title}
           </h1>
@@ -702,7 +702,7 @@ export function OnboardingScreen() {
                   </span>
                 </div>
                 <p className="panel-note">
-                  Tomorrow each quest becomes routes on your map. You can edit everything later
+                  Tomorrow each quest becomes a route on your map. You can edit everything later
                   from Quests.
                 </p>
               </div>

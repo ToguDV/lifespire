@@ -40,7 +40,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
         <ScreenHead
           kicker="Day summary"
           title="Returning to camp."
-          subtitle="That day is not part of this run."
+          subtitle="That day is not part of this journey."
           aside={
             <Button small variant="secondary" onPress={() => navigate({ name: 'home' })}>
               Return to camp
@@ -56,12 +56,12 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
     return (
       <Screen>
         <ScreenHead
-          kicker={`Day ${day.index + 1} · ${missed ? 'Missed' : 'Open'}`}
+          kicker={`Day ${day.index + 1} · ${missed ? 'Lost' : 'Open'}`}
           title={missed ? 'The day passed unclaimed.' : 'The day is still open.'}
           subtitle={
             missed
               ? 'No summary was sealed for this day.'
-              : 'Complete the daily boss to seal the day.'
+              : 'Claim the daily warden to seal the day.'
           }
           aside={
             <Button
@@ -104,7 +104,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
                   variant={summary.bossCompleted ? 'accent' : 'quiet'}
                   icon={summary.bossCompleted ? 'crown' : 'lock'}
                 >
-                  {summary.bossCompleted ? 'Boss completed' : 'Boss skipped'}
+                  {summary.bossCompleted ? 'Warden claimed' : 'Warden passed'}
                 </Chip>
               </View>
             </View>
@@ -117,7 +117,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
         </ReportSection>
 
         <ReportSection>
-          <View style={styles.path} accessible accessibilityLabel="Path taken">
+          <View style={styles.path} accessible accessibilityLabel="Route taken">
             {path.length === 0 ? (
               <Text variant="bodySm" tone="muted">
                 No steps were recorded on this day.
@@ -147,31 +147,33 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
                       color={done ? colors.doneInk : colors.inkSoft}
                     />
                   </View>
-                  <View style={styles.pathBody}>
-                    <Text style={[styles.pathTitle, { color: colors.ink }]} numberOfLines={2}>
-                      {row.title}
-                    </Text>
-                    <Text style={[styles.pathMeta, { color: colors.inkSoft }]} numberOfLines={2}>
-                      {NODE_TYPE_LABEL[row.type]}
-                      {row.goalTitle ? ` · ${row.goalTitle}` : ''} ·{' '}
-                      {done ? 'Completed' : 'Skipped'}
-                    </Text>
-                  </View>
-                  <View style={styles.pathRewards}>
-                    <Text
-                      style={[
-                        styles.pathReward,
-                        { color: done ? colors.inkMuted : colors.inkSoft },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {dayPathReward(row)}
-                    </Text>
-                    {row.duplicateGold > 0 ? (
-                      <Text style={[styles.pathDuplicate, { color: colors.inkSoft }]}>
-                        {`incl. +${row.duplicateGold} g duplicate`}
+                  <View style={styles.pathText}>
+                    <View style={styles.pathBody}>
+                      <Text style={[styles.pathTitle, { color: colors.ink }]} numberOfLines={2}>
+                        {row.title}
                       </Text>
-                    ) : null}
+                      <Text style={[styles.pathMeta, { color: colors.inkSoft }]} numberOfLines={2}>
+                        {NODE_TYPE_LABEL[row.type]}
+                        {row.goalTitle ? ` · ${row.goalTitle}` : ''} ·{' '}
+                        {done ? 'Claimed' : 'Passed'}
+                      </Text>
+                    </View>
+                    <View style={styles.pathRewards}>
+                      <Text
+                        style={[
+                          styles.pathReward,
+                          { color: done ? colors.inkMuted : colors.inkSoft },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {dayPathReward(row)}
+                      </Text>
+                      {row.duplicateGold > 0 ? (
+                        <Text style={[styles.pathDuplicate, { color: colors.inkSoft }]}>
+                          {`incl. +${row.duplicateGold} g duplicate`}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
               )
@@ -179,8 +181,8 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
           </View>
           <Text variant="bodySm" tone="muted" style={styles.bonusNote}>
             {summary.bossCompleted
-              ? `Includes boss closing bonus +${summary.closingBonusXp} XP · +${summary.closingBonusGold} gold.`
-              : 'Boss skipped: no closing bonus.'}
+              ? `Includes warden closing bonus +${summary.closingBonusXp} XP · +${summary.closingBonusGold} gold.`
+              : 'Warden passed: no closing bonus.'}
           </Text>
         </ReportSection>
 
@@ -213,7 +215,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
                   />
                   <Text style={[styles.aimMeta, { color: colors.inkSoft }]}>
                     {objective.after >= objective.target
-                      ? 'Target met'
+                      ? 'Vow met'
                       : `${objective.target - objective.after} to go`}
                   </Text>
                 </View>
@@ -270,7 +272,7 @@ export function DaySummaryScreen({ dayId }: { dayId: string }) {
               <Button
                 variant="quiet"
                 disabled
-                accessibilityHint="The next path opens at midnight."
+                accessibilityHint="The next route opens at midnight."
                 full
               >
                 Wait for tomorrow
@@ -298,10 +300,10 @@ const styles = StyleSheet.create({
   },
   pathRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: space.sm,
-    // 6px keeps the web day-path row rhythm; no token covers it.
-    paddingVertical: 6,
+    // 9px gives the two-line text block room without crowding the medallion.
+    paddingVertical: 9,
   },
   medallion: {
     width: 35,
@@ -312,30 +314,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  pathBody: { flex: 1, minWidth: 0, gap: 2 },
-  // 15/9.9/10.2px keep pixel parity with the web day-path rows.
-  pathTitle: { fontFamily: fonts.display, fontSize: 15, lineHeight: 19 },
+  pathText: { flex: 1, minWidth: 0, gap: 3 },
+  pathBody: { minWidth: 0, gap: 2 },
+  // 16/20px keeps the path title readable next to the summary totals.
+  pathTitle: { fontFamily: fonts.display, fontSize: 16, lineHeight: 20 },
   pathMeta: {
     fontFamily: fonts.uiBold,
-    fontSize: 9.9,
-    lineHeight: 13,
-    letterSpacing: 0.55,
+    fontSize: 11.5,
+    lineHeight: 15,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-  pathRewards: { alignItems: 'flex-end', maxWidth: '38%', gap: 1 },
+  pathRewards: { alignItems: 'flex-start', gap: 2 },
   pathReward: {
     fontFamily: fonts.uiBold,
-    fontSize: 10.2,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 16,
     letterSpacing: 0.2,
-    textAlign: 'right',
+    textAlign: 'left',
     fontVariant: ['lining-nums', 'tabular-nums'],
   },
   pathDuplicate: {
     fontFamily: fonts.ui,
-    fontSize: 10,
-    lineHeight: 13,
-    textAlign: 'right',
+    fontSize: 11.5,
+    lineHeight: 15,
+    textAlign: 'left',
   },
   bonusNote: { marginTop: space.sm },
   aims: { gap: 0 },
@@ -349,9 +352,9 @@ const styles = StyleSheet.create({
     // 6px keeps the web aim-meta rhythm; no token covers it.
     paddingBottom: 6,
     fontFamily: fonts.uiBold,
-    fontSize: 10,
-    lineHeight: 13,
-    letterSpacing: 0.5,
+    fontSize: 11.5,
+    lineHeight: 15,
+    letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
   lootNote: { marginTop: space.xs },
@@ -366,12 +369,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     marginBottom: space.sm,
   },
-  // 11.2px keeps pixel parity with the web level-up strip.
+  // 12.5px keeps the level-up strip readable without competing with the H1.
   levelUpText: {
     flex: 1,
     fontFamily: fonts.uiBold,
-    fontSize: 11.2,
-    lineHeight: 16,
+    fontSize: 12.5,
+    lineHeight: 17,
     letterSpacing: 0.4,
   },
   actions: { gap: space.sm },

@@ -1,18 +1,18 @@
 # LifeSpire
 
-**Turn your goals and trials into a daily node map.**
+**Turn your quests and trials into a daily encounter map.**
 
-LifeSpire turns a person's goals and trials into a daily node map inspired by
-*Slay the Spire*. Each day you choose a path; each node is a real-world action
-(a task, a rest, a treasure, a wheel, or the daily boss). A **run** lasts 7 days
-with weekly objectives — the more you complete, the more gold, XP, and loot you
-earn.
+LifeSpire turns a person's quests and trials into a daily encounter map inspired
+by *Slay the Spire*. Each day you choose a route; each encounter is a real-world
+action (a trial, a respite, a hoard, a wheel of fortune, or the daily warden).
+A **journey** lasts 7 days with weekly vows — the more you claim, the more gold,
+XP, and spoils you earn.
 
 It's local-first on **web, Android and desktop**: one profile, playable with no
 account or server. The web app is installable as a PWA and fully usable offline
 after the first load. The Android app (Expo/React Native) shares the same
 domain and save format, adds device-local reminders for the daily map, an
-unresolved evening and the end of the run, and pairs with the desktop app over
+unresolved evening and the end of the journey, and pairs with the desktop app over
 the local network. Nearby sync is **serverless**: devices discover each other
 over UDP, pair with a QR or an 8-character code, and exchange saves over HTTPS
 with per-device self-signed certificates and certificate pinning. There is no
@@ -20,10 +20,10 @@ cloud copy. The Electron shell runs the same web build and hosts the desktop
 LAN node. See `docs/adr/0007-local-lan-sync.md`, `docs/MOBILE.md` and
 `docs/DESKTOP.md`.
 
-The node map is the heart of the app: each day you pick a path through 3–15 layers
-plus a boss, with visible trade-offs between progress, effort, and reward. The
-depth follows the goals that have active trials and their weekly targets,
-while the width follows your trials.
+The encounter map is the heart of the app: each day you pick a route through
+3–15 layers plus a warden, with visible trade-offs between progress, difficulty,
+and reward. The depth follows the quests that have active trials and their
+weekly vows, while the width follows your trials.
 
 ---
 
@@ -31,13 +31,13 @@ while the width follows your trials.
 
 | Light theme | Dark theme |
 |---|---|
-| ![Node map (light theme)](./docs/screenshots/map-light.png) | ![Node map (dark theme)](./docs/screenshots/map-dark.png) |
+| ![Encounter map (light theme)](./docs/screenshots/map-light.png) | ![Encounter map (dark theme)](./docs/screenshots/map-dark.png) |
 
 Mobile layouts are fully supported:
 
 | Mobile (light) | Mobile (dark) |
 |---|---|
-| ![Node map (mobile, light)](./docs/screenshots/map-mobile-light.png) | ![Node map (mobile, dark)](./docs/screenshots/map-mobile-dark.png) |
+| ![Encounter map (mobile, light)](./docs/screenshots/map-mobile-light.png) | ![Encounter map (mobile, dark)](./docs/screenshots/map-mobile-dark.png) |
 
 ---
 
@@ -56,8 +56,8 @@ an EAS build for Nearby devices: Expo Go does not include the LAN Kotlin
 module. `docs/MOBILE.md` covers the SDK, local notifications and the release
 checklist. For desktop, `docs/DESKTOP.md` covers the packaged builds, the
 `electron-updater` channel and the tag-driven release workflow. On first launch
-you can load **demo data** and start a run in one click, or create your own goals
-and trials.
+you can load **demo data** and start a journey in one click, or create your own
+quests and trials.
 
 Android updates ship through the self-hosted F-Droid repository at
 `https://togudv.github.io/lifespire/fdroid/repo/`; desktop builds update from
@@ -91,18 +91,20 @@ pnpm preview    # serve the build (test PWA / offline)
 
 ## How it works
 
-1. **Onboarding** — pick demo data or create 1–10 goals with their trials.
-2. **Each day** — open the day's map (3–15 decision layers + a boss, 3–5 nodes
-   per layer; depth follows the goals with active trials and their weekly
-   targets), pick a node, complete the real-world action, mark it done.
-3. **Rewards** — XP, gold, and loot are granted instantly. Tasks also add
-   progress to their goal's weekly objective.
-4. **Close the day** — resolving the boss ends the day with a bonus.
-5. **Close the run** — after 7 days you get a weekly summary with bonuses and
-   loot. Start a new run keeping your profile, gold, XP, and collection.
+1. **Onboarding** — pick demo data or create 1–10 quests with their trials.
+2. **Each day** — open the day's map (3–15 decision layers + a warden, 3–5
+   encounters per layer; depth follows the quests with active trials and their
+   weekly vows), pick an encounter, do the real-world action, mark it claimed.
+3. **Rewards** — XP, gold, and spoils are granted instantly. Trials also add
+   progress to their quest's weekly vow.
+4. **Close the day** — claiming the warden ends the day with a bonus.
+5. **Close the journey** — after 7 days you get a weekly summary with bonuses
+   and spoils. Start a new journey keeping your profile, gold, XP, and
+   collection.
 
-Path choice has visible trade-offs: tasks advance the week, treasures pay
-immediately but give no progress, elites pay double in exchange for more effort.
+Route choice has visible trade-offs: trials advance the week, hoards pay
+immediately but give no progress, elites pay double in exchange for more
+difficulty.
 
 ---
 
@@ -110,11 +112,11 @@ immediately but give no progress, elites pay double in exchange for more effort.
 
 **In scope**
 
-- Onboarding with demo or custom data; 1–10 goals with trials
-- 7-day runs with deterministic maps (3–15 layers + boss, driven by the goals with active trials)
-- Node types: task, elite, rest, treasure, wheel, boss
-- Instant rewards (XP, gold, loot), weekly progress, day & run summaries
-- New run keeping profile, gold, XP, and collection
+- Onboarding with demo or custom data; 1–10 quests with trials
+- 7-day journeys with deterministic maps (3–15 layers + warden, driven by the quests with active trials)
+- Encounter types: trial, elite, respite, hoard, wheel of fortune, warden
+- Instant rewards (XP, gold, spoils), weekly progress, day & journey summaries
+- New journey keeping profile, gold, XP, and collection
 - Local persistence with JSON export/import and reset
 - Dev panel to advance days and simulate a week
 - PWA, offline after first load, responsive (360px → desktop)

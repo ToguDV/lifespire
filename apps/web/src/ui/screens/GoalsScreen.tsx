@@ -149,7 +149,7 @@ export function GoalsScreen() {
                         {goal.category.trim() || 'General'} ·{' '}
                         {objective
                           ? `this week ${objective.target}`
-                          : `${goal.weeklyObjective} vow each week next journey`}
+                          : `${goal.weeklyObjective} ${goal.weeklyObjective === 1 ? 'vow' : 'vows'} each week next journey`}
                       </p>
                       {goal.description.trim() ? (
                         <p className="panel-note">{goal.description.trim()}</p>
@@ -168,13 +168,13 @@ export function GoalsScreen() {
                           </span>
                         </>
                       ) : run ? (
-                        <span className="chip chip--quiet">Not in this run</span>
+                        <span className="chip chip--quiet">Not in this journey</span>
                       ) : (
                         <>
                           <Pips
                             value={0}
                             max={goal.weeklyObjective}
-                            label={`0 of ${goal.weeklyObjective} next run`}
+                            label={`0 of ${goal.weeklyObjective} next journey`}
                           />
                           <span>0 / {goal.weeklyObjective}</span>
                         </>
