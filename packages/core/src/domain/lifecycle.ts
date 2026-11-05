@@ -384,12 +384,12 @@ export function syncObjectives(run: Run, goals: readonly Goal[]): Run {
 export function resetCurrentDay(document: GameDocument, now: Date): GameDocument {
   const run = document.run
   if (!run || run.status !== 'active') {
-    throw new DomainError('There is no active journey to reset.')
+    throw new DomainError('There is no active journey to abandon.')
   }
   const today = dayKey(now, run.timeZone ?? null)
   const day = run.days.find((candidate) => candidate.date === today)
   if (!day) {
-    throw new DomainError('There is no open day to reset.')
+    throw new DomainError('There is no open day to abandon.')
   }
   if (day.status === 'locked') {
     throw new DomainError('That day has not arrived yet.')
@@ -666,7 +666,7 @@ function applyCompletion(input: {
 }): ResolutionResult {
   const startingProfile = input.profile
   if (!startingProfile) {
-    throw new DomainError('A profile is required to record rewards.')
+    throw new DomainError('A wayfarer is required to record rewards.')
   }
 
   const { node } = input

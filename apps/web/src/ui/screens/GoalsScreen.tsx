@@ -90,7 +90,7 @@ export function GoalsScreen() {
         meta={
           <>
             <span className="chip chip--quiet">
-              {activeGoals.length} quests · {activeTasks.length} trials
+              {`${activeGoals.length} ${activeGoals.length === 1 ? 'quest' : 'quests'} · ${activeTasks.length} trials`}
             </span>
             <span className="micro" style={{ color: 'var(--accent-deep)' }}>
               {totalProgress} / {totalTarget} this week
@@ -246,8 +246,8 @@ export function GoalsScreen() {
                         <span className="archived-row__body">
                           <strong>{goal.title || 'Untitled quest'}</strong>
                           <small>
-                            {goal.category.trim() || 'General'} · {goal.weeklyObjective} vow each
-                            week
+                            {goal.category.trim() || 'General'} · {goal.weeklyObjective}{' '}
+                            {goal.weeklyObjective === 1 ? 'vow' : 'vows'} each week
                           </small>
                         </span>
                         <Button

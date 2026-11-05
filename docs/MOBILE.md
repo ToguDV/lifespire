@@ -326,14 +326,14 @@ The stable repository URL is
 - Data safety matches web. The import preview names the chosen JSON file on a
   valid save and warns that replacing overwrites the keys under
   `lifespire:mvp0`; a rejected file reports the reason without the name. A sync
-  conflict shows both copies (profile, progress, journey and saved time), lists up
+  conflict shows both copies (wayfarer, progress, journey and saved time), lists up
   to five merge reasons and can share this device and the peer copy as two
   separate `lifespire-this-device-<date>.json` / `lifespire-<peer>-<date>.json`
   files. A local backup is written before keeping either side, and “Export
   both” also keeps the conflict open until the player decides.
 - Navigation reuses the store's transient `view`/`history` (no router);
   Android's hardware back button maps to `back()` and is blocked on the wheel
-  recap. Tabbar: Map, Camp, Goals, Relics; Settings lives in the topbar.
+  recap. Tabbar: Map, Camp, Quests, Relics; Settings lives in the topbar.
 - The mobile topbar is the 56 dp shell header: 21 px spire mark plus wordmark on
   the left, gold (16 px coin), `Lv N`, the theme switch and Settings on the
   right. It does not show the day pips or `Day N of 7`; Home carries the week
