@@ -400,15 +400,39 @@ class LanServer(
     val declared = session.headers["content-length"]?.toLongOrNull() ?: 0
     if (declared > MAX_REQUEST_BYTES) return null
     return try {
-      val files = HashMap<String, String>()
-      session.parseBody(files)
-      val raw = files["postData"] ?: return null
+      val raw = readBody(session, declared) ?: return null
       if (raw.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) return null
-      JSONObject(raw)
+      JSONObject(raw.trim())
     } catch (error: Exception) {
       onError("Invalid request body: ${error.message ?: "unreadable"}")
       null
     }
+  }
+
+  /**
+   * Reads the body from the stream and decodes it with the declared charset,
+   * defaulting to UTF-8. NanoHTTPD's `parseBody` uses US-ASCII when the
+   * `Content-Type` has no `charset`, which turns every accent into U+FFFD;
+   * JSON is UTF-8 by contract (RFC 8259).
+   */
+  private fun readBody(session: IHTTPSession, declared: Long): String? {
+    if (declared <= 0) {
+      // No Content-Length: keep NanoHTTPD's legacy behaviour for this edge.
+      val files = HashMap<String, String>()
+      session.parseBody(files)
+      return files["postData"]
+    }
+    val bytes = ByteArray(declared.toInt())
+    var offset = 0
+    val stream = session.inputStream
+    while (offset < bytes.size) {
+      val read = stream.read(bytes, offset, bytes.size - offset)
+      if (read <= 0) break
+      offset += read
+    }
+    if (offset == 0) return null
+    val body = if (offset == bytes.size) bytes else bytes.copyOf(offset)
+    return decodeRequestBody(session.headers["content-type"], body)
   }
 
   private fun status(code: Int): Response.Status =

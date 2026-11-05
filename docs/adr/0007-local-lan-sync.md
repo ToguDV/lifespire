@@ -105,6 +105,10 @@ export/import.
   overwritten.
 - Requests are limited to 512 KB of document JSON and 2 MB of body; only
   private source addresses are accepted.
+- Bodies are UTF-8 JSON and the `Content-Type` must declare `charset=utf-8`.
+  Receivers treat an absent or unknown charset as UTF-8 (RFC 8259), never as
+  US-ASCII: NanoHTTPD's ASCII fallback turned every accented character into
+  `U+FFFD`.
 
 ### Sync algorithm
 

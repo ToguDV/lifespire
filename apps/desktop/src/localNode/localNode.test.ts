@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import https from 'node:https'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createPinnedClient } from './client'
@@ -370,6 +371,56 @@ describe('desktop local node over HTTPS', () => {
       expect(a.listPeers().some((peer) => peer.peerId === 'fake-device-1234')).toBe(true)
     } finally {
       await a.stop()
+    }
+  })
+})
+
+describe('desktop LAN client wire format', () => {
+  /**
+   * Every peer writes UTF-8, but the charset must travel in the header: the
+   * Android LAN server (NanoHTTPD) falls back to US-ASCII when it is missing
+   * and turns every accented character into U+FFFD.
+   */
+  it('declares UTF-8 so non-ASCII document text survives the wire', async () => {
+    const dir = tempDir()
+    const file = createVaultFile(path.join(dir, 'identity.json'), fs)
+    const identity = createIdentityStore({ file, secrets: plainSecrets }).loadOrCreate('Desk')
+    let receivedType: string | undefined
+    let receivedBody = ''
+    const server = https.createServer(
+      { cert: identity.certPem, key: identity.keyPem },
+      (req, res) => {
+        const chunks: Buffer[] = []
+        req.on('data', (chunk: Buffer) => chunks.push(chunk))
+        req.on('end', () => {
+          receivedType = req.headers['content-type']
+          receivedBody = Buffer.concat(chunks).toString('utf8')
+          res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' })
+          res.end('{"ok":true}')
+        })
+      },
+    )
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    try {
+      const address = server.address()
+      const port = typeof address === 'object' && address ? address.port : 0
+      const documentJson = JSON.stringify({ title: 'Misión Acción 🎯' })
+      const response = await createPinnedClient().request({
+        host: '127.0.0.1',
+        port,
+        method: 'POST',
+        path: '/v1/document',
+        expectedFingerprint: identity.fingerprint,
+        body: { documentJson, docHash: 'hash-1', expectedHash: null },
+      })
+      expect(response.status).toBe(200)
+      expect(receivedType).toMatch(/charset=utf-8/i)
+      const payload = JSON.parse(receivedBody) as { documentJson: string }
+      expect((JSON.parse(payload.documentJson) as { title: string }).title).toBe(
+        'Misión Acción 🎯',
+      )
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()))
     }
   })
 })
