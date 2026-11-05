@@ -144,7 +144,7 @@ export function createPinnedClient(
             'Connection: close',
             `Content-Length: ${bodyBytes}`,
           ]
-          if (bodyBytes > 0) headers.push('Content-Type: application/json')
+          if (bodyBytes > 0) headers.push('Content-Type: application/json; charset=utf-8')
           if (request.token) headers.push(`Authorization: Bearer ${request.token}`)
           socket.write(`${headers.join('\r\n')}\r\n\r\n${body}`)
         })

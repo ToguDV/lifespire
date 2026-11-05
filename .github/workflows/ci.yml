@@ -200,3 +200,9 @@ jobs:
             sleep 20
           done
           exit 1
+
+      # The LAN module's JVM tests cover the wire decoding (UTF-8 vs
+      # NanoHTTPD's US-ASCII default) without needing an emulator.
+      - name: Test the LAN module
+        working-directory: apps/mobile/android
+        run: ./gradlew :lifespire-lan:testDebugUnitTest --no-daemon

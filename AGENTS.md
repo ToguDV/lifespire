@@ -135,14 +135,15 @@ local node suite.
 - E2E tests live in [`apps/web/e2e/`](./apps/web/e2e) and are configured in
   [`apps/web/playwright.config.ts`](./apps/web/playwright.config.ts). The local
   node suite lives in `apps/desktop/src/localNode/`; the Android node is
-  compiled by the `mobile-native` job.
+  compiled and its JVM tests run by the `mobile-native` job.
 - The [`ci.yml`](./.github/workflows/ci.yml) workflow always runs lint,
   typecheck, E2E typecheck, tests, and build across all workspaces, including
   the Android Jest suite, the Metro bundle and the Electron shell. The `e2e` job
   only runs when critical paths change (web domain/state/content/shell/screens,
   mobile, shared packages, E2E config, lockfile) or manually via
-  `workflow_dispatch`. A separate `mobile-native` job runs `expo prebuild` and
-  compiles the Android app (including the LAN Kotlin module).
+  `workflow_dispatch`. A separate `mobile-native` job runs `expo prebuild`,
+  compiles the Android app (including the LAN Kotlin module) and runs that
+  module's JVM tests (`:lifespire-lan:testDebugUnitTest`).
 - [`release.yml`](./.github/workflows/release.yml) runs only on `v*` tags:
   verify the tag against the manifests, run the quality gates, package the
   Electron installers on Linux/Windows with their `electron-updater` channel

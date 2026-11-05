@@ -398,17 +398,52 @@ class LanServer(
 
   private fun readJson(session: IHTTPSession): JSONObject? {
     val declared = session.headers["content-length"]?.toLongOrNull() ?: 0
-    if (declared > MAX_REQUEST_BYTES) return null
+    if (declared > MAX_REQUEST_BYTES) {
+      onError("Rejected a request body of $declared bytes: the limit is $MAX_REQUEST_BYTES.")
+      return null
+    }
     return try {
-      val files = HashMap<String, String>()
-      session.parseBody(files)
-      val raw = files["postData"] ?: return null
-      if (raw.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) return null
-      JSONObject(raw)
+      val raw = readBody(session, declared) ?: return null
+      // A declared legacy charset can inflate when re-encoded as UTF-8, so the
+      // limit is checked again on the decoded text.
+      if (raw.toByteArray(Charsets.UTF_8).size > MAX_REQUEST_BYTES) {
+        onError("Rejected a decoded request body over $MAX_REQUEST_BYTES bytes.")
+        return null
+      }
+      JSONObject(raw.trim())
     } catch (error: Exception) {
       onError("Invalid request body: ${error.message ?: "unreadable"}")
       null
     }
+  }
+
+  /**
+   * Reads the body and decodes it as UTF-8 unless the peer declares another
+   * charset. `parseBody` is kept only for bodies without a usable
+   * `Content-Length` (chunked or absent), because it is the only path that
+   * de-chunks; there the `Content-Type` is rewritten to name UTF-8 first, since
+   * NanoHTTPD decodes with US-ASCII when the charset is missing. Everywhere else
+   * `parseBody` is avoided: it spills bodies over 1 KB to a temp file.
+   *
+   * This path no longer populates `session.parms`: the API is JSON-only today,
+   * so a future form-encoded route must call `parseBody` itself.
+   */
+  private fun readBody(session: IHTTPSession, declared: Long): String? {
+    if (declared <= 0 || isChunkedTransferEncoding(session.headers["transfer-encoding"])) {
+      // No usable Content-Length (an explicit 0 lands here too): only NanoHTTPD
+      // de-chunks, so keep its parser — but hand it a header that names UTF-8,
+      // because its own fallback is US-ASCII.
+      session.headers["content-type"] = utf8ContentType(session.headers["content-type"])
+      val files = HashMap<String, String>()
+      session.parseBody(files)
+      return files["postData"]
+    }
+    val body = readRequestBody(session.inputStream, declared, session.headers["content-type"])
+    if (body.truncated) {
+      onError("Truncated request body: expected ${body.expected} bytes, got ${body.received}.")
+      return null
+    }
+    return body.text
   }
 
   private fun status(code: Int): Response.Status =
