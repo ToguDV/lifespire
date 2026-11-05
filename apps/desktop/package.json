@@ -1,7 +1,7 @@
 {
   "name": "@lifespire/desktop",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "license": "MIT",
   "description": "LifeSpire desktop — Electron shell for the local-first web app.",
   "author": "LifeSpire contributors",
